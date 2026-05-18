@@ -94,4 +94,4 @@ docs/note_chain_assist_fix_temp_plan_2026-05-10.md
 artifacts/
 playback_probe_*.csv
 docs/p2_playback_probe_run_*.md
-docs/p2_playback_stutter_probe_guide_*.md
+docs/p2**.md
