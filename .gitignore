@@ -90,8 +90,13 @@ SYNC_EXECUTION_CONTEXT_2026-05-06.md
 beatmap/*
 docs/curve_sidecar_v3_context_snapshot.md
 docs/note_chain_assist_fix_temp_plan_2026-05-10.md
-# Runtime monitoring artifacts
+# Runtime monitoring artifacts and performance caches
 artifacts/
+artifacts/playback_probe_*.csv
+artifacts/performance_analysis.json
 playback_probe_*.csv
 docs/p2_playback_probe_run_*.md
-docs/p2**.md
+docs/p2_playback_stutter_probe_guide_*.md
+docs/performance_cache_*.md
+docs/wpr_cache_*.json
+docs/p2*
