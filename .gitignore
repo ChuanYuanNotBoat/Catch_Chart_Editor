@@ -100,3 +100,8 @@ docs/p2_playback_stutter_probe_guide_*.md
 docs/performance_cache_*.md
 docs/wpr_cache_*.json
 docs/p2*
+AI_CONTEXT_MEMORY.md
+docs/BRANCH_WORKFLOW.md
+docs/implementation_status.md
+docs/branch_context/_template.md
+docs/branch_context/feat-rain-length-drag.md
