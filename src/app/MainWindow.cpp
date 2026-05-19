@@ -1368,6 +1368,7 @@ void MainWindow::createMenus()
     QAction *saveAsAction = fileMenu->addAction(tr("Save &As..."), this, &MainWindow::saveChartAs);
     fileMenu->addSeparator();
     QAction *exportAction = fileMenu->addAction(tr("&Export .mcz..."), this, &MainWindow::exportMcz);
+    QAction *exportPureAction = fileMenu->addAction(tr("Export .mcz (&Pure)..."), this, &MainWindow::exportMczPure);
     fileMenu->addSeparator();
     QAction *switchDifficultyAction = fileMenu->addAction(tr("Switch &Difficulty..."), this, &MainWindow::switchDifficulty);
     fileMenu->addSeparator();
@@ -2757,7 +2758,18 @@ void MainWindow::saveChartAs()
 
 void MainWindow::exportMcz()
 {
-    Logger::info("Export .mcz requested");
+    exportMczInternal(false);
+}
+
+void MainWindow::exportMczPure()
+{
+    exportMczInternal(true);
+}
+
+void MainWindow::exportMczInternal(bool pureMode)
+{
+    Logger::info(pureMode ? "Export .mcz (pure) requested"
+                          : "Export .mcz requested");
 
     if (d->currentChartPath.isEmpty())
     {
@@ -2787,38 +2799,43 @@ void MainWindow::exportMcz()
         initialDir = QFileInfo(d->currentChartPath).absolutePath();
 
     const QString initialPath = QDir(initialDir).filePath(suggestedStem + ".mcz");
-    QString fileName = QFileDialog::getSaveFileName(this, tr("Export .mcz"), initialPath,
+    const QString dialogTitle = pureMode ? tr("Export .mcz (Pure)") : tr("Export .mcz");
+    QString fileName = QFileDialog::getSaveFileName(this, dialogTitle, initialPath,
                                                     tr("Malody Catch Pack (*.mcz);;All Files (*.*)"));
     if (fileName.isEmpty())
     {
-        Logger::debug("Export .mcz cancelled");
+        Logger::debug(pureMode ? "Export .mcz (pure) cancelled" : "Export .mcz cancelled");
         return;
     }
 
     try
     {
-        Logger::info(QString("MainWindow::exportMcz - Exporting to: %1").arg(fileName));
+        Logger::info(QString("MainWindow::exportMczInternal - Exporting to: %1 (mode=%2)")
+                         .arg(fileName, pureMode ? "pure" : "full"));
 
-        if (ProjectIO::exportToMcz(fileName, d->currentChartPath))
+        const bool ok = pureMode
+                            ? ProjectIO::exportToMczPure(fileName, d->currentChartPath)
+                            : ProjectIO::exportToMcz(fileName, d->currentChartPath);
+        if (ok)
         {
             statusBar()->showMessage(tr("Exported: %1").arg(fileName), 3000);
-            Logger::info(QString("MainWindow::exportMcz - Successfully exported to: %1").arg(fileName));
+            Logger::info(QString("MainWindow::exportMczInternal - Successfully exported to: %1").arg(fileName));
             QMessageBox::information(this, tr("Success"), tr("Chart exported successfully to:\n%1").arg(fileName));
         }
         else
         {
-            Logger::error(QString("MainWindow::exportMcz - Failed to export to: %1").arg(fileName));
+            Logger::error(QString("MainWindow::exportMczInternal - Failed to export to: %1").arg(fileName));
             QMessageBox::critical(this, tr("Error"), tr("Failed to export chart to MCZ format."));
         }
     }
     catch (const std::exception &e)
     {
-        Logger::error(QString("MainWindow::exportMcz - Exception: %1").arg(e.what()));
+        Logger::error(QString("MainWindow::exportMczInternal - Exception: %1").arg(e.what()));
         QMessageBox::critical(this, tr("Error"), tr("Exception during export: %1").arg(e.what()));
     }
     catch (...)
     {
-        Logger::error("MainWindow::exportMcz - Unknown exception");
+        Logger::error("MainWindow::exportMczInternal - Unknown exception");
         QMessageBox::critical(this, tr("Error"), tr("Unknown exception during export."));
     }
 }
