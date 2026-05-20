@@ -1814,37 +1814,37 @@ bool testBpmAuxFilesChartIdentifierForPath()
 
 bool testChartFileSystemRegisterFileType()
 {
-    ChartFileSystem::Registry::clearRegistrations();
+    ChartFileSystem::ChartFileSystemRegistry::clearRegistrations();
     
-    bool ok1 = ChartFileSystem::Registry::registerFileType("test_ext", "Test File", false, nullptr, 50);
-    bool ok2 = ChartFileSystem::Registry::registerFileType("test_ext", "Test File Updated", false, nullptr, 60);
+    bool ok1 = ChartFileSystem::ChartFileSystemRegistry::registerFileType("test_ext", "Test File", false, nullptr, 50);
+    bool ok2 = ChartFileSystem::ChartFileSystemRegistry::registerFileType("test_ext", "Test File Updated", false, nullptr, 60);
     
-    auto types = ChartFileSystem::Registry::registeredFileTypes();
+    auto types = ChartFileSystem::ChartFileSystemRegistry::registeredFileTypes();
     
     return ok1 && ok2 && types.size() == 1 && types.first().description == "Test File Updated";
 }
 
 bool testChartFileSystemIsAllowedFile()
 {
-    ChartFileSystem::Registry::clearRegistrations();
-    ChartFileSystem::Registry::registerFileType("mc", "Malody Chart", false, nullptr, 100);
-    ChartFileSystem::Registry::registerFileType("ogg", "Audio File", false, nullptr, 90);
+    ChartFileSystem::ChartFileSystemRegistry::clearRegistrations();
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("mc", "Malody Chart", false, nullptr, 100);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("ogg", "Audio File", false, nullptr, 90);
     
-    bool allowed1 = ChartFileSystem::Registry::isAllowedFile("chart.mc");
-    bool allowed2 = ChartFileSystem::Registry::isAllowedFile("audio.ogg");
-    bool allowed3 = ChartFileSystem::Registry::isAllowedFile("unknown.xyz");
+    bool allowed1 = ChartFileSystem::ChartFileSystemRegistry::isAllowedFile("chart.mc");
+    bool allowed2 = ChartFileSystem::ChartFileSystemRegistry::isAllowedFile("audio.ogg");
+    bool allowed3 = ChartFileSystem::ChartFileSystemRegistry::isAllowedFile("unknown.xyz");
     
     return allowed1 && allowed2 && !allowed3;
 }
 
 bool testChartFileSystemRequiredSidecarExtensions()
 {
-    ChartFileSystem::Registry::clearRegistrations();
-    ChartFileSystem::Registry::registerFileType("curve_tbd.json", "Curve Sidecar", false, nullptr, 80);
-    ChartFileSystem::Registry::registerFileType("bpm_excludes.json", "BPM Excludes", true, nullptr, 85);
-    ChartFileSystem::Registry::registerFileType("song_bpm.json", "Song BPM", true, nullptr, 85);
+    ChartFileSystem::ChartFileSystemRegistry::clearRegistrations();
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("curve_tbd.json", "Curve Sidecar", false, nullptr, 80);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("bpm_excludes.json", "BPM Excludes", true, nullptr, 85);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("song_bpm.json", "Song BPM", true, nullptr, 85);
     
-    QStringList required = ChartFileSystem::Registry::requiredSidecarExtensions();
+    QStringList required = ChartFileSystem::ChartFileSystemRegistry::requiredSidecarExtensions();
     
     return required.size() == 2 &&
            required.contains("bpm_excludes.json") &&
@@ -1854,23 +1854,23 @@ bool testChartFileSystemRequiredSidecarExtensions()
 
 bool testChartFileSystemUnregisterFileType()
 {
-    ChartFileSystem::Registry::clearRegistrations();
-    ChartFileSystem::Registry::registerFileType("test_ext", "Test File", false, nullptr, 50);
+    ChartFileSystem::ChartFileSystemRegistry::clearRegistrations();
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("test_ext", "Test File", false, nullptr, 50);
     
-    bool ok = ChartFileSystem::Registry::unregisterFileType("test_ext");
-    auto types = ChartFileSystem::Registry::registeredFileTypes();
+    bool ok = ChartFileSystem::ChartFileSystemRegistry::unregisterFileType("test_ext");
+    auto types = ChartFileSystem::ChartFileSystemRegistry::registeredFileTypes();
     
     return ok && types.isEmpty();
 }
 
 bool testChartFileSystemClearRegistrations()
 {
-    ChartFileSystem::Registry::clearRegistrations();
-    ChartFileSystem::Registry::registerFileType("test1", "Test1", false, nullptr, 50);
-    ChartFileSystem::Registry::registerFileType("test2", "Test2", false, nullptr, 50);
+    ChartFileSystem::ChartFileSystemRegistry::clearRegistrations();
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("test1", "Test1", false, nullptr, 50);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("test2", "Test2", false, nullptr, 50);
     
-    ChartFileSystem::Registry::clearRegistrations();
-    auto types = ChartFileSystem::Registry::registeredFileTypes();
+    ChartFileSystem::ChartFileSystemRegistry::clearRegistrations();
+    auto types = ChartFileSystem::ChartFileSystemRegistry::registeredFileTypes();
     
     return types.isEmpty();
 }

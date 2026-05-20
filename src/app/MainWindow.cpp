@@ -888,9 +888,9 @@ void syncAllKnownSidecars(const QString &sourceChartPath, const QString &targetC
                      .arg(sourceChartPath, targetChartPath));
 
     // 从 ChartFileSystem 注册表获取所有已注册的 sidecar 扩展名
-    QVector<RegisteredTypeInfo> registeredTypes = ChartFileSystem::ChartFileSystemRegistry::registeredFileTypes();
+    QVector<ChartFileSystem::RegisteredTypeInfo> registeredTypes = ChartFileSystem::ChartFileSystemRegistry::registeredFileTypes();
     QStringList knownSidecarExtensions;
-    for (const RegisteredTypeInfo &type : registeredTypes)
+    for (const ChartFileSystem::RegisteredTypeInfo &type : registeredTypes)
     {
         // 只处理 sidecar 文件（包含 .json 的扩展名）
         if (type.extension.contains(".json"))
