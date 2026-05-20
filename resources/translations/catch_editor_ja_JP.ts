@@ -203,12 +203,12 @@
     <message>
         <location filename="../../src/ui/LeftPanel.cpp" line="31"/>
         <source>-</source>
-        <translation type="unfinished"></translation>
+        <translation>-</translation>
     </message>
     <message>
         <location filename="../../src/ui/LeftPanel.cpp" line="33"/>
         <source>+</source>
-        <translation type="unfinished"></translation>
+        <translation>+</translation>
     </message>
     <message>
         <location filename="../../src/ui/LeftPanel.cpp" line="54"/>
@@ -520,12 +520,12 @@
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="686"/>
         <source>Custom...</source>
-        <translation type="unfinished"></translation>
+        <translation>カスタム...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="689"/>
         <source>Select Background Color</source>
-        <translation type="unfinished"></translation>
+        <translation>背景色を選択</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="696"/>
@@ -561,7 +561,7 @@
         <location filename="../../src/app/MainWindow.cpp" line="710"/>
         <location filename="../../src/app/MainWindow.cpp" line="1809"/>
         <source>[Debug] Mobile UI Test Mode (Restart Required)</source>
-        <translation type="unfinished"></translation>
+        <translation>[デバッグ] モバイルUIテストモード（再起動が必要）</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="716"/>
@@ -607,7 +607,7 @@
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="756"/>
         <source>Plugin &amp;Panels</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグインパネル(&amp;P)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="759"/>
@@ -640,37 +640,37 @@
         <location filename="../../src/app/MainWindow.cpp" line="770"/>
         <location filename="../../src/app/MainWindow.cpp" line="1797"/>
         <source>&amp;Help</source>
-        <translation type="unfinished"></translation>
+        <translation>ヘルプ(&amp;H)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="771"/>
         <location filename="../../src/app/MainWindow.cpp" line="1799"/>
         <source>Check for Updates...</source>
-        <translation type="unfinished"></translation>
+        <translation>更新を確認...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="773"/>
         <location filename="../../src/app/MainWindow.cpp" line="1801"/>
         <source>Help Documentation...</source>
-        <translation type="unfinished"></translation>
+        <translation>ヘルプドキュメント...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="774"/>
         <location filename="../../src/app/MainWindow.cpp" line="1803"/>
         <source>About...</source>
-        <translation type="unfinished"></translation>
+        <translation>について...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="775"/>
         <location filename="../../src/app/MainWindow.cpp" line="1805"/>
         <source>Version Information...</source>
-        <translation type="unfinished"></translation>
+        <translation>バージョン情報...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="776"/>
         <location filename="../../src/app/MainWindow.cpp" line="1807"/>
         <source>Logs...</source>
-        <translation type="unfinished"></translation>
+        <translation>ログ...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="804"/>
@@ -1711,11 +1711,102 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="535"/>
         <source>Session settings updated</source>
-        <translation>セッション設定を更新しました</translation>
+        <translation>セッション設定が更新されました</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="892"/>
+        <source>Session Settings</source>
+        <translation>セッション設定</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="908"/>
+        <source>Enable Audio Correction (Testing)</source>
+        <translation>オーディオ補正を有効にする（テスト）</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="911"/>
+        <source>Lock 60 FPS</source>
+        <translation>60 FPS に固定</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="912"/>
+        <source>Lock 90 FPS</source>
+        <translation>90 FPS に固定</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="913"/>
+        <source>Lock 120 FPS</source>
+        <translation>120 FPS に固定</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="914"/>
+        <source>Unlimited</source>
+        <translation>無制限</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="924"/>
+        <source>Playback FPS Cap:</source>
+        <translation>再生 FPS 上限:</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1461"/>
+        <source>Export .mcz (Pure)...</source>
+        <translation>.mcz をエクスポート（純粋）...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1543"/>
+        <source>Background Image Brightness...</source>
+        <translation>背景画像の明るさ...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1550"/>
+        <source>Background Image Brightness</source>
+        <translation>背景画像の明るさ</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1551"/>
+        <source>Brightness (%):</source>
+        <translation>明るさ (%):</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1563"/>
+        <source>Background image brightness: %1%</source>
+        <translation>背景画像の明るさ: %1%</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2908"/>
+        <source>Export .mcz (Pure)</source>
+        <translation>.mcz をエクスポート（純粋）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="63"/>
+        <source>Open Plugins Folder</source>
+        <translation>プラグインフォルダを開く</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="64"/>
+        <source>Reload Selected Plugin</source>
+        <translation>選択したプラグインを再読み込み</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="65"/>
+        <source>Reload Plugins</source>
+        <translation>プラグインを再読み込み</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="81"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="320"/>
+        <source>Note Placement Tools:</source>
+        <translation>ノート配置ツール:</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="283"/>
+        <source>Curve Plugin Options</source>
+        <translation>カーブプラグインオプション</translation>
     </message>
     <message>
         <source>Launch Curve Tool</source>
-        <translation>曲線ツールを起動</translation>
+        <translation>カーブツールを起動</translation>
     </message>
     <message>
         <source>No plugin supports canvas interaction.</source>

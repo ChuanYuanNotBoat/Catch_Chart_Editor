@@ -213,12 +213,12 @@
     <message>
         <location filename="../../src/ui/LeftPanel.cpp" line="31"/>
         <source>-</source>
-        <translation type="unfinished"></translation>
+        <translation>-</translation>
     </message>
     <message>
         <location filename="../../src/ui/LeftPanel.cpp" line="33"/>
         <source>+</source>
-        <translation type="unfinished"></translation>
+        <translation>+</translation>
     </message>
     <message>
         <location filename="../../src/ui/LeftPanel.cpp" line="54"/>
@@ -530,12 +530,12 @@
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="686"/>
         <source>Custom...</source>
-        <translation type="unfinished"></translation>
+        <translation>自定义...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="689"/>
         <source>Select Background Color</source>
-        <translation type="unfinished"></translation>
+        <translation>选择背景颜色</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="696"/>
@@ -571,7 +571,7 @@
         <location filename="../../src/app/MainWindow.cpp" line="710"/>
         <location filename="../../src/app/MainWindow.cpp" line="1809"/>
         <source>[Debug] Mobile UI Test Mode (Restart Required)</source>
-        <translation type="unfinished"></translation>
+        <translation>[调试] 移动端 UI 测试模式（需要重启）</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="716"/>
@@ -650,13 +650,13 @@
         <location filename="../../src/app/MainWindow.cpp" line="770"/>
         <location filename="../../src/app/MainWindow.cpp" line="1797"/>
         <source>&amp;Help</source>
-        <translation type="unfinished"></translation>
+        <translation>帮助(&amp;H)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="771"/>
         <location filename="../../src/app/MainWindow.cpp" line="1799"/>
         <source>Check for Updates...</source>
-        <translation type="unfinished"></translation>
+        <translation>检查更新...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="773"/>
@@ -1722,6 +1722,97 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="535"/>
         <source>Session settings updated</source>
         <translation>会话设置已更新</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="892"/>
+        <source>Session Settings</source>
+        <translation>会话设置</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="908"/>
+        <source>Enable Audio Correction (Testing)</source>
+        <translation>启用音频校正（测试）</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="911"/>
+        <source>Lock 60 FPS</source>
+        <translation>锁定 60 FPS</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="912"/>
+        <source>Lock 90 FPS</source>
+        <translation>锁定 90 FPS</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="913"/>
+        <source>Lock 120 FPS</source>
+        <translation>锁定 120 FPS</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="914"/>
+        <source>Unlimited</source>
+        <translation>无限制</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="924"/>
+        <source>Playback FPS Cap:</source>
+        <translation>播放帧率上限:</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1461"/>
+        <source>Export .mcz (Pure)...</source>
+        <translation>导出 .mcz（纯净）...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1543"/>
+        <source>Background Image Brightness...</source>
+        <translation>背景图片亮度...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1550"/>
+        <source>Background Image Brightness</source>
+        <translation>背景图片亮度</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1551"/>
+        <source>Brightness (%):</source>
+        <translation>亮度 (%):</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1563"/>
+        <source>Background image brightness: %1%</source>
+        <translation>背景图片亮度: %1%</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2908"/>
+        <source>Export .mcz (Pure)</source>
+        <translation>导出 .mcz（纯净）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="63"/>
+        <source>Open Plugins Folder</source>
+        <translation>打开插件文件夹</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="64"/>
+        <source>Reload Selected Plugin</source>
+        <translation>重新加载选中插件</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="65"/>
+        <source>Reload Plugins</source>
+        <translation>重新加载插件</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="81"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="320"/>
+        <source>Note Placement Tools:</source>
+        <translation>音符放置工具:</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="283"/>
+        <source>Curve Plugin Options</source>
+        <translation>曲线插件选项</translation>
     </message>
     <message>
         <source>Launch Curve Tool</source>

@@ -624,37 +624,37 @@
         <location filename="../../src/app/MainWindow.cpp" line="770"/>
         <location filename="../../src/app/MainWindow.cpp" line="1797"/>
         <source>&amp;Help</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Help</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="771"/>
         <location filename="../../src/app/MainWindow.cpp" line="1799"/>
         <source>Check for Updates...</source>
-        <translation type="unfinished"></translation>
+        <translation>Check for Updates...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="773"/>
         <location filename="../../src/app/MainWindow.cpp" line="1801"/>
         <source>Help Documentation...</source>
-        <translation type="unfinished"></translation>
+        <translation>Help Documentation...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="774"/>
         <location filename="../../src/app/MainWindow.cpp" line="1803"/>
         <source>About...</source>
-        <translation type="unfinished"></translation>
+        <translation>About...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="775"/>
         <location filename="../../src/app/MainWindow.cpp" line="1805"/>
         <source>Version Information...</source>
-        <translation type="unfinished"></translation>
+        <translation>Version Information...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="776"/>
         <location filename="../../src/app/MainWindow.cpp" line="1807"/>
         <source>Logs...</source>
-        <translation type="unfinished"></translation>
+        <translation>Logs...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="804"/>
@@ -1696,6 +1696,97 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="535"/>
         <source>Session settings updated</source>
         <translation>Session settings updated</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="892"/>
+        <source>Session Settings</source>
+        <translation>Session Settings</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="908"/>
+        <source>Enable Audio Correction (Testing)</source>
+        <translation>Enable Audio Correction (Testing)</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="911"/>
+        <source>Lock 60 FPS</source>
+        <translation>Lock 60 FPS</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="912"/>
+        <source>Lock 90 FPS</source>
+        <translation>Lock 90 FPS</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="913"/>
+        <source>Lock 120 FPS</source>
+        <translation>Lock 120 FPS</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="914"/>
+        <source>Unlimited</source>
+        <translation>Unlimited</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="924"/>
+        <source>Playback FPS Cap:</source>
+        <translation>Playback FPS Cap:</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1461"/>
+        <source>Export .mcz (Pure)...</source>
+        <translation>Export .mcz (Pure)...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1543"/>
+        <source>Background Image Brightness...</source>
+        <translation>Background Image Brightness...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1550"/>
+        <source>Background Image Brightness</source>
+        <translation>Background Image Brightness</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1551"/>
+        <source>Brightness (%):</source>
+        <translation>Brightness (%):</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1563"/>
+        <source>Background image brightness: %1%</source>
+        <translation>Background image brightness: %1%</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2908"/>
+        <source>Export .mcz (Pure)</source>
+        <translation>Export .mcz (Pure)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="63"/>
+        <source>Open Plugins Folder</source>
+        <translation>Open Plugins Folder</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="64"/>
+        <source>Reload Selected Plugin</source>
+        <translation>Reload Selected Plugin</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="65"/>
+        <source>Reload Plugins</source>
+        <translation>Reload Plugins</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="81"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="320"/>
+        <source>Note Placement Tools:</source>
+        <translation>Note Placement Tools:</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="283"/>
+        <source>Curve Plugin Options</source>
+        <translation>Curve Plugin Options</translation>
     </message>
 </context>
 <context>
