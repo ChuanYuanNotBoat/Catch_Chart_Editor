@@ -6,6 +6,7 @@
 #include "plugin/PluginManager.h"
 #include "model/Skin.h"
 #include "file/SkinIO.h"
+#include "file/ProjectIO.h"
 #include "utils/Settings.h"
 #include "utils/Translator.h"
 #include "utils/Logger.h"
@@ -105,6 +106,9 @@ bool Application::initialize()
         Logger::init("logs");
         Logger::info("========== Application Starting ==========");
         Logger::info(QString("Log file: %1").arg(Logger::logFilePath()));
+
+        // 初始化 ChartFileSystem 注册表
+        ProjectIO::initializeBuiltinFileTypes();
 
         Settings::instance();
         Logger::info("Settings loaded.");

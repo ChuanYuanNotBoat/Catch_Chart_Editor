@@ -1,5 +1,7 @@
 ﻿#include "ProjectIO.h"
 #include "utils/Logger.h"
+#include "file/BpmAuxFiles.h"
+#include "file/ChartFileSystem.h"
 #include <QDir>
 #include <QFile>
 #include <QProcess>
@@ -38,16 +40,51 @@ QString normalizedRelativePath(const QString &baseDir, const QString &pathLike)
 
 bool isAllowedAssociatedFile(const QString &relativePath)
 {
-    const QString ext = QFileInfo(relativePath).suffix().toLower();
-    if (ext == "mc")
-        return true;
-    static const QSet<QString> kAllowedAssetExt = {
-        "ogg", "mp3", "wav", "flac", "m4a", "aac",
-        "jpg", "jpeg", "png", "bmp", "webp", "gif",
-        "mp4", "mkv", "avi", "webm", "mov"};
-    return kAllowedAssetExt.contains(ext);
+    // 使用 ChartFileSystem 注册表查询
+    return ChartFileSystem::Registry::isAllowedFile(relativePath);
+}
 }
 
+void ProjectIO::initializeBuiltinFileTypes()
+{
+    Logger::info("ProjectIO::initializeBuiltinFileTypes - Initializing builtin file types");
+
+    // 注册 .mc 文件
+    ChartFileSystem::Registry::registerFileType("mc", "Malody Chart File", false, nullptr, 100);
+
+    // 注册常见音频格式
+    QStringList audioExts = {"ogg", "mp3", "wav", "flac", "m4a", "aac"};
+    for (const QString &ext : audioExts)
+    {
+        ChartFileSystem::Registry::registerFileType(ext, "Audio File", false, nullptr, 90);
+    }
+
+    // 注册常见图片格式
+    QStringList imageExts = {"jpg", "jpeg", "png", "bmp", "webp", "gif"};
+    for (const QString &ext : imageExts)
+    {
+        ChartFileSystem::Registry::registerFileType(ext, "Image File", false, nullptr, 90);
+    }
+
+    // 注册常见视频格式
+    QStringList videoExts = {"mp4", "mkv", "avi", "webm", "mov"};
+    for (const QString &ext : videoExts)
+    {
+        ChartFileSystem::Registry::registerFileType(ext, "Video File", false, nullptr, 90);
+    }
+
+    // 注册曲线 sidecar
+    ChartFileSystem::Registry::registerFileType("curve_tbd.json", "Curve Sidecar", false, nullptr, 80);
+
+    // 注册 BPM 辅助文件
+    ChartFileSystem::Registry::registerFileType("bpm_excludes.json", "BPM Excludes Sidecar", false, nullptr, 80);
+    ChartFileSystem::Registry::registerFileType("song_bpm.json", "Song BPM Sidecar", false, nullptr, 80);
+
+    Logger::info("ProjectIO::initializeBuiltinFileTypes - Builtin file types initialized");
+}
+
+namespace
+{
 void collectReferencedFilesFromMc(const QString &mcAbsPath, const QString &baseDir, QSet<QString> &outFiles)
 {
     QFile f(mcAbsPath);
@@ -357,6 +394,7 @@ bool ProjectIO::exportToMczPure(const QString &outputMczPath, const QString &sou
     // 收集允许打包的文件：
     // 1) 所有 .mc（包括不同难度，文件名不做限制）
     // 2) 每个 .mc 中引用到的音频/背景/sound 资源
+    // 3) 必须打包的 sidecar 文件（从 ChartFileSystem 注册表获取）
     QSet<QString> selectedRelativeFiles;
     QDirIterator it(chartBaseDir, QStringList() << "*.mc", QDir::Files, QDirIterator::Subdirectories);
     while (it.hasNext())
@@ -370,6 +408,20 @@ bool ProjectIO::exportToMczPure(const QString &outputMczPath, const QString &sou
         collectReferencedFilesFromMc(mcAbsPath, chartBaseDir, selectedRelativeFiles);
     }
 
+    // 添加必须打包的 sidecar 文件（从 ChartFileSystem 注册表获取）
+    QStringList requiredExtensions = ChartFileSystem::Registry::requiredSidecarExtensions();
+    for (const QString &ext : requiredExtensions)
+    {
+        QString chartStem = ChartFileSystem::Registry::chartIdentifierForPath(sourceChartPath);
+        QString sidecarFile = QDir(chartBaseDir).filePath(".mcce-plugin/" + chartStem + "." + ext);
+        if (QFile::exists(sidecarFile))
+        {
+            QString rel = QDir(chartBaseDir).relativeFilePath(sidecarFile);
+            selectedRelativeFiles.insert(QDir::cleanPath(rel));
+            Logger::debug(QString("ProjectIO::exportToMczPure - Added required sidecar: %1").arg(rel));
+        }
+    }
+
     if (selectedRelativeFiles.isEmpty())
     {
         Logger::error("ProjectIO::exportToMczPure - No eligible .mc found under chart directory");
@@ -379,6 +431,7 @@ bool ProjectIO::exportToMczPure(const QString &outputMczPath, const QString &sou
     QSet<QString> filteredFiles;
     for (const QString &rel : selectedRelativeFiles)
     {
+        // 使用 ChartFileSystem 注册表查询是否允许打包
         if (isAllowedAssociatedFile(rel))
             filteredFiles.insert(rel);
     }

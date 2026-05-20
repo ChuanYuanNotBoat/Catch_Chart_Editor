@@ -10,6 +10,8 @@
 
 #include "file/ProjectIO.h"
 #include "file/ChartIO.h"
+#include "file/BpmAuxFiles.h"
+#include "file/ChartFileSystem.h"
 #include "controller/ChartController.h"
 #include "model/Chart.h"
 #include "utils/MathUtils.h"
@@ -1754,6 +1756,125 @@ bool testKedamonoRenderBaseline()
     return true;
 }
 
+bool testBpmAuxFilesBpmExcludeRangeSerialization()
+{
+    BpmAuxFiles::BpmExcludeRange range(1, 0, 1, 4, 0, 1, "test reason");
+    QJsonObject json = range.toJson();
+    
+    BpmAuxFiles::BpmExcludeRange loaded = BpmAuxFiles::BpmExcludeRange::fromJson(json);
+    
+    return loaded.startBeatNum == 1 &&
+           loaded.startNumerator == 0 &&
+           loaded.startDenominator == 1 &&
+           loaded.endBeatNum == 4 &&
+           loaded.endNumerator == 0 &&
+           loaded.endDenominator == 1 &&
+           loaded.reason == "test reason" &&
+           loaded.isValid();
+}
+
+bool testBpmAuxFilesSongBpmInfoSerialization()
+{
+    BpmAuxFiles::SongBpmInfo info(128.5, "manual", "test note");
+    QJsonObject json = info.toJson();
+    
+    BpmAuxFiles::SongBpmInfo loaded = BpmAuxFiles::SongBpmInfo::fromJson(json);
+    
+    return nearlyEqual(loaded.originalBpm, 128.5) &&
+           loaded.source == "manual" &&
+           loaded.note == "test note" &&
+           loaded.isValid();
+}
+
+bool testBpmAuxFilesBpmExcludesDataSerialization()
+{
+    BpmAuxFiles::BpmExcludesData data;
+    data.version = "1.0";
+    data.excludes.append(BpmAuxFiles::BpmExcludeRange(1, 0, 1, 4, 0, 1, "reason1"));
+    data.excludes.append(BpmAuxFiles::BpmExcludeRange(8, 1, 2, 12, 0, 1, "reason2"));
+    
+    QJsonObject json = data.toJson();
+    BpmAuxFiles::BpmExcludesData loaded = BpmAuxFiles::BpmExcludesData::fromJson(json);
+    
+    return loaded.version == "1.0" &&
+           loaded.excludes.size() == 2 &&
+           loaded.isValid();
+}
+
+bool testBpmAuxFilesChartIdentifierForPath()
+{
+    QString path1 = "C:/charts/song_name.mc";
+    QString id1 = BpmAuxFiles::chartIdentifierForPath(path1);
+    
+    QString path2 = "/home/user/charts/another_song.mc";
+    QString id2 = BpmAuxFiles::chartIdentifierForPath(path2);
+    
+    return id1 == "song_name" && id2 == "another_song";
+}
+
+bool testChartFileSystemRegisterFileType()
+{
+    ChartFileSystem::Registry::clearRegistrations();
+    
+    bool ok1 = ChartFileSystem::Registry::registerFileType("test_ext", "Test File", false, nullptr, 50);
+    bool ok2 = ChartFileSystem::Registry::registerFileType("test_ext", "Test File Updated", false, nullptr, 60);
+    
+    auto types = ChartFileSystem::Registry::registeredFileTypes();
+    
+    return ok1 && ok2 && types.size() == 1 && types.first().description == "Test File Updated";
+}
+
+bool testChartFileSystemIsAllowedFile()
+{
+    ChartFileSystem::Registry::clearRegistrations();
+    ChartFileSystem::Registry::registerFileType("mc", "Malody Chart", false, nullptr, 100);
+    ChartFileSystem::Registry::registerFileType("ogg", "Audio File", false, nullptr, 90);
+    
+    bool allowed1 = ChartFileSystem::Registry::isAllowedFile("chart.mc");
+    bool allowed2 = ChartFileSystem::Registry::isAllowedFile("audio.ogg");
+    bool allowed3 = ChartFileSystem::Registry::isAllowedFile("unknown.xyz");
+    
+    return allowed1 && allowed2 && !allowed3;
+}
+
+bool testChartFileSystemRequiredSidecarExtensions()
+{
+    ChartFileSystem::Registry::clearRegistrations();
+    ChartFileSystem::Registry::registerFileType("curve_tbd.json", "Curve Sidecar", false, nullptr, 80);
+    ChartFileSystem::Registry::registerFileType("bpm_excludes.json", "BPM Excludes", true, nullptr, 85);
+    ChartFileSystem::Registry::registerFileType("song_bpm.json", "Song BPM", true, nullptr, 85);
+    
+    QStringList required = ChartFileSystem::Registry::requiredSidecarExtensions();
+    
+    return required.size() == 2 &&
+           required.contains("bpm_excludes.json") &&
+           required.contains("song_bpm.json") &&
+           !required.contains("curve_tbd.json");
+}
+
+bool testChartFileSystemUnregisterFileType()
+{
+    ChartFileSystem::Registry::clearRegistrations();
+    ChartFileSystem::Registry::registerFileType("test_ext", "Test File", false, nullptr, 50);
+    
+    bool ok = ChartFileSystem::Registry::unregisterFileType("test_ext");
+    auto types = ChartFileSystem::Registry::registeredFileTypes();
+    
+    return ok && types.isEmpty();
+}
+
+bool testChartFileSystemClearRegistrations()
+{
+    ChartFileSystem::Registry::clearRegistrations();
+    ChartFileSystem::Registry::registerFileType("test1", "Test1", false, nullptr, 50);
+    ChartFileSystem::Registry::registerFileType("test2", "Test2", false, nullptr, 50);
+    
+    ChartFileSystem::Registry::clearRegistrations();
+    auto types = ChartFileSystem::Registry::registeredFileTypes();
+    
+    return types.isEmpty();
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -1841,6 +1962,15 @@ int main(int argc, char **argv)
         {"Note validation boundaries", &testNoteValidationBoundaries},
         {"Note isXValid for sound ignores range", &testNoteIsXValidForSoundIgnoresRange},
         {"KEDAMONO render baseline", &testKedamonoRenderBaseline},
+        {"BpmAuxFiles BpmExcludeRange serialization", &testBpmAuxFilesBpmExcludeRangeSerialization},
+        {"BpmAuxFiles SongBpmInfo serialization", &testBpmAuxFilesSongBpmInfoSerialization},
+        {"BpmAuxFiles BpmExcludesData serialization", &testBpmAuxFilesBpmExcludesDataSerialization},
+        {"BpmAuxFiles chartIdentifierForPath", &testBpmAuxFilesChartIdentifierForPath},
+        {"ChartFileSystem registerFileType", &testChartFileSystemRegisterFileType},
+        {"ChartFileSystem isAllowedFile", &testChartFileSystemIsAllowedFile},
+        {"ChartFileSystem requiredSidecarExtensions", &testChartFileSystemRequiredSidecarExtensions},
+        {"ChartFileSystem unregisterFileType", &testChartFileSystemUnregisterFileType},
+        {"ChartFileSystem clearRegistrations", &testChartFileSystemClearRegistrations},
     };
 
     int failed = 0;

@@ -8,6 +8,12 @@ class ProjectIO
 {
 public:
     /**
+     * @brief 初始化内置文件类型注册表
+     * 应在 Application 启动早期调用
+     */
+    static void initializeBuiltinFileTypes();
+
+    /**
      * @brief 解压 MCZ 文件到指定目录
      * @param mczPath MCZ 文件路径
      * @param outputDir 目标目录（将创建）

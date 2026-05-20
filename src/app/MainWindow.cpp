@@ -21,6 +21,7 @@
 #include "file/SkinIO.h"
 #include "file/ProjectIO.h"
 #include "file/ChartIO.h"
+#include "file/BpmAuxFiles.h"
 #include "model/Skin.h"
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
@@ -846,6 +847,91 @@ void syncSidecarDirectoryForChart(const QString &sourceChartPath, const QString 
         Logger::warn(QString("Failed to sync sidecar directory: %1 -> %2 (%3)")
                          .arg(sourceSidecar, targetSidecar, copyError));
     }
+}
+
+void syncBpmAuxFilesForChart(const QString &chartPath)
+{
+    if (chartPath.isEmpty())
+        return;
+
+    Logger::debug(QString("syncBpmAuxFilesForChart - Syncing BPM aux files for: %1").arg(chartPath));
+
+    // 确保 .mcce-plugin 目录存在
+    QFileInfo chartFileInfo(chartPath);
+    QDir chartDir = chartFileInfo.absoluteDir();
+    QString sidecarDir = chartDir.absoluteFilePath(".mcce-plugin");
+    if (!QDir(sidecarDir).exists())
+    {
+        QDir(sidecarDir).mkpath(".");
+    }
+
+    // 保存空的 BPM 排除文件（如果不存在）
+    BpmAuxFiles::BpmExcludesData excludesData;
+    if (!QFile::exists(BpmAuxFiles::bpmExcludesFilePath(chartPath)))
+    {
+        BpmAuxFiles::saveBpmExcludes(chartPath, excludesData);
+    }
+
+    // 保存空的歌曲 BPM 文件（如果不存在）
+    BpmAuxFiles::SongBpmInfo songBpmInfo;
+    if (!QFile::exists(BpmAuxFiles::songBpmFilePath(chartPath)))
+    {
+        BpmAuxFiles::saveSongBpm(chartPath, songBpmInfo);
+    }
+
+    Logger::debug("syncBpmAuxFilesForChart - BPM aux files synced");
+}
+
+void syncAllKnownSidecars(const QString &sourceChartPath, const QString &targetChartPath)
+{
+    if (sourceChartPath.isEmpty() || targetChartPath.isEmpty())
+        return;
+
+    Logger::debug(QString("syncAllKnownSidecars - Syncing known sidecars from %1 to %2")
+                     .arg(sourceChartPath, targetChartPath));
+
+    // 已知 sidecar 文件列表（为后续分支 2 迁移到注册表做准备）
+    QStringList knownSidecarExtensions;
+    knownSidecarExtensions << "curve_tbd.json";
+    knownSidecarExtensions << "bpm_excludes.json";
+    knownSidecarExtensions << "song_bpm.json";
+
+    QFileInfo sourceFi(sourceChartPath);
+    QFileInfo targetFi(targetChartPath);
+    QString sourceDir = sourceFi.absoluteDir().absolutePath();
+    QString targetDir = targetFi.absoluteDir().absolutePath();
+    QString chartStem = sourceFi.completeBaseName();
+
+    QString sourceSidecarDir = QDir(sourceDir).filePath(".mcce-plugin");
+    QString targetSidecarDir = QDir(targetDir).filePath(".mcce-plugin");
+
+    // 确保目标 sidecar 目录存在
+    if (!QDir(targetSidecarDir).exists())
+    {
+        QDir(targetSidecarDir).mkpath(".");
+    }
+
+    // 遍历已知 sidecar 文件并复制
+    for (const QString &ext : knownSidecarExtensions)
+    {
+        QString sourceFile = QDir(sourceSidecarDir).filePath(chartStem + "." + ext);
+        QString targetFile = QDir(targetSidecarDir).filePath(chartStem + "." + ext);
+
+        if (QFile::exists(sourceFile))
+        {
+            QFile::remove(targetFile);
+            if (QFile::copy(sourceFile, targetFile))
+            {
+                Logger::debug(QString("syncAllKnownSidecars - Copied sidecar: %1").arg(ext));
+            }
+            else
+            {
+                Logger::warn(QString("syncAllKnownSidecars - Failed to copy sidecar: %1").arg(ext));
+            }
+        }
+    }
+
+    Logger::debug("syncAllKnownSidecars - Known sidecars synced");
 }
 
 void syncReferencedResourcesForSavedChart(const QString &workingChartPath, const QString &savedChartPath)
@@ -2399,6 +2485,20 @@ void MainWindow::loadChartFile(const QString &filePath)
 
     d->canvas->update();
     d->isModified = false;
+    
+    // 加载 BPM 辅助文件
+    BpmAuxFiles::BpmExcludesData excludesData;
+    if (BpmAuxFiles::loadBpmExcludes(actualChartPath, excludesData))
+    {
+        Logger::info(QString("Loaded BPM excludes data with %1 ranges").arg(excludesData.excludes.size()));
+    }
+    
+    BpmAuxFiles::SongBpmInfo songBpmInfo;
+    if (BpmAuxFiles::loadSongBpm(actualChartPath, songBpmInfo))
+    {
+        Logger::info(QString("Loaded song BPM: %1").arg(songBpmInfo.originalBpm));
+    }
+    
     persistRecoveryState();
     statusBar()->showMessage(tr("Loaded: %1").arg(QFileInfo(actualChartPath).fileName()), 3000);
 }
@@ -2701,6 +2801,7 @@ void MainWindow::saveChart()
             d->chartController->saveChart(d->workingChartPath);
         syncReferencedResourcesForSavedChart(d->workingChartPath, currentPath);
         syncSidecarDirectoryForChart(d->workingChartPath, currentPath);
+        syncBpmAuxFilesForChart(currentPath);
         if (!d->workingChartPath.isEmpty())
             d->chartController->saveChart(d->workingChartPath);
         else
@@ -2739,6 +2840,7 @@ void MainWindow::saveChartAs()
             d->chartController->saveChart(d->workingChartPath);
         syncReferencedResourcesForSavedChart(d->workingChartPath, fileName);
         syncSidecarDirectoryForChart(d->workingChartPath, fileName);
+        syncBpmAuxFilesForChart(fileName);
         if (!d->workingChartPath.isEmpty())
             d->chartController->saveChart(d->workingChartPath);
         else

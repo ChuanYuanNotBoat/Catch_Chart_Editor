@@ -199,6 +199,27 @@
 - 曲线数据会存放在谱面旁的 `.mcce-plugin/*.curve_tbd.json` sidecar 文件中，并会在源谱面与工作副本之间同步。
 - 只有执行 `Commit Curve` 后，曲线预览才会写成真实音符。
 
+### BPM 辅助文件
+
+BPM 辅助文件用于存储 BPM 测量工具相关的元数据，包括 BPM 排除时间段和歌曲 BPM 信息。
+
+文件位置：
+- BPM 排除文件：`.mcce-plugin/{谱面文件名}.bpm_excludes.json`
+- 歌曲 BPM 文件：`.mcce-plugin/{谱面文件名}.song_bpm.json`
+
+这些文件会在保存、复制、导出/导入 MCZ 时自动同步，确保 BPM 相关数据不会丢失。
+
+### ChartFileSystem 注册表
+
+ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包时决定哪些文件应该被包含。它替代了之前的硬编码白名单，支持运行时动态注册/注销文件类型。
+
+内置文件类型包括：
+- `.mc`：谱面文件
+- 音频格式：`.ogg`, `.mp3`, `.wav`, `.flac`, `.m4a`, `.aac`
+- 图片格式：`.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`, `.gif`
+- 视频格式：`.mp4`, `.mkv`, `.avi`, `.webm`, `.mov`
+- Sidecar 文件：`.curve_tbd.json`, `.bpm_excludes.json`, `.song_bpm.json`
+
 ### 内置插件：Note Color Formatter
 
 用途：整理音符颜色分度字段，让按分度上色与颜色分组逻辑更统一。适合导入旧谱、批量编辑后快速清理颜色分度。
