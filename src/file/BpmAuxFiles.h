@@ -86,7 +86,6 @@ struct BpmExcludesData
  * @param chartPath 谱面文件路径
  * @return 谱面标识（文件名主干）
  */
-QString chartIdentifierForPath(const QString &chartPath);
 
 /**
  * @brief 生成 BPM 排除文件路径
@@ -140,6 +139,4 @@ bool saveSongBpm(const QString &chartPath, const SongBpmInfo &info);
  * @param requiredFields 必填字段列表
  * @return 格式正确返回 true
  */
-bool validateJsonFields(const QJsonObject &obj, const QStringList &requiredFields);
-
 } // namespace BpmAuxFiles

@@ -1804,10 +1804,10 @@ bool testBpmAuxFilesBpmExcludesDataSerialization()
 bool testBpmAuxFilesChartIdentifierForPath()
 {
     QString path1 = "C:/charts/song_name.mc";
-    QString id1 = BpmAuxFiles::chartIdentifierForPath(path1);
+    QString id1 = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(path1);
     
     QString path2 = "/home/user/charts/another_song.mc";
-    QString id2 = BpmAuxFiles::chartIdentifierForPath(path2);
+    QString id2 = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(path2);
     
     return id1 == "song_name" && id2 == "another_song";
 }

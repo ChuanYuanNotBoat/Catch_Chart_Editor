@@ -22,6 +22,7 @@
 #include "file/ProjectIO.h"
 #include "file/ChartIO.h"
 #include "file/BpmAuxFiles.h"
+#include "file/ChartFileSystem.h"
 #include "model/Skin.h"
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
@@ -872,12 +873,8 @@ void syncBpmAuxFilesForChart(const QString &chartPath)
         BpmAuxFiles::saveBpmExcludes(chartPath, excludesData);
     }
 
-    // 保存空的歌曲 BPM 文件（如果不存在）
-    BpmAuxFiles::SongBpmInfo songBpmInfo;
-    if (!QFile::exists(BpmAuxFiles::songBpmFilePath(chartPath)))
-    {
-        BpmAuxFiles::saveSongBpm(chartPath, songBpmInfo);
-    }
+    // 不保存空的歌曲 BPM 文件（避免 self-invalidation）
+    // SongBpmInfo 仅在用户明确设置 BPM 值后才保存
 
     Logger::debug("syncBpmAuxFilesForChart - BPM aux files synced");
 }
@@ -890,17 +887,24 @@ void syncAllKnownSidecars(const QString &sourceChartPath, const QString &targetC
     Logger::debug(QString("syncAllKnownSidecars - Syncing known sidecars from %1 to %2")
                      .arg(sourceChartPath, targetChartPath));
 
-    // 已知 sidecar 文件列表（为后续分支 2 迁移到注册表做准备）
+    // 从 ChartFileSystem 注册表获取所有已注册的 sidecar 扩展名
+    QVector<RegisteredTypeInfo> registeredTypes = ChartFileSystem::ChartFileSystemRegistry::registeredFileTypes();
     QStringList knownSidecarExtensions;
-    knownSidecarExtensions << "curve_tbd.json";
-    knownSidecarExtensions << "bpm_excludes.json";
-    knownSidecarExtensions << "song_bpm.json";
+    for (const RegisteredTypeInfo &type : registeredTypes)
+    {
+        // 只处理 sidecar 文件（包含 .json 的扩展名）
+        if (type.extension.contains(".json"))
+        {
+            knownSidecarExtensions << type.extension;
+        }
+    }
 
     QFileInfo sourceFi(sourceChartPath);
     QFileInfo targetFi(targetChartPath);
     QString sourceDir = sourceFi.absoluteDir().absolutePath();
     QString targetDir = targetFi.absoluteDir().absolutePath();
-    QString chartStem = sourceFi.completeBaseName();
+    const QString sourceChartStem = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(sourceChartPath);
+    const QString targetChartStem = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(targetChartPath);
 
     QString sourceSidecarDir = QDir(sourceDir).filePath(".mcce-plugin");
     QString targetSidecarDir = QDir(targetDir).filePath(".mcce-plugin");
@@ -914,8 +918,8 @@ void syncAllKnownSidecars(const QString &sourceChartPath, const QString &targetC
     // 遍历已知 sidecar 文件并复制
     for (const QString &ext : knownSidecarExtensions)
     {
-        QString sourceFile = QDir(sourceSidecarDir).filePath(chartStem + "." + ext);
-        QString targetFile = QDir(targetSidecarDir).filePath(chartStem + "." + ext);
+        QString sourceFile = QDir(sourceSidecarDir).filePath(sourceChartStem + "." + ext);
+        QString targetFile = QDir(targetSidecarDir).filePath(targetChartStem + "." + ext);
 
         if (QFile::exists(sourceFile))
         {

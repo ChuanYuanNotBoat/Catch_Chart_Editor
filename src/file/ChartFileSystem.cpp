@@ -68,14 +68,16 @@ bool ChartFileSystemRegistry::isAllowedFile(const QString &relativePath)
 
     QFileInfo fi(relativePath);
     QString fileName = fi.fileName();
-    
+
     QMutexLocker locker(&s_registryMutex);
 
     // 检查是否匹配任何已注册的扩展名
     for (auto it = s_registeredTypes.begin(); it != s_registeredTypes.end(); ++it)
     {
         const QString &extension = it.key();
-        if (fileName.endsWith(extension, Qt::CaseInsensitive))
+        // 使用 suffix() 而不是 endsWith()，确保只匹配真正的文件后缀
+        if (fi.suffix().compare(extension, Qt::CaseInsensitive) == 0 ||
+            fileName.endsWith("." + extension, Qt::CaseInsensitive))
         {
             // 如果有验证器，调用验证器
             const auto &entry = it.value();

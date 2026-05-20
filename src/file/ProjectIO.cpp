@@ -41,7 +41,7 @@ QString normalizedRelativePath(const QString &baseDir, const QString &pathLike)
 bool isAllowedAssociatedFile(const QString &relativePath)
 {
     // 使用 ChartFileSystem 注册表查询
-    return ChartFileSystem::Registry::isAllowedFile(relativePath);
+    return ChartFileSystem::ChartFileSystemRegistry::isAllowedFile(relativePath);
 }
 }
 
@@ -50,35 +50,35 @@ void ProjectIO::initializeBuiltinFileTypes()
     Logger::info("ProjectIO::initializeBuiltinFileTypes - Initializing builtin file types");
 
     // 注册 .mc 文件
-    ChartFileSystem::Registry::registerFileType("mc", "Malody Chart File", false, nullptr, 100);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("mc", "Malody Chart File", false, nullptr, 100);
 
     // 注册常见音频格式
     QStringList audioExts = {"ogg", "mp3", "wav", "flac", "m4a", "aac"};
     for (const QString &ext : audioExts)
     {
-        ChartFileSystem::Registry::registerFileType(ext, "Audio File", false, nullptr, 90);
+        ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Audio File", false, nullptr, 90);
     }
 
     // 注册常见图片格式
     QStringList imageExts = {"jpg", "jpeg", "png", "bmp", "webp", "gif"};
     for (const QString &ext : imageExts)
     {
-        ChartFileSystem::Registry::registerFileType(ext, "Image File", false, nullptr, 90);
+        ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Image File", false, nullptr, 90);
     }
 
     // 注册常见视频格式
     QStringList videoExts = {"mp4", "mkv", "avi", "webm", "mov"};
     for (const QString &ext : videoExts)
     {
-        ChartFileSystem::Registry::registerFileType(ext, "Video File", false, nullptr, 90);
+        ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Video File", false, nullptr, 90);
     }
 
     // 注册曲线 sidecar
-    ChartFileSystem::Registry::registerFileType("curve_tbd.json", "Curve Sidecar", false, nullptr, 80);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("curve_tbd.json", "Curve Sidecar", false, nullptr, 80);
 
     // 注册 BPM 辅助文件
-    ChartFileSystem::Registry::registerFileType("bpm_excludes.json", "BPM Excludes Sidecar", false, nullptr, 80);
-    ChartFileSystem::Registry::registerFileType("song_bpm.json", "Song BPM Sidecar", false, nullptr, 80);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("bpm_excludes.json", "BPM Excludes Sidecar", true, nullptr, 80);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("song_bpm.json", "Song BPM Sidecar", true, nullptr, 80);
 
     Logger::info("ProjectIO::initializeBuiltinFileTypes - Builtin file types initialized");
 }
@@ -409,10 +409,10 @@ bool ProjectIO::exportToMczPure(const QString &outputMczPath, const QString &sou
     }
 
     // 添加必须打包的 sidecar 文件（从 ChartFileSystem 注册表获取）
-    QStringList requiredExtensions = ChartFileSystem::Registry::requiredSidecarExtensions();
+    QStringList requiredExtensions = ChartFileSystem::ChartFileSystemRegistry::requiredSidecarExtensions();
     for (const QString &ext : requiredExtensions)
     {
-        QString chartStem = ChartFileSystem::Registry::chartIdentifierForPath(sourceChartPath);
+        QString chartStem = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(sourceChartPath);
         QString sidecarFile = QDir(chartBaseDir).filePath(".mcce-plugin/" + chartStem + "." + ext);
         if (QFile::exists(sidecarFile))
         {

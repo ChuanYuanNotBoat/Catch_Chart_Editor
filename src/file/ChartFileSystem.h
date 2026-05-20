@@ -106,7 +106,4 @@ private:
     static QHash<QString, FileTypeEntry> s_registeredTypes;
 };
 
-// 便捷别名
-using Registry = ChartFileSystemRegistry;
-
 } // namespace ChartFileSystem

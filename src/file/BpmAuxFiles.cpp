@@ -1,4 +1,5 @@
 #include "BpmAuxFiles.h"
+#include "ChartFileSystem.h"
 #include "utils/Logger.h"
 #include <QFile>
 #include <QJsonDocument>
@@ -14,13 +15,13 @@ QJsonObject BpmExcludeRange::toJson() const
 {
     QJsonObject obj;
     QJsonObject startBeat;
-    startBeat["beat_num"] = startBeatNum;
+    startBeat["beat"] = startBeatNum;
     startBeat["numerator"] = startNumerator;
     startBeat["denominator"] = startDenominator;
     obj["start"] = startBeat;
 
     QJsonObject endBeat;
-    endBeat["beat_num"] = endBeatNum;
+    endBeat["beat"] = endBeatNum;
     endBeat["numerator"] = endNumerator;
     endBeat["denominator"] = endDenominator;
     obj["end"] = endBeat;
@@ -36,12 +37,14 @@ BpmExcludeRange BpmExcludeRange::fromJson(const QJsonObject &obj)
     BpmExcludeRange range;
 
     QJsonObject startBeat = obj["start"].toObject();
-    range.startBeatNum = startBeat["beat_num"].toInt(0);
+    range.startBeatNum = startBeat.contains("beat") ? startBeat["beat"].toInt(0)
+                                                     : startBeat["beat_num"].toInt(0);
     range.startNumerator = startBeat["numerator"].toInt(0);
     range.startDenominator = startBeat["denominator"].toInt(1);
 
     QJsonObject endBeat = obj["end"].toObject();
-    range.endBeatNum = endBeat["beat_num"].toInt(0);
+    range.endBeatNum = endBeat.contains("beat") ? endBeat["beat"].toInt(0)
+                                                 : endBeat["beat_num"].toInt(0);
     range.endNumerator = endBeat["numerator"].toInt(0);
     range.endDenominator = endBeat["denominator"].toInt(1);
 
@@ -79,7 +82,10 @@ SongBpmInfo SongBpmInfo::fromJson(const QJsonObject &obj)
 
 bool SongBpmInfo::isValid() const
 {
-    return originalBpm > 0.0;
+    if (originalBpm > 0.0)
+        return true;
+    // 允许“空占位”对象通过校验，避免写入后立刻自 invalid。
+    return originalBpm == 0.0 && source.isEmpty() && note.isEmpty() && timestamp == 0;
 }
 
 // BpmExcludesData 实现
@@ -121,17 +127,9 @@ bool BpmExcludesData::isValid() const
 }
 
 // 工具函数实现
-QString chartIdentifierForPath(const QString &chartPath)
-{
-    // TODO: Wave B replace with UUID
-    // Wave A: 使用文件名主干作为标识
-    QFileInfo fileInfo(chartPath);
-    return fileInfo.baseName();
-}
-
 QString bpmExcludesFilePath(const QString &chartPath)
 {
-    QString identifier = chartIdentifierForPath(chartPath);
+    QString identifier = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(chartPath);
     QFileInfo chartFileInfo(chartPath);
     QDir chartDir = chartFileInfo.absoluteDir();
     
@@ -141,22 +139,12 @@ QString bpmExcludesFilePath(const QString &chartPath)
 
 QString songBpmFilePath(const QString &chartPath)
 {
-    QString identifier = chartIdentifierForPath(chartPath);
+    QString identifier = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(chartPath);
     QFileInfo chartFileInfo(chartPath);
     QDir chartDir = chartFileInfo.absoluteDir();
     
     QString sidecarDir = chartDir.absoluteFilePath(".mcce-plugin");
     return QDir(sidecarDir).absoluteFilePath(identifier + ".song_bpm.json");
-}
-
-bool validateJsonFields(const QJsonObject &obj, const QStringList &requiredFields)
-{
-    for (const QString &field : requiredFields)
-    {
-        if (!obj.contains(field))
-            return false;
-    }
-    return true;
 }
 
 bool loadBpmExcludes(const QString &chartPath, BpmExcludesData &outData)
@@ -223,7 +211,7 @@ bool saveBpmExcludes(const QString &chartPath, const BpmExcludesData &data)
         return false;
     }
 
-    file.write(doc.toJson());
+    file.write(doc.toJson(QJsonDocument::Indented));
     file.close();
 
     Logger::info(QString("BpmAuxFiles::saveBpmExcludes - Saved %1 exclude ranges to: %2")
@@ -296,7 +284,7 @@ bool saveSongBpm(const QString &chartPath, const SongBpmInfo &info)
         return false;
     }
 
-    file.write(doc.toJson());
+    file.write(doc.toJson(QJsonDocument::Indented));
     file.close();
 
     Logger::info(QString("BpmAuxFiles::saveSongBpm - Saved song BPM %1 to: %2")
