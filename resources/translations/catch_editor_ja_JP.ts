@@ -370,7 +370,7 @@
         <location filename="../../src/app/MainWindow.cpp" line="552"/>
         <location filename="../../src/app/MainWindow.cpp" line="1763"/>
         <source>Catch Chart Editor</source>
-        <translation>Catch チャートエディタ</translation>
+        <translation>Catch Chart Editor</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="582"/>
@@ -567,7 +567,7 @@
         <location filename="../../src/app/MainWindow.cpp" line="716"/>
         <location filename="../../src/app/MainWindow.cpp" line="1907"/>
         <source>Language</source>
-        <translation>言語</translation>
+        <translation>言語(Language)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="732"/>
@@ -1091,52 +1091,52 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1862"/>
         <source>Restart Required</source>
-        <translation type="unfinished"></translation>
+        <translation>再起動が必要です</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1863"/>
         <source>Mobile UI test mode was %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>モバイルUIテストモードが%1されました。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1864"/>
         <source>enabled</source>
-        <translation type="unfinished"></translation>
+        <translation>有効</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1864"/>
         <source>disabled</source>
-        <translation type="unfinished"></translation>
+        <translation>無効</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1865"/>
         <source>This debug option applies after restart. Restart now?</source>
-        <translation type="unfinished"></translation>
+        <translation>このデバッグオプションは再起動後に適用されます。今すぐ再起動しますか？</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1867"/>
         <source>Restart Now</source>
-        <translation type="unfinished"></translation>
+        <translation>今すぐ再起動</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1868"/>
         <source>Later</source>
-        <translation type="unfinished"></translation>
+        <translation>後で</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1874"/>
         <source>Mobile UI test mode will apply after restart.</source>
-        <translation type="unfinished"></translation>
+        <translation>モバイルUIテストモードは再起動後に適用されます。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1886"/>
         <source>Restart Failed</source>
-        <translation type="unfinished"></translation>
+        <translation>再起動に失敗しました</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1886"/>
         <source>Unable to restart automatically. Please relaunch manually.</source>
-        <translation type="unfinished"></translation>
+        <translation>自動再起動できません。手動で再起動してください。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1907"/>
@@ -1151,29 +1151,29 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1926"/>
         <source>Checking for updates...</source>
-        <translation type="unfinished"></translation>
+        <translation>更新を確認中...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1940"/>
         <location filename="../../src/app/MainWindow.cpp" line="1972"/>
         <location filename="../../src/app/MainWindow.cpp" line="1978"/>
         <source>Check for Updates</source>
-        <translation type="unfinished"></translation>
+        <translation>更新を確認</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1941"/>
         <source>Update check failed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>更新の確認に失敗しました: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1959"/>
         <source>Update Available</source>
-        <translation type="unfinished"></translation>
+        <translation>更新があります</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1960"/>
         <source>A newer version is available.</source>
-        <translation type="unfinished"></translation>
+        <translation>新しいバージョンがあります。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1961"/>
@@ -1181,30 +1181,36 @@ Do you want to save before continuing?</source>
 Latest: %2
 
 Open release page?</source>
-        <translation type="unfinished"></translation>
+        <translation>現在: %1
+最新: %2
+
+リリースページを開きますか？</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1963"/>
         <source>Open Release Page</source>
-        <translation type="unfinished"></translation>
+        <translation>リリースページを開く</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1973"/>
         <source>You are using the latest version.
 Current: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>最新バージョンを使用しています。
+現在: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1979"/>
         <source>Current version appears newer than latest release.
 Current: %1
 Latest: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>現在のバージョンが最新リリースより新しいようです。
+現在: %1
+最新: %2</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2010"/>
         <source>Help Center</source>
-        <translation type="unfinished"></translation>
+        <translation>ヘルプセンター</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2026"/>
@@ -1216,63 +1222,76 @@ Quick start:
 1. Open a `.mc` chart.
 2. Choose edit mode in the right panel.
 3. Edit notes and save/export `.mcz`.</source>
-        <translation type="unfinished"></translation>
+        <translation># ヘルプドキュメント
+
+`docs/help.md` ファイルを作成してこのページをカスタマイズできます。
+
+クイックスタート:
+1. `.mc` チャートを開く。
+2. 右側パネルで編集モードを選択。
+3. ノートを編集して `.mcz` を保存/エクスポート。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2040"/>
         <source># About
 
 Create a `docs/about.md` file to customize this page.</source>
-        <translation type="unfinished"></translation>
+        <translation># このアプリについて
+
+`docs/about.md` ファイルを作成してこのページをカスタマイズできます。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2071"/>
         <source>## History Updates
 
 Open the **History** tab for collapsible long update notes.</source>
-        <translation type="unfinished"></translation>
+        <translation>## 更新履歴
+
+**履歴**タブを開くと、折りたたみ可能な長い更新ノートが表示されます。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2079"/>
         <source>Long update notes are grouped by prefix and version and can be collapsed.</source>
-        <translation type="unfinished"></translation>
+        <translation>長い更新ノートはプレフィックスとバージョンでグループ化され、折りたたむことができます。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2032"/>
         <source>Help</source>
-        <translation type="unfinished"></translation>
+        <translation>ヘルプ</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2042"/>
         <source>About</source>
-        <translation type="unfinished"></translation>
+        <translation>について</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2057"/>
         <source>Application Version:</source>
-        <translation type="unfinished"></translation>
+        <translation>アプリケーションバージョン:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2059"/>
         <source>Qt Runtime:</source>
-        <translation type="unfinished"></translation>
+        <translation>Qt ランタイム:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2061"/>
         <source>Build ABI:</source>
-        <translation type="unfinished"></translation>
+        <translation>ビルド ABI:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2063"/>
         <source>Operating System:</source>
-        <translation type="unfinished"></translation>
+        <translation>オペレーティングシステム:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2067"/>
         <source>## Version Notes
 
 </source>
-        <translation type="unfinished"></translation>
+        <translation>## バージョンノート
+
+</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2074"/>
@@ -1282,22 +1301,22 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2088"/>
         <source>Expand All</source>
-        <translation type="unfinished"></translation>
+        <translation>すべて展開</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2089"/>
         <source>Collapse All</source>
-        <translation type="unfinished"></translation>
+        <translation>すべて折りたたむ</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2100"/>
         <source>No history document found. Put one in `docs/history.md` or `docs/changelog.md`.</source>
-        <translation type="unfinished"></translation>
+        <translation>履歴ドキュメントが見つかりません。`docs/history.md` または `docs/changelog.md` に配置してください。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2128"/>
         <source>History</source>
-        <translation type="unfinished"></translation>
+        <translation>履歴</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2133"/>
@@ -1307,32 +1326,32 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2139"/>
         <source>File</source>
-        <translation type="unfinished"></translation>
+        <translation>ファイル</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2139"/>
         <source>Size (KB)</source>
-        <translation type="unfinished"></translation>
+        <translation>サイズ (KB)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2139"/>
         <source>Modified</source>
-        <translation type="unfinished"></translation>
+        <translation>更新日時</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2149"/>
         <source>Refresh</source>
-        <translation type="unfinished"></translation>
+        <translation>更新</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2150"/>
         <source>Open Selected Log</source>
-        <translation type="unfinished"></translation>
+        <translation>選択したログを開く</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2151"/>
         <source>Open Current Log</source>
-        <translation type="unfinished"></translation>
+        <translation>現在のログを開く</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2159"/>
@@ -1340,22 +1359,22 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindow.cpp" line="2206"/>
         <location filename="../../src/app/MainWindow.cpp" line="2215"/>
         <source>Logs</source>
-        <translation type="unfinished"></translation>
+        <translation>ログ</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2200"/>
         <source>No log file selected.</source>
-        <translation type="unfinished"></translation>
+        <translation>ログファイルが選択されていません。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2206"/>
         <source>Current log file is not available yet.</source>
-        <translation type="unfinished"></translation>
+        <translation>現在のログファイルはまだ利用できません。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2215"/>
         <source>Log folder does not exist yet.</source>
-        <translation type="unfinished"></translation>
+        <translation>ログフォルダはまだ存在しません。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="57"/>
@@ -1409,12 +1428,12 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="114"/>
         <source>(No plugin panels)</source>
-        <translation type="unfinished"></translation>
+        <translation>(プラグインパネルなし)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="269"/>
         <source>Plugin batch edit is empty or invalid: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグインのバッチ編集が空または無効です: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="272"/>
@@ -1426,12 +1445,12 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="363"/>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="371"/>
         <source>Plugin Panel</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグインパネル</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="371"/>
         <source>Failed to create plugin panel.</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグインパネルの作成に失敗しました。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="388"/>
@@ -1616,7 +1635,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="248"/>
         <source>Open</source>
-        <translation type="unfinished"></translation>
+        <translation>開く</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="249"/>
@@ -1631,37 +1650,37 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="251"/>
         <source>Editor</source>
-        <translation type="unfinished"></translation>
+        <translation>エディタ</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="252"/>
         <source>Hide Left</source>
-        <translation type="unfinished"></translation>
+        <translation>左を隠す</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="252"/>
         <source>Show Left</source>
-        <translation type="unfinished"></translation>
+        <translation>左を表示</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="253"/>
         <source>Hide Right</source>
-        <translation type="unfinished"></translation>
+        <translation>右を隠す</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="253"/>
         <source>Show Right</source>
-        <translation type="unfinished"></translation>
+        <translation>右を表示</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="254"/>
         <source>Functions</source>
-        <translation type="unfinished"></translation>
+        <translation>機能</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="346"/>
         <source>Function Hub (Debug)</source>
-        <translation type="unfinished"></translation>
+        <translation>機能ハブ（デバッグ）</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="350"/>
@@ -1671,17 +1690,17 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="355"/>
         <source>Search functions...</source>
-        <translation type="unfinished"></translation>
+        <translation>機能を検索...</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="392"/>
         <source>Currently unavailable</source>
-        <translation type="unfinished"></translation>
+        <translation>現在利用できません</translation>
     </message>
     <message>
         <location filename="../../src/app/mobile/MainWindowMobile.cpp" line="450"/>
         <source>Run</source>
-        <translation type="unfinished"></translation>
+        <translation>実行</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="507"/>
@@ -1750,8 +1769,8 @@ Open the **History** tab for collapsible long update notes.</source>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1461"/>
-        <source>Export .mcz (Pure)...</source>
-        <translation>.mcz をエクスポート（純粋）...</translation>
+        <source>Export .mcz (&amp;Pure)...</source>
+        <translation>.mcz をエクスポート（&amp;純粋）...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1543"/>
@@ -1819,6 +1838,76 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <source>Plugin enhanced tool mode OFF</source>
         <translation>プラグイン拡張ツールモード: OFF</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="736"/>
+        <source>Mark Playback Jerk</source>
+        <translation>再生の乱れをマーク</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="751"/>
+        <source>Playback FPS Cap</source>
+        <translation>再生FPS上限</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="775"/>
+        <source>Playback FPS cap: %1</source>
+        <translation>再生FPS上限: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="789"/>
+        <source>Plugin Enhanced Tool Mode</source>
+        <translation>プラグイン拡張ツールモード</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="794"/>
+        <source>Plugin Overlay Elements</source>
+        <translation>プラグインオーバーレイ要素</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="808"/>
+        <source>Enable Overlay</source>
+        <translation>オーバーレイを有効にする</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="809"/>
+        <source>Preview Notes</source>
+        <translation>ノートをプレビュー</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="810"/>
+        <source>Control Points</source>
+        <translation>コントロールポイント</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="811"/>
+        <source>Handles</source>
+        <translation>ハンドル</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="812"/>
+        <source>Sample Points</source>
+        <translation>サンプルポイント</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="813"/>
+        <source>Labels</source>
+        <translation>ラベル</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1601"/>
+        <source>Session Settings...</source>
+        <translation>セッション設定...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2133"/>
+        <source>Logs are generated in the application 'logs' directory.</source>
+        <translation>ログはアプリケーションの logs ディレクトリに生成されます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="794"/>
+        <source>Toggle Right Panel</source>
+        <translation>右側パネルを切り替え</translation>
     </message>
 </context>
 <context>
@@ -2238,12 +2327,12 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="229"/>
         <source>History</source>
-        <translation type="unfinished"></translation>
+        <translation>履歴</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="254"/>
         <source>Other</source>
-        <translation type="unfinished"></translation>
+        <translation>その他</translation>
     </message>
 </context>
 <context>

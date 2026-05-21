@@ -995,82 +995,82 @@ Do you want to save before continuing?</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1560"/>
         <source>Timeline Division Color Advanced Settings</source>
-        <translation type="unfinished"></translation>
+        <translation>Timeline Division Color Advanced Settings</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1582"/>
         <source>Enable Timeline Division Coloring</source>
-        <translation type="unfinished"></translation>
+        <translation>Enable Timeline Division Coloring</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1588"/>
         <source>Custom</source>
-        <translation type="unfinished"></translation>
+        <translation>Custom</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1589"/>
         <source>Classic</source>
-        <translation type="unfinished"></translation>
+        <translation>Classic</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1590"/>
         <source>All</source>
-        <translation type="unfinished"></translation>
+        <translation>All</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1594"/>
         <source>Preset:</source>
-        <translation type="unfinished"></translation>
+        <translation>Preset:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1597"/>
         <source>Custom Rules</source>
-        <translation type="unfinished"></translation>
+        <translation>Custom Rules</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1600"/>
         <source>Common divisions:</source>
-        <translation type="unfinished"></translation>
+        <translation>Common divisions:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1621"/>
         <source>Extra divisions (manual):</source>
-        <translation type="unfinished"></translation>
+        <translation>Extra divisions (manual):</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1634"/>
         <source>Enter denominator, e.g. 48</source>
-        <translation type="unfinished"></translation>
+        <translation>Enter denominator, e.g. 48</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1635"/>
         <source>Add</source>
-        <translation type="unfinished"></translation>
+        <translation>Add</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1636"/>
         <source>Remove Selected</source>
-        <translation type="unfinished"></translation>
+        <translation>Remove Selected</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1660"/>
         <source>Invalid Division</source>
-        <translation type="unfinished"></translation>
+        <translation>Invalid Division</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1660"/>
         <source>Please enter a positive integer denominator.</source>
-        <translation type="unfinished"></translation>
+        <translation>Please enter a positive integer denominator.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1665"/>
         <source>Already In Common List</source>
-        <translation type="unfinished"></translation>
+        <translation>Already In Common List</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1665"/>
         <source>This division is already in common rules. Please use its checkbox.</source>
-        <translation type="unfinished"></translation>
+        <translation>This division is already in common rules. Please use its checkbox.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1862"/>
@@ -1135,29 +1135,29 @@ Do you want to save before continuing?</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1926"/>
         <source>Checking for updates...</source>
-        <translation type="unfinished"></translation>
+        <translation>Checking for updates...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1940"/>
         <location filename="../../src/app/MainWindow.cpp" line="1972"/>
         <location filename="../../src/app/MainWindow.cpp" line="1978"/>
         <source>Check for Updates</source>
-        <translation type="unfinished"></translation>
+        <translation>Check for Updates</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1941"/>
         <source>Update check failed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Update check failed: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1959"/>
         <source>Update Available</source>
-        <translation type="unfinished"></translation>
+        <translation>Update Available</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1960"/>
         <source>A newer version is available.</source>
-        <translation type="unfinished"></translation>
+        <translation>A newer version is available.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1961"/>
@@ -1165,30 +1165,36 @@ Do you want to save before continuing?</translation>
 Latest: %2
 
 Open release page?</source>
-        <translation type="unfinished"></translation>
+        <translation>Current: %1
+Latest: %2
+
+Open release page?</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1963"/>
         <source>Open Release Page</source>
-        <translation type="unfinished"></translation>
+        <translation>Open Release Page</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1973"/>
         <source>You are using the latest version.
 Current: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>You are using the latest version.
+Current: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1979"/>
         <source>Current version appears newer than latest release.
 Current: %1
 Latest: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>Current version appears newer than latest release.
+Current: %1
+Latest: %2</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2010"/>
         <source>Help Center</source>
-        <translation type="unfinished"></translation>
+        <translation>Help Center</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2026"/>
@@ -1200,63 +1206,76 @@ Quick start:
 1. Open a `.mc` chart.
 2. Choose edit mode in the right panel.
 3. Edit notes and save/export `.mcz`.</source>
-        <translation type="unfinished"></translation>
+        <translation># Help Documentation
+
+Create a `docs/help.md` file to customize this page.
+
+Quick start:
+1. Open a `.mc` chart.
+2. Choose edit mode in the right panel.
+3. Edit notes and save/export `.mcz`.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2040"/>
         <source># About
 
 Create a `docs/about.md` file to customize this page.</source>
-        <translation type="unfinished"></translation>
+        <translation># About
+
+Create a `docs/about.md` file to customize this page.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2071"/>
         <source>## History Updates
 
 Open the **History** tab for collapsible long update notes.</source>
-        <translation type="unfinished"></translation>
+        <translation>## History Updates
+
+Open the **History** tab for collapsible long update notes.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2079"/>
         <source>Long update notes are grouped by prefix and version and can be collapsed.</source>
-        <translation type="unfinished"></translation>
+        <translation>Long update notes are grouped by prefix and version and can be collapsed.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2032"/>
         <source>Help</source>
-        <translation type="unfinished"></translation>
+        <translation>Help</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2042"/>
         <source>About</source>
-        <translation type="unfinished"></translation>
+        <translation>About</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2057"/>
         <source>Application Version:</source>
-        <translation type="unfinished"></translation>
+        <translation>Application Version:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2059"/>
         <source>Qt Runtime:</source>
-        <translation type="unfinished"></translation>
+        <translation>Qt Runtime:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2061"/>
         <source>Build ABI:</source>
-        <translation type="unfinished"></translation>
+        <translation>Build ABI:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2063"/>
         <source>Operating System:</source>
-        <translation type="unfinished"></translation>
+        <translation>Operating System:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2067"/>
         <source>## Version Notes
 
 </source>
-        <translation type="unfinished"></translation>
+        <translation>## Version Notes
+
+</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2074"/>
@@ -1266,22 +1285,22 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2088"/>
         <source>Expand All</source>
-        <translation type="unfinished"></translation>
+        <translation>Expand All</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2089"/>
         <source>Collapse All</source>
-        <translation type="unfinished"></translation>
+        <translation>Collapse All</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2100"/>
         <source>No history document found. Put one in `docs/history.md` or `docs/changelog.md`.</source>
-        <translation type="unfinished"></translation>
+        <translation>No history document found. Put one in `docs/history.md` or `docs/changelog.md`.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2128"/>
         <source>History</source>
-        <translation type="unfinished"></translation>
+        <translation>History</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2133"/>
@@ -1291,32 +1310,32 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2139"/>
         <source>File</source>
-        <translation type="unfinished"></translation>
+        <translation>File</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2139"/>
         <source>Size (KB)</source>
-        <translation type="unfinished"></translation>
+        <translation>Size (KB)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2139"/>
         <source>Modified</source>
-        <translation type="unfinished"></translation>
+        <translation>Modified</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2149"/>
         <source>Refresh</source>
-        <translation type="unfinished"></translation>
+        <translation>Refresh</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2150"/>
         <source>Open Selected Log</source>
-        <translation type="unfinished"></translation>
+        <translation>Open Selected Log</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2151"/>
         <source>Open Current Log</source>
-        <translation type="unfinished"></translation>
+        <translation>Open Current Log</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2159"/>
@@ -1324,22 +1343,22 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindow.cpp" line="2206"/>
         <location filename="../../src/app/MainWindow.cpp" line="2215"/>
         <source>Logs</source>
-        <translation type="unfinished"></translation>
+        <translation>Logs</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2200"/>
         <source>No log file selected.</source>
-        <translation type="unfinished"></translation>
+        <translation>No log file selected.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2206"/>
         <source>Current log file is not available yet.</source>
-        <translation type="unfinished"></translation>
+        <translation>Current log file is not available yet.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2215"/>
         <source>Log folder does not exist yet.</source>
-        <translation type="unfinished"></translation>
+        <translation>Log folder does not exist yet.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="57"/>
@@ -1734,8 +1753,8 @@ Open the **History** tab for collapsible long update notes.</source>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1461"/>
-        <source>Export .mcz (Pure)...</source>
-        <translation>Export .mcz (Pure)...</translation>
+        <source>Export .mcz (&amp;Pure)...</source>
+        <translation>Export .mcz (&amp;Pure)...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1543"/>
@@ -1787,6 +1806,76 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="283"/>
         <source>Curve Plugin Options</source>
         <translation>Curve Plugin Options</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="736"/>
+        <source>Mark Playback Jerk</source>
+        <translation>Mark Playback Jerk</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="751"/>
+        <source>Playback FPS Cap</source>
+        <translation>Playback FPS Cap</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="775"/>
+        <source>Playback FPS cap: %1</source>
+        <translation>Playback FPS cap: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="789"/>
+        <source>Plugin Enhanced Tool Mode</source>
+        <translation>Plugin Enhanced Tool Mode</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="794"/>
+        <source>Plugin Overlay Elements</source>
+        <translation>Plugin Overlay Elements</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="808"/>
+        <source>Enable Overlay</source>
+        <translation>Enable Overlay</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="809"/>
+        <source>Preview Notes</source>
+        <translation>Preview Notes</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="810"/>
+        <source>Control Points</source>
+        <translation>Control Points</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="811"/>
+        <source>Handles</source>
+        <translation>Handles</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="812"/>
+        <source>Sample Points</source>
+        <translation>Sample Points</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="813"/>
+        <source>Labels</source>
+        <translation>Labels</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1601"/>
+        <source>Session Settings...</source>
+        <translation>Session Settings...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2133"/>
+        <source>Logs are generated in the application 'logs' directory.</source>
+        <translation>Logs are generated in the application 'logs' directory.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="794"/>
+        <source>Toggle Right Panel</source>
+        <translation>Toggle Right Panel</translation>
     </message>
 </context>
 <context>
@@ -2206,12 +2295,12 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="229"/>
         <source>History</source>
-        <translation type="unfinished"></translation>
+        <translation>History</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="254"/>
         <source>Other</source>
-        <translation type="unfinished"></translation>
+        <translation>Other</translation>
     </message>
 </context>
 <context>
