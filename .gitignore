@@ -1,37 +1,31 @@
 # Visual Studio / MSVC
 *.suo
 *.user
-*.vcxproj.user
-*.vcxproj.*.user
 *.lastbuildstate
-ipch/
 *.pdb
 *.obj
 *.idb
 *.ipdb
 *.tlog/
+ipch/
+.vs/
 
-# CMake build 目录
-build/
+# CMake
+build*/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
 *.cmake
 *.ninja
-*.log
 *.vcxproj*
 *.sln
 *.dir
 *.property
-build_codex
-build_clion_*/
-build_android_apk/
-android
 CMakePresets.json
 CMakeUserPresets.json
 
-# Qt moc/uic自动生成文件
+# Qt
 moc_*.cpp
 ui_*.h
 *.moc
@@ -43,18 +37,19 @@ ui_*.h
 .idea/
 *.iml
 
-# 临时文件
+# Temporary & OS
 *.tmp
 *.temp
 *.bak
 *~
 *.swp
-*.DS_Store
+.DS_Store
 Thumbs.db
-__pycache__
+__pycache__/
 *.pyc
+*.lock
 
-# 可能的不应提交的资源
+# Build artifacts & binaries
 *.exe
 *.dll
 *.so
@@ -64,16 +59,16 @@ __pycache__
 *.a
 *.log
 
-# 其他
-*.user
-*.lock
+# Misc project ignores
+.github/
+beatmap/*
+android/
+artifacts/
 hs_err_pid*.log
 *.hprof
 .gradle/
 main.md
 vibe.md
-.vs
-beatmap/*
 LOG_README.md
 plans
 examples
@@ -85,22 +80,15 @@ TODO.md
 CURRENT_STATUS.md
 TODO_MOBILE.md
 plugins/builtin/note_chain_assist/MEMO.
-.github
 SYNC_EXECUTION_CONTEXT_2026-05-06.md
-beatmap/*
+AI_CONTEXT_MEMORY.md
 docs/curve_sidecar_v3_context_snapshot.md
 docs/note_chain_assist_fix_temp_plan_2026-05-10.md
-# Runtime monitoring artifacts and performance caches
-artifacts/
-artifacts/playback_probe_*.csv
-artifacts/performance_analysis.json
-playback_probe_*.csv
 docs/p2_playback_probe_run_*.md
 docs/p2_playback_stutter_probe_guide_*.md
 docs/performance_cache_*.md
 docs/wpr_cache_*.json
 docs/p2*
-AI_CONTEXT_MEMORY.md
 docs/BRANCH_WORKFLOW.md
 docs/implementation_status.md
 docs/branch_context/_template.md
