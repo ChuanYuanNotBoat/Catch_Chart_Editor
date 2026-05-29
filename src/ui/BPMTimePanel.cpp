@@ -274,15 +274,9 @@ void BPMTimePanel::onMeasureBpmClicked()
         dialog.setMeasuring(false);
     });
 
-    // Initial measurement with default parameters.
-    QString initialErr;
-    BpmDetector::DetectionResult initialResult;
-    if (measureBpmFromAudio(dialog.durationSeconds(), static_cast<int>(dialog.mode()), initialResult, &initialErr))
-        dialog.setMeasuredBpm(initialResult.bpm);
-
     if (dialog.exec() == QDialog::Accepted)
     {
-        const double measuredBpm = dialog.measuredBpm();
+        const double measuredBpm = dialog.finalBpm();
         const bool fromStart = dialog.mode() == BpmMeasureDialog::MeasureMode::FromStart;
         int beat = 0, num = 0, den = 1;
         if (fromStart)

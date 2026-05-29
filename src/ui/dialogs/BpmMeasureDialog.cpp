@@ -9,9 +9,11 @@
 #include <QComboBox>
 #include <QTextEdit>
 #include <QProgressBar>
+#include <QShortcut>
+#include <QKeySequence>
 
 BpmMeasureDialog::BpmMeasureDialog(QWidget *parent)
-    : QDialog(parent), m_measuredBpm(0.0), m_measureDuration(120)
+    : QDialog(parent), m_measuredBpm(0.0), m_lastFinalBpm(0.0), m_measureDuration(120)
 {
     setupUi();
 }
@@ -56,7 +58,7 @@ void BpmMeasureDialog::setupUi()
     modeLayout->addStretch();
     mainLayout->addLayout(modeLayout);
 
-    // Result display
+    // Result display with quick multiply buttons
     QHBoxLayout *resultLayout = new QHBoxLayout;
     m_resultLabel = new QLabel(tr("Measured BPM:"), this);
     m_resultEdit = new QLineEdit(this);
@@ -64,6 +66,22 @@ void BpmMeasureDialog::setupUi()
     m_resultEdit->setText(tr("Click 'Measure' to start"));
     resultLayout->addWidget(m_resultLabel);
     resultLayout->addWidget(m_resultEdit);
+
+    m_x2Btn = new QPushButton(tr("x2"), this);
+    m_x2Btn->setMaximumWidth(40);
+    m_x3Btn = new QPushButton(tr("x3"), this);
+    m_x3Btn->setMaximumWidth(40);
+    m_x4Btn = new QPushButton(tr("x4"), this);
+    m_x4Btn->setMaximumWidth(40);
+    m_x6Btn = new QPushButton(tr("x6"), this);
+    m_x6Btn->setMaximumWidth(40);
+    m_x8Btn = new QPushButton(tr("x8"), this);
+    m_x8Btn->setMaximumWidth(40);
+    resultLayout->addWidget(m_x2Btn);
+    resultLayout->addWidget(m_x3Btn);
+    resultLayout->addWidget(m_x4Btn);
+    resultLayout->addWidget(m_x6Btn);
+    resultLayout->addWidget(m_x8Btn);
     mainLayout->addLayout(resultLayout);
 
     m_statusLabel = new QLabel(tr("Ready."), this);
@@ -84,6 +102,17 @@ void BpmMeasureDialog::setupUi()
     m_measureBtn = new QPushButton(tr("Measure"), this);
     mainLayout->addWidget(m_measureBtn);
 
+    // Final BPM to add (at bottom)
+    QHBoxLayout *finalLayout = new QHBoxLayout;
+    m_finalBpmLabel = new QLabel(tr("BPM to Add:"), this);
+    m_finalBpmSpin = new QDoubleSpinBox(this);
+    m_finalBpmSpin->setRange(1, 999);
+    m_finalBpmSpin->setDecimals(3);
+    m_finalBpmSpin->setValue(0);
+    finalLayout->addWidget(m_finalBpmLabel);
+    finalLayout->addWidget(m_finalBpmSpin);
+    mainLayout->addLayout(finalLayout);
+
     // Button box
     QDialogButtonBox *buttonBox = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -96,6 +125,16 @@ void BpmMeasureDialog::setupUi()
     connect(m_measureBtn, &QPushButton::clicked, this, &BpmMeasureDialog::onMeasureClicked);
     connect(m_okBtn, &QPushButton::clicked, this, &BpmMeasureDialog::onOkClicked);
     connect(m_cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+
+    connect(m_x2Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(2); });
+    connect(m_x3Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(3); });
+    connect(m_x4Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(4); });
+    connect(m_x6Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(6); });
+    connect(m_x8Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(8); });
+
+    // Ctrl+Z undo shortcut
+    m_undoShortcut = new QShortcut(QKeySequence::Undo, this);
+    connect(m_undoShortcut, &QShortcut::activated, this, &BpmMeasureDialog::onUndoQuick);
 
     mainLayout->addStretch();
 }
@@ -120,6 +159,10 @@ void BpmMeasureDialog::setMeasuredBpm(double bpm)
     m_measureDuration = m_durationSpin->value();
     m_resultEdit->setText(QString::number(bpm, 'f', 2));
     m_okBtn->setEnabled(bpm > 0);
+
+    // Auto-fill final BPM with measured value
+    m_lastFinalBpm = m_finalBpmSpin->value();
+    m_finalBpmSpin->setValue(bpm);
 }
 
 void BpmMeasureDialog::setResultDetailsText(const QString &text)
@@ -170,6 +213,11 @@ BpmMeasureDialog::MeasureMode BpmMeasureDialog::mode() const
     return static_cast<MeasureMode>(m_modeCombo->currentData().toInt());
 }
 
+double BpmMeasureDialog::finalBpm() const
+{
+    return m_finalBpmSpin ? m_finalBpmSpin->value() : 0.0;
+}
+
 void BpmMeasureDialog::onMeasureClicked()
 {
     // Emit signal to request measurement from parent
@@ -181,4 +229,15 @@ void BpmMeasureDialog::onOkClicked()
     if (m_measuredBpm > 0) {
         accept();
     }
+}
+
+void BpmMeasureDialog::onQuickMultiply(int factor)
+{
+    m_lastFinalBpm = m_finalBpmSpin->value();
+    m_finalBpmSpin->setValue(m_measuredBpm * factor);
+}
+
+void BpmMeasureDialog::onUndoQuick()
+{
+    m_finalBpmSpin->setValue(m_lastFinalBpm);
 }

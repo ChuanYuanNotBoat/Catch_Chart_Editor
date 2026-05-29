@@ -10,6 +10,7 @@ class QLineEdit;
 class QComboBox;
 class QTextEdit;
 class QProgressBar;
+class QShortcut;
 
 class BpmMeasureDialog : public QDialog
 {
@@ -24,6 +25,7 @@ public:
     explicit BpmMeasureDialog(QWidget *parent = nullptr);
     
     double measuredBpm() const { return m_measuredBpm; }
+    double finalBpm() const;
     int measureDurationSeconds() const { return m_measureDuration; }
     
     void setCurrentTimeText(const QString &text);
@@ -40,6 +42,8 @@ signals:
 private slots:
     void onMeasureClicked();
     void onOkClicked();
+    void onQuickMultiply(int factor);
+    void onUndoQuick();
 
 private:
     void setupUi();
@@ -57,7 +61,21 @@ private:
     QPushButton *m_measureBtn;
     QPushButton *m_okBtn;
     QPushButton *m_cancelBtn;
+
+    // Quick multiply buttons
+    QPushButton *m_x2Btn;
+    QPushButton *m_x3Btn;
+    QPushButton *m_x4Btn;
+    QPushButton *m_x6Btn;
+    QPushButton *m_x8Btn;
+
+    // Final BPM to add
+    QLabel *m_finalBpmLabel;
+    QDoubleSpinBox *m_finalBpmSpin;
+
+    QShortcut *m_undoShortcut;
     
     double m_measuredBpm;
+    double m_lastFinalBpm; // for undo
     int m_measureDuration;
 };
