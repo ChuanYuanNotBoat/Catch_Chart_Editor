@@ -5,6 +5,7 @@
 #include <QUndoStack>
 #include <QVector>
 #include "model/Chart.h"
+#include "file/BpmAuxFiles.h"
 
 /**
  * @brief 谱面编辑控制器，负责所有修改操作，并管理撤销/重做栈。
@@ -58,6 +59,23 @@ public:
                         const QVector<Note> &notesToRemove,
                         const QList<QPair<Note, Note>> &notesToMove);
 
+    // 不可达分度启用的原子操作（低级：BPM插入 + Note移动 + 排除项更新）
+    void applyUnreachableDivisionAtomic(
+        const QVector<BpmEntry> &newBpms,
+        const Note &originalNote,
+        const Note &replacementNote,
+        const BpmAuxFiles::BpmExcludesData &oldExcludes,
+        const BpmAuxFiles::BpmExcludesData &newExcludes,
+        const QString &chartPath);
+
+    // 不可达分度启用的原子操作（高级：从UI层调用，内部完成BPM计算/排除项/Note变更）
+    bool applyUnreachableDivisionAtomic(
+        const QVector<int> &noteIndices,
+        int targetDenominator);
+
+    // 获取上一次操作的错误信息
+    QString lastOperationError() const { return m_lastOperationError; }
+
 signals:
     void chartChanged(); // 任何数据变化
     void chartLoaded();  // 加载新谱面
@@ -76,8 +94,10 @@ private:
     class UpdateBpmCommand;
     class SetMetaCommand;
     class ExternalMutationCommand;
+    class UnreachableDivisionCommand;
 
     Chart m_chart;
     QUndoStack *m_undoStack;
     QString m_currentChartPath; // 当前加载的谱面文件路径
+    QString m_lastOperationError; // 上一次操作的错误信息
 };

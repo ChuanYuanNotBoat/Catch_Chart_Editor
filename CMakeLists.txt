@@ -48,6 +48,7 @@ set(SOURCES
     src/controller/ChartController.cpp
     src/controller/SelectionController.cpp
     src/controller/PlaybackController.cpp
+    src/logic/UnreachableDivisionManager.cpp
     src/render/NoteRenderer.cpp
     src/render/BeatDivisionColor.cpp
     src/render/GridRenderer.cpp
@@ -176,6 +177,7 @@ if(BUILD_TESTING)
         src/utils/PerformanceTimer.cpp
         src/utils/DiagnosticCollector.cpp
         src/controller/ChartController.cpp
+        src/logic/UnreachableDivisionManager.cpp
         src/file/ChartIO.cpp
         src/file/ProjectIO.cpp
         src/file/BpmAuxFiles.cpp

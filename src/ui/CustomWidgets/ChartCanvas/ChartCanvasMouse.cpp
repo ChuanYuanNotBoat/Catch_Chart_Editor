@@ -6,6 +6,7 @@
 #include "utils/MathUtils.h"
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
+#include "logic/UnreachableDivisionManager.h"
 #include "model/Chart.h"
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -13,6 +14,8 @@
 #include <QAction>
 #include <QMessageBox>
 #include <QDateTime>
+#include <QWidgetAction>
+#include <QLabel>
 #include <QCoreApplication>
 #include <QHash>
 #include <algorithm>
@@ -653,6 +656,16 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
     if (!colorMenu || targetIndices.isEmpty() || !chart())
         return;
 
+    // --- "显示不可达分度" 开关 (位置1: 颜色编辑子菜单顶部) ---
+    QAction *toggleUnreachableAct = colorMenu->addAction(tr("Show Unreachable Divisions"));
+    toggleUnreachableAct->setCheckable(true);
+    toggleUnreachableAct->setChecked(m_showUnreachableDivisions);
+    connect(toggleUnreachableAct, &QAction::toggled, this, [this](bool checked) {
+        setShowUnreachableDivisions(checked);
+    });
+    colorMenu->addSeparator();
+
+    // --- 计算可达/不可达分度 ---
     const QVector<Note> &notes = chart()->notes();
     QVector<int> availableDenominators;
     for (const ColorDivisionOption &option : kColorDivisionOptions)
@@ -670,14 +683,21 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
             availableDenominators.append(option.denominator);
     }
 
-    if (!availableDenominators.isEmpty())
+    // --- 合并分度列表 ---
+    bool hasAnyAction = false;
+    for (const ColorDivisionOption &option : kColorDivisionOptions)
     {
-        colorMenu->setEnabled(true);
-        for (const ColorDivisionOption &option : kColorDivisionOptions)
-        {
-            if (!availableDenominators.contains(option.denominator))
-                continue;
+        const bool isReachable = availableDenominators.contains(option.denominator);
+        const bool isRain = (targetIndices.size() == 1 && notes[targetIndices[0]].type == NoteType::RAIN);
 
+        // C5: Rain(type=3)不可作为启用目标 — 不可达分度对Rain隐藏
+        if (!isReachable && isRain)
+            continue;
+
+        if (isReachable)
+        {
+            // 可达分度：直接显示，原有逻辑
+            hasAnyAction = true;
             QAction *act = colorMenu->addAction(tr(option.label));
             connect(act, &QAction::triggered, this, [this, targetIndices, option]()
                     {
@@ -719,8 +739,64 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
                                             .arg(changes.size()));
                 } });
         }
+        else if (m_showUnreachableDivisions)
+        {
+            // 不可达分度：仅当开关开启时显示，视觉上加背景色
+            hasAnyAction = true;
+            QWidgetAction *wAct = new QWidgetAction(colorMenu);
+            QLabel *lbl = new QLabel(tr(option.label));
+            lbl->setToolTip(tr("Unreachable at current BPM — will insert BPM points"));
+            lbl->setStyleSheet(
+                "background-color: rgba(255, 200, 50, 120);"
+                "padding: 4px 12px;"
+                "border-radius: 3px;");
+            lbl->setMinimumHeight(22);
+            wAct->setDefaultWidget(lbl);
+            wAct->setData(option.denominator);
+            colorMenu->addAction(wAct);
+            QAction *act = wAct;
+
+            connect(act, &QAction::triggered, this, [this, targetIndices, option]()
+                    {
+                if (!chart())
+                    return;
+                if (!m_chartController)
+                    return;
+                if (targetIndices.isEmpty())
+                    return;
+
+                // 调用ChartController的原子操作（含BPM插入、排除项标记、Note分度变更）
+                bool ok = m_chartController->applyUnreachableDivisionAtomic(
+                    targetIndices, option.denominator);
+                if (ok)
+                {
+                    emit statusMessage(tr("Applied unreachable division %1 to %2 note(s) (BPM points inserted).")
+                                            .arg(option.label)
+                                            .arg(targetIndices.size()));
+                }
+                else
+                {
+                    QString errMsg = m_chartController->lastOperationError();
+                    if (errMsg.isEmpty())
+                        errMsg = tr("Unknown error");
+                    emit statusMessage(tr("Failed to apply unreachable division: %1").arg(errMsg));
+                    QMessageBox::warning(this, tr("Unreachable Division"), errMsg);
+                } });
+        }
     }
 
+    // 如果开关开启且无可达分度（全部不可达），也需确保菜单可用
+    if (m_showUnreachableDivisions)
+        colorMenu->setEnabled(true);
+    else
+        colorMenu->setEnabled(!availableDenominators.isEmpty());
+
+    if (!availableDenominators.isEmpty())
+    {
+        colorMenu->setEnabled(true);
+    }
+
+    // --- Minimal Irregular (Red) ---
     QAction *minimalIrregularAction = colorMenu->addAction(tr("Minimal Irregular (Red)"));
     connect(minimalIrregularAction, &QAction::triggered, this, [this, targetIndices]()
             {

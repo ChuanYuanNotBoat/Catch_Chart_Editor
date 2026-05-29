@@ -1,6 +1,7 @@
 #include "NoteEditPanel.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
+#include "logic/UnreachableDivisionManager.h"
 #include "utils/Logger.h"
 #include <QtGlobal>
 #include <QButtonGroup>
@@ -113,6 +114,17 @@ void NoteEditPanel::setupUi()
     m_gridSettingsBtn = new QPushButton(tr("Grid Settings..."), this);
     connect(m_gridSettingsBtn, &QPushButton::clicked, this, &NoteEditPanel::onGridSettingsClicked);
     mainLayout->addWidget(m_gridSettingsBtn);
+
+    // 不可达分度开关（右侧面板位置2）
+    m_showUnreachableDivisions = UnreachableDivisionManager::loadShowUnreachable();
+    m_showUnreachableCheck = new QCheckBox(tr("显示不可达分度"), this);
+    m_showUnreachableCheck->setChecked(m_showUnreachableDivisions);
+    connect(m_showUnreachableCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_showUnreachableDivisions = checked;
+        UnreachableDivisionManager::saveShowUnreachable(checked);
+        emit showUnreachableDivisionsToggled(checked);
+    });
+    mainLayout->addWidget(m_showUnreachableCheck);
 
     m_mirrorGroup = new QGroupBox(tr("Mirror Flip"), this);
     QVBoxLayout *mirrorLayout = new QVBoxLayout(m_mirrorGroup);
@@ -337,5 +349,19 @@ void NoteEditPanel::retranslateUi()
         m_mirrorPreviewCheck->setText(tr("Show Preview"));
     if (m_mirrorFlipButton)
         m_mirrorFlipButton->setText(tr("Flip Selected"));
+    if (m_showUnreachableCheck)
+        m_showUnreachableCheck->setText(tr("显示不可达分度"));
+}
+
+void NoteEditPanel::setShowUnreachableDivisions(bool enabled)
+{
+    if (m_showUnreachableDivisions == enabled)
+        return;
+    m_showUnreachableDivisions = enabled;
+    if (m_showUnreachableCheck)
+    {
+        const QSignalBlocker blocker(m_showUnreachableCheck);
+        m_showUnreachableCheck->setChecked(enabled);
+    }
 }
 

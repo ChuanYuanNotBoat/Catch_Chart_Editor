@@ -90,6 +90,9 @@ public:
     bool triggerPluginDeleteSelection();
     void recordManualJerkMark();
 
+    void setShowUnreachableDivisions(bool enabled);
+    bool showUnreachableDivisions() const { return m_showUnreachableDivisions; }
+
 public slots:
     void showGridSettings();
     void playbackPositionChanged(double timeMs);
@@ -101,6 +104,7 @@ signals:
     void timeScaleChanged(double scale);
     void mirrorAxisChanged(int axisX);
     void statusMessage(const QString &msg); // Status bar message hook.
+    void showUnreachableDivisionsChanged(bool enabled);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -328,6 +332,7 @@ private:
     QString m_sourceChartPath;
     QVariantMap m_pluginOverlayToggles;
     int m_pluginPlacementDensityOverride;
+    bool m_showUnreachableDivisions;
 
     QSet<int> m_cachedHyperSet;
     bool m_hyperCacheValid;

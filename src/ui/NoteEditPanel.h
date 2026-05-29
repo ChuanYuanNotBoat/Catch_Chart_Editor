@@ -47,6 +47,10 @@ public:
     void setModeFromHost(int mode);
     int currentMode() const { return m_currentMode; }
 
+    // 不可达分度开关
+    void setShowUnreachableDivisions(bool enabled);
+    bool showUnreachableDivisions() const { return m_showUnreachableDivisions; }
+
 signals:
     void modeChanged(int mode);
     void timeDivisionChanged(int division);
@@ -59,6 +63,7 @@ signals:
     void mirrorPreviewVisibilityChanged(bool visible);
     void mirrorFlipRequested();
     void pluginPlacementActionTriggered(const QString &pluginId, const QString &actionId);
+    void showUnreachableDivisionsToggled(bool enabled);
 
 private slots:
     void onNoteModeClicked();
@@ -104,4 +109,6 @@ private:
     int m_currentMode;
     int m_gridDivision;
     bool m_pluginToolsExpanded;
+    bool m_showUnreachableDivisions;
+    QCheckBox *m_showUnreachableCheck;
 };

@@ -2011,6 +2011,14 @@ void MainWindow::createCentralArea()
     connect(d->notePanel, &NoteEditPanel::pluginPlacementActionTriggered, this, &MainWindow::triggerPluginQuickAction);
     connect(d->canvas, &ChartCanvas::mirrorAxisChanged, d->notePanel, &NoteEditPanel::setMirrorAxisValue);
 
+    // 不可达分度开关双向同步
+    connect(d->notePanel, &NoteEditPanel::showUnreachableDivisionsToggled,
+            d->canvas, &ChartCanvas::setShowUnreachableDivisions);
+    connect(d->canvas, &ChartCanvas::showUnreachableDivisionsChanged,
+            d->notePanel, &NoteEditPanel::setShowUnreachableDivisions);
+    // 初始化同步
+    d->canvas->setShowUnreachableDivisions(d->notePanel->showUnreachableDivisions());
+
     d->splitter = new QSplitter(Qt::Horizontal, this);
     d->splitter->addWidget(d->leftPanel);
     d->splitter->addWidget(d->previewWidget);

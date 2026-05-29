@@ -83,6 +83,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_pluginToolModeActive(false),
       m_pluginToolPluginId(QString()),
       m_pluginPlacementDensityOverride(0),
+      m_showUnreachableDivisions(false),
       m_hyperCacheValid(false),
       m_backgroundCacheDirty(true),
       m_noteDataDirty(true),
@@ -607,6 +608,14 @@ void ChartCanvas::resetOverlayQueryState()
     m_lastOverlayQueryMs = 0;
     m_overlayQueryBlockedUntilMs = 0;
     m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlaying;
+}
+
+void ChartCanvas::setShowUnreachableDivisions(bool enabled)
+{
+    if (m_showUnreachableDivisions == enabled)
+        return;
+    m_showUnreachableDivisions = enabled;
+    emit showUnreachableDivisionsChanged(enabled);
 }
 
 
