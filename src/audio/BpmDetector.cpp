@@ -217,6 +217,10 @@ bool BpmDetector::detectFromFileDetailed(const QString &audioFilePath,
         return false;
     }
 
+    const double maxDurationMs = 120000.0;
+    if (durationMs > maxDurationMs)
+        durationMs = maxDurationMs;
+
     QVector<float> mono;
     int sampleRate = 0;
     if (!decodeMonoRange(audioFilePath, startMs, durationMs, mono, sampleRate, outError))
@@ -225,36 +229,6 @@ bool BpmDetector::detectFromFileDetailed(const QString &audioFilePath,
     if (!detectByMalodyCore(mono, sampleRate, outResult, outError))
         return false;
 
-    // Non-overlapping segment diagnostics using the same core algorithm.
-    const int minWin = sampleRate * 6;
-    const int maxWin = sampleRate * 30;
-    const int total = mono.size();
-    if (total >= minWin)
-    {
-        const int win = qMin(maxWin, qMax(minWin, total / 3));
-        for (int start = 0; start + minWin <= total; start += win)
-        {
-            const int end = qMin(total, start + win);
-            QVector<float> slice;
-            slice.reserve(end - start);
-            for (int i = start; i < end; ++i)
-                slice.append(mono[i]);
-
-            SegmentResult seg;
-            seg.startMs = start * 1000.0 / sampleRate;
-            seg.durationMs = (end - start) * 1000.0 / sampleRate;
-
-            DetectionResult segRet;
-            QString segErr;
-            if (detectByMalodyCore(slice, sampleRate, segRet, &segErr))
-            {
-                seg.valid = true;
-                seg.bpm = segRet.bpm;
-                seg.estimatedOffsetMs = segRet.estimatedOffsetMs;
-                seg.score = 1.0 / qMax(1e-6, qAbs(seg.bpm - outResult.bpm));
-            }
-            outResult.segments.append(seg);
-        }
-    }
+    // Segment diagnostics are disabled for full-song default measurement.
     return true;
 }

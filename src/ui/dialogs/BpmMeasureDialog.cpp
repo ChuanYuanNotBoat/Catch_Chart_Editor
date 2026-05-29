@@ -11,7 +11,7 @@
 #include <QProgressBar>
 
 BpmMeasureDialog::BpmMeasureDialog(QWidget *parent)
-    : QDialog(parent), m_measuredBpm(0.0), m_measureDuration(10)
+    : QDialog(parent), m_measuredBpm(0.0), m_measureDuration(120)
 {
     setupUi();
 }
@@ -36,8 +36,8 @@ void BpmMeasureDialog::setupUi()
     QHBoxLayout *durationLayout = new QHBoxLayout;
     m_durationLabel = new QLabel(tr("Measure Duration (seconds):"), this);
     m_durationSpin = new QSpinBox(this);
-    m_durationSpin->setRange(1, 60);
-    m_durationSpin->setValue(10);
+    m_durationSpin->setRange(1, 120);
+    m_durationSpin->setValue(120);
     m_durationSpin->setSuffix(" s");
     durationLayout->addWidget(m_durationLabel);
     durationLayout->addWidget(m_durationSpin);
@@ -50,7 +50,7 @@ void BpmMeasureDialog::setupUi()
     m_modeCombo = new QComboBox(this);
     m_modeCombo->addItem(tr("From Song Start"), static_cast<int>(MeasureMode::FromStart));
     m_modeCombo->addItem(tr("From Current Time"), static_cast<int>(MeasureMode::FromCurrentTime));
-    m_modeCombo->setCurrentIndex(1);
+    m_modeCombo->setCurrentIndex(0);
     modeLayout->addWidget(m_modeLabel);
     modeLayout->addWidget(m_modeCombo);
     modeLayout->addStretch();
