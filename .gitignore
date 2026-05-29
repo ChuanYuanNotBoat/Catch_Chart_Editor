@@ -96,3 +96,4 @@ docs/branch_context/feat-rain-length-drag.md
 REVERSE_ENGINEERING_PROGRESS.md
 AUTOTIMING_BINARY_MAPPING.md
 tools/*.py
+retry_build.cmd

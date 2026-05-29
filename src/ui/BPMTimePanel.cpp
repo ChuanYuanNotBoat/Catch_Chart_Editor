@@ -20,6 +20,10 @@
 #include <QStringList>
 #include <QTextStream>
 #include <QApplication>
+#include <QCheckBox>
+#include <QInputDialog>
+#include <QBrush>
+#include <QColor>
 #include <QtMath>
 
 BPMTimePanel::BPMTimePanel(QWidget *parent)
@@ -36,6 +40,7 @@ void BPMTimePanel::setupUi()
     m_bpmListWidget = new QListWidget(this);
     mainLayout->addWidget(m_bpmListWidget);
     connect(m_bpmListWidget, &QListWidget::currentRowChanged, this, &BPMTimePanel::onItemSelected);
+    connect(m_bpmListWidget, &QListWidget::itemChanged, this, &BPMTimePanel::onBpmItemChanged);
 
     // 编辑区域
     QHBoxLayout *timeLayout = new QHBoxLayout;
@@ -67,9 +72,34 @@ void BPMTimePanel::setupUi()
     m_measureBtn = new QPushButton(tr("Measure BPM..."), this);
     mainLayout->addWidget(m_measureBtn);
 
-    // Excludes label
+    // Excludes section with toggle checkbox
     m_excludesLabel = new QLabel(tr("Excluded ranges: 0"), this);
-    mainLayout->addWidget(m_excludesLabel);
+    m_showExcludesCheck = new QCheckBox(tr("Show excludes"), this);
+    m_showExcludesCheck->setChecked(false);
+    QHBoxLayout *excludesHeaderLayout = new QHBoxLayout;
+    excludesHeaderLayout->addWidget(m_excludesLabel);
+    excludesHeaderLayout->addStretch();
+    excludesHeaderLayout->addWidget(m_showExcludesCheck);
+    mainLayout->addLayout(excludesHeaderLayout);
+
+    // Excludes container (hidden by default)
+    m_excludesContainer = new QWidget(this);
+    QVBoxLayout *excludesLayout = new QVBoxLayout(m_excludesContainer);
+    excludesLayout->setContentsMargins(0, 0, 0, 0);
+
+    m_excludesListWidget = new QListWidget(m_excludesContainer);
+    m_excludesListWidget->setMaximumHeight(150);
+    excludesLayout->addWidget(m_excludesListWidget);
+
+    QHBoxLayout *excludesBtnLayout = new QHBoxLayout;
+    m_addExcludeBtn = new QPushButton(tr("Add Exclude..."), m_excludesContainer);
+    m_removeExcludeBtn = new QPushButton(tr("Remove Exclude"), m_excludesContainer);
+    excludesBtnLayout->addWidget(m_addExcludeBtn);
+    excludesBtnLayout->addWidget(m_removeExcludeBtn);
+    excludesLayout->addLayout(excludesBtnLayout);
+
+    m_excludesContainer->setVisible(false);
+    mainLayout->addWidget(m_excludesContainer);
 
     mainLayout->addStretch();
 
@@ -77,29 +107,73 @@ void BPMTimePanel::setupUi()
     connect(m_removeBtn, &QPushButton::clicked, this, &BPMTimePanel::onRemoveClicked);
     connect(m_measureBtn, &QPushButton::clicked, this, &BPMTimePanel::onMeasureBpmClicked);
     connect(m_bpmSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &BPMTimePanel::onBpmChanged);
+    connect(m_showExcludesCheck, &QCheckBox::toggled, this, &BPMTimePanel::onShowExcludesToggled);
+    connect(m_addExcludeBtn, &QPushButton::clicked, this, &BPMTimePanel::onAddExcludeClicked);
+    connect(m_removeExcludeBtn, &QPushButton::clicked, this, &BPMTimePanel::onRemoveExcludeClicked);
+    connect(m_excludesListWidget, &QListWidget::itemChanged, this, &BPMTimePanel::onExcludeItemChanged);
 }
 
 void BPMTimePanel::refreshBpmList()
 {
     if (!m_chartController || !m_chartController->chart())
         return;
+
+    // Block signals to avoid itemChanged during populate
+    m_bpmListWidget->blockSignals(true);
     m_bpmListWidget->clear();
+
+    // Load excludes data
+    BpmAuxFiles::BpmExcludesData excludesData;
+    QString chartPath = m_chartController->chartFilePath();
+    bool hasExcludes = false;
+    if (!chartPath.isEmpty())
+        hasExcludes = BpmAuxFiles::loadBpmExcludes(chartPath, excludesData);
+
+    m_currentExcludesData = excludesData;
+
+    const bool showExcludes = m_showExcludesCheck && m_showExcludesCheck->isChecked();
+    const QColor excludedBg(255, 140, 140);   // light red background for excluded
+    const QColor excludedFg(80, 0, 0);        // dark red text for excluded
+
     const auto &bpmList = m_chartController->chart()->bpmList();
     for (int i = 0; i < bpmList.size(); ++i)
     {
         const BpmEntry &bpm = bpmList[i];
+
+        // Check if this BPM falls in an excluded range
+        bool excluded = false;
+        if (hasExcludes)
+            excluded = isBeatExcluded(bpm.beatNum, bpm.numerator, bpm.denominator, excludesData);
+
+        // When "Show excludes" is checked, hide excluded BPMs from main list
+        if (showExcludes && excluded)
+            continue;
+
         QString text = QString("%1:%2/%3\t%4")
                            .arg(bpm.beatNum)
                            .arg(bpm.numerator)
                            .arg(bpm.denominator)
                            .arg(bpm.bpm, 0, 'f', 3);
-        m_bpmListWidget->addItem(text);
+
+        auto *item = new QListWidgetItem(text);
+        item->setData(Qt::UserRole, i);  // store original BPM index
+
+        // Make item checkable
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(excluded ? Qt::Checked : Qt::Unchecked);
+
+        // Color excluded items (when shown in merged mode)
+        if (excluded)
+        {
+            item->setBackground(QBrush(excludedBg));
+            item->setForeground(QBrush(excludedFg));
+        }
+
+        m_bpmListWidget->addItem(item);
     }
 
-    // Load and display exclude ranges count
-    BpmAuxFiles::BpmExcludesData excludesData;
-    QString chartPath = m_chartController->chartFilePath();
-    if (!chartPath.isEmpty() && BpmAuxFiles::loadBpmExcludes(chartPath, excludesData))
+    // Update excludes count label
+    if (hasExcludes)
     {
         m_excludesLabel->setText(tr("Excluded ranges: %1").arg(excludesData.excludes.size()));
     }
@@ -107,6 +181,29 @@ void BPMTimePanel::refreshBpmList()
     {
         m_excludesLabel->setText(tr("Excluded ranges: 0"));
     }
+
+    m_bpmListWidget->blockSignals(false);
+}
+
+bool BPMTimePanel::isBeatExcluded(int beatNum, int numerator, int denominator,
+                                  const BpmAuxFiles::BpmExcludesData &excludesData) const
+{
+    for (const auto &range : excludesData.excludes)
+    {
+        // If beat >= start
+        bool geStart = (beatNum > range.startBeatNum)
+                       || (beatNum == range.startBeatNum
+                           && numerator * range.startDenominator >= range.startNumerator * denominator);
+
+        // If beat <= end
+        bool leEnd = (beatNum < range.endBeatNum)
+                     || (beatNum == range.endBeatNum
+                         && numerator * range.endDenominator <= range.endNumerator * denominator);
+
+        if (geStart && leEnd)
+            return true;
+    }
+    return false;
 }
 
 void BPMTimePanel::onItemSelected(int row)
@@ -403,6 +500,238 @@ void BPMTimePanel::setSelectionController(SelectionController *controller)
 void BPMTimePanel::setPlaybackController(PlaybackController *controller)
 {
     m_playbackController = controller;
+}
+
+void BPMTimePanel::onShowExcludesToggled(bool checked)
+{
+    m_excludesContainer->setVisible(checked);
+    if (checked)
+        refreshExcludesList();
+    // Refresh BPM list to toggle between merged and separated modes
+    refreshBpmList();
+}
+
+void BPMTimePanel::onAddExcludeClicked()
+{
+    if (!m_chartController || !m_chartController->chart())
+        return;
+
+    const auto &bpmList = m_chartController->chart()->bpmList();
+    if (bpmList.isEmpty())
+    {
+        QMessageBox::information(this, tr("No BPM"), tr("Add at least one BPM entry first."));
+        return;
+    }
+
+    // Ask user for beat position
+    bool ok = false;
+    QString beatStr = QInputDialog::getText(this, tr("Add Exclude"),
+        tr("Enter exclude beat position (e.g. 0:1/1):"), QLineEdit::Normal, "0:0/1", &ok);
+    if (!ok || beatStr.trimmed().isEmpty())
+        return;
+
+    int beat = 0, num = 0, den = 1;
+    if (beatStr.contains(':'))
+    {
+        QStringList parts = beatStr.split(':');
+        if (parts.size() >= 2)
+        {
+            beat = parts[0].toInt();
+            QString fraction = parts[1];
+            if (fraction.contains('/'))
+            {
+                QStringList fracParts = fraction.split('/');
+                if (fracParts.size() == 2)
+                {
+                    num = fracParts[0].toInt();
+                    den = fracParts[1].toInt();
+                }
+            }
+            else
+            {
+                num = fraction.toInt();
+                den = 1;
+            }
+        }
+    }
+
+    // Load existing excludes
+    QString chartPath = m_chartController->chartFilePath();
+    BpmAuxFiles::BpmExcludesData excludesData;
+    if (!chartPath.isEmpty())
+        BpmAuxFiles::loadBpmExcludes(chartPath, excludesData);
+
+    // Create a single-point exclude range (start == end)
+    BpmAuxFiles::BpmExcludeRange newRange(beat, num, den, beat, num, den);
+
+    // Check for duplicates
+    for (const auto &e : excludesData.excludes)
+    {
+        if (e.startBeatNum == beat && e.startNumerator == num && e.startDenominator == den
+            && e.endBeatNum == beat && e.endNumerator == num && e.endDenominator == den)
+        {
+            QMessageBox::information(this, tr("Duplicate"), tr("This exclude already exists."));
+            return;
+        }
+    }
+
+    excludesData.excludes.append(newRange);
+    if (!chartPath.isEmpty())
+        BpmAuxFiles::saveBpmExcludes(chartPath, excludesData);
+
+    m_currentExcludesData = excludesData;
+    refreshExcludesList();
+    refreshBpmList();  // Update BPM list coloring
+}
+
+void BPMTimePanel::onRemoveExcludeClicked()
+{
+    if (m_excludesListWidget->currentRow() < 0)
+        return;
+
+    int row = m_excludesListWidget->currentRow();
+    if (row >= m_currentExcludesData.excludes.size())
+        return;
+
+    m_currentExcludesData.excludes.removeAt(row);
+    QString chartPath = m_chartController ? m_chartController->chartFilePath() : QString();
+    if (!chartPath.isEmpty())
+        BpmAuxFiles::saveBpmExcludes(chartPath, m_currentExcludesData);
+
+    refreshExcludesList();
+    refreshBpmList();  // Update BPM list coloring
+}
+
+void BPMTimePanel::refreshExcludesList()
+{
+    if (!m_excludesListWidget)
+        return;
+
+    m_excludesListWidget->blockSignals(true);
+    m_excludesListWidget->clear();
+
+    QString chartPath = m_chartController ? m_chartController->chartFilePath() : QString();
+    if (chartPath.isEmpty())
+    {
+        m_currentExcludesData = BpmAuxFiles::BpmExcludesData();
+        m_excludesListWidget->blockSignals(false);
+        return;
+    }
+
+    BpmAuxFiles::loadBpmExcludes(chartPath, m_currentExcludesData);
+
+    if (!m_chartController || !m_chartController->chart())
+    {
+        m_excludesListWidget->blockSignals(false);
+        return;
+    }
+
+    const QColor excludedBg(255, 140, 140);
+    const QColor excludedFg(80, 0, 0);
+
+    // Show excluded BPMs in the same format as BPM list: beatNum:num/den\tbpm
+    const auto &bpmList = m_chartController->chart()->bpmList();
+    for (int i = 0; i < bpmList.size(); ++i)
+    {
+        const BpmEntry &bpm = bpmList[i];
+        if (!isBeatExcluded(bpm.beatNum, bpm.numerator, bpm.denominator, m_currentExcludesData))
+            continue;
+
+        QString text = QString("%1:%2/%3\t%4")
+                           .arg(bpm.beatNum)
+                           .arg(bpm.numerator)
+                           .arg(bpm.denominator)
+                           .arg(bpm.bpm, 0, 'f', 3);
+
+        auto *item = new QListWidgetItem(text);
+        item->setData(Qt::UserRole, i);  // store original BPM index
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(Qt::Checked);
+        item->setBackground(QBrush(excludedBg));
+        item->setForeground(QBrush(excludedFg));
+        m_excludesListWidget->addItem(item);
+    }
+
+    m_excludesListWidget->blockSignals(false);
+}
+
+void BPMTimePanel::onExcludeItemChanged(QListWidgetItem *item)
+{
+    if (!item || !m_chartController || !m_chartController->chart())
+        return;
+
+    // If unchecked, remove the exclude for this BPM
+    if (item->checkState() != Qt::Unchecked)
+        return;
+
+    const int bpmIndex = item->data(Qt::UserRole).toInt();
+    const auto &bpmList = m_chartController->chart()->bpmList();
+    if (bpmIndex < 0 || bpmIndex >= bpmList.size())
+        return;
+
+    const BpmEntry &bpm = bpmList[bpmIndex];
+    QString chartPath = m_chartController->chartFilePath();
+    BpmAuxFiles::BpmExcludesData excludesData;
+    if (!chartPath.isEmpty())
+        BpmAuxFiles::loadBpmExcludes(chartPath, excludesData);
+
+    // Remove matching single-point exclude entry
+    for (int i = excludesData.excludes.size() - 1; i >= 0; --i)
+    {
+        const auto &e = excludesData.excludes[i];
+        if (e.startBeatNum == bpm.beatNum && e.startNumerator == bpm.numerator && e.startDenominator == bpm.denominator
+            && e.endBeatNum == bpm.beatNum && e.endNumerator == bpm.numerator && e.endDenominator == bpm.denominator)
+        {
+            excludesData.excludes.removeAt(i);
+            break;
+        }
+    }
+    if (!chartPath.isEmpty())
+        BpmAuxFiles::saveBpmExcludes(chartPath, excludesData);
+    m_currentExcludesData = excludesData;
+    refreshExcludesList();
+    refreshBpmList();
+}
+
+void BPMTimePanel::onBpmItemChanged(QListWidgetItem *item)
+{
+    if (!item || !m_chartController || !m_chartController->chart())
+        return;
+
+    // Only react to checkbox state changes
+    if (item->checkState() == Qt::Checked)
+        return;
+
+    // When unchecked, add this BPM to the excludes list
+    const int bpmIndex = item->data(Qt::UserRole).toInt();
+    const auto &bpmList = m_chartController->chart()->bpmList();
+    if (bpmIndex < 0 || bpmIndex >= bpmList.size())
+        return;
+
+    const BpmEntry &bpm = bpmList[bpmIndex];
+    QString chartPath = m_chartController->chartFilePath();
+    BpmAuxFiles::BpmExcludesData excludesData;
+    if (!chartPath.isEmpty())
+        BpmAuxFiles::loadBpmExcludes(chartPath, excludesData);
+
+    // Add single-point exclude entry if not already present
+    if (!isBeatExcluded(bpm.beatNum, bpm.numerator, bpm.denominator, excludesData))
+    {
+        BpmAuxFiles::BpmExcludeRange entry;
+        entry.startBeatNum = bpm.beatNum;
+        entry.startNumerator = bpm.numerator;
+        entry.startDenominator = bpm.denominator;
+        entry.endBeatNum = bpm.beatNum;
+        entry.endNumerator = bpm.numerator;
+        entry.endDenominator = bpm.denominator;
+        excludesData.excludes.append(entry);
+    }
+
+    if (!chartPath.isEmpty())
+        BpmAuxFiles::saveBpmExcludes(chartPath, excludesData);
+    m_currentExcludesData = excludesData;
+    refreshExcludesList();
+    refreshBpmList();
 }
 
 void BPMTimePanel::retranslateUi()
