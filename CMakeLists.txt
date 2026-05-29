@@ -130,7 +130,7 @@ qt6_add_translations(${PROJECT_NAME}
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/resources/default_skin
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>/skins/default
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/skins
 )
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/resources/note_sounds")
