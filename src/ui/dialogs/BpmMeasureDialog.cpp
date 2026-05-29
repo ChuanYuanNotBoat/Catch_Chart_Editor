@@ -11,6 +11,7 @@
 #include <QProgressBar>
 #include <QShortcut>
 #include <QKeySequence>
+#include <QCheckBox>
 
 BpmMeasureDialog::BpmMeasureDialog(QWidget *parent)
     : QDialog(parent), m_measuredBpm(0.0), m_lastFinalBpm(0.0), m_measureDuration(120)
@@ -113,6 +114,24 @@ void BpmMeasureDialog::setupUi()
     finalLayout->addWidget(m_finalBpmSpin);
     mainLayout->addLayout(finalLayout);
 
+    // Final Offset to apply
+    QHBoxLayout *offsetLayout = new QHBoxLayout;
+    m_finalOffsetLabel = new QLabel(tr("Offset to Apply:"), this);
+    m_finalOffsetSpin = new QSpinBox(this);
+    m_finalOffsetSpin->setRange(-9999, 9999);
+    m_finalOffsetSpin->setValue(0);
+    m_finalOffsetSpin->setSuffix(" ms");
+    m_applyOffsetCheck = new QCheckBox(tr("Apply offset"), this);
+    m_applyOffsetCheck->setChecked(false);
+    offsetLayout->addWidget(m_finalOffsetLabel);
+    offsetLayout->addWidget(m_finalOffsetSpin);
+    offsetLayout->addWidget(m_applyOffsetCheck);
+    mainLayout->addLayout(offsetLayout);
+
+    // Initially disable offset controls (will be enabled when FromStart mode is selected/measured)
+    m_finalOffsetSpin->setEnabled(false);
+    m_applyOffsetCheck->setEnabled(false);
+
     // Button box
     QDialogButtonBox *buttonBox = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -135,6 +154,10 @@ void BpmMeasureDialog::setupUi()
     // Ctrl+Z undo shortcut
     m_undoShortcut = new QShortcut(QKeySequence::Undo, this);
     connect(m_undoShortcut, &QShortcut::activated, this, &BpmMeasureDialog::onUndoQuick);
+
+    // Mode change signal for enabling/disabling offset controls
+    connect(m_modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BpmMeasureDialog::onModeChanged);
 
     mainLayout->addStretch();
 }
@@ -218,6 +241,24 @@ double BpmMeasureDialog::finalBpm() const
     return m_finalBpmSpin ? m_finalBpmSpin->value() : 0.0;
 }
 
+int BpmMeasureDialog::finalOffset() const
+{
+    return m_finalOffsetSpin ? m_finalOffsetSpin->value() : 0;
+}
+
+bool BpmMeasureDialog::applyOffset() const
+{
+    return m_applyOffsetCheck ? m_applyOffsetCheck->isChecked() : false;
+}
+
+void BpmMeasureDialog::setMeasuredOffset(int offsetMs)
+{
+    if (m_finalOffsetSpin) {
+        m_finalOffsetSpin->setValue(offsetMs);
+        m_applyOffsetCheck->setChecked(true);
+    }
+}
+
 void BpmMeasureDialog::onMeasureClicked()
 {
     // Emit signal to request measurement from parent
@@ -240,4 +281,18 @@ void BpmMeasureDialog::onQuickMultiply(int factor)
 void BpmMeasureDialog::onUndoQuick()
 {
     m_finalBpmSpin->setValue(m_lastFinalBpm);
+}
+
+void BpmMeasureDialog::onModeChanged(int index)
+{
+    // Mode 0 = FromStart -> offset controls enabled
+    // Mode 1 = FromCurrentTime -> offset controls disabled
+    bool isFromStart = (index == 0);
+    if (m_finalOffsetSpin)
+        m_finalOffsetSpin->setEnabled(isFromStart);
+    if (m_applyOffsetCheck) {
+        m_applyOffsetCheck->setEnabled(isFromStart);
+        if (!isFromStart)
+            m_applyOffsetCheck->setChecked(false);
+    }
 }

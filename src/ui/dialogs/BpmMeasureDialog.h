@@ -2,6 +2,7 @@
 
 #include <QDialog>
 #include <QDoubleSpinBox>
+#include <QCheckBox>
 
 class QSpinBox;
 class QLabel;
@@ -26,6 +27,8 @@ public:
     
     double measuredBpm() const { return m_measuredBpm; }
     double finalBpm() const;
+    int finalOffset() const;
+    bool applyOffset() const;
     int measureDurationSeconds() const { return m_measureDuration; }
     
     void setCurrentTimeText(const QString &text);
@@ -33,6 +36,7 @@ public:
     void setResultDetailsText(const QString &text);
     void setMeasuring(bool measuring);
     void setStatusText(const QString &text);
+    void setMeasuredOffset(int offsetMs);
     int durationSeconds() const;
     MeasureMode mode() const;
 
@@ -44,6 +48,7 @@ private slots:
     void onOkClicked();
     void onQuickMultiply(int factor);
     void onUndoQuick();
+    void onModeChanged(int index);
 
 private:
     void setupUi();
@@ -72,6 +77,11 @@ private:
     // Final BPM to add
     QLabel *m_finalBpmLabel;
     QDoubleSpinBox *m_finalBpmSpin;
+
+    // Final Offset to apply
+    QLabel *m_finalOffsetLabel;
+    QSpinBox *m_finalOffsetSpin;
+    QCheckBox *m_applyOffsetCheck;
 
     QShortcut *m_undoShortcut;
     

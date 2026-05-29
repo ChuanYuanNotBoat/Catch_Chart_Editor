@@ -272,6 +272,13 @@ void BPMTimePanel::onMeasureBpmClicked()
         dialog.setResultDetailsText(details);
         dialog.setStatusText(tr("Measurement complete."));
         dialog.setMeasuring(false);
+
+        // If FromStart mode, fill the offset into the dialog's offset spinbox
+        if (mode == static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart))
+        {
+            const int measuredOffset = qRound(result.estimatedOffsetMs);
+            dialog.setMeasuredOffset(measuredOffset);
+        }
     });
 
     if (dialog.exec() == QDialog::Accepted)
@@ -307,28 +314,13 @@ void BPMTimePanel::onMeasureBpmClicked()
             refreshBpmList();
         }
 
-        if (fromStart)
+        // Apply offset if checkbox was checked in dialog
+        if (fromStart && dialog.applyOffset())
         {
-            QString err;
-            BpmDetector::DetectionResult offsetResult;
-            if (measureBpmFromAudio(dialog.durationSeconds(), static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart), offsetResult, &err))
-            {
-                const int newOffset = qRound(offsetResult.estimatedOffsetMs);
-                if (qAbs(newOffset - offsetMs) >= 1)
-                {
-                    QMessageBox::StandardButton offsetReply = QMessageBox::question(
-                        this,
-                        tr("Apply Offset"),
-                        tr("Apply measured offset %1 ms? (Current: %2 ms)").arg(newOffset).arg(offsetMs),
-                        QMessageBox::Yes | QMessageBox::No);
-                    if (offsetReply == QMessageBox::Yes)
-                    {
-                        MetaData meta = m_chartController->chart()->meta();
-                        meta.offset = newOffset;
-                        m_chartController->setMetaData(meta);
-                    }
-                }
-            }
+            const int newOffset = dialog.finalOffset();
+            MetaData meta = m_chartController->chart()->meta();
+            meta.offset = newOffset;
+            m_chartController->setMetaData(meta);
         }
     }
 }
