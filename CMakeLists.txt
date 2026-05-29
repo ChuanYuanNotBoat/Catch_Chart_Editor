@@ -39,6 +39,11 @@ set(SOURCES
     src/file/ChartFileSystem.cpp
     src/file/PluginLoader.cpp
     src/audio/AudioPlayer.cpp
+    src/audio/BpmDetector.cpp
+    src/audio/autotiming/AutoTiming.cpp
+    src/audio/autotiming/dsp.cpp
+    src/audio/autotiming/fft.cpp
+    src/audio/autotiming/util.cpp
     src/audio/NoteSoundPlayer.cpp
     src/controller/ChartController.cpp
     src/controller/SelectionController.cpp
@@ -68,6 +73,7 @@ set(SOURCES
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp
     src/ui/dialogs/LogSettingsDialog.cpp
     src/ui/dialogs/PluginManagerDialog.cpp
+    src/ui/dialogs/BpmMeasureDialog.cpp
 )
 
 qt_add_executable(${PROJECT_NAME}

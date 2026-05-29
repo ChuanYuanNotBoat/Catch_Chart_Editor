@@ -1,6 +1,14 @@
 #include "BPMTimePanel.h"
 #include "controller/ChartController.h"
+#include "controller/PlaybackController.h"
 #include "model/BpmEntry.h"
+#include "model/Chart.h"
+#include "ui/dialogs/BpmMeasureDialog.h"
+#include "utils/MathUtils.h"
+#include "file/BpmAuxFiles.h"
+#include "audio/BpmDetector.h"
+#include <QFileInfo>
+#include <QDir>
 #include <QListWidget>
 #include <QLineEdit>
 #include <QDoubleSpinBox>
@@ -10,9 +18,12 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QStringList>
+#include <QTextStream>
+#include <QApplication>
+#include <QtMath>
 
 BPMTimePanel::BPMTimePanel(QWidget *parent)
-    : RightPanel(parent), m_chartController(nullptr), m_selectedIndex(-1)
+    : RightPanel(parent), m_chartController(nullptr), m_playbackController(nullptr), m_selectedIndex(-1)
 {
     setupUi();
 }
@@ -52,10 +63,19 @@ void BPMTimePanel::setupUi()
     btnLayout->addWidget(m_removeBtn);
     mainLayout->addLayout(btnLayout);
 
+    // Measure BPM button
+    m_measureBtn = new QPushButton(tr("Measure BPM..."), this);
+    mainLayout->addWidget(m_measureBtn);
+
+    // Excludes label
+    m_excludesLabel = new QLabel(tr("Excluded ranges: 0"), this);
+    mainLayout->addWidget(m_excludesLabel);
+
     mainLayout->addStretch();
 
     connect(m_addBtn, &QPushButton::clicked, this, &BPMTimePanel::onAddClicked);
     connect(m_removeBtn, &QPushButton::clicked, this, &BPMTimePanel::onRemoveClicked);
+    connect(m_measureBtn, &QPushButton::clicked, this, &BPMTimePanel::onMeasureBpmClicked);
     connect(m_bpmSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &BPMTimePanel::onBpmChanged);
 }
 
@@ -74,6 +94,18 @@ void BPMTimePanel::refreshBpmList()
                            .arg(bpm.denominator)
                            .arg(bpm.bpm, 0, 'f', 3);
         m_bpmListWidget->addItem(text);
+    }
+
+    // Load and display exclude ranges count
+    BpmAuxFiles::BpmExcludesData excludesData;
+    QString chartPath = m_chartController->chartFilePath();
+    if (!chartPath.isEmpty() && BpmAuxFiles::loadBpmExcludes(chartPath, excludesData))
+    {
+        m_excludesLabel->setText(tr("Excluded ranges: %1").arg(excludesData.excludes.size()));
+    }
+    else
+    {
+        m_excludesLabel->setText(tr("Excluded ranges: 0"));
     }
 }
 
@@ -164,6 +196,204 @@ void BPMTimePanel::onBpmChanged(double)
     // 可实时预览，但暂时不做
 }
 
+void BPMTimePanel::onMeasureBpmClicked()
+{
+    if (!m_chartController || !m_chartController->chart())
+        return;
+
+    const double chartMs = currentChartTimeMs();
+    const int offsetMs = m_chartController->chart()->meta().offset;
+    const double audioMs = qMax(0.0, chartMs + static_cast<double>(offsetMs));
+    const QString timeStr = tr("%1 ms").arg(QString::number(audioMs, 'f', 0));
+    BpmMeasureDialog dialog(this);
+    dialog.setCurrentTimeText(timeStr);
+    dialog.setStatusText(tr("Ready to measure."));
+    connect(&dialog, &BpmMeasureDialog::measureRequested, this, [this, &dialog](int durationSeconds, int mode) {
+        dialog.setMeasuring(true);
+        dialog.setStatusText(tr("Measuring audio..."));
+        QApplication::processEvents();
+
+        QString err;
+        BpmDetector::DetectionResult result;
+        if (!measureBpmFromAudio(durationSeconds, mode, result, &err))
+        {
+            dialog.setMeasuring(false);
+            dialog.setStatusText(tr("Measurement failed."));
+            QMessageBox::warning(this, tr("Measurement Failed"),
+                err.isEmpty() ? tr("Failed to measure BPM from audio.") : err);
+            return;
+        }
+        dialog.setMeasuredBpm(result.bpm);
+
+        QVector<double> validBpms;
+        for (const auto &seg : result.segments)
+        {
+            if (seg.valid)
+                validBpms.append(seg.bpm);
+        }
+        double uncertainty = 0.0;
+        if (validBpms.size() > 1)
+        {
+            double mean = 0.0;
+            for (double v : validBpms)
+                mean += v;
+            mean /= static_cast<double>(validBpms.size());
+            double var = 0.0;
+            for (double v : validBpms)
+            {
+                const double d = v - mean;
+                var += d * d;
+            }
+            var /= static_cast<double>(validBpms.size());
+            uncertainty = qSqrt(var);
+        }
+
+        QString details;
+        QTextStream s(&details);
+        s << tr("Mode: ") << (mode == static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart)
+                                  ? tr("From Song Start") : tr("From Current Time")) << "\n";
+        s << tr("Estimated BPM: ") << QString::number(result.bpm, 'f', 3) << "\n";
+        s << tr("Uncertainty (segment stddev): ") << QString::number(uncertainty, 'f', 4) << "\n";
+        if (mode == static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart))
+            s << tr("Estimated offset: ") << QString::number(result.estimatedOffsetMs, 'f', 1) << tr(" ms") << "\n";
+        s << tr("Segments:") << "\n";
+        for (int i = 0; i < result.segments.size(); ++i)
+        {
+            const auto &seg = result.segments[i];
+            s << QString("#%1 ").arg(i + 1)
+              << "[" << QString::number(seg.startMs, 'f', 0) << ", "
+              << QString::number(seg.startMs + seg.durationMs, 'f', 0) << "]ms ";
+            if (seg.valid)
+                s << tr("bpm=") << QString::number(seg.bpm, 'f', 3) << tr(", score=") << QString::number(seg.score, 'f', 3);
+            else
+                s << tr("invalid");
+            s << "\n";
+        }
+        dialog.setResultDetailsText(details);
+        dialog.setStatusText(tr("Measurement complete."));
+        dialog.setMeasuring(false);
+    });
+
+    // Initial measurement with default parameters.
+    QString initialErr;
+    BpmDetector::DetectionResult initialResult;
+    if (measureBpmFromAudio(dialog.durationSeconds(), static_cast<int>(dialog.mode()), initialResult, &initialErr))
+        dialog.setMeasuredBpm(initialResult.bpm);
+
+    if (dialog.exec() == QDialog::Accepted)
+    {
+        const double measuredBpm = dialog.measuredBpm();
+        const bool fromStart = dialog.mode() == BpmMeasureDialog::MeasureMode::FromStart;
+        int beat = 0, num = 0, den = 1;
+        if (fromStart)
+        {
+            beat = 0;
+            num = 1;
+            den = 1;
+        }
+        else
+        {
+            MathUtils::msToBeat(chartMs, m_chartController->chart()->bpmList(), offsetMs, beat, num, den);
+        }
+
+        // Ask user if they want to write this BPM at current time
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this,
+            tr("Write BPM"),
+            fromStart
+                ? tr("Write measured BPM %1 at chart start (0:0/1)?").arg(QString::number(measuredBpm, 'f', 2))
+                : tr("Write measured BPM %1 at current time?").arg(QString::number(measuredBpm, 'f', 2)),
+            QMessageBox::Yes | QMessageBox::No
+        );
+
+        if (reply == QMessageBox::Yes)
+        {
+            BpmEntry newBpm(beat, num, den, measuredBpm);
+            m_chartController->addBpm(newBpm);
+            refreshBpmList();
+        }
+
+        if (fromStart)
+        {
+            QString err;
+            BpmDetector::DetectionResult offsetResult;
+            if (measureBpmFromAudio(dialog.durationSeconds(), static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart), offsetResult, &err))
+            {
+                const int newOffset = qRound(offsetResult.estimatedOffsetMs);
+                if (qAbs(newOffset - offsetMs) >= 1)
+                {
+                    QMessageBox::StandardButton offsetReply = QMessageBox::question(
+                        this,
+                        tr("Apply Offset"),
+                        tr("Apply measured offset %1 ms? (Current: %2 ms)").arg(newOffset).arg(offsetMs),
+                        QMessageBox::Yes | QMessageBox::No);
+                    if (offsetReply == QMessageBox::Yes)
+                    {
+                        MetaData meta = m_chartController->chart()->meta();
+                        meta.offset = newOffset;
+                        m_chartController->setMetaData(meta);
+                    }
+                }
+            }
+        }
+    }
+}
+
+double BPMTimePanel::currentChartTimeMs() const
+{
+    if (!m_playbackController)
+        return 0.0;
+    return m_playbackController->currentTime();
+}
+
+QString BPMTimePanel::currentAudioFilePath() const
+{
+    if (!m_chartController || !m_chartController->chart())
+        return QString();
+    const QString chartPath = m_chartController->chartFilePath();
+    if (chartPath.isEmpty())
+        return QString();
+    const QString audioRel = m_chartController->chart()->meta().audioFile.trimmed();
+    if (audioRel.isEmpty())
+        return QString();
+    return QFileInfo(chartPath).absoluteDir().absoluteFilePath(audioRel);
+}
+
+bool BPMTimePanel::measureBpmFromAudio(int durationSeconds,
+                                       int mode,
+                                       BpmDetector::DetectionResult &outResult,
+                                       QString *outError) const
+{
+    outResult = BpmDetector::DetectionResult();
+    if (durationSeconds <= 0)
+    {
+        if (outError)
+            *outError = tr("Duration must be greater than 0.");
+        return false;
+    }
+    const QString audioPath = currentAudioFilePath();
+    if (audioPath.isEmpty())
+    {
+        if (outError)
+            *outError = tr("No audio file is linked to this chart.");
+        return false;
+    }
+
+    const bool fromStart = (mode == static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart));
+    const double chartMs = fromStart ? 0.0 : currentChartTimeMs();
+    const int offsetMs = (m_chartController && m_chartController->chart()) ? m_chartController->chart()->meta().offset : 0;
+    const double audioStartMs = qMax(0.0, chartMs + static_cast<double>(offsetMs));
+
+    QString err;
+    if (!BpmDetector::detectFromFileDetailed(audioPath, audioStartMs, durationSeconds * 1000.0, outResult, &err))
+    {
+        if (outError)
+            *outError = err.isEmpty() ? tr("Audio BPM detection failed.") : err;
+        return false;
+    }
+    return outResult.bpm > 0.0;
+}
+
 void BPMTimePanel::setChartController(ChartController *controller)
 {
     if (m_chartController)
@@ -184,6 +414,11 @@ void BPMTimePanel::setSelectionController(SelectionController *controller)
     Q_UNUSED(controller);
 }
 
+void BPMTimePanel::setPlaybackController(PlaybackController *controller)
+{
+    m_playbackController = controller;
+}
+
 void BPMTimePanel::retranslateUi()
 {
     if (m_timeLabel)
@@ -194,6 +429,22 @@ void BPMTimePanel::retranslateUi()
         m_addBtn->setText(tr("Add/Update"));
     if (m_removeBtn)
         m_removeBtn->setText(tr("Remove"));
+    if (m_measureBtn)
+        m_measureBtn->setText(tr("Measure BPM..."));
+    if (m_excludesLabel)
+    {
+        // Refresh excludes count
+        BpmAuxFiles::BpmExcludesData excludesData;
+        QString chartPath = m_chartController ? m_chartController->chartFilePath() : QString();
+        if (!chartPath.isEmpty() && BpmAuxFiles::loadBpmExcludes(chartPath, excludesData))
+        {
+            m_excludesLabel->setText(tr("Excluded ranges: %1").arg(excludesData.excludes.size()));
+        }
+        else
+        {
+            m_excludesLabel->setText(tr("Excluded ranges: 0"));
+        }
+    }
     if (m_timeEdit)
         m_timeEdit->setPlaceholderText(tr("e.g. 0:1/1"));
 }

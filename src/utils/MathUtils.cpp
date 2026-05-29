@@ -449,3 +449,36 @@ Note MathUtils::snapNoteToTimeWithBoundary(const Note &note, int timeDivision)
 
     return snapped;
 }
+
+double MathUtils::measureBpmFromTime(int startBeatNum, int startNumerator, int startDenominator,
+                                      double durationSeconds,
+                                      const QVector<BpmEntry> &bpmList, int offsetMs)
+{
+    if (bpmList.isEmpty() || durationSeconds <= 0)
+        return 0.0;
+
+    // 计算起始时间的毫秒数
+    double startMs = beatToMs(startBeatNum, startNumerator, startDenominator, bpmList, offsetMs);
+    
+    // 计算结束时间的毫秒数
+    double endMs = startMs + (durationSeconds * 1000.0);
+    
+    // 将结束时间转换为拍号
+    int endBeatNum, endNumerator, endDenominator;
+    msToBeat(endMs, bpmList, offsetMs, endBeatNum, endNumerator, endDenominator);
+    
+    // 计算起始和结束的浮点拍数
+    double startBeat = beatToFloat(startBeatNum, startNumerator, startDenominator);
+    double endBeat = beatToFloat(endBeatNum, endNumerator, endDenominator);
+    
+    // 计算拍数差
+    double beatDiff = endBeat - startBeat;
+    
+    if (beatDiff <= 0)
+        return 0.0;
+    
+    // BPM = (拍数 / 时长秒数) * 60
+    double bpm = (beatDiff / durationSeconds) * 60.0;
+    
+    return bpm;
+}

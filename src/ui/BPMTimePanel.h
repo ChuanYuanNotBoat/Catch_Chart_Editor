@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CustomWidgets/RightPanel.h"
+#include "audio/BpmDetector.h"
 #include <QVector>
 
 class QListWidget;
@@ -8,6 +9,7 @@ class QLineEdit;
 class QDoubleSpinBox;
 class QPushButton;
 class QLabel;
+class PlaybackController;
 
 class BPMTimePanel : public RightPanel
 {
@@ -16,6 +18,7 @@ public:
     explicit BPMTimePanel(QWidget *parent = nullptr);
     void setChartController(ChartController *controller) override;
     void setSelectionController(SelectionController *controller) override;
+    void setPlaybackController(PlaybackController *controller);
     void retranslateUi();
 
 private slots:
@@ -24,11 +27,19 @@ private slots:
     void onAddClicked();
     void onRemoveClicked();
     void onBpmChanged(double);
+    void onMeasureBpmClicked();
 
 private:
     void setupUi();
+    double currentChartTimeMs() const;
+    QString currentAudioFilePath() const;
+    bool measureBpmFromAudio(int durationSeconds,
+                             int mode,
+                             BpmDetector::DetectionResult &outResult,
+                             QString *outError) const;
 
     ChartController *m_chartController;
+    PlaybackController *m_playbackController;
     QListWidget *m_bpmListWidget;
     QLabel *m_timeLabel;
     QLabel *m_bpmLabel;
@@ -36,5 +47,7 @@ private:
     QDoubleSpinBox *m_bpmSpin;
     QPushButton *m_addBtn;
     QPushButton *m_removeBtn;
+    QPushButton *m_measureBtn;
+    QLabel *m_excludesLabel;
     int m_selectedIndex;
 };

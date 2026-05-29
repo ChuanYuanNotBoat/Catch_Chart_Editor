@@ -93,3 +93,6 @@ docs/BRANCH_WORKFLOW.md
 docs/implementation_status.md
 docs/branch_context/_template.md
 docs/branch_context/feat-rain-length-drag.md
+REVERSE_ENGINEERING_PROGRESS.md
+AUTOTIMING_BINARY_MAPPING.md
+tools/*.py
