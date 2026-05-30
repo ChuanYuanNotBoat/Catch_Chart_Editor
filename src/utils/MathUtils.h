@@ -48,6 +48,18 @@ public:
     static Note snapNoteToTimeWithBoundary(const Note &note, int timeDivision); // 时间分度吸附带边界检查
     // 时间对齐网格
     static double snapTimeToGrid(double timeMs, const QVector<BpmEntry> &bpmList, int offset, int timeDivision);
+
+    // 平均 BPM 计算（用于缩放基准）
+    static double computeAverageBPM(const QVector<BpmEntry> &bpmList);
+
+    // 从缓存查找指定 beat 处的 BPM
+    static double lookupBpmAtBeat(double beat, const QVector<BpmCacheEntry> &cache);
+
+    // 从缓存将 beat→ms
+    static double beatToMs(double beatFloat, const QVector<BpmCacheEntry> &cache);
+
+    // 从缓存将 ms→beat (float)
+    static double msToBeatFloat(double ms, const QVector<BpmCacheEntry> &cache);
     
     // BPM 测量：从指定时间点开始，测量指定时长内的 BPM
     static double measureBpmFromTime(int startBeatNum, int startNumerator, int startDenominator,

@@ -116,29 +116,67 @@ void ChartCanvas::setTimeScale(double scale)
     if (qFuzzyCompare(m_timeScale, clampedScale))
         return;
 
-    const double baselineRatio = kReferenceLineRatio;
-    double baselineBeat;
-    if (m_verticalFlip)
+    if (m_coordinateMode == CoordinateMode::BeatLinear)
     {
-        baselineBeat = m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange();
+        const double baselineRatio = kReferenceLineRatio;
+        double baselineBeat;
+        if (m_verticalFlip)
+        {
+            baselineBeat = m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange();
+        }
+        else
+        {
+            baselineBeat = m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
+        }
+
+        m_timeScale = clampedScale;
+
+        if (m_verticalFlip)
+        {
+            m_scrollBeat = baselineBeat - (1.0 - baselineRatio) * effectiveVisibleBeatRange();
+        }
+        else
+        {
+            m_scrollBeat = baselineBeat - baselineRatio * effectiveVisibleBeatRange();
+        }
+        const double scrollLimit = negativeBeatScrollLimit();
+        if (m_scrollBeat < scrollLimit)
+            m_scrollBeat = scrollLimit;
     }
     else
     {
-        baselineBeat = m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
+        // TimeLinear 模式：缩放 visibleTimeRangeMs，保持参考线位置固定
+        const double baselineRatio = kReferenceLineRatio;
+        const auto &cache = bpmTimeCache();
+        const double oldScale = m_timeScale;
+
+        // 计算参考线处的当前时间
+        double refTimeMs;
+        {
+            double refBeat;
+            if (m_verticalFlip)
+                refBeat = m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange();
+            else
+                refBeat = m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
+            refTimeMs = MathUtils::beatToMs(refBeat, cache);
+        }
+
+        m_timeScale = clampedScale;
+
+        // 缩放 visibleTimeRangeMs: scale增大→范围缩小
+        double factor = (oldScale > 0) ? (oldScale / clampedScale) : 1.0;
+        m_visibleTimeRangeMs = qMax(1.0, m_visibleTimeRangeMs * factor);
+
+        // 调整 scrollTimeMs 使参考线位置不变
+        m_scrollTimeMs = refTimeMs - baselineRatio * m_visibleTimeRangeMs;
+
+        // 从 scrollTimeMs 反推 scrollBeat
+        m_scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, cache);
+        // 应用负数 beat 滚动下限
+        clampScrollTimeToLimit();
     }
 
-    m_timeScale = clampedScale;
-
-    if (m_verticalFlip)
-    {
-        m_scrollBeat = baselineBeat - (1.0 - baselineRatio) * effectiveVisibleBeatRange();
-    }
-    else
-    {
-        m_scrollBeat = baselineBeat - baselineRatio * effectiveVisibleBeatRange();
-    }
-    if (m_scrollBeat < 0)
-        m_scrollBeat = 0;
+    syncScrollTimeFromBeat();
 
     invalidateGridCache();
     update();
@@ -260,49 +298,77 @@ void ChartCanvas::advancePlaybackVisual(bool scheduleRepaint, bool recordProbe)
         if (cache.isEmpty())
             return;
 
-        auto beatFromTimeMs = [&cache](double timeMs) -> double
-        {
-            int lo = 0;
-            int hi = cache.size() - 1;
-            while (lo < hi)
-            {
-                const int mid = (lo + hi + 1) / 2;
-                if (cache[mid].accumulatedMs <= timeMs)
-                    lo = mid;
-                else
-                    hi = mid - 1;
-            }
-            const auto &seg = cache[lo];
-            if (seg.bpm <= 0.0)
-                return seg.beatPos;
-            return seg.beatPos + (timeMs - seg.accumulatedMs) * (seg.bpm / 60000.0);
-        };
-        const double beat = beatFromTimeMs(m_currentPlayTime);
-
         const double baselineRatio = kReferenceLineRatio;
-        double targetScrollBeat;
-        if (m_verticalFlip)
+
+        if (m_coordinateMode == CoordinateMode::TimeLinear)
         {
-            targetScrollBeat = beat - (1.0 - baselineRatio) * effectiveVisibleBeatRange();
+            // TimeLinear 模式：直接基于时间滚动，确保在 BPM 分界处下落速度匀速
+            double targetScrollTimeMs = m_currentPlayTime
+                - (m_verticalFlip ? (1.0 - baselineRatio) : baselineRatio) * m_visibleTimeRangeMs;
+
+            const double previousScrollBeat = m_scrollBeat;
+            m_scrollTimeMs = targetScrollTimeMs;
+            m_scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, cache);
+            // 应用负数 beat 滚动下限
+            clampScrollTimeToLimit();
+
+            const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+            const bool scrollChanged = std::abs(m_scrollBeat - previousScrollBeat) > kScrollSignalEpsilonBeat;
+            if (!m_isPlaying &&
+                scrollChanged &&
+                (m_lastScrollSignalTimeMs == 0 || nowMs - m_lastScrollSignalTimeMs >= kScrollSignalIntervalMs))
+            {
+                emit scrollPositionChanged(m_scrollBeat);
+                m_lastScrollSignalTimeMs = nowMs;
+                PlaybackStutterProbe::recordCounter("canvas.scroll_signal_emits", 1, m_isPlaying);
+            }
         }
         else
         {
-            targetScrollBeat = beat - baselineRatio * effectiveVisibleBeatRange();
-        }
+            // BeatLinear 模式：保留 beat 空间滚动逻辑
+            auto beatFromTimeMs = [&cache](double timeMs) -> double
+            {
+                int lo = 0;
+                int hi = cache.size() - 1;
+                while (lo < hi)
+                {
+                    const int mid = (lo + hi + 1) / 2;
+                    if (cache[mid].accumulatedMs <= timeMs)
+                        lo = mid;
+                    else
+                        hi = mid - 1;
+                }
+                const auto &seg = cache[lo];
+                if (seg.bpm <= 0.0)
+                    return seg.beatPos;
+                return seg.beatPos + (timeMs - seg.accumulatedMs) * (seg.bpm / 60000.0);
+            };
+            const double beat = beatFromTimeMs(m_currentPlayTime);
 
-        const double previousScrollBeat = m_scrollBeat;
-        m_scrollBeat = targetScrollBeat;
-        if (m_scrollBeat < 0)
-            m_scrollBeat = 0;
-        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-        const bool scrollChanged = std::abs(m_scrollBeat - previousScrollBeat) > kScrollSignalEpsilonBeat;
-        if (!m_isPlaying &&
-            scrollChanged &&
-            (m_lastScrollSignalTimeMs == 0 || nowMs - m_lastScrollSignalTimeMs >= kScrollSignalIntervalMs))
-        {
-            emit scrollPositionChanged(m_scrollBeat);
-            m_lastScrollSignalTimeMs = nowMs;
-            PlaybackStutterProbe::recordCounter("canvas.scroll_signal_emits", 1, m_isPlaying);
+            double targetScrollBeat;
+            if (m_verticalFlip)
+            {
+                targetScrollBeat = beat - (1.0 - baselineRatio) * effectiveVisibleBeatRange();
+            }
+            else
+            {
+                targetScrollBeat = beat - baselineRatio * effectiveVisibleBeatRange();
+            }
+
+            const double previousScrollBeat = m_scrollBeat;
+            m_scrollBeat = targetScrollBeat;
+            clampScrollTimeToLimit();
+            syncScrollTimeFromBeat();
+            const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+            const bool scrollChanged = std::abs(m_scrollBeat - previousScrollBeat) > kScrollSignalEpsilonBeat;
+            if (!m_isPlaying &&
+                scrollChanged &&
+                (m_lastScrollSignalTimeMs == 0 || nowMs - m_lastScrollSignalTimeMs >= kScrollSignalIntervalMs))
+            {
+                emit scrollPositionChanged(m_scrollBeat);
+                m_lastScrollSignalTimeMs = nowMs;
+                PlaybackStutterProbe::recordCounter("canvas.scroll_signal_emits", 1, m_isPlaying);
+            }
         }
     }
 

@@ -450,6 +450,107 @@ Note MathUtils::snapNoteToTimeWithBoundary(const Note &note, int timeDivision)
     return snapped;
 }
 
+double MathUtils::computeAverageBPM(const QVector<BpmEntry> &bpmList)
+{
+    if (bpmList.isEmpty())
+        return 120.0;
+
+    // 如果只有一个 BPM 段，直接返回
+    if (bpmList.size() == 1)
+        return bpmList[0].bpm;
+
+    // 计算加权平均：每段 BPM * 该段持续的拍数
+    double totalBeats = 0.0;
+    double weightedSum = 0.0;
+    for (int i = 0; i < bpmList.size(); ++i)
+    {
+        double curBeat = bpmList[i].beatNum + static_cast<double>(bpmList[i].numerator) / bpmList[i].denominator;
+        double nextBeat;
+        if (i + 1 < bpmList.size())
+        {
+            const BpmEntry &next = bpmList[i + 1];
+            nextBeat = next.beatNum + static_cast<double>(next.numerator) / next.denominator;
+        }
+        else
+        {
+            // 最后一段：使用第一段的 beat 范围作为估计
+            nextBeat = curBeat + (bpmList[0].beatNum + 1.0 - curBeat);
+            if (nextBeat <= curBeat)
+                nextBeat = curBeat + 100.0; // 默认100拍
+        }
+        double segBeats = nextBeat - curBeat;
+        if (segBeats > 0 && bpmList[i].bpm > 0)
+        {
+            weightedSum += bpmList[i].bpm * segBeats;
+            totalBeats += segBeats;
+        }
+    }
+
+    if (totalBeats <= 0)
+        return bpmList.first().bpm;
+
+    return weightedSum / totalBeats;
+}
+
+double MathUtils::lookupBpmAtBeat(double beat, const QVector<BpmCacheEntry> &cache)
+{
+    if (cache.isEmpty())
+        return 120.0;
+
+    int lo = 0, hi = cache.size() - 1;
+    while (lo < hi)
+    {
+        const int mid = (lo + hi + 1) / 2;
+        if (cache[mid].beatPos <= beat)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+    return cache[lo].bpm;
+}
+
+double MathUtils::beatToMs(double beatFloat, const QVector<BpmCacheEntry> &cache)
+{
+    if (cache.isEmpty())
+        return 0.0;
+
+    int lo = 0, hi = cache.size() - 1;
+    while (lo < hi)
+    {
+        int mid = (lo + hi + 1) / 2;
+        if (cache[mid].beatPos <= beatFloat)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+
+    const BpmCacheEntry &seg = cache[lo];
+    double beatDelta = beatFloat - seg.beatPos;
+    if (seg.bpm <= 0)
+        return seg.accumulatedMs;
+
+    return seg.accumulatedMs + beatDelta * (60000.0 / seg.bpm);
+}
+
+double MathUtils::msToBeatFloat(double ms, const QVector<BpmCacheEntry> &cache)
+{
+    if (cache.isEmpty())
+        return 0.0;
+
+    int lo = 0, hi = cache.size() - 1;
+    while (lo < hi)
+    {
+        const int mid = (lo + hi + 1) / 2;
+        if (cache[mid].accumulatedMs <= ms)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+    const auto &seg = cache[lo];
+    const double beatOffset = (ms - seg.accumulatedMs) * (seg.bpm / 60000.0);
+    return seg.beatPos + beatOffset;
+}
+
 double MathUtils::measureBpmFromTime(int startBeatNum, int startNumerator, int startDenominator,
                                       double durationSeconds,
                                       const QVector<BpmEntry> &bpmList, int offsetMs)

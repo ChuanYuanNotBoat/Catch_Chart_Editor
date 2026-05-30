@@ -97,6 +97,9 @@ public:
     int chartPickerPrimaryColumnWidth() const;
     void setChartPickerPrimaryColumnWidth(int width);
 
+    int coordinateMode() const;
+    void setCoordinateMode(int mode);
+
 private:
     Settings();
     QSettings m_settings;

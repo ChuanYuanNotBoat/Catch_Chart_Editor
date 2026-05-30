@@ -101,6 +101,23 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     const double baseY = m_verticalFlip ? canvasHeight : 0;
     const double sign = m_verticalFlip ? -1.0 : 1.0;
 
+    const bool useTimeLinear = (m_coordinateMode == CoordinateMode::TimeLinear);
+    // TimeLinear 模式下直接使用 m_scrollTimeMs，不经过 beat 中间态，避免 BPM 分界处精度损失
+    double scrollTimeMs;
+    if (useTimeLinear)
+    {
+        scrollTimeMs = m_scrollTimeMs;
+    }
+    else
+    {
+        int scrollBeatNum, scrollNum, scrollDen;
+        MathUtils::floatToBeat(m_scrollBeat, scrollBeatNum, scrollNum, scrollDen);
+        scrollTimeMs = MathUtils::beatToMs(scrollBeatNum, scrollNum, scrollDen, bpmList, currentChart->meta().offset);
+    }
+
+    // TimeLinear: 使用固定的 pixelsPerMs = canvasHeight / visibleTimeRangeMs
+    const double pixelsPerMs = (m_visibleTimeRangeMs > 0) ? (canvasHeight / m_visibleTimeRangeMs) : 1.0;
+
     QSet<int> selectedSet;
     if (m_selectionController)
         selectedSet = m_selectionController->selectedIndices();
@@ -131,14 +148,34 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
                 return;
         }
 
-        double y = baseY + sign * ((beat - m_scrollBeat) * invVisibleRange * canvasHeight);
+        double y;
+        if (useTimeLinear)
+        {
+            double noteTimeMs = m_noteTimesMs[i];
+            y = baseY + sign * ((noteTimeMs - scrollTimeMs) * pixelsPerMs);
+        }
+        else
+        {
+            y = baseY + sign * ((beat - m_scrollBeat) * invVisibleRange * canvasHeight);
+        }
 
         if (type == NoteType::RAIN)
         {
             double visibleStartBeat = qMax(beat, startBeat);
             double visibleEndBeat = qMin(endBeatNote, endBeat);
-            double yStart = baseY + sign * ((visibleStartBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
-            double yEnd = baseY + sign * ((visibleEndBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+            double yStart, yEnd;
+            if (useTimeLinear)
+            {
+                double startTimeMs = MathUtils::beatToMs(visibleStartBeat, bpmTimeCache());
+                double endTimeMs = MathUtils::beatToMs(visibleEndBeat, bpmTimeCache());
+                yStart = baseY + sign * ((startTimeMs - scrollTimeMs) * pixelsPerMs);
+                yEnd = baseY + sign * ((endTimeMs - scrollTimeMs) * pixelsPerMs);
+            }
+            else
+            {
+                yStart = baseY + sign * ((visibleStartBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+                yEnd = baseY + sign * ((visibleEndBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+            }
             double rectTop = qMin(yStart, yEnd);
             double rectHeight = qAbs(yEnd - yStart);
             if (rectHeight <= 0)
@@ -630,91 +667,178 @@ void ChartCanvas::drawGrid(QPainter &painter)
             return;
         }
 
-        int startBeatNum, startNum, startDen;
-        MathUtils::floatToBeat(m_scrollBeat, startBeatNum, startNum, startDen);
-        const double startTime = MathUtils::beatToMs(startBeatNum, startNum, startDen, bpmCache);
-        int endBeatNum, endNum, endDen;
-        MathUtils::floatToBeat(m_scrollBeat + effectiveVisibleBeatRange(), endBeatNum, endNum, endDen);
-        const double endTime = MathUtils::beatToMs(endBeatNum, endNum, endDen, bpmCache);
-
         const int viewportHeight = qMax(1, rect.height());
-        const double rawSpanMs = qMax(1.0, endTime - startTime);
-        const double msPerPixel = rawSpanMs / viewportHeight;
-        // Quantize the backing cache in larger vertical chunks and compensate
-        // draw position per-frame so playback scrolling can mostly reuse cache.
-        const double quantStepMs = qMax(1.0, msPerPixel * 24.0);
-        const auto quantizeDown = [quantStepMs](double value) -> double
-        {
-            return std::floor(value / quantStepMs) * quantStepMs;
-        };
-        const double renderStartTime = quantizeDown(startTime);
-        const double renderEndTime = renderStartTime + rawSpanMs;
-
-        const int cachePadPx = qMax(8, static_cast<int>(std::ceil((quantStepMs / rawSpanMs) * viewportHeight)) + 2);
-        const double cachePadMs = msPerPixel * static_cast<double>(cachePadPx);
-        const double cacheStartTime = renderStartTime - cachePadMs;
-        const double cacheEndTime = renderEndTime + cachePadMs;
-        const QSize cacheSize(rect.width(), viewportHeight + cachePadPx * 2);
 
         const bool colorEnabled = Settings::instance().timelineDivisionColorEnabled();
         const QString colorPreset = Settings::instance().timelineDivisionColorPreset();
         const QList<int> colorCustom = Settings::instance().timelineDivisionColorCustomDivisions();
-        const bool needRebuild =
-            !m_gridCacheValid ||
-            m_gridCacheRect.size() != rect.size() ||
-            m_gridCacheRect.topLeft() != rect.topLeft() ||
-            m_gridCacheDivision != m_gridDivision ||
-            m_gridCacheTimeDivision != m_timeDivision ||
-            m_gridCacheVerticalFlip != m_verticalFlip ||
-            m_gridCacheColorEnabled != colorEnabled ||
-            m_gridCacheColorPreset != colorPreset ||
-            m_gridCacheColorCustomDivisions != colorCustom ||
-            m_gridCachePadPx != cachePadPx ||
-            std::abs(m_gridCacheStartTime - cacheStartTime) > 0.05 ||
-            std::abs(m_gridCacheEndTime - cacheEndTime) > 0.05;
 
-        if (needRebuild)
+        if (m_coordinateMode == CoordinateMode::BeatLinear)
         {
-            if (cacheSize.width() <= 0 || cacheSize.height() <= 0)
+            // ===== BeatLinear 模式：每个 beat 等高，基于 beat 空间缓存 =====
+            const double visibleBeatRange = effectiveVisibleBeatRange();
+            const double startBeat = m_scrollBeat;
+            const double endBeat = startBeat + visibleBeatRange;
+
+            const double beatsPerPixel = visibleBeatRange / viewportHeight;
+            const double quantStepBeat = qMax(0.01, beatsPerPixel * 24.0);
+            const auto quantizeBeatDown = [quantStepBeat](double value) -> double
             {
-                invalidateGridCache();
-                return;
+                return std::floor(value / quantStepBeat) * quantStepBeat;
+            };
+            const double renderStartBeat = quantizeBeatDown(startBeat);
+            const double renderEndBeat = renderStartBeat + visibleBeatRange;
+
+            const int cachePadPx = qMax(8, static_cast<int>(std::ceil((quantStepBeat / visibleBeatRange) * viewportHeight)) + 2);
+            const double cachePadBeat = beatsPerPixel * static_cast<double>(cachePadPx);
+            const double cacheStartBeat = renderStartBeat - cachePadBeat;
+            const double cacheEndBeat = renderEndBeat + cachePadBeat;
+            const QSize cacheSize(rect.width(), viewportHeight + cachePadPx * 2);
+
+            const bool needRebuild =
+                !m_gridCacheValid ||
+                m_gridCacheRect.size() != rect.size() ||
+                m_gridCacheRect.topLeft() != rect.topLeft() ||
+                m_gridCacheDivision != m_gridDivision ||
+                m_gridCacheTimeDivision != m_timeDivision ||
+                m_gridCacheVerticalFlip != m_verticalFlip ||
+                m_gridCacheColorEnabled != colorEnabled ||
+                m_gridCacheColorPreset != colorPreset ||
+                m_gridCacheColorCustomDivisions != colorCustom ||
+                m_gridCachePadPx != cachePadPx ||
+                m_gridCacheMode != m_coordinateMode ||
+                std::abs(m_gridCacheStartBeat - cacheStartBeat) > 1e-6 ||
+                std::abs(m_gridCacheEndBeat - cacheEndBeat) > 1e-6;
+
+            if (needRebuild)
+            {
+                if (cacheSize.width() <= 0 || cacheSize.height() <= 0)
+                {
+                    invalidateGridCache();
+                    return;
+                }
+
+                m_gridCache = QPixmap(cacheSize);
+                m_gridCache.fill(Qt::transparent);
+                QPainter cachePainter(&m_gridCache);
+                const QRect cacheRect(0, 0, cacheSize.width(), cacheSize.height());
+                m_gridRenderer->drawGridBeatLinear(cachePainter, cacheRect, m_gridDivision,
+                                                   cacheStartBeat, cacheEndBeat,
+                                                   m_timeDivision, bpmCache,
+                                                   m_verticalFlip,
+                                                   colorEnabled,
+                                                   colorPreset,
+                                                   colorCustom);
+                m_gridCacheRect = rect;
+                m_gridCacheStartBeat = cacheStartBeat;
+                m_gridCacheEndBeat = cacheEndBeat;
+                m_gridCacheDivision = m_gridDivision;
+                m_gridCacheTimeDivision = m_timeDivision;
+                m_gridCacheVerticalFlip = m_verticalFlip;
+                m_gridCacheColorEnabled = colorEnabled;
+                m_gridCacheColorPreset = colorPreset;
+                m_gridCacheColorCustomDivisions = colorCustom;
+                m_gridCachePadPx = cachePadPx;
+                m_gridCacheMode = m_coordinateMode;
+                m_gridCacheValid = true;
             }
 
-            m_gridCache = QPixmap(cacheSize);
-            m_gridCache.fill(Qt::transparent);
-            QPainter cachePainter(&m_gridCache);
-            const QRect cacheRect(0, 0, cacheSize.width(), cacheSize.height());
-            m_gridRenderer->drawGrid(cachePainter, cacheRect, m_gridDivision,
-                                     cacheStartTime, cacheEndTime,
-                                     m_timeDivision, bpmCache,
-                                     m_verticalFlip,
-                                     colorEnabled,
-                                     colorPreset,
-                                     colorCustom);
-            m_gridCacheRect = rect;
-            m_gridCacheStartTime = cacheStartTime;
-            m_gridCacheEndTime = cacheEndTime;
-            m_gridCacheDivision = m_gridDivision;
-            m_gridCacheTimeDivision = m_timeDivision;
-            m_gridCacheVerticalFlip = m_verticalFlip;
-            m_gridCacheColorEnabled = colorEnabled;
-            m_gridCacheColorPreset = colorPreset;
-            m_gridCacheColorCustomDivisions = colorCustom;
-            m_gridCachePadPx = cachePadPx;
-            m_gridCacheValid = true;
+            if (!m_gridCache.isNull())
+            {
+                const double shiftPx = (startBeat - renderStartBeat) / visibleBeatRange * viewportHeight;
+                const double cacheTop = m_verticalFlip
+                                            ? static_cast<double>(rect.top()) - m_gridCachePadPx + shiftPx
+                                            : static_cast<double>(rect.top()) - m_gridCachePadPx - shiftPx;
+                painter.save();
+                painter.setClipRect(rect);
+                painter.drawPixmap(QPointF(rect.left(), cacheTop), m_gridCache);
+                painter.restore();
+            }
         }
-
-        if (!m_gridCache.isNull())
+        else
         {
-            const double shiftPx = (startTime - renderStartTime) / rawSpanMs * viewportHeight;
-            const double cacheTop = m_verticalFlip
-                                        ? static_cast<double>(rect.top()) - m_gridCachePadPx + shiftPx
-                                        : static_cast<double>(rect.top()) - m_gridCachePadPx - shiftPx;
-            painter.save();
-            painter.setClipRect(rect);
-            painter.drawPixmap(QPointF(rect.left(), cacheTop), m_gridCache);
-            painter.restore();
+            // ===== TimeLinear 模式：基于时间的网格，BPM 感知 =====
+            // TimeLinear 模式下直接使用 m_scrollTimeMs，避免经过 beat 中间态的精度损失
+            double startTime = m_scrollTimeMs;
+            double endTime = m_scrollTimeMs + m_visibleTimeRangeMs;
+
+            const double rawSpanMs = qMax(1.0, endTime - startTime);
+            const double msPerPixel = rawSpanMs / viewportHeight;
+            // Quantize the backing cache in larger vertical chunks and compensate
+            // draw position per-frame so playback scrolling can mostly reuse cache.
+            const double quantStepMs = qMax(1.0, msPerPixel * 24.0);
+            const auto quantizeDown = [quantStepMs](double value) -> double
+            {
+                return std::floor(value / quantStepMs) * quantStepMs;
+            };
+            const double renderStartTime = quantizeDown(startTime);
+            const double renderEndTime = renderStartTime + rawSpanMs;
+
+            const int cachePadPx = qMax(8, static_cast<int>(std::ceil((quantStepMs / rawSpanMs) * viewportHeight)) + 2);
+            const double cachePadMs = msPerPixel * static_cast<double>(cachePadPx);
+            const double cacheStartTime = renderStartTime - cachePadMs;
+            const double cacheEndTime = renderEndTime + cachePadMs;
+            const QSize cacheSize(rect.width(), viewportHeight + cachePadPx * 2);
+
+            const bool needRebuild =
+                !m_gridCacheValid ||
+                m_gridCacheRect.size() != rect.size() ||
+                m_gridCacheRect.topLeft() != rect.topLeft() ||
+                m_gridCacheDivision != m_gridDivision ||
+                m_gridCacheTimeDivision != m_timeDivision ||
+                m_gridCacheVerticalFlip != m_verticalFlip ||
+                m_gridCacheColorEnabled != colorEnabled ||
+                m_gridCacheColorPreset != colorPreset ||
+                m_gridCacheColorCustomDivisions != colorCustom ||
+                m_gridCachePadPx != cachePadPx ||
+                m_gridCacheMode != m_coordinateMode ||
+                std::abs(m_gridCacheStartTime - cacheStartTime) > 0.05 ||
+                std::abs(m_gridCacheEndTime - cacheEndTime) > 0.05;
+
+            if (needRebuild)
+            {
+                if (cacheSize.width() <= 0 || cacheSize.height() <= 0)
+                {
+                    invalidateGridCache();
+                    return;
+                }
+
+                m_gridCache = QPixmap(cacheSize);
+                m_gridCache.fill(Qt::transparent);
+                QPainter cachePainter(&m_gridCache);
+                const QRect cacheRect(0, 0, cacheSize.width(), cacheSize.height());
+                m_gridRenderer->drawGrid(cachePainter, cacheRect, m_gridDivision,
+                                         cacheStartTime, cacheEndTime,
+                                         m_timeDivision, bpmCache,
+                                         m_verticalFlip,
+                                         colorEnabled,
+                                         colorPreset,
+                                         colorCustom);
+                m_gridCacheRect = rect;
+                m_gridCacheStartTime = cacheStartTime;
+                m_gridCacheEndTime = cacheEndTime;
+                m_gridCacheDivision = m_gridDivision;
+                m_gridCacheTimeDivision = m_timeDivision;
+                m_gridCacheVerticalFlip = m_verticalFlip;
+                m_gridCacheColorEnabled = colorEnabled;
+                m_gridCacheColorPreset = colorPreset;
+                m_gridCacheColorCustomDivisions = colorCustom;
+                m_gridCachePadPx = cachePadPx;
+                m_gridCacheMode = m_coordinateMode;
+                m_gridCacheValid = true;
+            }
+
+            if (!m_gridCache.isNull())
+            {
+                const double shiftPx = (startTime - renderStartTime) / rawSpanMs * viewportHeight;
+                const double cacheTop = m_verticalFlip
+                                            ? static_cast<double>(rect.top()) - m_gridCachePadPx + shiftPx
+                                            : static_cast<double>(rect.top()) - m_gridCachePadPx - shiftPx;
+                painter.save();
+                painter.setClipRect(rect);
+                painter.drawPixmap(QPointF(rect.left(), cacheTop), m_gridCache);
+                painter.restore();
+            }
         }
     }
     catch (const std::exception &e)
@@ -736,6 +860,9 @@ double ChartCanvas::getNoteTimeMs(const Note &note) const
 
 double ChartCanvas::yPosFromTime(double timeMs) const
 {
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+        return timeToY(timeMs);
+
     int beatNum, numerator, denominator;
     MathUtils::msToBeat(timeMs, chart()->bpmList(),
                         chart()->meta().offset,
@@ -746,6 +873,11 @@ double ChartCanvas::yPosFromTime(double timeMs) const
 
 double ChartCanvas::beatToY(double beat) const
 {
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        double ms = MathUtils::beatToMs(beat, bpmTimeCache());
+        return timeToY(ms);
+    }
     double visibleRange = effectiveVisibleBeatRange();
     if (visibleRange <= 0)
         return 0;
@@ -757,6 +889,11 @@ double ChartCanvas::beatToY(double beat) const
 
 double ChartCanvas::yToBeat(double y) const
 {
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        double ms = yToTime(y);
+        return MathUtils::msToBeatFloat(ms, bpmTimeCache());
+    }
     if (height() <= 0)
         return m_scrollBeat;
 
@@ -768,12 +905,44 @@ double ChartCanvas::yToBeat(double y) const
 
 double ChartCanvas::yToTime(double y) const
 {
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        double pixelsPerMs = (m_visibleTimeRangeMs > 0) ? (height() / m_visibleTimeRangeMs) : 1.0;
+        double relY = m_verticalFlip ? (height() - y) : y;
+        return m_scrollTimeMs + relY / pixelsPerMs;
+    }
     double beat = yToBeat(y);
     int beatNum, num, den;
     MathUtils::floatToBeat(beat, beatNum, num, den);
     return MathUtils::beatToMs(beatNum, num, den,
                                chart()->bpmList(),
                                chart()->meta().offset);
+}
+
+double ChartCanvas::timeToY(double timeMs) const
+{
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        double pixelsPerMs = (m_visibleTimeRangeMs > 0) ? (height() / m_visibleTimeRangeMs) : 1.0;
+        double y = (timeMs - m_scrollTimeMs) * pixelsPerMs;
+        if (m_verticalFlip)
+            y = height() - y;
+        return y;
+    }
+    // BeatLinear fallback
+    const auto &bpmList = chart()->bpmList();
+    int scrollBN, scrollN, scrollD;
+    MathUtils::floatToBeat(m_scrollBeat, scrollBN, scrollN, scrollD);
+    double scrollMs = MathUtils::beatToMs(scrollBN, scrollN, scrollD, bpmList, chart()->meta().offset);
+    double visRange = effectiveVisibleBeatRange();
+    const auto &cache = bpmTimeCache();
+    double scrollBpm = MathUtils::lookupBpmAtBeat(m_scrollBeat, cache);
+    double pixelsPerBeat = (visRange > 0) ? (height() / visRange) : 1.0;
+    double pixelsPerMs = (scrollBpm > 0) ? (pixelsPerBeat * scrollBpm / 60000.0) : (pixelsPerBeat / 1000.0);
+    double y = (timeMs - scrollMs) * pixelsPerMs;
+    if (m_verticalFlip)
+        y = height() - y;
+    return y;
 }
 
 QPointF ChartCanvas::noteToPos(const Note &note) const

@@ -101,6 +101,15 @@ void BPMTimePanel::setupUi()
     m_excludesContainer->setVisible(false);
     mainLayout->addWidget(m_excludesContainer);
 
+    // Base BPM display at bottom
+    m_baseBpmLabel = new QLabel(tr("Base BPM: -"), this);
+    m_baseBpmLabel->setAlignment(Qt::AlignCenter);
+    QFont baseBpmFont = m_baseBpmLabel->font();
+    baseBpmFont.setPointSize(10);
+    baseBpmFont.setBold(true);
+    m_baseBpmLabel->setFont(baseBpmFont);
+    mainLayout->addWidget(m_baseBpmLabel);
+
     mainLayout->addStretch();
 
     connect(m_addBtn, &QPushButton::clicked, this, &BPMTimePanel::onAddClicked);
@@ -183,6 +192,52 @@ void BPMTimePanel::refreshBpmList()
     }
 
     m_bpmListWidget->blockSignals(false);
+
+    // 计算并显示基于时间的加权平均 BPM
+    {
+        double totalWeightedBpm = 0.0;
+        double totalTime = 0.0;
+        for (int i = 0; i < bpmList.size(); ++i)
+        {
+            const BpmEntry &entry = bpmList[i];
+            if (entry.bpm <= 0.0)
+                continue;
+            if (hasExcludes && isBeatExcluded(entry.beatNum, entry.numerator, entry.denominator, excludesData))
+                continue;
+
+            double beatPos = entry.beatNum + static_cast<double>(entry.numerator) / entry.denominator;
+            double nextBeatPos;
+            if (i + 1 < bpmList.size())
+            {
+                const BpmEntry &next = bpmList[i + 1];
+                nextBeatPos = next.beatNum + static_cast<double>(next.numerator) / next.denominator;
+            }
+            else
+            {
+                if (bpmList.size() > 1)
+                {
+                    const BpmEntry &first = bpmList[0];
+                    nextBeatPos = first.beatNum + 1.0 + (beatPos - first.beatNum);
+                }
+                else
+                {
+                    nextBeatPos = beatPos + 100.0;
+                }
+            }
+            double beatLen = nextBeatPos - beatPos;
+            if (beatLen <= 0)
+                continue;
+            double durationMs = beatLen * (60000.0 / entry.bpm);
+            totalWeightedBpm += entry.bpm * durationMs;
+            totalTime += durationMs;
+        }
+        if (totalTime > 0)
+            m_baseBpmLabel->setText(tr("Base BPM: %1").arg(QString::number(totalWeightedBpm / totalTime, 'f', 3)));
+        else if (!bpmList.isEmpty())
+            m_baseBpmLabel->setText(tr("Base BPM: %1").arg(QString::number(bpmList.first().bpm, 'f', 3)));
+        else
+            m_baseBpmLabel->setText(tr("Base BPM: -"));
+    }
 }
 
 bool BPMTimePanel::isBeatExcluded(int beatNum, int numerator, int denominator,

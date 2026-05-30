@@ -98,3 +98,6 @@ AUTOTIMING_BINARY_MAPPING.md
 tools/*.py
 retry_build.cmd
 tmp_impl_plan.md
+
+.kagent/
+.cursor/

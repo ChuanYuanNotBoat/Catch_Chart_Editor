@@ -65,6 +65,7 @@ private:
     QPushButton *m_addExcludeBtn;
     QPushButton *m_removeExcludeBtn;
     QWidget *m_excludesContainer;
+    QLabel *m_baseBpmLabel;  // 基于时间加权平均BPM显示
     int m_selectedIndex;
     BpmAuxFiles::BpmExcludesData m_currentExcludesData;
 };

@@ -983,7 +983,7 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
             }
         }
 
-        QAction *selected = pluginMenu.exec(event->globalPos());
+    QAction *selected = pluginMenu.exec(event->globalPosition().toPoint());
         if (selected == commitCurveAction)
         {
             triggerPluginBatchAction("commit_curve_to_notes", tr("Commit Curve -> Notes"));
@@ -1010,7 +1010,7 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
     if (!targetIndices.isEmpty())
         populateColorMenu(colorMenu, targetIndices);
 
-    QAction *selectedAction = menu.exec(event->globalPos());
+    QAction *selectedAction = menu.exec(event->globalPosition().toPoint());
     if (selectedAction == playFromRefAction)
     {
         playFromReferenceLine();
@@ -1077,6 +1077,14 @@ bool ChartCanvas::handleRainPlacementLeftClick(const QPointF &pos)
     const double endTime = MathUtils::beatToMs(endNote.beatNum, endNote.numerator, endNote.denominator,
                                                chart()->bpmList(),
                                                chart()->meta().offset);
+    // 拒绝在负数拍数区域放置 Rain
+    const double startBeat = MathUtils::beatToFloat(startNote.beatNum, startNote.numerator, startNote.denominator);
+    const double endBeat = MathUtils::beatToFloat(endNote.beatNum, endNote.numerator, endNote.denominator);
+    if (startBeat < 0.0 || endBeat < 0.0)
+    {
+        return true;
+    }
+
     if (endTime > startTime)
     {
         Note rainNote(startNote.beatNum, startNote.numerator, startNote.denominator,
@@ -1175,6 +1183,9 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
     if (m_currentMode == PlaceNote)
     {
         Note note = posToNote(event->pos());
+        double beat = MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator);
+        if (beat < 0.0)
+            return;  // 拒绝在负数拍数区域放置音符
         m_chartController->addNote(note);
     }
 }
@@ -1371,26 +1382,55 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
     const double delta = wheelDeltaY;
     if (delta != 0)
     {
-        double step = effectiveVisibleBeatRange() * kWheelScrollBeatStepRatio;
-        double newPos = m_scrollBeat + (delta / 120.0) * step;
-        if (newPos < 0)
-            newPos = 0;
-        const bool scrollChanged = qAbs(newPos - m_scrollBeat) >= 1e-6;
-        if (scrollChanged && m_playbackController &&
-            m_playbackController->state() == PlaybackController::Playing)
+        if (m_coordinateMode == CoordinateMode::TimeLinear)
         {
-            m_playbackController->pause();
+            // TimeLinear: 直接滚动 scrollTimeMs
+            double step = m_visibleTimeRangeMs * kWheelScrollBeatStepRatio;
+            double newTimeMs = m_scrollTimeMs + (delta / 120.0) * step;
+            const bool scrollChanged = qAbs(newTimeMs - m_scrollTimeMs) >= 0.01;
+            if (scrollChanged && m_playbackController &&
+                m_playbackController->state() == PlaybackController::Playing)
+            {
+                m_playbackController->pause();
+            }
+            m_scrollTimeMs = newTimeMs;
+            // 从 scrollTimeMs 反推 scrollBeat
+            const auto &cache = bpmTimeCache();
+            m_scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, cache);
+            // 应用负数 beat 滚动下限
+            clampScrollTimeToLimit();
+            m_autoScrollEnabled = false;
+            if (scrollChanged)
+            {
+                update();
+                emit scrollPositionChanged(m_scrollBeat);
+            }
         }
-        m_scrollBeat = newPos;
-        m_autoScrollEnabled = false;
-        if (scrollChanged)
+        else
         {
-            update();
-            emit scrollPositionChanged(m_scrollBeat);
+            // BeatLinear: 滚动 scrollBeat
+            double step = effectiveVisibleBeatRange() * kWheelScrollBeatStepRatio;
+            double newPos = m_scrollBeat + (delta / 120.0) * step;
+            const double scrollLimit = negativeBeatScrollLimit();
+            if (newPos < scrollLimit)
+                newPos = scrollLimit;
+            const bool scrollChanged = qAbs(newPos - m_scrollBeat) >= 1e-6;
+            if (scrollChanged && m_playbackController &&
+                m_playbackController->state() == PlaybackController::Playing)
+            {
+                m_playbackController->pause();
+            }
+            m_scrollBeat = newPos;
+            m_autoScrollEnabled = false;
+            if (scrollChanged)
+            {
+                syncScrollTimeFromBeat();
+                update();
+                emit scrollPositionChanged(m_scrollBeat);
+            }
         }
 
-        if (scrollChanged)
-            syncCurrentPlayTimeToReferenceLine();
+        syncCurrentPlayTimeToReferenceLine();
     }
 
     startSnapTimer();

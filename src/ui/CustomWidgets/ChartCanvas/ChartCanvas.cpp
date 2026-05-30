@@ -11,6 +11,7 @@
 #include "utils/Settings.h"
 #include "utils/Logger.h"
 #include "utils/DiagnosticCollector.h"
+#include "file/BpmAuxFiles.h"
 #include "model/Chart.h"
 #include <QPainter>
 #include <QMouseEvent>
@@ -123,7 +124,13 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_playbackVisualFramePending(false),
       m_lastPlaybackTickNs(0),
       m_lastPlaybackVisualAdvanceNs(0),
-      m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying)
+      m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying),
+      m_coordinateMode(CoordinateMode::BeatLinear),
+      m_scrollTimeMs(0.0),
+      m_visibleTimeRangeMs(1000.0),
+      m_gridCacheStartBeat(0.0),
+      m_gridCacheEndBeat(0.0),
+      m_gridCacheMode(CoordinateMode::BeatLinear)
 {
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
@@ -172,7 +179,7 @@ QVector<Note> *ChartCanvas::mutableNotes()
     return c ? &c->notes() : nullptr;
 }
 
-void ChartCanvas::rebuildBpmTimeCache()
+void ChartCanvas::rebuildBpmTimeCache() const
 {
     m_bpmTimeCache.clear();
     if (!chart())
@@ -191,9 +198,19 @@ void ChartCanvas::rebuildBpmTimeCache()
     const int offset = chart()->meta().offset;
     m_bpmTimeCache = MathUtils::buildBpmTimeCache(bpmList, offset);
     m_bpmCacheDirty = false;
+
+    // 重新计算基于时间的加权平均 BPM（排除项过滤后）
+    m_baseBpm = computeBaseBpm();
+
+    // BPM缓存重建后，如果处于TimeLinear模式，需要重新同步滚动坐标
+    // BeatLinear模式下 m_scrollBeat 是权威状态，不应从时间反推
+    if (m_coordinateMode == CoordinateMode::TimeLinear && !m_bpmTimeCache.isEmpty())
+    {
+        syncScrollTimeFromBeat();
+    }
 }
 
-const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache()
+const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache() const
 {
     if (m_bpmCacheDirty)
         rebuildBpmTimeCache();
@@ -509,8 +526,9 @@ void ChartCanvas::setScrollPos(double timeMs)
                                           ? (1.0 - baselineRatio) * effectiveVisibleBeatRange()
                                           : baselineRatio * effectiveVisibleBeatRange();
     double newScrollBeat = targetBeat - baselineBeatOffset;
-    if (newScrollBeat < 0.0)
-        newScrollBeat = 0.0;
+    const double scrollLimit = negativeBeatScrollLimit();
+    if (newScrollBeat < scrollLimit)
+        newScrollBeat = scrollLimit;
 
     const bool scrollChanged = qAbs(newScrollBeat - m_scrollBeat) >= 1e-6;
     const bool timeChanged = qAbs(clampedTimeMs - m_currentPlayTime) >= 0.05;
@@ -519,6 +537,7 @@ void ChartCanvas::setScrollPos(double timeMs)
 
     m_scrollBeat = newScrollBeat;
     m_currentPlayTime = clampedTimeMs;
+    syncScrollTimeFromBeat();
     update();
     if (scrollChanged)
         emit scrollPositionChanged(m_scrollBeat);
@@ -618,6 +637,242 @@ void ChartCanvas::setShowUnreachableDivisions(bool enabled)
     emit showUnreachableDivisionsChanged(enabled);
 }
 
+void ChartCanvas::setCoordinateMode(CoordinateMode mode)
+{
+    if (m_coordinateMode == mode)
+        return;
 
+    if (mode == CoordinateMode::TimeLinear)
+    {
+        // 切换到 TimeLinear：先计算 scrollTimeMs 和 visibleTimeRangeMs
+        const auto &cache = bpmTimeCache();
+        if (!cache.isEmpty())
+        {
+            m_scrollTimeMs = MathUtils::beatToMs(m_scrollBeat, cache);
+            const double endBeat = m_scrollBeat + effectiveVisibleBeatRange();
+            const double endTime = MathUtils::beatToMs(endBeat, cache);
+            m_visibleTimeRangeMs = qMax(1.0, endTime - m_scrollTimeMs);
+        }
+    }
+    else
+    {
+        // 切换到 BeatLinear：从时间反推
+        syncScrollBeatFromTime();
+    }
+
+    m_coordinateMode = mode;
+    invalidateGridCache();
+    emit coordinateModeChanged(mode);
+    update();
+}
+
+double ChartCanvas::effectiveVisibleBeatRange() const
+{
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        // TimeLinear: 从可见时间范围反推 beat 范围
+        const auto &cache = bpmTimeCache();
+        if (cache.isEmpty())
+        {
+            // 重试加载 BPM 缓存
+            for (int retry = 0; retry < 3; ++retry)
+            {
+                m_bpmCacheDirty = true;
+                rebuildBpmTimeCache();
+                if (!m_bpmTimeCache.isEmpty())
+                    break;
+            }
+            if (m_bpmTimeCache.isEmpty())
+            {
+                Logger::warn("effectiveVisibleBeatRange: BPM cache empty after 3 retries, switching to BeatLinear");
+                QMessageBox::warning(nullptr, tr("BPM Load Error"),
+                    tr("Cannot load BPM data. Switching to Beat Linear mode."));
+                const_cast<ChartCanvas *>(this)->setCoordinateMode(CoordinateMode::BeatLinear);
+                return 1.0;
+            }
+        }
+        if (m_visibleTimeRangeMs <= 0)
+            return qMax(1e-6, m_visibleTimeRangeMs * (120.0 / 60000.0));
+        double startMs = m_scrollTimeMs;
+        double endMs = m_scrollTimeMs + m_visibleTimeRangeMs;
+        double startBeat = MathUtils::msToBeatFloat(startMs, m_bpmTimeCache);
+        double endBeat = MathUtils::msToBeatFloat(endMs, m_bpmTimeCache);
+        return qMax(1e-6, endBeat - startBeat);
+    }
+    return m_baseVisibleBeatRange / m_timeScale;
+}
+
+void ChartCanvas::syncScrollTimeFromBeat() const
+{
+    const auto &cache = bpmTimeCache();
+    if (cache.isEmpty())
+    {
+        m_scrollTimeMs = 0;
+        return;
+    }
+    m_scrollTimeMs = MathUtils::beatToMs(m_scrollBeat, cache);
+
+    // TimeLinear 模式下不重新计算 visibleTimeRangeMs，它是权威状态
+    if (m_coordinateMode != CoordinateMode::TimeLinear)
+    {
+        const double endBeat = m_scrollBeat + effectiveVisibleBeatRange();
+        const double endTime = MathUtils::beatToMs(endBeat, cache);
+        m_visibleTimeRangeMs = endTime - m_scrollTimeMs;
+    }
+}
+
+void ChartCanvas::syncScrollBeatFromTime() const
+{
+    const auto &cache = bpmTimeCache();
+    if (cache.isEmpty())
+    {
+        m_scrollBeat = 0;
+        return;
+    }
+    m_scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, cache);
+
+    // BeatLinear 模式下从时间范围反推 baseVisibleBeatRange
+    const double endTime = m_scrollTimeMs + m_visibleTimeRangeMs;
+    const double endBeat = MathUtils::msToBeatFloat(endTime, cache);
+    m_baseVisibleBeatRange = (endBeat - m_scrollBeat) * m_timeScale;
+}
+
+void ChartCanvas::syncCoordinateState() const
+{
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+        syncScrollTimeFromBeat();
+    else
+        syncScrollBeatFromTime();
+}
+
+double ChartCanvas::computeBaseBpm() const
+{
+    // 基于时间的加权平均 BPM：对每个 BPM 段按其持续时间加权平均
+    // 排除在 excludes 列表中的 BPM 段
+    if (!chart())
+        return 120.0;
+
+    const auto &bpmList = chart()->bpmList();
+    if (bpmList.isEmpty())
+        return 120.0;
+
+    // 加载排除数据
+    BpmAuxFiles::BpmExcludesData excludesData;
+    bool hasExcludes = false;
+    if (m_chartController)
+    {
+        const QString chartPath = m_chartController->chartFilePath();
+        if (!chartPath.isEmpty())
+            hasExcludes = BpmAuxFiles::loadBpmExcludes(chartPath, excludesData);
+    }
+
+    auto isExcluded = [&](const BpmEntry &bpm) -> bool
+    {
+        if (!hasExcludes)
+            return false;
+        for (const auto &range : excludesData.excludes)
+        {
+            bool geStart = (bpm.beatNum > range.startBeatNum)
+                           || (bpm.beatNum == range.startBeatNum
+                               && bpm.numerator * range.startDenominator >= range.startNumerator * bpm.denominator);
+            bool leEnd = (bpm.beatNum < range.endBeatNum)
+                         || (bpm.beatNum == range.endBeatNum
+                             && bpm.numerator * range.endDenominator <= range.endNumerator * bpm.denominator);
+            if (geStart && leEnd)
+                return true;
+        }
+        return false;
+    };
+
+    double totalWeightedBpm = 0.0;
+    double totalTime = 0.0;
+
+    for (int i = 0; i < bpmList.size(); ++i)
+    {
+        const BpmEntry &entry = bpmList[i];
+        if (entry.bpm <= 0.0)
+            continue;
+        if (isExcluded(entry))
+            continue;
+
+        double beatPos = entry.beatNum + static_cast<double>(entry.numerator) / entry.denominator;
+        double nextBeatPos;
+        if (i + 1 < bpmList.size())
+        {
+            const BpmEntry &next = bpmList[i + 1];
+            nextBeatPos = next.beatNum + static_cast<double>(next.numerator) / next.denominator;
+        }
+        else
+        {
+            // 最后一段：用第一段的 beat 范围估计
+            if (bpmList.size() > 1)
+            {
+                const BpmEntry &first = bpmList[0];
+                nextBeatPos = first.beatNum + 1.0 + (beatPos - first.beatNum);
+            }
+            else
+            {
+                nextBeatPos = beatPos + 100.0;
+            }
+        }
+
+        double beatLen = nextBeatPos - beatPos;
+        if (beatLen <= 0)
+            continue;
+
+        double durationMs = beatLen * (60000.0 / entry.bpm);
+        totalWeightedBpm += entry.bpm * durationMs;
+        totalTime += durationMs;
+    }
+
+    if (totalTime <= 0)
+        return bpmList.first().bpm;
+
+    return totalWeightedBpm / totalTime;
+}
+
+double ChartCanvas::negativeBeatScrollLimit() const
+{
+    // 基于 offset 计算允许的负数 beat 滚动下限
+    // offset (ms) → beat: offset * baseBpm / 60000
+    // reservedBeats = max(1, ceil(abs(offset) * baseBpm / 60000) + 1)
+    if (!chart())
+        return 0.0;
+
+    const int offsetMs = chart()->meta().offset;
+    // offset 通常为负数（音频延迟），取其绝对值计算
+    const double absOffsetBeat = std::abs(offsetMs) * m_baseBpm / 60000.0;
+    const int reservedBeats = std::max(1, static_cast<int>(std::ceil(absOffsetBeat)) + 1);
+
+    // scrollBeat 的下限：让参考线 beat 不低于 -reservedBeats
+    // 参考线 beat = scrollBeat + referenceRatio * visibleBeatRange（非翻转）
+    // 参考线 beat = scrollBeat + (1 - referenceRatio) * visibleBeatRange（翻转）
+    // 所以 scrollBeat >= -reservedBeats - refOffset * visibleBeatRange
+    const double visibleRange = effectiveVisibleBeatRange();
+    const double refOffset = m_verticalFlip
+                                 ? (1.0 - kReferenceLineRatio) * visibleRange
+                                 : kReferenceLineRatio * visibleRange;
+    return -static_cast<double>(reservedBeats) - refOffset;
+}
+
+void ChartCanvas::clampScrollTimeToLimit() const
+{
+    const double limitBeat = negativeBeatScrollLimit();
+    if (m_scrollBeat >= limitBeat)
+        return;
+
+    m_scrollBeat = limitBeat;
+
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        const auto &cache = bpmTimeCache();
+        if (!cache.isEmpty())
+            m_scrollTimeMs = MathUtils::beatToMs(m_scrollBeat, cache);
+    }
+    else
+    {
+        syncScrollTimeFromBeat();
+    }
+}
 
 

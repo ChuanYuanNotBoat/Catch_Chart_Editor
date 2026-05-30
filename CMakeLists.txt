@@ -187,6 +187,10 @@ if(BUILD_TESTING)
     target_include_directories(CatchChartEditorTests PRIVATE src)
     target_link_libraries(CatchChartEditorTests Qt6::Core Qt6::Gui)
 
+    # Workaround for MSVC 14.44 internal compiler error (C1001) triggered by
+    # QFlags<std::initializer_list> in Qt 6.10.2 headers.
+    target_compile_definitions(CatchChartEditorTests PRIVATE QT_NO_QFLAGS_INITIALIZER_LIST)
+
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
     if(WIN32)
         set_tests_properties(core_minimal_tests PROPERTIES

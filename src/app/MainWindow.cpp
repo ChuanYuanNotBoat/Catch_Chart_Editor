@@ -94,6 +94,7 @@
 #include <atomic>
 #include <cmath>
 #include <limits>
+#include <QStyleOptionToolBar>
 
 namespace
 {
@@ -381,10 +382,10 @@ public:
 
     void setKeySequence(const QKeySequence &seq)
     {
-        int k1 = seq.count() > 0 ? seq[0] : 0;
-        int k2 = seq.count() > 1 ? seq[1] : 0;
-        int k3 = seq.count() > 2 ? seq[2] : 0;
-        int k4 = seq.count() > 3 ? seq[3] : 0;
+        QKeyCombination k1 = seq.count() > 0 ? seq[0] : QKeyCombination();
+        QKeyCombination k2 = seq.count() > 1 ? seq[1] : QKeyCombination();
+        QKeyCombination k3 = seq.count() > 2 ? seq[2] : QKeyCombination();
+        QKeyCombination k4 = seq.count() > 3 ? seq[3] : QKeyCombination();
         m_sequence = QKeySequence(k1, k2, k3, k4);
         m_blockedChordAttempt = false;
         refreshText();
@@ -398,7 +399,7 @@ protected:
         if (m_blockedChordAttempt)
             return;
 
-        const int key = event->key();
+        const Qt::Key key = static_cast<Qt::Key>(event->key());
         const Qt::KeyboardModifiers mods = event->modifiers();
 
         if ((key == Qt::Key_Backspace || key == Qt::Key_Delete) && mods == Qt::NoModifier)
@@ -425,7 +426,7 @@ protected:
             return;
         }
 
-        appendChord(key | mods);
+        appendChord(QKeyCombination(mods, key));
         m_hasModifierPreview = false;
     }
 
@@ -466,20 +467,20 @@ protected:
     }
 
 private:
-    void appendChord(int chord)
+    void appendChord(QKeyCombination combo)
     {
-        if (chord == 0)
+        if (combo == QKeyCombination())
             return;
 
-        int keys[4] = {0, 0, 0, 0};
+        QKeyCombination keys[4];
         const int count = qMin(m_sequence.count(), 4);
         for (int i = 0; i < count; ++i)
             keys[i] = m_sequence[i];
 
         if (count < 4)
-            keys[count] = chord;
+            keys[count] = combo;
         else
-            keys[3] = chord;
+            keys[3] = combo;
 
         m_sequence = QKeySequence(keys[0], keys[1], keys[2], keys[3]);
         refreshText();
@@ -1628,13 +1629,13 @@ void MainWindow::createMenus()
     QMenu *playMenu = menuBar()->addMenu(tr("&Playback"));
     d->playAction = playMenu->addAction(tr("&Play/Pause"), this, &MainWindow::togglePlayback);
     d->playAction->setEnabled(d->audioPlaybackReady);
-    registerShortcutAction(d->playAction, "playback.play_pause", QKeySequence(Qt::Key_Space));
+    registerShortcutAction(d->playAction, "playback.play_pause", QKeySequence(QKeyCombination(Qt::Key_Space)));
     QAction *markJerkAction = playMenu->addAction(tr("Mark Playback Jerk"));
     connect(markJerkAction, &QAction::triggered, this, [this]()
             {
         if (d->canvas)
             d->canvas->recordManualJerkMark(); });
-    registerShortcutAction(markJerkAction, "playback.mark_manual_jerk", QKeySequence(Qt::Key_F8));
+    registerShortcutAction(markJerkAction, "playback.mark_manual_jerk", QKeySequence(QKeyCombination(Qt::Key_F8)));
     markJerkAction->setShortcutContext(Qt::ApplicationShortcut);
     playMenu->addSeparator();
     QMenu *speedMenu = playMenu->addMenu(tr("&Speed"));
@@ -1678,32 +1679,40 @@ void MainWindow::createMenus()
                     const QString capText = (fpsCap <= 0) ? tr("Unlimited") : QString::number(fpsCap);
                     statusBar()->showMessage(tr("Playback FPS cap: %1").arg(capText), 2000); });
     }
-    QMenu *toolsMenu = menuBar()->addMenu(tr("&Tools"));
-    d->pluginsMenu = menuBar()->addMenu(tr("&Plugins"));
-    QAction *pluginManagerAction = d->pluginsMenu->addAction(tr("&Plugin Manager..."));
-    connect(pluginManagerAction, &QAction::triggered, this, &MainWindow::openPluginManager);
-    d->pluginToolsMenu = d->pluginsMenu->addMenu(tr("Plugin &Actions"));
-    connect(d->pluginToolsMenu, &QMenu::aboutToShow, this, &MainWindow::populatePluginToolsMenu);
-    d->pluginPanelsMenu = d->pluginsMenu->addMenu(tr("Plugin &Panels"));
-    connect(d->pluginPanelsMenu, &QMenu::aboutToShow, this, &MainWindow::populatePluginPanelsMenu);
-    d->pluginToolModeAction = d->pluginsMenu->addAction(tr("Plugin Enhanced Tool Mode"));
-    d->pluginToolModeAction->setCheckable(true);
-    d->pluginToolModeAction->setEnabled(false);
-    connect(d->pluginToolModeAction, &QAction::toggled, this, &MainWindow::togglePluginEnhancedToolMode);
 
-    QMenu *overlayMenu = d->pluginsMenu->addMenu(tr("Plugin Overlay Elements"));
-    auto addOverlayToggle = [this, overlayMenu](const QString &key, const QString &label, bool defaultValue)
+    // Coordinate Mode submenu
+    QMenu *coordModeMenu = playMenu->addMenu(tr("&Coordinate Mode"));
+    QActionGroup *coordModeGroup = new QActionGroup(this);
+    coordModeGroup->setExclusive(true);
+    struct CoordModeOption { QString label; ChartCanvas::CoordinateMode mode; };
+    const QList<CoordModeOption> coordModeOptions = {
+        {tr("Beat Linear (&default)"), ChartCanvas::CoordinateMode::BeatLinear},
+        {tr("Time Linear (&BPM-aware)"), ChartCanvas::CoordinateMode::TimeLinear},
+    };
+    for (const auto &opt : coordModeOptions)
     {
-        QAction *act = overlayMenu->addAction(label);
-        act->setCheckable(true);
-        act->setChecked(defaultValue);
-        connect(act, &QAction::toggled, this, [this, key](bool on)
-                {
-            if (!d->canvas)
-                return;
-            QVariantMap toggles;
-            toggles.insert(key, on);
-            d->canvas->setPluginOverlayToggles(toggles); });
+        QAction *modeAction = coordModeMenu->addAction(opt.label);
+        modeAction->setCheckable(true);
+        modeAction->setActionGroup(coordModeGroup);
+        modeAction->setChecked(d->canvas->coordinateMode() == opt.mode);
+        connect(modeAction, &QAction::triggered, this, [this, opt]() {
+            d->canvas->setCoordinateMode(opt.mode);
+            Settings::instance().setCoordinateMode(static_cast<int>(opt.mode));
+            statusBar()->showMessage(tr("Coordinate mode: %1").arg(opt.label), 2000);
+        });
+    }
+
+    QMenu *toolsMenu = menuBar()->addMenu(tr("&Tools"));
+    auto addOverlayToggle = [this, toolsMenu](const QString &key, const QString &label, bool defaultOn)
+    {
+        QAction *action = toolsMenu->addAction(label);
+        action->setCheckable(true);
+        action->setChecked(defaultOn);
+        connect(action, &QAction::triggered, this, [this, key, action]() {
+            QVariantMap toggles = d->canvas->pluginOverlayToggles();
+            toggles.insert(key, action->isChecked());
+            d->canvas->setPluginOverlayToggles(toggles);
+        });
     };
     addOverlayToggle("overlay_enabled", tr("Enable Overlay"), true);
     addOverlayToggle("preview", tr("Preview Notes"), true);
@@ -1712,7 +1721,6 @@ void MainWindow::createMenus()
     addOverlayToggle("sample_points", tr("Sample Points"), true);
     addOverlayToggle("labels", tr("Labels"), true);
 
-    d->pluginsMenu->addSeparator();
     QAction *gridAction = toolsMenu->addAction(tr("&Grid Settings..."), d->canvas, &ChartCanvas::showGridSettings);
     toolsMenu->addSeparator();
     QAction *logSettingsAction = toolsMenu->addAction(tr("&Log Settings..."));
@@ -1764,7 +1772,7 @@ void MainWindow::configureShortcuts()
     layout->addWidget(limitHint);
 
     QFormLayout *form = new QFormLayout();
-    QHash<QString, ShortcutCaptureEdit *> editors;
+    QMap<QString, ShortcutCaptureEdit *> editors;
 
     for (const QString &actionId : d->shortcutActionOrder)
     {
@@ -1872,6 +1880,13 @@ void MainWindow::createCentralArea()
     }
     d->canvas->setNoteSoundFile(noteSoundPath);
     d->canvas->setNoteSoundEnabled(!noteSoundPath.isEmpty());
+
+    // Restore persisted coordinate mode
+    const int savedCoordMode = Settings::instance().coordinateMode();
+    if (savedCoordMode == static_cast<int>(ChartCanvas::CoordinateMode::TimeLinear))
+        d->canvas->setCoordinateMode(ChartCanvas::CoordinateMode::TimeLinear);
+    else
+        d->canvas->setCoordinateMode(ChartCanvas::CoordinateMode::BeatLinear);
 
     d->previewWidget = new RealtimePreviewWidget(this);
     d->previewWidget->setChartController(d->chartController);

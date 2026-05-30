@@ -30,6 +30,13 @@ class ChartCanvas : public QWidget
 {
     Q_OBJECT
 public:
+    // 坐标映射模式
+    enum class CoordinateMode
+    {
+        BeatLinear, // 拍号线性（默认，兼容现有谱面）：Y 与 beat 成正比
+        TimeLinear  // 时间线性：Y 与毫秒成正比，支持变速 BPM
+    };
+
     enum Mode
     {
         PlaceNote,
@@ -93,6 +100,10 @@ public:
     void setShowUnreachableDivisions(bool enabled);
     bool showUnreachableDivisions() const { return m_showUnreachableDivisions; }
 
+    // 坐标模式
+    void setCoordinateMode(CoordinateMode mode);
+    CoordinateMode coordinateMode() const { return m_coordinateMode; }
+
 public slots:
     void showGridSettings();
     void playbackPositionChanged(double timeMs);
@@ -102,6 +113,7 @@ signals:
     void verticalFlipChanged(bool flipped);
     void scrollPositionChanged(double beat);
     void timeScaleChanged(double scale);
+    void coordinateModeChanged(CoordinateMode mode);
     void mirrorAxisChanged(int axisX);
     void statusMessage(const QString &msg); // Status bar message hook.
     void showUnreachableDivisionsChanged(bool enabled);
@@ -157,9 +169,15 @@ private:
     double yPosFromTime(double timeMs) const;
     double beatToY(double beat) const;
     double yToBeat(double y) const;
+    double timeToY(double timeMs) const;
+    double yToTime(double y) const;
     int hitTestNote(const QPointF &pos) const;
     QRectF getRainNoteRect(const Note &note) const;
     void updateBackgroundCache();
+
+    // TimeLinear 模式下的滚动/缩放基准（mutable：BPM缓存重建时可从const方法同步）
+    mutable double m_scrollTimeMs;         // TimeLinear 模式：视口顶部对应的毫秒
+    mutable double m_visibleTimeRangeMs;   // TimeLinear 模式：可见时间范围
 
     void beginMoveSelection(const QPointF &startPos, int referenceIndex = -1);
     void updateMoveSelection(const QPointF &currentPos);
@@ -203,22 +221,40 @@ private:
     double getNoteTimeMs(const Note &note) const;
     void confirmPaste();
 
-    void rebuildBpmTimeCache();
-    const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache();
+    void rebuildBpmTimeCache() const;
+    const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache() const;
+    // 基于时间的加权平均 BPM（TimeLinear 模式的缩放基准）
+    double computeBaseBpm() const;
+    mutable double m_baseBpm = 120.0;
+
+    // 基于 offset 计算 TimeLinear 模式允许的负数 beat 滚动下限
+    // 返回值为负数，表示 m_scrollBeat 不得低于此值
+    double negativeBeatScrollLimit() const;
+    // TimeLinear 模式下对 scrollTimeMs 应用滚动下限约束
+    void clampScrollTimeToLimit() const;
 
     void rebuildNoteTimesCache();
     const Chart *chart() const;
     Chart *chart();
     QVector<Note> *mutableNotes();
 
-    double effectiveVisibleBeatRange() const
+    double effectiveVisibleBeatRange() const;
+
+    // TimeLinear 模式的有效时间范围
+    double effectiveVisibleTimeRangeMs() const
     {
-        return m_baseVisibleBeatRange / m_timeScale;
+        return m_visibleTimeRangeMs;
     }
+
+    // 从 scrollBeat 反推 scrollTimeMs（TimeLinear 同步用）
+    void syncScrollTimeFromBeat() const;
+    // 从 scrollTimeMs 反推 scrollBeat（BeatLinear 同步用）
+    void syncScrollBeatFromTime() const;
+    // 滚动/缩放时同步另一个坐标系
+    void syncCoordinateState() const;
 
     // Paste preview helpers
     double calculatePasteReferenceTime() const;
-    double yToTime(double y) const;
     // Interval copy selection state.
     enum IntervalState
     {
@@ -260,8 +296,8 @@ private:
     QVector<int> m_sortedRainNoteIndicesByBeat;
     bool m_noteDataDirty;
     bool m_timesDirty;
-    QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
-    bool m_bpmCacheDirty;
+    mutable QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
+    mutable bool m_bpmCacheDirty;
 
     ChartController *m_chartController;
     SelectionController *m_selectionController;
@@ -278,8 +314,9 @@ private:
     int m_timeDivision;
     int m_gridDivision;
     bool m_gridSnap;
-    double m_scrollBeat;
-    double m_baseVisibleBeatRange;
+    CoordinateMode m_coordinateMode;
+    mutable double m_scrollBeat;
+    mutable double m_baseVisibleBeatRange;
     double m_timeScale;
     double m_currentPlayTime;
     bool m_autoScrollEnabled;
@@ -368,6 +405,9 @@ private:
     QRect m_gridCacheRect;
     double m_gridCacheStartTime;
     double m_gridCacheEndTime;
+    double m_gridCacheStartBeat;
+    double m_gridCacheEndBeat;
+    CoordinateMode m_gridCacheMode;
     int m_gridCacheDivision;
     int m_gridCacheTimeDivision;
     bool m_gridCacheVerticalFlip;
