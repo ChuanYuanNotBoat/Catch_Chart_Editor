@@ -334,8 +334,22 @@ void ChartCanvas::updateMoveSelection(const QPointF &currentPos)
     m_moveDeltaXRaw += deltaX;
     m_moveStartPos = currentPos;
 
+    // 检查参考音符是否在排除范围 — 如果是，仅允许X轴平移
+    bool refInExcludedRange = false;
+    if (m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    {
+        const Note &refOriginal = m_moveChanges[m_dragReferenceIndex].first;
+        double refBeat = MathUtils::beatToFloat(refOriginal.beatNum, refOriginal.numerator, refOriginal.denominator);
+        refInExcludedRange = isBeatInExcludedRange(refBeat);
+    }
+
     double appliedDeltaBeat = m_moveDeltaBeatRaw;
-    if (m_timeDivision > 0 && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    if (refInExcludedRange)
+    {
+        // 排除范围内：不允许beat移动，仅X平移
+        appliedDeltaBeat = 0.0;
+    }
+    else if (m_timeDivision > 0 && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
     {
         const Note &refOriginal = m_moveChanges[m_dragReferenceIndex].first;
         const double refOriginalBeat = MathUtils::beatToFloat(refOriginal.beatNum, refOriginal.numerator, refOriginal.denominator);
@@ -406,8 +420,22 @@ void ChartCanvas::endMoveSelection()
         m_wasGridSnapEnabled = false;
     }
 
+    // 检查参考音符是否在排除范围
+    bool refInExcludedRange = false;
+    if (m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    {
+        const Note &refOriginal = m_moveChanges[m_dragReferenceIndex].first;
+        double refBeat = MathUtils::beatToFloat(refOriginal.beatNum, refOriginal.numerator, refOriginal.denominator);
+        refInExcludedRange = isBeatInExcludedRange(refBeat);
+    }
+
     double finalAppliedDeltaBeat = m_moveDeltaBeatRaw;
-    if (m_timeDivision > 0 && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    if (refInExcludedRange)
+    {
+        // 排除范围内：不允许beat移动
+        finalAppliedDeltaBeat = 0.0;
+    }
+    else if (m_timeDivision > 0 && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
     {
         const Note &refOriginal = m_moveChanges[m_dragReferenceIndex].first;
         const double refOriginalBeat = MathUtils::beatToFloat(refOriginal.beatNum, refOriginal.numerator, refOriginal.denominator);
@@ -1084,6 +1112,11 @@ bool ChartCanvas::handleRainPlacementLeftClick(const QPointF &pos)
     {
         return true;
     }
+    // 拒绝在排除BPM范围放置 Rain
+    if (isBeatInExcludedRange(startBeat) || isBeatInExcludedRange(endBeat))
+    {
+        return true;
+    }
 
     if (endTime > startTime)
     {
@@ -1186,6 +1219,8 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
         double beat = MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator);
         if (beat < 0.0)
             return;  // 拒绝在负数拍数区域放置音符
+        if (isBeatInExcludedRange(beat))
+            return;  // 拒绝在排除BPM范围放置音符
         m_chartController->addNote(note);
     }
 }
@@ -1394,8 +1429,8 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
                 m_playbackController->pause();
             }
             m_scrollTimeMs = newTimeMs;
-            // 从 scrollTimeMs 反推 scrollBeat
-            const auto &cache = bpmTimeCache();
+            // 从 scrollTimeMs 反推 scrollBeat（使用完整缓存）
+            const auto &cache = fullBpmTimeCache();
             m_scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, cache);
             // 应用负数 beat 滚动下限
             clampScrollTimeToLimit();

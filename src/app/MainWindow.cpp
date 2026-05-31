@@ -1987,6 +1987,11 @@ void MainWindow::createCentralArea()
     d->notePanel->setSelectionController(d->selectionController);
     d->bpmPanel->setChartController(d->chartController);
     d->bpmPanel->setPlaybackController(d->playbackController);
+    connect(d->bpmPanel, &BPMTimePanel::excludeRenderingToggled, d->canvas, &ChartCanvas::setExcludeRenderingEnabled);
+    connect(d->bpmPanel, &BPMTimePanel::excludesDataChanged, d->canvas, [this]() {
+        d->canvas->setBpmCacheDirty();
+        d->canvas->update();
+    });
     d->metaPanel->setChartController(d->chartController);
     connect(d->metaPanel, &MetaEditPanel::backgroundResourceChanged, d->canvas, &ChartCanvas::refreshBackground);
 

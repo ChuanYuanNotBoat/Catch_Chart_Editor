@@ -182,6 +182,10 @@ QVector<Note> *ChartCanvas::mutableNotes()
 void ChartCanvas::rebuildBpmTimeCache() const
 {
     m_bpmTimeCache.clear();
+    m_excludedRenderBpmCache.clear();
+    m_excludedBeatRanges.clear();
+    m_hasExcludedBpms = false;
+
     if (!chart())
     {
         m_bpmCacheDirty = false;
@@ -197,6 +201,79 @@ void ChartCanvas::rebuildBpmTimeCache() const
 
     const int offset = chart()->meta().offset;
     m_bpmTimeCache = MathUtils::buildBpmTimeCache(bpmList, offset);
+
+    // 构建排除项缓存
+    BpmAuxFiles::BpmExcludesData excludesData;
+    bool hasExcludes = false;
+    if (m_chartController)
+    {
+        const QString chartPath = m_chartController->chartFilePath();
+        if (!chartPath.isEmpty())
+            hasExcludes = BpmAuxFiles::loadBpmExcludes(chartPath, excludesData);
+    }
+
+    if (hasExcludes)
+    {
+        // 检查每个BPM是否被排除
+        auto isExcluded = [&](const BpmEntry &bpm) -> bool
+        {
+            for (const auto &range : excludesData.excludes)
+            {
+                bool geStart = (bpm.beatNum > range.startBeatNum)
+                               || (bpm.beatNum == range.startBeatNum
+                                   && bpm.numerator * range.startDenominator >= range.startNumerator * bpm.denominator);
+                bool leEnd = (bpm.beatNum < range.endBeatNum)
+                             || (bpm.beatNum == range.endBeatNum
+                                 && bpm.numerator * range.endDenominator <= range.endNumerator * bpm.denominator);
+                if (geStart && leEnd)
+                    return true;
+            }
+            return false;
+        };
+
+        // 构建排除范围列表
+        for (int i = 0; i < bpmList.size(); ++i)
+        {
+            if (isExcluded(bpmList[i]))
+            {
+                double startBeat = MathUtils::beatToFloat(bpmList[i].beatNum, bpmList[i].numerator, bpmList[i].denominator);
+                double endBeat;
+                if (i + 1 < bpmList.size())
+                    endBeat = MathUtils::beatToFloat(bpmList[i + 1].beatNum, bpmList[i + 1].numerator, bpmList[i + 1].denominator);
+                else
+                    endBeat = startBeat + 100.0; // 最后一个BPM的排除范围
+                m_excludedBeatRanges.append(qMakePair(startBeat, endBeat));
+                m_hasExcludedBpms = true;
+            }
+        }
+
+        // 构建过滤后的BPM缓存（剔除排除项）
+        if (m_hasExcludedBpms)
+        {
+            BpmEntry prevIncludedBpm;
+            bool hasPrevIncluded = false;
+            QVector<BpmEntry> filteredBpmList;
+            for (int i = 0; i < bpmList.size(); ++i)
+            {
+                if (!isExcluded(bpmList[i]))
+                {
+                    filteredBpmList.append(bpmList[i]);
+                    prevIncludedBpm = bpmList[i];
+                    hasPrevIncluded = true;
+                }
+                else if (hasPrevIncluded)
+                {
+                    // 用前一个未排除的BPM替代排除项（保持拍数位置但用前一个BPM的tempo）
+                    BpmEntry replacement = bpmList[i];
+                    replacement.bpm = prevIncludedBpm.bpm;
+                    filteredBpmList.append(replacement);
+                }
+            }
+            if (!filteredBpmList.isEmpty())
+                m_excludedRenderBpmCache = MathUtils::buildBpmTimeCache(filteredBpmList, offset);
+        }
+    }
+
     m_bpmCacheDirty = false;
 
     // 重新计算基于时间的加权平均 BPM（排除项过滤后）
@@ -211,6 +288,16 @@ void ChartCanvas::rebuildBpmTimeCache() const
 }
 
 const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache() const
+{
+    if (m_bpmCacheDirty)
+        rebuildBpmTimeCache();
+    // 当排除项不参与渲染且存在排除项时，返回过滤后的缓存（用于网格线和beat高度）
+    if (m_excludeRenderingEnabled && m_hasExcludedBpms && !m_excludedRenderBpmCache.isEmpty())
+        return m_excludedRenderBpmCache;
+    return m_bpmTimeCache;
+}
+
+const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::fullBpmTimeCache() const
 {
     if (m_bpmCacheDirty)
         rebuildBpmTimeCache();
@@ -254,8 +341,10 @@ void ChartCanvas::rebuildNoteTimesCache()
         return;
     }
 
-    const QVector<MathUtils::BpmCacheEntry> &bpmCache = bpmTimeCache();
-    if (bpmCache.isEmpty())
+    // note 时间必须基于完整 BPM 缓存（含排除项），确保播放时间一致
+    // 网格线和 beat 高度使用 bpmTimeCache()（过滤后缓存）
+    const QVector<MathUtils::BpmCacheEntry> &fullCache = fullBpmTimeCache();
+    if (fullCache.isEmpty())
     {
         m_noteBeatPositions.clear();
         m_noteEndBeatPositions.clear();
@@ -298,7 +387,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         }
         double beat = MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator);
         m_noteBeatPositions[i] = beat;
-        m_noteTimesMs[i] = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, bpmCache);
+        m_noteTimesMs[i] = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, fullCache);
         m_playableNoteTimesMs.append(m_noteTimesMs[i]);
         if (note.type == NoteType::RAIN)
         {
@@ -645,7 +734,8 @@ void ChartCanvas::setCoordinateMode(CoordinateMode mode)
     if (mode == CoordinateMode::TimeLinear)
     {
         // 切换到 TimeLinear：先计算 scrollTimeMs 和 visibleTimeRangeMs
-        const auto &cache = bpmTimeCache();
+        // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间
+        const auto &cache = fullBpmTimeCache();
         if (!cache.isEmpty())
         {
             m_scrollTimeMs = MathUtils::beatToMs(m_scrollBeat, cache);
@@ -704,7 +794,8 @@ double ChartCanvas::effectiveVisibleBeatRange() const
 
 void ChartCanvas::syncScrollTimeFromBeat() const
 {
-    const auto &cache = bpmTimeCache();
+    // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间
+    const auto &cache = fullBpmTimeCache();
     if (cache.isEmpty())
     {
         m_scrollTimeMs = 0;
@@ -723,7 +814,8 @@ void ChartCanvas::syncScrollTimeFromBeat() const
 
 void ChartCanvas::syncScrollBeatFromTime() const
 {
-    const auto &cache = bpmTimeCache();
+    // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间，与 m_noteBeatPositions 一致
+    const auto &cache = fullBpmTimeCache();
     if (cache.isEmpty())
     {
         m_scrollBeat = 0;
@@ -865,13 +957,115 @@ void ChartCanvas::clampScrollTimeToLimit() const
 
     if (m_coordinateMode == CoordinateMode::TimeLinear)
     {
-        const auto &cache = bpmTimeCache();
+        // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间
+        const auto &cache = fullBpmTimeCache();
         if (!cache.isEmpty())
             m_scrollTimeMs = MathUtils::beatToMs(m_scrollBeat, cache);
     }
     else
     {
         syncScrollTimeFromBeat();
+    }
+}
+
+void ChartCanvas::setExcludeRenderingEnabled(bool enabled)
+{
+    if (m_excludeRenderingEnabled == enabled)
+        return;
+    m_excludeRenderingEnabled = enabled;
+    m_bpmCacheDirty = true;
+    invalidateGridCache();
+    m_timesDirty = true;
+    m_noteDataDirty = true;
+    update();
+}
+
+void ChartCanvas::setBpmCacheDirty()
+{
+    m_bpmCacheDirty = true;
+    invalidateGridCache();
+    m_timesDirty = true;
+    m_noteDataDirty = true;
+}
+
+bool ChartCanvas::isBeatInExcludedRange(double beat) const
+{
+    if (!m_hasExcludedBpms)
+        return false;
+    for (const auto &range : m_excludedBeatRanges)
+    {
+        if (beat >= range.first && beat < range.second)
+            return true;
+    }
+    return false;
+}
+
+void ChartCanvas::drawExcludedRangeBackgrounds(QPainter &painter, double startBeat, double endBeat,
+                                                double baseY, double sign, double invVisibleRange,
+                                                int canvasHeight, int lmargin, int availableWidth,
+                                                double scrollTimeMs, double pixelsPerMs,
+                                                bool useTimeLinear) const
+{
+    if (!m_hasExcludedBpms)
+        return;
+
+    // 获取排除BPM列表以获取BPM值
+    const auto &bpmList = chart()->bpmList();
+
+    for (int ri = 0; ri < m_excludedBeatRanges.size(); ++ri)
+    {
+        const auto &range = m_excludedBeatRanges[ri];
+        double rangeStart = range.first;
+        double rangeEnd = range.second;
+
+        // 裁剪到可见范围
+        if (rangeEnd <= startBeat || rangeStart >= endBeat)
+            continue;
+        double visStart = qMax(rangeStart, startBeat);
+        double visEnd = qMin(rangeEnd, endBeat);
+
+        double yStart, yEnd;
+        if (useTimeLinear)
+        {
+            // 使用完整BPM缓存计算排除区段时间范围（与note位置一致）
+            double startTimeMs = MathUtils::beatToMs(visStart, fullBpmTimeCache());
+            double endTimeMs = MathUtils::beatToMs(visEnd, fullBpmTimeCache());
+            yStart = baseY + sign * ((startTimeMs - scrollTimeMs) * pixelsPerMs);
+            yEnd = baseY + sign * ((endTimeMs - scrollTimeMs) * pixelsPerMs);
+        }
+        else
+        {
+            yStart = baseY + sign * ((visStart - m_scrollBeat) * invVisibleRange * canvasHeight);
+            yEnd = baseY + sign * ((visEnd - m_scrollBeat) * invVisibleRange * canvasHeight);
+        }
+
+        double rectTop = qMin(yStart, yEnd);
+        double rectHeight = qAbs(yEnd - yStart);
+        if (rectHeight <= 0)
+            continue;
+
+        // 绘制橙色半透明背景
+        QRectF orangeRect(lmargin, rectTop, availableWidth, rectHeight);
+        painter.fillRect(orangeRect, QColor(255, 165, 0, 60));
+
+        // 绘制排除范围内的网格线和特殊编号
+        // 查找对应的排除BPM值
+        double excludedBpm = 120.0;
+        for (int i = 0; i < bpmList.size(); ++i)
+        {
+            double bpmBeat = MathUtils::beatToFloat(bpmList[i].beatNum, bpmList[i].numerator, bpmList[i].denominator);
+            if (qAbs(bpmBeat - rangeStart) < 0.01)
+            {
+                excludedBpm = bpmList[i].bpm;
+                break;
+            }
+        }
+
+        QRect gridRect(lmargin, static_cast<int>(rectTop), availableWidth, static_cast<int>(rectHeight));
+        m_gridRenderer->drawExcludedRangeGrid(painter, gridRect, m_gridDivision,
+                                               visStart, visEnd,
+                                               m_timeDivision, excludedBpm,
+                                               m_verticalFlip);
     }
 }
 

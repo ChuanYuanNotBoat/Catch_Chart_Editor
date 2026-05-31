@@ -108,6 +108,8 @@ public slots:
     void showGridSettings();
     void playbackPositionChanged(double timeMs);
     void playFromReferenceLine();
+    void setExcludeRenderingEnabled(bool enabled);
+    void setBpmCacheDirty();
 
 signals:
     void verticalFlipChanged(bool flipped);
@@ -223,9 +225,24 @@ private:
 
     void rebuildBpmTimeCache() const;
     const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache() const;
+    // 完整BPM缓存（包含排除项），用于粘贴等编辑操作
+    const QVector<MathUtils::BpmCacheEntry> &fullBpmTimeCache() const;
     // 基于时间的加权平均 BPM（TimeLinear 模式的缩放基准）
     double computeBaseBpm() const;
     mutable double m_baseBpm = 120.0;
+
+    // 排除项BPM渲染支持
+    mutable QVector<MathUtils::BpmCacheEntry> m_excludedRenderBpmCache; // 过滤掉排除项后的BPM缓存
+    bool m_excludeRenderingEnabled = true; // 排除项是否不参与渲染
+    mutable bool m_hasExcludedBpms = false;
+    // 排除项影响范围：QVector of (startBeat, endBeat)
+    mutable QVector<QPair<double, double>> m_excludedBeatRanges;
+    bool isBeatInExcludedRange(double beat) const;
+    void drawExcludedRangeBackgrounds(QPainter &painter, double startBeat, double endBeat,
+                                       double baseY, double sign, double invVisibleRange,
+                                       int canvasHeight, int lmargin, int availableWidth,
+                                       double scrollTimeMs, double pixelsPerMs,
+                                       bool useTimeLinear) const;
 
     // 基于 offset 计算 TimeLinear 模式允许的负数 beat 滚动下限
     // 返回值为负数，表示 m_scrollBeat 不得低于此值

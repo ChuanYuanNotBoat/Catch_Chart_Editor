@@ -147,7 +147,8 @@ void ChartCanvas::setTimeScale(double scale)
     {
         // TimeLinear 模式：缩放 visibleTimeRangeMs，保持参考线位置固定
         const double baselineRatio = kReferenceLineRatio;
-        const auto &cache = bpmTimeCache();
+        // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间
+        const auto &cache = fullBpmTimeCache();
         const double oldScale = m_timeScale;
 
         // 计算参考线处的当前时间
@@ -294,7 +295,8 @@ void ChartCanvas::advancePlaybackVisual(bool scheduleRepaint, bool recordProbe)
 
     if (m_autoScrollEnabled)
     {
-        const QVector<MathUtils::BpmCacheEntry> &cache = bpmTimeCache();
+        // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间
+        const QVector<MathUtils::BpmCacheEntry> &cache = fullBpmTimeCache();
         if (cache.isEmpty())
             return;
 

@@ -101,6 +101,15 @@ void BPMTimePanel::setupUi()
     m_excludesContainer->setVisible(false);
     mainLayout->addWidget(m_excludesContainer);
 
+    // 排除项不参与渲染 勾选框
+    m_excludeRenderingCheck = new QCheckBox(tr("Exclude BPM: skip rendering"), this);
+    m_excludeRenderingCheck->setChecked(true);
+    m_excludeRenderingCheck->setToolTip(tr("When checked, excluded BPM entries will not affect grid rendering or flow speed"));
+    mainLayout->addWidget(m_excludeRenderingCheck);
+    connect(m_excludeRenderingCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        emit excludeRenderingToggled(checked);
+    });
+
     // Base BPM display at bottom
     m_baseBpmLabel = new QLabel(tr("Base BPM: -"), this);
     m_baseBpmLabel->setAlignment(Qt::AlignCenter);
@@ -637,6 +646,7 @@ void BPMTimePanel::onAddExcludeClicked()
     m_currentExcludesData = excludesData;
     refreshExcludesList();
     refreshBpmList();  // Update BPM list coloring
+    emit excludesDataChanged();
 }
 
 void BPMTimePanel::onRemoveExcludeClicked()
@@ -655,6 +665,7 @@ void BPMTimePanel::onRemoveExcludeClicked()
 
     refreshExcludesList();
     refreshBpmList();  // Update BPM list coloring
+    emit excludesDataChanged();
 }
 
 void BPMTimePanel::refreshExcludesList()
@@ -746,6 +757,7 @@ void BPMTimePanel::onExcludeItemChanged(QListWidgetItem *item)
     m_currentExcludesData = excludesData;
     refreshExcludesList();
     refreshBpmList();
+    emit excludesDataChanged();
 }
 
 void BPMTimePanel::onBpmItemChanged(QListWidgetItem *item)
@@ -787,6 +799,7 @@ void BPMTimePanel::onBpmItemChanged(QListWidgetItem *item)
     m_currentExcludesData = excludesData;
     refreshExcludesList();
     refreshBpmList();
+    emit excludesDataChanged();
 }
 
 void BPMTimePanel::retranslateUi()

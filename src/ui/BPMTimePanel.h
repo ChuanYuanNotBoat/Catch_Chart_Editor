@@ -24,6 +24,10 @@ public:
     void setPlaybackController(PlaybackController *controller);
     void retranslateUi();
 
+signals:
+    void excludeRenderingToggled(bool enabled);
+    void excludesDataChanged();
+
 private slots:
     void refreshBpmList();
     void onItemSelected(int row);
@@ -65,6 +69,7 @@ private:
     QPushButton *m_addExcludeBtn;
     QPushButton *m_removeExcludeBtn;
     QWidget *m_excludesContainer;
+    QCheckBox *m_excludeRenderingCheck;
     QLabel *m_baseBpmLabel;  // 基于时间加权平均BPM显示
     int m_selectedIndex;
     BpmAuxFiles::BpmExcludesData m_currentExcludesData;

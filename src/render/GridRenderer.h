@@ -27,4 +27,10 @@ public:
                             bool colorizeTimeDivisions = false,
                             const QString &colorPreset = QString(),
                             const QList<int> &customDivisions = QList<int>());
+
+    // 排除范围内的网格绘制（带特殊编号：开头结尾显示全局拍数，内部从1开始递增）
+    void drawExcludedRangeGrid(QPainter &painter, const QRect &rect, int xDivisions,
+                               double rangeStartBeat, double rangeEndBeat,
+                               double timeDivision, double bpm,
+                               bool verticalFlip = false);
 };

@@ -76,11 +76,14 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     drawBackground(painter);
     drawGrid(painter);
 
-    double startBeat = m_scrollBeat;
+    const bool useTimeLinear = (m_coordinateMode == CoordinateMode::TimeLinear);
     double visibleRange = effectiveVisibleBeatRange();
+    double startBeat;
+    if (useTimeLinear)
+        startBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, fullBpmTimeCache());
+    else
+        startBeat = m_scrollBeat;
     double endBeat = startBeat + visibleRange;
-
-    
 
     if (m_hyperfruitEnabled && !bpmList.isEmpty())
     {
@@ -101,11 +104,11 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     const double baseY = m_verticalFlip ? canvasHeight : 0;
     const double sign = m_verticalFlip ? -1.0 : 1.0;
 
-    const bool useTimeLinear = (m_coordinateMode == CoordinateMode::TimeLinear);
-    // TimeLinear 模式下直接使用 m_scrollTimeMs，不经过 beat 中间态，避免 BPM 分界处精度损失
     double scrollTimeMs;
     if (useTimeLinear)
     {
+        // TimeLinear: 直接使用权威时间 m_scrollTimeMs，避免经过 m_scrollBeat（过滤缓存空间）
+        // 的 round-trip 转换误差
         scrollTimeMs = m_scrollTimeMs;
     }
     else
@@ -121,6 +124,16 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     QSet<int> selectedSet;
     if (m_selectionController)
         selectedSet = m_selectionController->selectedIndices();
+
+    // 绘制排除BPM范围的橙色矩形背景（仅当排除项不参与渲染时）
+    if (m_excludeRenderingEnabled && m_hasExcludedBpms)
+    {
+        drawExcludedRangeBackgrounds(painter, startBeat, endBeat,
+                                     baseY, sign, invVisibleRange,
+                                     canvasHeight, lmargin, availableWidth,
+                                     scrollTimeMs, pixelsPerMs,
+                                     useTimeLinear);
+    }
 
     painter.setClipRect(rect());
 
@@ -166,8 +179,9 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             double yStart, yEnd;
             if (useTimeLinear)
             {
-                double startTimeMs = MathUtils::beatToMs(visibleStartBeat, bpmTimeCache());
-                double endTimeMs = MathUtils::beatToMs(visibleEndBeat, bpmTimeCache());
+                // note 时间基于完整缓存（与 m_noteTimesMs 一致）
+                double startTimeMs = MathUtils::beatToMs(visibleStartBeat, fullBpmTimeCache());
+                double endTimeMs = MathUtils::beatToMs(visibleEndBeat, fullBpmTimeCache());
                 yStart = baseY + sign * ((startTimeMs - scrollTimeMs) * pixelsPerMs);
                 yEnd = baseY + sign * ((endTimeMs - scrollTimeMs) * pixelsPerMs);
             }
@@ -342,7 +356,7 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
     }
     if (baseOriginalTime != std::numeric_limits<double>::max())
     {
-        const QVector<MathUtils::BpmCacheEntry> &previewBpmCache = bpmTimeCache();
+        const QVector<MathUtils::BpmCacheEntry> &previewBpmCache = fullBpmTimeCache();
         auto previewBeatFromTimeMs = [&previewBpmCache, &bpmList, offset](double ms) -> double
         {
             if (!previewBpmCache.isEmpty())
