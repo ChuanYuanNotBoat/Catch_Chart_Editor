@@ -125,6 +125,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_lastPlaybackTickNs(0),
       m_lastPlaybackVisualAdvanceNs(0),
       m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying),
+      m_mapper(&m_beatLinearMapper),
       m_coordinateMode(CoordinateMode::BeatLinear),
       m_scrollTimeMs(0.0),
       m_visibleTimeRangeMs(1000.0),
@@ -731,24 +732,21 @@ void ChartCanvas::setCoordinateMode(CoordinateMode mode)
     if (m_coordinateMode == mode)
         return;
 
-    if (mode == CoordinateMode::TimeLinear)
-    {
-        // 切换到 TimeLinear：先计算 scrollTimeMs 和 visibleTimeRangeMs
-        // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间
-        const auto &cache = fullBpmTimeCache();
-        if (!cache.isEmpty())
-        {
-            m_scrollTimeMs = MathUtils::beatToMs(m_scrollBeat, cache);
-            const double endBeat = m_scrollBeat + effectiveVisibleBeatRange();
-            const double endTime = MathUtils::beatToMs(endBeat, cache);
-            m_visibleTimeRangeMs = qMax(1.0, endTime - m_scrollTimeMs);
-        }
-    }
-    else
-    {
-        // 切换到 BeatLinear：从时间反推
-        syncScrollBeatFromTime();
-    }
+    CoordinateMapper *newMapper = (mode == CoordinateMode::TimeLinear)
+                                      ? static_cast<CoordinateMapper *>(&m_timeLinearMapper)
+                                      : static_cast<CoordinateMapper *>(&m_beatLinearMapper);
+
+    const CoordContext ctx = buildCoordContext();
+    newMapper->adoptFrom(m_mapper, m_scrollBeat, ctx);
+    newMapper->syncFromBeat(m_scrollBeat, ctx);
+
+    m_mapper = newMapper;
+    m_mapper->syncFromTime(m_scrollBeat, ctx);
+
+    // Sync legacy members for backward compatibility during transition
+    m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+    m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
+    m_baseVisibleBeatRange = m_beatLinearMapper.baseVisibleBeatRange();
 
     m_coordinateMode = mode;
     invalidateGridCache();
@@ -1062,11 +1060,24 @@ void ChartCanvas::drawExcludedRangeBackgrounds(QPainter &painter, double startBe
         }
 
         QRect gridRect(lmargin, static_cast<int>(rectTop), availableWidth, static_cast<int>(rectHeight));
-        m_gridRenderer->drawExcludedRangeGrid(painter, gridRect, m_gridDivision,
+    m_gridRenderer->drawExcludedRangeGrid(painter, gridRect, m_gridDivision,
                                                visStart, visEnd,
                                                m_timeDivision, excludedBpm,
                                                m_verticalFlip);
     }
+}
+
+CoordContext ChartCanvas::buildCoordContext() const
+{
+    CoordContext ctx;
+    ctx.canvasHeight = height();
+    ctx.timeScale = m_timeScale;
+    ctx.verticalFlip = m_verticalFlip;
+    ctx.bpmCache = &bpmTimeCache();
+    ctx.fullBpmCache = &fullBpmTimeCache();
+    ctx.baseBpm = m_baseBpm;
+    ctx.offsetMs = chart() ? chart()->meta().offset : 0;
+    return ctx;
 }
 
 

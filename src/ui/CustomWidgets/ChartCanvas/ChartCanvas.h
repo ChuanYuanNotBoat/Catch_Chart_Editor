@@ -13,6 +13,8 @@
 #include "model/Note.h"
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
+#include "coord/BeatLinearMapper.h"
+#include "coord/TimeLinearMapper.h"
 
 class ChartController;
 class SelectionController;
@@ -25,6 +27,9 @@ class PlaybackController;
 class NoteSoundPlayer;
 class Chart;
 class QMenu;
+class CoordinateMapper;
+class BeatLinearMapper;
+class TimeLinearMapper;
 
 class ChartCanvas : public QWidget
 {
@@ -335,6 +340,12 @@ private:
     mutable double m_scrollBeat;
     mutable double m_baseVisibleBeatRange;
     double m_timeScale;
+
+    // Coordinate mapper strategy (active mapper delegates all mode-specific logic)
+    CoordinateMapper *m_mapper;
+    BeatLinearMapper m_beatLinearMapper;
+    TimeLinearMapper m_timeLinearMapper;
+    CoordContext buildCoordContext() const;
     double m_currentPlayTime;
     bool m_autoScrollEnabled;
 

@@ -874,89 +874,32 @@ double ChartCanvas::getNoteTimeMs(const Note &note) const
 
 double ChartCanvas::yPosFromTime(double timeMs) const
 {
-    if (m_coordinateMode == CoordinateMode::TimeLinear)
-        return timeToY(timeMs);
-
-    int beatNum, numerator, denominator;
-    MathUtils::msToBeat(timeMs, chart()->bpmList(),
-                        chart()->meta().offset,
-                        beatNum, numerator, denominator);
-    double beat = beatNum + static_cast<double>(numerator) / denominator;
-    return beatToY(beat);
+    const CoordContext ctx = buildCoordContext();
+    return m_mapper->timeToY(timeMs, m_scrollBeat, ctx);
 }
 
 double ChartCanvas::beatToY(double beat) const
 {
-    if (m_coordinateMode == CoordinateMode::TimeLinear)
-    {
-        double ms = MathUtils::beatToMs(beat, bpmTimeCache());
-        return timeToY(ms);
-    }
-    double visibleRange = effectiveVisibleBeatRange();
-    if (visibleRange <= 0)
-        return 0;
-    double y = (beat - m_scrollBeat) / visibleRange * height();
-    if (m_verticalFlip)
-        y = height() - y;
-    return y;
+    const CoordContext ctx = buildCoordContext();
+    return m_mapper->beatToY(beat, m_scrollBeat, ctx);
 }
 
 double ChartCanvas::yToBeat(double y) const
 {
-    if (m_coordinateMode == CoordinateMode::TimeLinear)
-    {
-        double ms = yToTime(y);
-        return MathUtils::msToBeatFloat(ms, bpmTimeCache());
-    }
-    if (height() <= 0)
-        return m_scrollBeat;
-
-    if (m_verticalFlip)
-        y = height() - y;
-
-    return m_scrollBeat + (y / height()) * effectiveVisibleBeatRange();
+    const CoordContext ctx = buildCoordContext();
+    return m_mapper->yToBeat(y, m_scrollBeat, ctx);
 }
 
 double ChartCanvas::yToTime(double y) const
 {
-    if (m_coordinateMode == CoordinateMode::TimeLinear)
-    {
-        double pixelsPerMs = (m_visibleTimeRangeMs > 0) ? (height() / m_visibleTimeRangeMs) : 1.0;
-        double relY = m_verticalFlip ? (height() - y) : y;
-        return m_scrollTimeMs + relY / pixelsPerMs;
-    }
-    double beat = yToBeat(y);
-    int beatNum, num, den;
-    MathUtils::floatToBeat(beat, beatNum, num, den);
-    return MathUtils::beatToMs(beatNum, num, den,
-                               chart()->bpmList(),
-                               chart()->meta().offset);
+    const CoordContext ctx = buildCoordContext();
+    return m_mapper->yToTime(y, m_scrollBeat, ctx);
 }
 
 double ChartCanvas::timeToY(double timeMs) const
 {
-    if (m_coordinateMode == CoordinateMode::TimeLinear)
-    {
-        double pixelsPerMs = (m_visibleTimeRangeMs > 0) ? (height() / m_visibleTimeRangeMs) : 1.0;
-        double y = (timeMs - m_scrollTimeMs) * pixelsPerMs;
-        if (m_verticalFlip)
-            y = height() - y;
-        return y;
-    }
-    // BeatLinear fallback
-    const auto &bpmList = chart()->bpmList();
-    int scrollBN, scrollN, scrollD;
-    MathUtils::floatToBeat(m_scrollBeat, scrollBN, scrollN, scrollD);
-    double scrollMs = MathUtils::beatToMs(scrollBN, scrollN, scrollD, bpmList, chart()->meta().offset);
-    double visRange = effectiveVisibleBeatRange();
-    const auto &cache = bpmTimeCache();
-    double scrollBpm = MathUtils::lookupBpmAtBeat(m_scrollBeat, cache);
-    double pixelsPerBeat = (visRange > 0) ? (height() / visRange) : 1.0;
-    double pixelsPerMs = (scrollBpm > 0) ? (pixelsPerBeat * scrollBpm / 60000.0) : (pixelsPerBeat / 1000.0);
-    double y = (timeMs - scrollMs) * pixelsPerMs;
-    if (m_verticalFlip)
-        y = height() - y;
-    return y;
+    const CoordContext ctx = buildCoordContext();
+    return m_mapper->timeToY(timeMs, m_scrollBeat, ctx);
 }
 
 QPointF ChartCanvas::noteToPos(const Note &note) const
