@@ -35,12 +35,8 @@ class ChartCanvas : public QWidget
 {
     Q_OBJECT
 public:
-    // 坐标映射模式
-    enum class CoordinateMode
-    {
-        BeatLinear, // 拍号线性（默认，兼容现有谱面）：Y 与 beat 成正比
-        TimeLinear  // 时间线性：Y 与毫秒成正比，支持变速 BPM
-    };
+    // 坐标映射模式 — 使用 CoordinateMapper::Mode
+    using CoordinateMode = CoordinateMapper::Mode;
 
     enum Mode
     {
@@ -139,7 +135,7 @@ protected:
 
 private:
     static constexpr int kLaneWidth = 512;
-    static constexpr double kReferenceLineRatio = 0.8;
+    static constexpr double kReferenceLineRatio = CoordinateMapper::kReferenceLineRatio;
     static constexpr int kScrollSignalIntervalMs = 33;
     static constexpr double kWheelScrollBeatStepRatio = 0.1;
     static constexpr int kSideMarginDivisor = 20;

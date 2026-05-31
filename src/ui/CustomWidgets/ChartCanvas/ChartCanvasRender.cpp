@@ -76,6 +76,8 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     drawBackground(painter);
     drawGrid(painter);
 
+    // Build mapper context once for the entire paint pass
+    const CoordContext mapperCtx = buildCoordContext();
     const bool useTimeLinear = (m_coordinateMode == CoordinateMode::TimeLinear);
     double visibleRange = effectiveVisibleBeatRange();
     double startBeat;
@@ -161,35 +163,14 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
                 return;
         }
 
-        double y;
-        if (useTimeLinear)
-        {
-            double noteTimeMs = m_noteTimesMs[i];
-            y = baseY + sign * ((noteTimeMs - scrollTimeMs) * pixelsPerMs);
-        }
-        else
-        {
-            y = baseY + sign * ((beat - m_scrollBeat) * invVisibleRange * canvasHeight);
-        }
+        double y = m_mapper->beatToY(beat, m_scrollBeat, mapperCtx);
 
         if (type == NoteType::RAIN)
         {
             double visibleStartBeat = qMax(beat, startBeat);
             double visibleEndBeat = qMin(endBeatNote, endBeat);
-            double yStart, yEnd;
-            if (useTimeLinear)
-            {
-                // note 时间基于完整缓存（与 m_noteTimesMs 一致）
-                double startTimeMs = MathUtils::beatToMs(visibleStartBeat, fullBpmTimeCache());
-                double endTimeMs = MathUtils::beatToMs(visibleEndBeat, fullBpmTimeCache());
-                yStart = baseY + sign * ((startTimeMs - scrollTimeMs) * pixelsPerMs);
-                yEnd = baseY + sign * ((endTimeMs - scrollTimeMs) * pixelsPerMs);
-            }
-            else
-            {
-                yStart = baseY + sign * ((visibleStartBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
-                yEnd = baseY + sign * ((visibleEndBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
-            }
+            double yStart = m_mapper->beatToY(visibleStartBeat, m_scrollBeat, mapperCtx);
+            double yEnd = m_mapper->beatToY(visibleEndBeat, m_scrollBeat, mapperCtx);
             double rectTop = qMin(yStart, yEnd);
             double rectHeight = qAbs(yEnd - yStart);
             if (rectHeight <= 0)

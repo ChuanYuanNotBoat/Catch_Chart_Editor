@@ -756,38 +756,8 @@ void ChartCanvas::setCoordinateMode(CoordinateMode mode)
 
 double ChartCanvas::effectiveVisibleBeatRange() const
 {
-    if (m_coordinateMode == CoordinateMode::TimeLinear)
-    {
-        // TimeLinear: 从可见时间范围反推 beat 范围
-        const auto &cache = bpmTimeCache();
-        if (cache.isEmpty())
-        {
-            // 重试加载 BPM 缓存
-            for (int retry = 0; retry < 3; ++retry)
-            {
-                m_bpmCacheDirty = true;
-                rebuildBpmTimeCache();
-                if (!m_bpmTimeCache.isEmpty())
-                    break;
-            }
-            if (m_bpmTimeCache.isEmpty())
-            {
-                Logger::warn("effectiveVisibleBeatRange: BPM cache empty after 3 retries, switching to BeatLinear");
-                QMessageBox::warning(nullptr, tr("BPM Load Error"),
-                    tr("Cannot load BPM data. Switching to Beat Linear mode."));
-                const_cast<ChartCanvas *>(this)->setCoordinateMode(CoordinateMode::BeatLinear);
-                return 1.0;
-            }
-        }
-        if (m_visibleTimeRangeMs <= 0)
-            return qMax(1e-6, m_visibleTimeRangeMs * (120.0 / 60000.0));
-        double startMs = m_scrollTimeMs;
-        double endMs = m_scrollTimeMs + m_visibleTimeRangeMs;
-        double startBeat = MathUtils::msToBeatFloat(startMs, m_bpmTimeCache);
-        double endBeat = MathUtils::msToBeatFloat(endMs, m_bpmTimeCache);
-        return qMax(1e-6, endBeat - startBeat);
-    }
-    return m_baseVisibleBeatRange / m_timeScale;
+    const CoordContext ctx = buildCoordContext();
+    return m_mapper->effectiveVisibleBeatRange(ctx);
 }
 
 void ChartCanvas::syncScrollTimeFromBeat() const
@@ -923,42 +893,22 @@ double ChartCanvas::computeBaseBpm() const
 
 double ChartCanvas::negativeBeatScrollLimit() const
 {
-    // 基于 offset 计算允许的负数 beat 滚动下限
-    // offset (ms) → beat: offset * baseBpm / 60000
-    // reservedBeats = max(1, ceil(abs(offset) * baseBpm / 60000) + 1)
     if (!chart())
         return 0.0;
-
-    const int offsetMs = chart()->meta().offset;
-    // offset 通常为负数（音频延迟），取其绝对值计算
-    const double absOffsetBeat = std::abs(offsetMs) * m_baseBpm / 60000.0;
-    const int reservedBeats = std::max(1, static_cast<int>(std::ceil(absOffsetBeat)) + 1);
-
-    // scrollBeat 的下限：让参考线 beat 不低于 -reservedBeats
-    // 参考线 beat = scrollBeat + referenceRatio * visibleBeatRange（非翻转）
-    // 参考线 beat = scrollBeat + (1 - referenceRatio) * visibleBeatRange（翻转）
-    // 所以 scrollBeat >= -reservedBeats - refOffset * visibleBeatRange
-    const double visibleRange = effectiveVisibleBeatRange();
-    const double refOffset = m_verticalFlip
-                                 ? (1.0 - kReferenceLineRatio) * visibleRange
-                                 : kReferenceLineRatio * visibleRange;
-    return -static_cast<double>(reservedBeats) - refOffset;
+    const CoordContext ctx = buildCoordContext();
+    return m_mapper->negativeBeatScrollLimit(m_scrollBeat, ctx);
 }
 
 void ChartCanvas::clampScrollTimeToLimit() const
 {
-    const double limitBeat = negativeBeatScrollLimit();
-    if (m_scrollBeat >= limitBeat)
-        return;
+    const CoordContext ctx = buildCoordContext();
+    m_mapper->clampScrollLimit(m_scrollBeat, ctx);
 
-    m_scrollBeat = limitBeat;
-
+    // 同步 legacy 成员（过渡期）
     if (m_coordinateMode == CoordinateMode::TimeLinear)
     {
-        // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间
-        const auto &cache = fullBpmTimeCache();
-        if (!cache.isEmpty())
-            m_scrollTimeMs = MathUtils::beatToMs(m_scrollBeat, cache);
+        m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+        m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
     }
     else
     {

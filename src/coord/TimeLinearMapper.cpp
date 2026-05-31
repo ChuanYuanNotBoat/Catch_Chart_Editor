@@ -57,13 +57,13 @@ double TimeLinearMapper::effectiveVisibleBeatRange(const CoordContext &ctx) cons
     if (!ctx.bpmCache || ctx.bpmCache->isEmpty())
     {
         // Fallback when BPM cache unavailable
-        if (m_visibleTimeRangeMs <= 0)
-            return qMax(1e-6, m_visibleTimeRangeMs * (120.0 / 60000.0));
-        return m_visibleTimeRangeMs * (120.0 / 60000.0);
+    if (m_visibleTimeRangeMs <= 0)
+        return qMax(1e-6, std::abs(m_visibleTimeRangeMs) * (120.0 / 60000.0));
+    return m_visibleTimeRangeMs * (120.0 / 60000.0);
     }
 
     if (m_visibleTimeRangeMs <= 0)
-        return qMax(1e-6, m_visibleTimeRangeMs * (ctx.baseBpm / 60000.0));
+        return qMax(1e-6, std::abs(m_visibleTimeRangeMs) * (ctx.baseBpm / 60000.0));
 
     double startBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, *ctx.bpmCache);
     double endBeat = MathUtils::msToBeatFloat(m_scrollTimeMs + m_visibleTimeRangeMs, *ctx.bpmCache);

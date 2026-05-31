@@ -290,6 +290,90 @@ bool testTimeLinearVariableBpm()
     return nearlyEqual(2.0, beat2Back, 0.01) && nearlyEqual(6.0, beat6Back, 0.01);
 }
 
+// --- Additional edge-case tests ---
+
+bool testBeatLinearBeatToYNoFlip()
+{
+    BeatLinearMapper mapper;
+    mapper.setBaseVisibleBeatRange(10.0);
+    const QVector<MathUtils::BpmCacheEntry> cache;
+    auto ctx = makeContext(800, 2.25, false, cache, cache, 120.0, 0);
+
+    double scrollBeat = 0.0;
+    for (double beat = -5.0; beat <= 20.0; beat += 0.5)
+    {
+        double y = mapper.beatToY(beat, scrollBeat, ctx);
+        double beatBack = mapper.yToBeat(y, scrollBeat, ctx);
+        if (!nearlyEqual(beat, beatBack, 1e-4))
+            return false;
+    }
+    return true;
+}
+
+bool testTimeLinearEmptyCache()
+{
+    const QVector<MathUtils::BpmCacheEntry> emptyCache;
+    TimeLinearMapper mapper;
+    auto ctx = makeContext(800, 2.25, true, emptyCache, emptyCache, 120.0, 0);
+
+    double scrollBeat = 0.0;
+    mapper.syncFromBeat(scrollBeat, ctx);
+
+    // beatToY should return 0 for empty cache
+    double y = mapper.beatToY(5.0, scrollBeat, ctx);
+    if (y != 0.0)
+        return false;
+
+    // yToBeat should return scrollBeat for empty cache
+    double beatBack = mapper.yToBeat(100.0, scrollBeat, ctx);
+    if (!nearlyEqual(beatBack, 0.0, 1e-6))
+        return false;
+
+    // effectiveVisibleBeatRange should return positive value
+    double range = mapper.effectiveVisibleBeatRange(ctx);
+    if (range <= 0)
+        return false;
+
+    return true;
+}
+
+bool testTimeLinearSetTimeScale()
+{
+    const QVector<BpmEntry> bpmList = {BpmEntry(0, 0, 1, 120.0)};
+    auto fullCache = MathUtils::buildBpmTimeCache(bpmList, 0);
+
+    TimeLinearMapper mapper;
+    auto ctx = makeContext(800, 2.0, true, fullCache, fullCache, 120.0, 0);
+
+    double scrollBeat = 0.0;
+    mapper.syncFromBeat(scrollBeat, ctx);
+
+    double refRatio = CoordinateMapper::kReferenceLineRatio;
+    double visBeatRange = mapper.effectiveVisibleBeatRange(ctx);
+    // verticalFlip=true: ref beat = scrollBeat + (1 - ratio) * visRange
+    double refBeat = scrollBeat + (1.0 - refRatio) * visBeatRange;
+
+    mapper.setTimeScale(4.0, scrollBeat, ctx);
+    ctx.timeScale = 4.0;
+
+    double newVisBeatRange = mapper.effectiveVisibleBeatRange(ctx);
+    double newRefBeat = scrollBeat + (1.0 - refRatio) * newVisBeatRange;
+    return nearlyEqual(refBeat, newRefBeat, 0.1);
+}
+
+bool testTimeLinearScrollLimit()
+{
+    const QVector<BpmEntry> bpmList = {BpmEntry(0, 0, 1, 120.0)};
+    auto fullCache = MathUtils::buildBpmTimeCache(bpmList, 0);
+
+    TimeLinearMapper mapper;
+    auto ctx = makeContext(800, 2.0, true, fullCache, fullCache, 120.0, -500);
+
+    double scrollBeat = -100.0;
+    mapper.clampScrollLimit(scrollBeat, ctx);
+    return scrollBeat > -100.0;
+}
+
 } // namespace
 
 // Test runner entry point
@@ -315,6 +399,10 @@ int main()
         {"BeatLinear adoptFrom TimeLinear", testBeatLinearAdoptFromTimeLinear},
         {"TimeLinear adoptFrom BeatLinear", testTimeLinearAdoptFromBeatLinear},
         {"TimeLinear: variable BPM", testTimeLinearVariableBpm},
+        {"BeatLinear: beatToY no-flip", testBeatLinearBeatToYNoFlip},
+        {"TimeLinear: empty cache", testTimeLinearEmptyCache},
+        {"TimeLinear: setTimeScale preserves ref line", testTimeLinearSetTimeScale},
+        {"TimeLinear: scroll limit", testTimeLinearScrollLimit},
     };
 
     int passed = 0;
