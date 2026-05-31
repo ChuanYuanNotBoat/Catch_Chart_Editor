@@ -72,6 +72,8 @@ set(SOURCES
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp
+    src/coord/BeatLinearMapper.cpp
+    src/coord/TimeLinearMapper.cpp
     src/ui/dialogs/LogSettingsDialog.cpp
     src/ui/dialogs/PluginManagerDialog.cpp
     src/ui/dialogs/BpmMeasureDialog.cpp
@@ -194,6 +196,28 @@ if(BUILD_TESTING)
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
     if(WIN32)
         set_tests_properties(core_minimal_tests PROPERTIES
+            ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
+    endif()
+
+    add_executable(CoordMapperTests
+        tests/coord_mapper_tests.cpp
+        src/model/Note.cpp
+        src/model/BpmEntry.cpp
+        src/utils/MathUtils.cpp
+        src/utils/Logger.cpp
+        src/utils/PerformanceTimer.cpp
+        src/utils/DiagnosticCollector.cpp
+        src/coord/BeatLinearMapper.cpp
+        src/coord/TimeLinearMapper.cpp
+    )
+
+    target_include_directories(CoordMapperTests PRIVATE src)
+    target_link_libraries(CoordMapperTests Qt6::Core Qt6::Gui)
+    target_compile_definitions(CoordMapperTests PRIVATE QT_NO_QFLAGS_INITIALIZER_LIST)
+
+    add_test(NAME coord_mapper_tests COMMAND CoordMapperTests)
+    if(WIN32)
+        set_tests_properties(coord_mapper_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
     endif()
 endif()
