@@ -183,16 +183,18 @@ void GridRenderer::drawExcludedRangeGrid(QPainter &painter, const QRect &rect, i
             timeDivInt = 1;
 
         const double totalBeatRange = rangeEndBeat - rangeStartBeat;
-        const int startTick = static_cast<int>(std::ceil(rangeStartBeat * timeDivInt));
-        const int endTick = static_cast<int>(std::floor(rangeEndBeat * timeDivInt));
+        // 使用 floor/ceil 扩展 tick 范围，确保边界处的不完整 beat 也被渲染
+        const int startTick = static_cast<int>(std::floor(rangeStartBeat * timeDivInt));
+        const int endTick = static_cast<int>(std::ceil(rangeEndBeat * timeDivInt));
 
         QFont font = painter.font();
         font.setPointSize(8);
         painter.setFont(font);
 
         // 开头和结尾的全局拍数（取整）
-        const int globalStartBeat = static_cast<int>(std::ceil(rangeStartBeat));
-        const int globalEndBeat = static_cast<int>(std::floor(rangeEndBeat));
+        // 边界拍号也包含不完整拍
+        const int globalStartBeat = static_cast<int>(std::floor(rangeStartBeat));
+        const int globalEndBeat = static_cast<int>(std::ceil(rangeEndBeat));
 
         // 特殊编号计数器：从第一个内部beat开始从1递增
         int specialNum = 1;
@@ -266,10 +268,11 @@ void GridRenderer::drawExcludedRangeGrid(QPainter &painter, const QRect &rect, i
     }
     catch (const std::exception &e)
     {
-        Q_UNUSED(e);
+        Logger::error(QString("GridRenderer::drawExcludedRangeGrid - Exception: %1").arg(e.what()));
     }
     catch (...)
     {
+        Logger::error("GridRenderer::drawExcludedRangeGrid - Unknown exception");
     }
 }
 

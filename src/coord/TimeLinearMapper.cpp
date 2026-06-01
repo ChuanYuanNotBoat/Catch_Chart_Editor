@@ -7,25 +7,38 @@
 #include <cmath>
 #include <limits>
 
+namespace
+{
+const QVector<MathUtils::BpmCacheEntry> *renderCacheFor(const CoordContext &ctx)
+{
+    if (ctx.bpmCache && !ctx.bpmCache->isEmpty())
+        return ctx.bpmCache;
+    if (ctx.fullBpmCache && !ctx.fullBpmCache->isEmpty())
+        return ctx.fullBpmCache;
+    return nullptr;
+}
+}
+
 // === Read-only coordinate conversions ===
 
 double TimeLinearMapper::beatToY(double beat, double scrollBeat, const CoordContext &ctx) const
 {
-    if (!ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
         return 0;
 
-    // Convert beat to time, then to Y using pixelsPerMs.
-    const double noteTimeMs = MathUtils::beatToMs(beat, *ctx.fullBpmCache);
+    const double noteTimeMs = MathUtils::beatToMs(beat, *cache);
     return timeToY(noteTimeMs, scrollBeat, ctx);
 }
 
 double TimeLinearMapper::yToBeat(double y, double scrollBeat, const CoordContext &ctx) const
 {
-    if (!ctx.bpmCache || ctx.bpmCache->isEmpty())
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
         return scrollBeat;
 
     double ms = yToTime(y, scrollBeat, ctx);
-    return MathUtils::msToBeatFloat(ms, *ctx.bpmCache);
+    return MathUtils::msToBeatFloat(ms, *cache);
 }
 
 double TimeLinearMapper::timeToY(double timeMs, double /*scrollBeat*/, const CoordContext &ctx) const
@@ -56,10 +69,9 @@ double TimeLinearMapper::effectiveVisibleBeatRange(const CoordContext &ctx) cons
 {
     if (!ctx.bpmCache || ctx.bpmCache->isEmpty())
     {
-        // Fallback when BPM cache unavailable
-    if (m_visibleTimeRangeMs <= 0)
-        return qMax(1e-6, std::abs(m_visibleTimeRangeMs) * (120.0 / 60000.0));
-    return m_visibleTimeRangeMs * (120.0 / 60000.0);
+        if (m_visibleTimeRangeMs <= 0)
+            return qMax(1e-6, std::abs(m_visibleTimeRangeMs) * (ctx.baseBpm / 60000.0));
+        return m_visibleTimeRangeMs * (ctx.baseBpm / 60000.0);
     }
 
     if (m_visibleTimeRangeMs <= 0)
@@ -72,10 +84,10 @@ double TimeLinearMapper::effectiveVisibleBeatRange(const CoordContext &ctx) cons
 
 double TimeLinearMapper::visibleStartBeat(double /*scrollBeat*/, const CoordContext &ctx) const
 {
-    if (!ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
         return 0;
-    // Use m_scrollTimeMs directly for precision (avoids round-trip through beat).
-    return MathUtils::msToBeatFloat(m_scrollTimeMs, *ctx.fullBpmCache);
+    return MathUtils::msToBeatFloat(m_scrollTimeMs, *cache);
 }
 
 double TimeLinearMapper::scrollTimeMs(double /*scrollBeat*/, const CoordContext & /*ctx*/) const
@@ -87,27 +99,25 @@ double TimeLinearMapper::scrollTimeMs(double /*scrollBeat*/, const CoordContext 
 
 void TimeLinearMapper::setTimeScale(double newScale, double &scrollBeat, const CoordContext &ctx)
 {
-    if (!ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
         return;
 
     const double baselineRatio = kReferenceLineRatio;
-    const auto &cache = *ctx.fullBpmCache;
 
-    // Compute reference beat and its time from current state.
-    double refBeat = ctx.verticalFlip
-                         ? scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange(ctx)
-                         : scrollBeat + baselineRatio * effectiveVisibleBeatRange(ctx);
-    double refTimeMs = MathUtils::beatToMs(refBeat, cache);
+    const double baselineOffsetRatio = ctx.verticalFlip ? (1.0 - baselineRatio) : baselineRatio;
+    const double refBeat = scrollBeat + baselineOffsetRatio * effectiveVisibleBeatRange(ctx);
+    const double refTimeMs = MathUtils::beatToMs(refBeat, *cache);
 
-    // Scale visibleTimeRangeMs: scale up → range shrinks.
-    double factor = (ctx.timeScale > 0) ? (ctx.timeScale / newScale) : 1.0;
+    // Scale up: the visible time range shrinks.
+    const double factor = (ctx.timeScale > 0) ? (ctx.timeScale / newScale) : 1.0;
     m_visibleTimeRangeMs = qMax(1.0, m_visibleTimeRangeMs * factor);
 
     // Adjust scrollTimeMs to keep reference position fixed.
-    m_scrollTimeMs = refTimeMs - baselineRatio * m_visibleTimeRangeMs;
+    m_scrollTimeMs = refTimeMs - baselineOffsetRatio * m_visibleTimeRangeMs;
 
     // Update scrollBeat from new time state.
-    scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, cache);
+    scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, *cache);
 
     // Apply scroll limit.
     clampScrollLimit(scrollBeat, ctx);
@@ -118,13 +128,17 @@ void TimeLinearMapper::advancePlayback(double currentTimeMs, double baselineRati
 {
     if (!ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
         return;
+    const auto *renderCache = renderCacheFor(ctx);
+    if (!renderCache)
+        return;
 
-    // Direct time-based scrolling for uniform velocity at BPM boundaries.
-    double targetScrollTimeMs = currentTimeMs
+    const double playbackBeat = MathUtils::msToBeatFloat(currentTimeMs, *ctx.fullBpmCache);
+    const double playbackRenderTimeMs = MathUtils::beatToMs(playbackBeat, *renderCache);
+    const double targetScrollTimeMs = playbackRenderTimeMs
         - (ctx.verticalFlip ? (1.0 - baselineRatio) : baselineRatio) * m_visibleTimeRangeMs;
 
     m_scrollTimeMs = targetScrollTimeMs;
-    scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, *ctx.fullBpmCache);
+    scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, *renderCache);
 
     // Apply scroll limit.
     clampScrollLimit(scrollBeat, ctx);
@@ -132,32 +146,56 @@ void TimeLinearMapper::advancePlayback(double currentTimeMs, double baselineRati
 
 void TimeLinearMapper::syncFromBeat(double scrollBeat, const CoordContext &ctx)
 {
-    // Update m_scrollTimeMs from scrollBeat.
-    if (!ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
     {
         m_scrollTimeMs = 0;
         return;
     }
-    m_scrollTimeMs = MathUtils::beatToMs(scrollBeat, *ctx.fullBpmCache);
+    m_scrollTimeMs = MathUtils::beatToMs(scrollBeat, *cache);
 
-    // Also update m_visibleTimeRangeMs from the visible beat range.
     const double endBeat = scrollBeat + effectiveVisibleBeatRange(ctx);
-    const double endTime = MathUtils::beatToMs(endBeat, *ctx.fullBpmCache);
+    const double endTime = MathUtils::beatToMs(endBeat, *cache);
     m_visibleTimeRangeMs = endTime - m_scrollTimeMs;
 }
 
 void TimeLinearMapper::syncFromTime(double &scrollBeat, const CoordContext &ctx)
 {
-    // Update scrollBeat from m_scrollTimeMs.
-    if (!ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
     {
         scrollBeat = 0;
         return;
     }
-    scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, *ctx.fullBpmCache);
+    scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, *cache);
 
     // Also update m_baseVisibleBeatRange equivalent in BeatLinear if needed.
     // (This is handled by the caller through adoptFrom.)
+}
+
+void TimeLinearMapper::setScrollTimeMs(double scrollTimeMs, double &scrollBeat, const CoordContext &ctx)
+{
+    m_scrollTimeMs = scrollTimeMs;
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
+    {
+        scrollBeat = 0;
+        return;
+    }
+
+    scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, *cache);
+}
+
+void TimeLinearMapper::setScrollBeatPreservingRange(double scrollBeat, const CoordContext &ctx)
+{
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
+    {
+        m_scrollTimeMs = 0;
+        return;
+    }
+
+    m_scrollTimeMs = MathUtils::beatToMs(scrollBeat, *cache);
 }
 
 double TimeLinearMapper::negativeBeatScrollLimit(double scrollBeat, const CoordContext &ctx) const
@@ -175,8 +213,9 @@ void TimeLinearMapper::clampScrollLimit(double &scrollBeat, const CoordContext &
         scrollBeat = limit;
 
         // Update m_scrollTimeMs to match the clamped position.
-        if (ctx.fullBpmCache && !ctx.fullBpmCache->isEmpty())
-            m_scrollTimeMs = MathUtils::beatToMs(scrollBeat, *ctx.fullBpmCache);
+        const auto *cache = renderCacheFor(ctx);
+        if (cache)
+            m_scrollTimeMs = MathUtils::beatToMs(scrollBeat, *cache);
     }
 }
 
@@ -187,18 +226,19 @@ void TimeLinearMapper::adoptFrom(const CoordinateMapper *other,
         return;
 
     // Adopt from BeatLinear: compute m_scrollTimeMs and m_visibleTimeRangeMs.
-    if (!ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
     {
         m_scrollTimeMs = 0;
         m_visibleTimeRangeMs = 1000.0;
         return;
     }
 
-    m_scrollTimeMs = MathUtils::beatToMs(scrollBeat, *ctx.fullBpmCache);
+    m_scrollTimeMs = MathUtils::beatToMs(scrollBeat, *cache);
 
     // Compute m_visibleTimeRangeMs from BeatLinear's effective beat range.
     const double beatRange = other->effectiveVisibleBeatRange(ctx);
     const double endBeat = scrollBeat + beatRange;
-    const double endTime = MathUtils::beatToMs(endBeat, *ctx.fullBpmCache);
+    const double endTime = MathUtils::beatToMs(endBeat, *cache);
     m_visibleTimeRangeMs = qMax(1.0, endTime - m_scrollTimeMs);
 }

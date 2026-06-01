@@ -603,31 +603,50 @@ void ChartCanvas::setScrollPos(double timeMs)
         return;
 
     const double clampedTimeMs = qMax(0.0, timeMs);
-
-    int beatNum, numerator, denominator;
-    MathUtils::msToBeat(clampedTimeMs, chart()->bpmList(),
-                        chart()->meta().offset,
-                        beatNum, numerator, denominator);
-    const double targetBeat = beatNum + static_cast<double>(numerator) / denominator;
-
-    // Keep requested time aligned on the visual reference line, not on viewport start.
     const double baselineRatio = kReferenceLineRatio;
-    const double baselineBeatOffset = m_verticalFlip
-                                          ? (1.0 - baselineRatio) * effectiveVisibleBeatRange()
-                                          : baselineRatio * effectiveVisibleBeatRange();
-    double newScrollBeat = targetBeat - baselineBeatOffset;
-    const double scrollLimit = negativeBeatScrollLimit();
-    if (newScrollBeat < scrollLimit)
-        newScrollBeat = scrollLimit;
+    const double baselineOffsetRatio = m_verticalFlip ? (1.0 - baselineRatio) : baselineRatio;
+    const double previousScrollBeat = m_scrollBeat;
 
-    const bool scrollChanged = qAbs(newScrollBeat - m_scrollBeat) >= 1e-6;
+    double newScrollBeat = m_scrollBeat;
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        const CoordContext ctx = buildCoordContext();
+        m_timeLinearMapper.advancePlayback(clampedTimeMs, baselineRatio, newScrollBeat, ctx);
+        m_scrollBeat = newScrollBeat;
+        m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+        m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
+    }
+    else
+    {
+        int beatNum, numerator, denominator;
+        MathUtils::msToBeat(clampedTimeMs, chart()->bpmList(),
+                            chart()->meta().offset,
+                            beatNum, numerator, denominator);
+        const double targetBeat = beatNum + static_cast<double>(numerator) / denominator;
+
+        const double baselineBeatOffset = baselineOffsetRatio * effectiveVisibleBeatRange();
+        newScrollBeat = targetBeat - baselineBeatOffset;
+        const double scrollLimit = negativeBeatScrollLimit();
+        if (newScrollBeat < scrollLimit)
+            newScrollBeat = scrollLimit;
+    }
+
+    const bool scrollChanged = qAbs(newScrollBeat - previousScrollBeat) >= 1e-6;
     const bool timeChanged = qAbs(clampedTimeMs - m_currentPlayTime) >= 0.05;
     if (!scrollChanged && !timeChanged)
         return;
 
     m_scrollBeat = newScrollBeat;
     m_currentPlayTime = clampedTimeMs;
-    syncScrollTimeFromBeat();
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+        m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
+    }
+    else
+    {
+        syncScrollTimeFromBeat();
+    }
     update();
     if (scrollChanged)
         emit scrollPositionChanged(m_scrollBeat);
@@ -638,13 +657,23 @@ void ChartCanvas::syncCurrentPlayTimeToReferenceLine()
     if (!chart())
         return;
 
+    const double baselineRatio = kReferenceLineRatio;
+    const double baselineOffsetRatio = m_verticalFlip ? (1.0 - baselineRatio) : baselineRatio;
+
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        const CoordContext ctx = buildCoordContext();
+        const double referenceY = m_verticalFlip
+                                      ? height() - baselineOffsetRatio * height()
+                                      : baselineOffsetRatio * height();
+        const double baselineBeat = m_timeLinearMapper.yToBeat(referenceY, m_scrollBeat, ctx);
+        m_currentPlayTime = qMax(0.0, MathUtils::beatToMs(baselineBeat, fullBpmTimeCache()));
+        return;
+    }
+
     const auto &bpmList = chart()->bpmList();
     const int offset = chart()->meta().offset;
-    const double baselineRatio = kReferenceLineRatio;
-    const double baselineBeat = m_verticalFlip
-                                    ? m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange()
-                                    : m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
-
+    const double baselineBeat = m_scrollBeat + baselineOffsetRatio * effectiveVisibleBeatRange();
     int beatNum = 0;
     int numerator = 0;
     int denominator = 1;
@@ -1010,7 +1039,7 @@ void ChartCanvas::drawExcludedRangeBackgrounds(QPainter &painter, double startBe
         }
 
         QRect gridRect(lmargin, static_cast<int>(rectTop), availableWidth, static_cast<int>(rectHeight));
-    m_gridRenderer->drawExcludedRangeGrid(painter, gridRect, m_gridDivision,
+        m_gridRenderer->drawExcludedRangeGrid(painter, gridRect, m_gridDivision,
                                                visStart, visEnd,
                                                m_timeDivision, excludedBpm,
                                                m_verticalFlip);

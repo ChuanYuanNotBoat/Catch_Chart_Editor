@@ -1419,20 +1419,17 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
     {
         if (m_coordinateMode == CoordinateMode::TimeLinear)
         {
-            // TimeLinear: 直接滚动 scrollTimeMs
-            double step = m_visibleTimeRangeMs * kWheelScrollBeatStepRatio;
-            double newTimeMs = m_scrollTimeMs + (delta / 120.0) * step;
+            const double step = m_visibleTimeRangeMs * kWheelScrollBeatStepRatio;
+            const double newTimeMs = m_scrollTimeMs + (delta / 120.0) * step;
             const bool scrollChanged = qAbs(newTimeMs - m_scrollTimeMs) >= 0.01;
             if (scrollChanged && m_playbackController &&
                 m_playbackController->state() == PlaybackController::Playing)
             {
                 m_playbackController->pause();
             }
-            m_scrollTimeMs = newTimeMs;
-            // 从 scrollTimeMs 反推 scrollBeat（使用完整缓存）
-            const auto &cache = fullBpmTimeCache();
-            m_scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, cache);
-            // 应用负数 beat 滚动下限
+            const CoordContext ctx = buildCoordContext();
+            m_timeLinearMapper.setScrollTimeMs(newTimeMs, m_scrollBeat, ctx);
+            m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
             clampScrollTimeToLimit();
             m_autoScrollEnabled = false;
             if (scrollChanged)

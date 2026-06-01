@@ -36,6 +36,8 @@ public:
     // === TimeLinear-specific ===
     double visibleTimeRangeMs() const { return m_visibleTimeRangeMs; }
     double scrollTimeMsRaw() const { return m_scrollTimeMs; }
+    void setScrollTimeMs(double scrollTimeMs, double &scrollBeat, const CoordContext &ctx);
+    void setScrollBeatPreservingRange(double scrollBeat, const CoordContext &ctx);
 
 private:
     double m_scrollTimeMs = 0.0;

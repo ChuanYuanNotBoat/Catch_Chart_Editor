@@ -4,6 +4,7 @@
 #include <QVector>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QDateTime>
 
 namespace BpmAuxFiles
 {
@@ -81,13 +82,6 @@ struct BpmExcludesData
 };
 
 /**
- * @brief 获取谱面标识（基于文件名）
- * TODO: Wave B replace with UUID
- * @param chartPath 谱面文件路径
- * @return 谱面标识（文件名主干）
- */
-
-/**
  * @brief 生成 BPM 排除文件路径
  * @param chartPath 谱面文件路径
  * @return BPM 排除文件路径（.mcce-plugin/{chart_stem}.bpm_excludes.json）
@@ -133,10 +127,4 @@ bool loadSongBpm(const QString &chartPath, SongBpmInfo &outInfo);
  */
 bool saveSongBpm(const QString &chartPath, const SongBpmInfo &info);
 
-/**
- * @brief 验证 JSON 格式
- * @param obj JSON 对象
- * @param requiredFields 必填字段列表
- * @return 格式正确返回 true
- */
 } // namespace BpmAuxFiles
