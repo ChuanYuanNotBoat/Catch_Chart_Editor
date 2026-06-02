@@ -284,7 +284,11 @@ void ChartCanvas::rebuildBpmTimeCache() const
     // BeatLinear模式下 m_scrollBeat 是权威状态，不应从时间反推
     if (m_coordinateMode == CoordinateMode::TimeLinear && !m_bpmTimeCache.isEmpty())
     {
-        syncScrollTimeFromBeat();
+        syncScrollTimeFromBeat();  // sync canvas legacy members
+
+        // 同步 mapper 内部状态（m_scrollTimeMs），使其与 canvas 一致
+        const CoordContext ctx = buildCoordContext();
+        m_mapper->syncFromBeat(m_scrollBeat, ctx);
     }
 }
 
@@ -767,10 +771,10 @@ void ChartCanvas::setCoordinateMode(CoordinateMode mode)
 
     const CoordContext ctx = buildCoordContext();
     newMapper->adoptFrom(m_mapper, m_scrollBeat, ctx);
-    newMapper->syncFromBeat(m_scrollBeat, ctx);
+    // 避免在 adoptFrom 后再次调用 syncFromBeat/syncFromTime；
+    // 对 TimeLinear，visibleTimeRangeMs 是权威状态，额外同步易引入漂移。
 
     m_mapper = newMapper;
-    m_mapper->syncFromTime(m_scrollBeat, ctx);
 
     // Sync legacy members for backward compatibility during transition
     m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();

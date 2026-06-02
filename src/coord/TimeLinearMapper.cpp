@@ -11,10 +11,12 @@ namespace
 {
 const QVector<MathUtils::BpmCacheEntry> *renderCacheFor(const CoordContext &ctx)
 {
-    if (ctx.bpmCache && !ctx.bpmCache->isEmpty())
-        return ctx.bpmCache;
+    // 优先完整缓存：确保 beat↔ms 与 note 时间一致（note时间基于完整缓存）
+    // 过滤缓存仅由 GridRenderer 独立传入，不经过此函数
     if (ctx.fullBpmCache && !ctx.fullBpmCache->isEmpty())
         return ctx.fullBpmCache;
+    if (ctx.bpmCache && !ctx.bpmCache->isEmpty())
+        return ctx.bpmCache;
     return nullptr;
 }
 }
@@ -126,19 +128,17 @@ void TimeLinearMapper::setTimeScale(double newScale, double &scrollBeat, const C
 void TimeLinearMapper::advancePlayback(double currentTimeMs, double baselineRatio,
                                         double &scrollBeat, const CoordContext &ctx)
 {
-    if (!ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
-        return;
-    const auto *renderCache = renderCacheFor(ctx);
-    if (!renderCache)
+    const auto *cache = renderCacheFor(ctx);
+    if (!cache)
         return;
 
-    const double playbackBeat = MathUtils::msToBeatFloat(currentTimeMs, *ctx.fullBpmCache);
-    const double playbackRenderTimeMs = MathUtils::beatToMs(playbackBeat, *renderCache);
-    const double targetScrollTimeMs = playbackRenderTimeMs
+    // 直接使用 currentTimeMs，不做 full→beat→render 的 round-trip。
+    // round-trip 在排除BPM存在时会引入系统性偏移，导致流速随BPM变化。
+    const double targetScrollTimeMs = currentTimeMs
         - (ctx.verticalFlip ? (1.0 - baselineRatio) : baselineRatio) * m_visibleTimeRangeMs;
 
     m_scrollTimeMs = targetScrollTimeMs;
-    scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, *renderCache);
+    scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, *cache);
 
     // Apply scroll limit.
     clampScrollLimit(scrollBeat, ctx);
@@ -154,9 +154,10 @@ void TimeLinearMapper::syncFromBeat(double scrollBeat, const CoordContext &ctx)
     }
     m_scrollTimeMs = MathUtils::beatToMs(scrollBeat, *cache);
 
-    const double endBeat = scrollBeat + effectiveVisibleBeatRange(ctx);
-    const double endTime = MathUtils::beatToMs(endBeat, *cache);
-    m_visibleTimeRangeMs = endTime - m_scrollTimeMs;
+    // m_visibleTimeRangeMs 不修改 — TimeLinear 模式下它是权威状态，
+    // 保持恒定的下落速度（pixelsPerMs = canvasHeight / m_visibleTimeRangeMs）。
+    // 在可变BPM场景下，beat → ms → beat 的往返是有损的，
+    // 从 scrollBeat 重新推导 visibleTimeRangeMs 会导致数值漂移。
 }
 
 void TimeLinearMapper::syncFromTime(double &scrollBeat, const CoordContext &ctx)
