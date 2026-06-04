@@ -97,3 +97,9 @@ REVERSE_ENGINEERING_PROGRESS.md
 AUTOTIMING_BINARY_MAPPING.md
 tools/*.py
 retry_build.cmd
+project_tree.txt
+render_style_source.txt
+tmp_impl_plan.md
+.cursor
+.kagent
+docs/EXCLUDE_BPM_TODO.md
