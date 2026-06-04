@@ -338,28 +338,9 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
     if (baseOriginalTime != std::numeric_limits<double>::max())
     {
         const QVector<MathUtils::BpmCacheEntry> &previewBpmCache = fullBpmTimeCache();
-        auto previewBeatFromTimeMs = [&previewBpmCache, &bpmList, offset](double ms) -> double
+        auto previewBeatFromTimeMs = [&previewBpmCache](double ms) -> double
         {
-            if (!previewBpmCache.isEmpty())
-            {
-                int lo = 0;
-                int hi = previewBpmCache.size() - 1;
-                while (lo < hi)
-                {
-                    int mid = (lo + hi + 1) / 2;
-                    if (previewBpmCache[mid].accumulatedMs <= ms)
-                        lo = mid;
-                    else
-                        hi = mid - 1;
-                }
-                const auto &seg = previewBpmCache[lo];
-                if (seg.bpm <= 0.0)
-                    return seg.beatPos;
-                return seg.beatPos + (ms - seg.accumulatedMs) * (seg.bpm / 60000.0);
-            }
-            int b = 0, n = 0, d = 1;
-            MathUtils::msToBeat(ms, bpmList, offset, b, n, d);
-            return MathUtils::beatToFloat(b, n, d);
+            return MathUtils::msToBeatFloat(ms, previewBpmCache);
         };
         const double baseOriginalBeat = previewBeatFromTimeMs(baseOriginalTime);
         const double referenceBeat = m_pasteAnchorBeat;
@@ -753,7 +734,8 @@ void ChartCanvas::drawGrid(QPainter &painter)
         else
         {
             // ===== TimeLinear 模式：基于时间的网格，BPM 感知 =====
-            // TimeLinear 模式下直接使用 m_scrollTimeMs，避免经过 beat 中间态的精度损失
+            // TimeLinear 模式始终使用权威时间轴（基于完整缓存），
+            // 排除项通过 isInExcludedRangeByTime 跳过，不改变时间基准
             double startTime = m_scrollTimeMs;
             double endTime = m_scrollTimeMs + m_visibleTimeRangeMs;
 
@@ -804,11 +786,13 @@ void ChartCanvas::drawGrid(QPainter &painter)
                 const QRect cacheRect(0, 0, cacheSize.width(), cacheSize.height());
                 m_gridRenderer->drawGrid(cachePainter, cacheRect, m_gridDivision,
                                          cacheStartTime, cacheEndTime,
-                                         m_timeDivision, bpmCache,
+                                         m_timeDivision, fullBpmTimeCache(),
                                          m_verticalFlip,
                                          colorEnabled,
                                          colorPreset,
-                                         colorCustom);
+                                         colorCustom,
+                                         &fullBpmTimeCache(),
+                                         (m_excludeRenderingEnabled && m_hasExcludedBpms) ? &m_excludedBeatRanges : nullptr);
                 m_gridCacheRect = rect;
                 m_gridCacheStartTime = cacheStartTime;
                 m_gridCacheEndTime = cacheEndTime;

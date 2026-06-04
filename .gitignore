@@ -101,3 +101,6 @@ tmp_impl_plan.md
 
 .kagent/
 .cursor/
+project_tree.txt
+render_style_source.txt
+docs/EXCLUDE_BPM_TODO.md

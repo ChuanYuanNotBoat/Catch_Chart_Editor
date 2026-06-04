@@ -5,6 +5,7 @@
 #include "model/Chart.h"
 #include "ui/dialogs/BpmMeasureDialog.h"
 #include "utils/MathUtils.h"
+#include "utils/Settings.h"
 #include "file/BpmAuxFiles.h"
 #include "audio/BpmDetector.h"
 #include <QFileInfo>
@@ -103,7 +104,7 @@ void BPMTimePanel::setupUi()
 
     // 排除项不参与渲染 勾选框
     m_excludeRenderingCheck = new QCheckBox(tr("Exclude BPM: skip rendering"), this);
-    m_excludeRenderingCheck->setChecked(true);
+    m_excludeRenderingCheck->setChecked(Settings::instance().excludeRenderingEnabled());
     m_excludeRenderingCheck->setToolTip(tr("When checked, excluded BPM entries will not affect grid rendering or flow speed"));
     mainLayout->addWidget(m_excludeRenderingCheck);
     connect(m_excludeRenderingCheck, &QCheckBox::toggled, this, [this](bool checked) {

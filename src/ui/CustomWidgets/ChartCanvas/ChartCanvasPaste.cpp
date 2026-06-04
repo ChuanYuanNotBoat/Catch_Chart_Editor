@@ -318,29 +318,11 @@ void ChartCanvas::confirmPaste()
 
     const auto &bpmList = chart()->bpmList();
     int offset = chart()->meta().offset;
-    const QVector<MathUtils::BpmCacheEntry> &bpmCache = bpmTimeCache();
-    auto beatFromTimeMs = [&bpmCache, &bpmList, offset](double ms) -> double
+    // 使用完整BPM缓存（含排除项），确保粘贴操作在完整beat空间中进行
+    const QVector<MathUtils::BpmCacheEntry> &bpmCache = fullBpmTimeCache();
+    auto beatFromTimeMs = [&bpmCache](double ms) -> double
     {
-        if (!bpmCache.isEmpty())
-        {
-            int lo = 0;
-            int hi = bpmCache.size() - 1;
-            while (lo < hi)
-            {
-                int mid = (lo + hi + 1) / 2;
-                if (bpmCache[mid].accumulatedMs <= ms)
-                    lo = mid;
-                else
-                    hi = mid - 1;
-            }
-            const auto &seg = bpmCache[lo];
-            if (seg.bpm <= 0.0)
-                return seg.beatPos;
-            return seg.beatPos + (ms - seg.accumulatedMs) * (seg.bpm / 60000.0);
-        }
-        int b = 0, n = 0, d = 1;
-        MathUtils::msToBeat(ms, bpmList, offset, b, n, d);
-        return MathUtils::beatToFloat(b, n, d);
+        return MathUtils::msToBeatFloat(ms, bpmCache);
     };
     auto assignBeatWithDen = [](double beatFloat, int targetDen, int &outBeatNum, int &outNum, int &outDen)
     {

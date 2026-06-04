@@ -4,6 +4,7 @@
 #include <QVector>
 #include <QWidget>
 #include <QElapsedTimer>
+#include "utils/MathUtils.h"
 
 class ChartController;
 class PlaybackController;
@@ -37,12 +38,8 @@ private:
     static constexpr int kLaneWidth = 512;
     static constexpr int kMinFrameIntervalMs = 16;
 
-    struct BpmSegment
-    {
-        double beatPos = 0.0;
-        double accumulatedMs = 0.0;
-        double bpm = 0.0;
-    };
+    // 使用 MathUtils::BpmCacheEntry 作为 BPM 段数据，消除重复结构体定义
+    using BpmSegment = MathUtils::BpmCacheEntry;
 
     struct TimedNoteEntry
     {

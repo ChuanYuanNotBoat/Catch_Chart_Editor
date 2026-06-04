@@ -6,6 +6,8 @@
 #include <QPainter>
 #include <numeric>
 #include <QSet>
+#include <algorithm>
+#include <cmath>
 
 namespace
 {
@@ -157,33 +159,45 @@ void GridRenderer::drawGridBeatLinear(QPainter &painter, const QRect &rect, int 
     }
 }
 
-void GridRenderer::drawExcludedRangeGrid(QPainter &painter, const QRect &rect, int xDivisions,
-                                          double rangeStartBeat, double rangeEndBeat,
-                                          double timeDivision, double bpm,
-                                          bool verticalFlip)
+void GridRenderer::drawExcludedRangeGrid(QPainter &painter, const QRect &canvasRect, int xDivisions,
+                                         double rangeStartBeat, double rangeEndBeat,
+                                         double visibleStartBeat, double visibleEndBeat,
+                                         double visibleStartY, double visibleEndY,
+                                         bool useTimeLinear,
+                                         double timeDivision,
+                                         double scrollTimeMs, double pixelsPerMs,
+                                         const QVector<MathUtils::BpmCacheEntry> *bpmCache,
+                                         bool verticalFlip)
 {
     try
     {
         if (rangeEndBeat <= rangeStartBeat)
             return;
-        if (bpm <= 0.0)
+        if (!bpmCache || bpmCache->isEmpty())
+            return;
+        if (useTimeLinear && pixelsPerMs <= 0.0)
             return;
 
-        // 垂直分隔线
-        const double stepX = static_cast<double>(rect.width()) / xDivisions;
+        // 裁剪边界（橙色矩形区域）
+        const int effectiveClipTop = static_cast<int>(std::floor(std::min(visibleStartY, visibleEndY)));
+        const int effectiveClipBottom = static_cast<int>(std::ceil(std::max(visibleStartY, visibleEndY)));
+        if (effectiveClipBottom <= effectiveClipTop)
+            return;
+
+        // 垂直分隔线（裁剪到橙色矩形范围内）
+        const double stepX = static_cast<double>(canvasRect.width()) / xDivisions;
         painter.setPen(QPen(QColor(255, 165, 0, 100), 1, Qt::DotLine));
         for (int i = 1; i < xDivisions; ++i)
         {
-            const int x = rect.left() + static_cast<int>(std::round(i * stepX));
-            painter.drawLine(x, rect.top(), x, rect.bottom());
+            const int x = canvasRect.left() + static_cast<int>(std::round(i * stepX));
+            painter.drawLine(x, effectiveClipTop, x, effectiveClipBottom);
         }
 
         int timeDivInt = static_cast<int>(timeDivision);
         if (timeDivInt <= 0)
             timeDivInt = 1;
 
-        const double totalBeatRange = rangeEndBeat - rangeStartBeat;
-        // 使用 floor/ceil 扩展 tick 范围，确保边界处的不完整 beat 也被渲染
+        // 使用 floor/ceil 扩展 tick 范围
         const int startTick = static_cast<int>(std::floor(rangeStartBeat * timeDivInt));
         const int endTick = static_cast<int>(std::ceil(rangeEndBeat * timeDivInt));
 
@@ -191,13 +205,8 @@ void GridRenderer::drawExcludedRangeGrid(QPainter &painter, const QRect &rect, i
         font.setPointSize(8);
         painter.setFont(font);
 
-        // 开头和结尾的全局拍数（取整）
-        // 边界拍号也包含不完整拍
-        const int globalStartBeat = static_cast<int>(std::floor(rangeStartBeat));
-        const int globalEndBeat = static_cast<int>(std::ceil(rangeEndBeat));
-
-        // 特殊编号计数器：从第一个内部beat开始从1递增
-        int specialNum = 1;
+        // 独立编号：以 rangeStartBeat 为基准，第一个整拍编号为 1，固定不随滚动变化
+        const int firstIndependentBeat = static_cast<int>(std::ceil(rangeStartBeat - 1e-9));
         int lastDrawnY = -9999;
 
         for (int tick = startTick; tick <= endTick; ++tick)
@@ -210,12 +219,29 @@ void GridRenderer::drawExcludedRangeGrid(QPainter &painter, const QRect &rect, i
             if (beat < rangeStartBeat || beat > rangeEndBeat)
                 continue;
 
-            // Beat 线性映射到 Y
+            // 使用过滤缓存进行 time-based Y 映射（网格高度仅由真实BPM决定）
             int y = 0;
-            if (!verticalFlip)
-                y = rect.top() + static_cast<int>((beat - rangeStartBeat) / totalBeatRange * rect.height());
+            if (useTimeLinear)
+            {
+                const double tickMs = MathUtils::beatToMs(beat, *bpmCache);
+                const int yPx = static_cast<int>((tickMs - scrollTimeMs) * pixelsPerMs);
+                if (!verticalFlip)
+                    y = canvasRect.top() + yPx;
+                else
+                    y = canvasRect.bottom() - yPx;
+            }
             else
-                y = rect.bottom() - static_cast<int>((beat - rangeStartBeat) / totalBeatRange * rect.height());
+            {
+                const double denom = visibleEndBeat - visibleStartBeat;
+                if (std::abs(denom) <= 1e-9)
+                    continue;
+                const double t = (beat - visibleStartBeat) / denom;
+                y = static_cast<int>(std::round(visibleStartY + t * (visibleEndY - visibleStartY)));
+            }
+
+            // 跳过超出橙色矩形范围的线
+            if (y < effectiveClipTop - 1 || y > effectiveClipBottom + 1)
+                continue;
 
             if (qAbs(y - lastDrawnY) < 1)
                 continue;
@@ -224,7 +250,7 @@ void GridRenderer::drawExcludedRangeGrid(QPainter &painter, const QRect &rect, i
             // 网格线颜色：橙色半透明
             QPen linePen(QColor(255, 165, 0, isIntegerBeat ? 120 : 60), isIntegerBeat ? 2 : 1);
             painter.setPen(linePen);
-            painter.drawLine(rect.left(), y, rect.right(), y);
+            painter.drawLine(canvasRect.left(), y, canvasRect.right(), y);
 
             if (isIntegerBeat)
             {
@@ -232,34 +258,37 @@ void GridRenderer::drawExcludedRangeGrid(QPainter &painter, const QRect &rect, i
                 if (verticalFlip)
                 {
                     textY = y + 12;
-                    if (textY > rect.bottom())
+                    if (textY > effectiveClipBottom)
                         textY = y - 12;
                 }
                 else
                 {
                     textY = y - 2;
-                    if (textY < rect.top())
+                    if (textY < effectiveClipTop)
                         textY = y + 12;
                 }
 
-                // 开头和结尾：全局拍数，正常样式
-                if (beatNum == globalStartBeat || beatNum == globalEndBeat)
-                {
-                    font.setItalic(false);
-                    painter.setFont(font);
-                    painter.setPen(Qt::darkGray);
-                    painter.drawText(rect.left() + 2, textY, QString::number(beatNum));
-                }
-                else
-                {
-                    // 内部：特殊编号，橙色斜体
-                    font.setItalic(true);
-                    painter.setFont(font);
-                    painter.setPen(QColor(255, 140, 0));
-                    painter.drawText(rect.left() + 2, textY, QString::number(specialNum));
-                    specialNum++;
-                }
+                // 排除项矩形内统一使用独立编号，橙色斜体
+                const int specialNum = beatNum - firstIndependentBeat + 1;
+                if (specialNum <= 0)
+                    continue;
+                font.setItalic(true);
+                painter.setFont(font);
+                painter.setPen(QColor(255, 140, 0));
+                painter.drawText(canvasRect.left() + 2, textY, QString::number(specialNum));
             }
+        }
+
+        // Fallback：如果矩形内无可见网格线，绘制一条参考虚线
+        if (lastDrawnY == -9999)
+        {
+            int midY = (effectiveClipTop + effectiveClipBottom) / 2;
+            painter.setPen(QPen(QColor(255, 165, 0, 80), 1, Qt::DashLine));
+            painter.drawLine(canvasRect.left(), midY, canvasRect.right(), midY);
+            painter.setPen(QColor(255, 140, 0));
+            font.setItalic(true);
+            painter.setFont(font);
+            painter.drawText(canvasRect.left() + 2, midY - 2, "[excluded]");
         }
 
         // 恢复字体
@@ -282,7 +311,9 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
                             bool verticalFlip,
                             bool colorizeTimeDivisions,
                             const QString &colorPreset,
-                            const QList<int> &customDivisions)
+                            const QList<int> &customDivisions,
+                            const QVector<MathUtils::BpmCacheEntry> *fullBpmCache,
+                            const QVector<QPair<double, double>> *excludedRanges)
 {
     try
     {
@@ -301,46 +332,31 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
         if (totalDuration <= 0)
             return;
 
-        auto findBeatFromTime = [&](double timeMs) -> double
-        {
-            if (bpmCache.isEmpty())
-                return 0.0;
-            int lo = 0, hi = bpmCache.size() - 1;
-            while (lo < hi)
-            {
-                const int mid = (lo + hi + 1) / 2;
-                if (bpmCache[mid].accumulatedMs <= timeMs)
-                    lo = mid;
-                else
-                    hi = mid - 1;
-            }
-            const auto &seg = bpmCache[lo];
-            const double beatOffset = (timeMs - seg.accumulatedMs) * (seg.bpm / 60000.0);
-            return seg.beatPos + beatOffset;
-        };
+        // 使用过滤缓存进行时间-beat转换（统一使用 MathUtils）
+        const double startBeatPos = MathUtils::msToBeatFloat(startTime, bpmCache);
+        const double endBeatPos = MathUtils::msToBeatFloat(endTime, bpmCache);
 
-        // beat → ms，用于 time-based Y 映射
-        auto beatToMs = [&](double beatPos) -> double
+        // 预计算排除范围的 ms 区间（避免在循环中重复二分查找）
+        QVector<QPair<double, double>> excludedRangesMs;
+        if (excludedRanges && fullBpmCache && !fullBpmCache->isEmpty())
         {
-            if (bpmCache.isEmpty())
-                return 0.0;
-            int lo = 0, hi = bpmCache.size() - 1;
-            while (lo < hi)
+            for (const auto &range : *excludedRanges)
             {
-                const int mid = (lo + hi + 1) / 2;
-                if (bpmCache[mid].beatPos <= beatPos)
-                    lo = mid;
-                else
-                    hi = mid - 1;
+                double ms1 = MathUtils::beatToMs(range.first, *fullBpmCache);
+                double ms2 = MathUtils::beatToMs(range.second, *fullBpmCache);
+                excludedRangesMs.append(qMakePair(ms1, ms2));
             }
-            const auto &seg = bpmCache[lo];
-            const double beatOffset = beatPos - seg.beatPos;
-            const double msPerBeat = (seg.bpm > 0.0) ? 60000.0 / seg.bpm : 1000.0;
-            return seg.accumulatedMs + beatOffset * msPerBeat;
-        };
+        }
 
-        const double startBeatPos = findBeatFromTime(startTime);
-        const double endBeatPos = findBeatFromTime(endTime);
+        auto isInExcludedRangeByTime = [&](double tickMsValue) -> bool
+        {
+            for (const auto &range : excludedRangesMs)
+            {
+                if (tickMsValue >= range.first && tickMsValue <= range.second)
+                    return true;
+            }
+            return false;
+        };
 
         int timeDivInt = static_cast<int>(timeDivision);
         if (timeDivInt <= 0)
@@ -376,8 +392,12 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
             if (beat < startBeatPos || beat > endBeatPos)
                 continue;
 
-            // TimeLinear: beat → ms → Y，基于固定 pixelsPerMs
-            const double tickMs = beatToMs(beat);
+            // TimeLinear: beat → ms → Y，基于固定 pixelsPerMs（使用过滤缓存）
+            const double tickMs = MathUtils::beatToMs(beat, bpmCache);
+
+            // 跳过排除范围内的tick（使用时间比较避免过滤缓存beat空间不匹配）
+            if (isInExcludedRangeByTime(tickMs))
+                continue;
             const int yPx = static_cast<int>((tickMs - startTime) * pixelsPerMs);
 
             int y = 0;
@@ -406,7 +426,15 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
 
             if (isIntegerBeat)
             {
-                const QString text = QString::number(beatNum);
+                // 当提供完整BPM缓存时，用tickMs反查实际beat编号
+                // （排除项过滤后的beat空间中beatNum不准确）
+                int displayBeatNum = beatNum;
+                if (fullBpmCache && !fullBpmCache->isEmpty())
+                {
+                    double actualBeat = MathUtils::msToBeatFloat(tickMs, *fullBpmCache);
+                    displayBeatNum = static_cast<int>(std::floor(actualBeat + 0.5));
+                }
+                const QString text = QString::number(displayBeatNum);
                 painter.setPen(Qt::darkGray);
                 int textY = y;
                 if (verticalFlip)

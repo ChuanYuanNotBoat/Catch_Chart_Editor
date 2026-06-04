@@ -234,7 +234,8 @@ private:
 
     // 排除项BPM渲染支持
     mutable QVector<MathUtils::BpmCacheEntry> m_excludedRenderBpmCache; // 过滤掉排除项后的BPM缓存
-    bool m_excludeRenderingEnabled = true; // 排除项是否不参与渲染
+    bool m_excludeRenderingEnabled = true; // 排除项是否不参与渲染（从Settings加载持久化配置）
+    bool isExcludeRenderingEnabled() const { return m_excludeRenderingEnabled; }
     mutable bool m_hasExcludedBpms = false;
     // 排除项影响范围：QVector of (startBeat, endBeat)
     mutable QVector<QPair<double, double>> m_excludedBeatRanges;

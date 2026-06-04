@@ -96,6 +96,9 @@ private:
     class ExternalMutationCommand;
     class UnreachableDivisionCommand;
 
+    // BPM 去重：查找与 candidate 相同 beat 位置的已有 BPM 索引，返回 -1 表示无重复
+    int findDuplicateBpmIndex(const BpmEntry &candidate) const;
+
     Chart m_chart;
     QUndoStack *m_undoStack;
     QString m_currentChartPath; // 当前加载的谱面文件路径

@@ -28,6 +28,8 @@
 #include <QMessageBox>
 #include <QMenu>
 #include <QAction>
+#include <algorithm>
+#include <cmath>
 #include <QShowEvent>
 #include <QDebug>
 #include <chrono>
@@ -146,6 +148,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
     m_noteSoundPlayer->setSoundFile(noteSoundPath);
     m_noteSoundPlayer->setEnabled(!noteSoundPath.isEmpty());
 
+    m_excludeRenderingEnabled = Settings::instance().excludeRenderingEnabled();
     m_fpsTimer.start();
     m_playbackVisualClock.start();
     m_pluginOverlayToggles.insert("overlay_enabled", true);
@@ -215,7 +218,6 @@ void ChartCanvas::rebuildBpmTimeCache() const
 
     if (hasExcludes)
     {
-        // 检查每个BPM是否被排除
         auto isExcluded = [&](const BpmEntry &bpm) -> bool
         {
             for (const auto &range : excludesData.excludes)
@@ -232,45 +234,28 @@ void ChartCanvas::rebuildBpmTimeCache() const
             return false;
         };
 
-        // 构建排除范围列表
-        for (int i = 0; i < bpmList.size(); ++i)
+        for (const auto &range : excludesData.excludes)
         {
-            if (isExcluded(bpmList[i]))
-            {
-                double startBeat = MathUtils::beatToFloat(bpmList[i].beatNum, bpmList[i].numerator, bpmList[i].denominator);
-                double endBeat;
-                if (i + 1 < bpmList.size())
-                    endBeat = MathUtils::beatToFloat(bpmList[i + 1].beatNum, bpmList[i + 1].numerator, bpmList[i + 1].denominator);
-                else
-                    endBeat = startBeat + 100.0; // 最后一个BPM的排除范围
-                m_excludedBeatRanges.append(qMakePair(startBeat, endBeat));
-                m_hasExcludedBpms = true;
-            }
+            double startBeat = MathUtils::beatToFloat(range.startBeatNum, range.startNumerator, range.startDenominator);
+            double endBeat = MathUtils::beatToFloat(range.endBeatNum, range.endNumerator, range.endDenominator);
+            if (endBeat < startBeat)
+                std::swap(startBeat, endBeat);
+            if (std::abs(endBeat - startBeat) <= 1e-9)
+                continue;
+            m_excludedBeatRanges.append(qMakePair(startBeat, endBeat));
         }
+        m_hasExcludedBpms = !m_excludedBeatRanges.isEmpty();
 
-        // 构建过滤后的BPM缓存（剔除排除项）
         if (m_hasExcludedBpms)
         {
-            BpmEntry prevIncludedBpm;
-            bool hasPrevIncluded = false;
             QVector<BpmEntry> filteredBpmList;
             for (int i = 0; i < bpmList.size(); ++i)
             {
-                if (!isExcluded(bpmList[i]))
-                {
-                    filteredBpmList.append(bpmList[i]);
-                    prevIncludedBpm = bpmList[i];
-                    hasPrevIncluded = true;
-                }
-                else if (hasPrevIncluded)
-                {
-                    // 用前一个未排除的BPM替代排除项（保持拍数位置但用前一个BPM的tempo）
-                    BpmEntry replacement = bpmList[i];
-                    replacement.bpm = prevIncludedBpm.bpm;
-                    filteredBpmList.append(replacement);
-                }
+                if (isExcluded(bpmList[i]))
+                    continue;
+                filteredBpmList.append(bpmList[i]);
             }
-            if (!filteredBpmList.isEmpty())
+            if (!filteredBpmList.isEmpty() && filteredBpmList.size() != bpmList.size())
                 m_excludedRenderBpmCache = MathUtils::buildBpmTimeCache(filteredBpmList, offset);
         }
     }
@@ -954,6 +939,7 @@ void ChartCanvas::setExcludeRenderingEnabled(bool enabled)
     if (m_excludeRenderingEnabled == enabled)
         return;
     m_excludeRenderingEnabled = enabled;
+    Settings::instance().setExcludeRenderingEnabled(enabled);
     m_bpmCacheDirty = true;
     invalidateGridCache();
     m_timesDirty = true;
@@ -990,9 +976,6 @@ void ChartCanvas::drawExcludedRangeBackgrounds(QPainter &painter, double startBe
     if (!m_hasExcludedBpms)
         return;
 
-    // 获取排除BPM列表以获取BPM值
-    const auto &bpmList = chart()->bpmList();
-
     for (int ri = 0; ri < m_excludedBeatRanges.size(); ++ri)
     {
         const auto &range = m_excludedBeatRanges[ri];
@@ -1008,7 +991,9 @@ void ChartCanvas::drawExcludedRangeBackgrounds(QPainter &painter, double startBe
         double yStart, yEnd;
         if (useTimeLinear)
         {
-            // 使用完整BPM缓存计算排除区段时间范围（与note位置一致）
+            // 设计意图：橙色矩形位置 = 音符实际时间位置（受排除项BPM影响），
+            // 网格线位置 = 真实歌曲BPM决定的节奏位置（不受排除项BPM影响）。
+            // 两者刻意不一致，让制谱者直观识别着色调整。
             double startTimeMs = MathUtils::beatToMs(visStart, fullBpmTimeCache());
             double endTimeMs = MathUtils::beatToMs(visEnd, fullBpmTimeCache());
             yStart = baseY + sign * ((startTimeMs - scrollTimeMs) * pixelsPerMs);
@@ -1029,24 +1014,16 @@ void ChartCanvas::drawExcludedRangeBackgrounds(QPainter &painter, double startBe
         QRectF orangeRect(lmargin, rectTop, availableWidth, rectHeight);
         painter.fillRect(orangeRect, QColor(255, 165, 0, 60));
 
-        // 绘制排除范围内的网格线和特殊编号
-        // 查找对应的排除BPM值
-        double excludedBpm = 120.0;
-        for (int i = 0; i < bpmList.size(); ++i)
-        {
-            double bpmBeat = MathUtils::beatToFloat(bpmList[i].beatNum, bpmList[i].numerator, bpmList[i].denominator);
-            if (qAbs(bpmBeat - rangeStart) < 0.01)
-            {
-                excludedBpm = bpmList[i].bpm;
-                break;
-            }
-        }
-
-        QRect gridRect(lmargin, static_cast<int>(rectTop), availableWidth, static_cast<int>(rectHeight));
-        m_gridRenderer->drawExcludedRangeGrid(painter, gridRect, m_gridDivision,
-                                               visStart, visEnd,
-                                               m_timeDivision, excludedBpm,
-                                               m_verticalFlip);
+        QRect canvasRect(lmargin, 0, availableWidth, canvasHeight);
+        m_gridRenderer->drawExcludedRangeGrid(painter, canvasRect, m_gridDivision,
+                                              rangeStart, rangeEnd,
+                                              visStart, visEnd,
+                                              yStart, yEnd,
+                                              useTimeLinear,
+                                              m_timeDivision,
+                                              scrollTimeMs, pixelsPerMs,
+                                              &fullBpmTimeCache(),
+                                              m_verticalFlip);
     }
 }
 

@@ -376,24 +376,49 @@ private:
     QList<QPair<Note, Note>> m_changes;
 };
 
-// 添加 BPM 命令
+// 添加 BPM 命令（支持去重：同一 beat 位置仅保留一个 BPM）
 class ChartController::AddBpmCommand : public ChartController::ChartCommand
 {
 public:
-    AddBpmCommand(ChartController *controller, const BpmEntry &bpm) : ChartCommand(controller, "Add BPM"), m_bpm(bpm) {}
+    AddBpmCommand(ChartController *controller, const BpmEntry &bpm)
+        : ChartCommand(controller, "Add BPM"), m_bpm(bpm), m_wasReplace(false) {}
     void undo() override
     {
-        removeBpmByValue(m_controller->m_chart, m_bpm, m_controller->m_chart.bpmList().size() - 1);
+        if (m_wasReplace)
+        {
+            // 恢复被替换的旧 BPM 值
+            int existing = m_controller->findDuplicateBpmIndex(m_bpm);
+            if (existing >= 0)
+                m_controller->m_chart.bpmList()[existing] = m_oldReplacedBpm;
+        }
+        else
+        {
+            removeBpmByValue(m_controller->m_chart, m_bpm, m_controller->m_chart.bpmList().size() - 1);
+        }
         m_controller->chartChanged();
     }
     void redo() override
     {
-        m_controller->m_chart.addBpm(m_bpm);
+        int existing = m_controller->findDuplicateBpmIndex(m_bpm);
+        if (existing >= 0)
+        {
+            // 同一 beat 位置已有 BPM，替换其值
+            m_oldReplacedBpm = m_controller->m_chart.bpmList()[existing];
+            m_wasReplace = true;
+            m_controller->m_chart.bpmList()[existing] = m_bpm;
+        }
+        else
+        {
+            m_wasReplace = false;
+            m_controller->m_chart.addBpm(m_bpm);
+        }
         m_controller->chartChanged();
     }
 
 private:
     BpmEntry m_bpm;
+    BpmEntry m_oldReplacedBpm;
+    bool m_wasReplace;
 };
 
 // 删除 BPM 命令
@@ -522,9 +547,22 @@ public:
 
     void redo() override
     {
-        // 1. 插入新BPM点
+        // 1. 插入新BPM点（防御性去重：正常情况下 UnreachableDivisionManager 生成的 BPM 不应冲突）
+        // NOTE: 当排除项BPM自动生成逻辑正确时，此循环内不应触发去重。
+        // 若触发，说明生成算法产生了冲突beat，需排查 UnreachableDivisionManager。
         for (const BpmEntry &bpm : m_newBpms)
-            m_controller->m_chart.addBpm(bpm);
+        {
+            int existing = m_controller->findDuplicateBpmIndex(bpm);
+            if (existing >= 0)
+            {
+                Logger::warn("UnreachableDivisionCommand: duplicate BPM at beat position, replacing");
+                m_controller->m_chart.bpmList()[existing] = bpm;
+            }
+            else
+            {
+                m_controller->m_chart.addBpm(bpm);
+            }
+        }
 
         // 2. 移动Note (remove old, add new)
         m_controller->m_chart.removeNote(m_originalNote);
@@ -564,6 +602,17 @@ private:
 };
 
 // ---------- ChartController 实现 ----------
+int ChartController::findDuplicateBpmIndex(const BpmEntry &candidate) const
+{
+    const auto &list = m_chart.bpmList();
+    for (int i = 0; i < list.size(); ++i)
+    {
+        if (bpmPositionEqual(list[i], candidate))
+            return i;
+    }
+    return -1;
+}
+
 ChartController::ChartController(QObject *parent) : QObject(parent)
 {
     m_undoStack = new QUndoStack(this);

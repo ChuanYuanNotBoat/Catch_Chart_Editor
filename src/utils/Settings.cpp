@@ -415,3 +415,13 @@ void Settings::setCoordinateMode(int mode)
 {
     m_settings.setValue("view/coordinateMode", qBound(0, mode, 1));
 }
+
+bool Settings::excludeRenderingEnabled() const
+{
+    return m_settings.value("view/excludeRenderingEnabled", true).toBool();
+}
+
+void Settings::setExcludeRenderingEnabled(bool enabled)
+{
+    m_settings.setValue("view/excludeRenderingEnabled", enabled);
+}
