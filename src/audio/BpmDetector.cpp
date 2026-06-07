@@ -154,7 +154,7 @@ static bool detectByMalodyCore(const QVector<float> &mono, int sampleRate, BpmDe
     {
         const char *buf = reinterpret_cast<const char *>(work.constData());
         const uint32_t sizeBytes = static_cast<uint32_t>(work.size() * static_cast<int>(sizeof(float)));
-        const AutoTiming::AutoTimingResult ret = AutoTiming::detect(buf, sizeBytes, kFmtPcmFloat, useRate, 1);
+        const AutoTiming::Result ret = AutoTiming::detect(buf, sizeBytes, kFmtPcmFloat, useRate, 1);
         if (!(ret.bpm > 0.0))
         {
             if (outError)
