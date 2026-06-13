@@ -405,3 +405,23 @@ void Settings::setChartPickerPrimaryColumnWidth(int width)
 {
     m_settings.setValue("ui/chartPickerPrimaryColumnWidth", qBound(320, width, 2000));
 }
+
+int Settings::coordinateMode() const
+{
+    return qBound(0, m_settings.value("view/coordinateMode", 0).toInt(), 1);
+}
+
+void Settings::setCoordinateMode(int mode)
+{
+    m_settings.setValue("view/coordinateMode", qBound(0, mode, 1));
+}
+
+bool Settings::excludeRenderingEnabled() const
+{
+    return m_settings.value("view/excludeRenderingEnabled", true).toBool();
+}
+
+void Settings::setExcludeRenderingEnabled(bool enabled)
+{
+    m_settings.setValue("view/excludeRenderingEnabled", enabled);
+}

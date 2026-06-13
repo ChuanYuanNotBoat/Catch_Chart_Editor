@@ -5,12 +5,15 @@
 #include <QUndoStack>
 #include <QVector>
 #include "model/Chart.h"
+#include "file/BpmAuxFiles.h"
 
 /**
  * @brief 谱面编辑控制器，负责所有修改操作，并管理撤销/重做栈。
  *
  * 线程安全：所有方法必须在主线程调用。
  * 修改信号：任何数据变化都会发送 chartChanged() 信号。
+ * 
+ * ChartController 暂时不添加辅助文件访问接口，因为辅助文件通过 BpmAuxFiles 命名空间函数直接访问即可
  */
 class ChartController : public QObject
 {
@@ -56,6 +59,23 @@ public:
                         const QVector<Note> &notesToRemove,
                         const QList<QPair<Note, Note>> &notesToMove);
 
+    // 不可达分度启用的原子操作（低级：BPM插入 + Note移动 + 排除项更新）
+    void applyUnreachableDivisionAtomic(
+        const QVector<BpmEntry> &newBpms,
+        const Note &originalNote,
+        const Note &replacementNote,
+        const BpmAuxFiles::BpmExcludesData &oldExcludes,
+        const BpmAuxFiles::BpmExcludesData &newExcludes,
+        const QString &chartPath);
+
+    // 不可达分度启用的原子操作（高级：从UI层调用，内部完成BPM计算/排除项/Note变更）
+    bool applyUnreachableDivisionAtomic(
+        const QVector<int> &noteIndices,
+        int targetDenominator);
+
+    // 获取上一次操作的错误信息
+    QString lastOperationError() const { return m_lastOperationError; }
+
 signals:
     void chartChanged(); // 任何数据变化
     void chartLoaded();  // 加载新谱面
@@ -74,8 +94,13 @@ private:
     class UpdateBpmCommand;
     class SetMetaCommand;
     class ExternalMutationCommand;
+    class UnreachableDivisionCommand;
+
+    // BPM 去重：查找与 candidate 相同 beat 位置的已有 BPM 索引，返回 -1 表示无重复
+    int findDuplicateBpmIndex(const BpmEntry &candidate) const;
 
     Chart m_chart;
     QUndoStack *m_undoStack;
     QString m_currentChartPath; // 当前加载的谱面文件路径
+    QString m_lastOperationError; // 上一次操作的错误信息
 };

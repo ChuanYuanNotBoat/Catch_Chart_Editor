@@ -14,6 +14,9 @@
 #include "model/Note.h"
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
+#include "coord/BeatLinearMapper.h"
+#include "coord/TimeLinearMapper.h"
+#include "file/BpmAuxFiles.h"
 
 class ChartController;
 class SelectionController;
@@ -26,11 +29,17 @@ class PlaybackController;
 class NoteSoundPlayer;
 class Chart;
 class QMenu;
+class CoordinateMapper;
+class BeatLinearMapper;
+class TimeLinearMapper;
 
 class ChartCanvas : public QWidget
 {
     Q_OBJECT
 public:
+    // 坐标映射模式 — 使用 CoordinateMapper::Mode
+    using CoordinateMode = CoordinateMapper::Mode;
+
     enum Mode
     {
         PlaceNote,
@@ -91,17 +100,28 @@ public:
     bool triggerPluginDeleteSelection();
     void recordManualJerkMark();
 
+    void setShowUnreachableDivisions(bool enabled);
+    bool showUnreachableDivisions() const { return m_showUnreachableDivisions; }
+
+    // 坐标模式
+    void setCoordinateMode(CoordinateMode mode);
+    CoordinateMode coordinateMode() const { return m_coordinateMode; }
+
 public slots:
     void showGridSettings();
     void playbackPositionChanged(double timeMs);
     void playFromReferenceLine();
+    void setExcludeRenderingEnabled(bool enabled);
+    void setBpmCacheDirty();
 
 signals:
     void verticalFlipChanged(bool flipped);
     void scrollPositionChanged(double beat);
     void timeScaleChanged(double scale);
+    void coordinateModeChanged(CoordinateMode mode);
     void mirrorAxisChanged(int axisX);
     void statusMessage(const QString &msg); // Status bar message hook.
+    void showUnreachableDivisionsChanged(bool enabled);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -117,7 +137,7 @@ protected:
 
 private:
     static constexpr int kLaneWidth = 512;
-    static constexpr double kReferenceLineRatio = 0.8;
+    static constexpr double kReferenceLineRatio = CoordinateMapper::kReferenceLineRatio;
     static constexpr int kScrollSignalIntervalMs = 33;
     static constexpr double kWheelScrollBeatStepRatio = 0.1;
     static constexpr int kSideMarginDivisor = 20;
@@ -154,9 +174,15 @@ private:
     double yPosFromTime(double timeMs) const;
     double beatToY(double beat) const;
     double yToBeat(double y) const;
+    double timeToY(double timeMs) const;
+    double yToTime(double y) const;
     int hitTestNote(const QPointF &pos) const;
     QRectF getRainNoteRect(const Note &note) const;
     void updateBackgroundCache();
+
+    // TimeLinear 模式下的滚动/缩放基准（mutable：BPM缓存重建时可从const方法同步）
+    mutable double m_scrollTimeMs;         // TimeLinear 模式：视口顶部对应的毫秒
+    mutable double m_visibleTimeRangeMs;   // TimeLinear 模式：可见时间范围
 
     void beginMoveSelection(const QPointF &startPos, int referenceIndex = -1);
     void updateMoveSelection(const QPointF &currentPos);
@@ -200,22 +226,64 @@ private:
     double getNoteTimeMs(const Note &note) const;
     void confirmPaste();
 
-    void rebuildBpmTimeCache();
-    const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache();
+    void rebuildBpmTimeCache() const;
+    const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache() const;
+    // 完整BPM缓存（包含排除项），用于粘贴等编辑操作
+    const QVector<MathUtils::BpmCacheEntry> &fullBpmTimeCache() const;
+    // 基于时间的加权平均 BPM（TimeLinear 模式的缩放基准）
+    // 依赖 m_bpmTimeCache 已构建，应在 rebuildBpmTimeCache 后调用
+    double computeBaseBpm() const;
+    mutable double m_baseBpm = 120.0;
+
+    // 排除项数据缓存（rebuildBpmTimeCache 加载，computeBaseBpm 复用）
+    struct CachedExcludes {
+        BpmAuxFiles::BpmExcludesData data;
+        bool loaded = false;
+    };
+    mutable CachedExcludes m_cachedExcludes;
+
+    // 排除项BPM渲染支持
+    mutable QVector<MathUtils::BpmCacheEntry> m_excludedRenderBpmCache; // 过滤掉排除项后的BPM缓存
+    bool m_excludeRenderingEnabled = true; // 排除项是否不参与渲染（从Settings加载持久化配置）
+    bool isExcludeRenderingEnabled() const { return m_excludeRenderingEnabled; }
+    mutable bool m_hasExcludedBpms = false;
+    // 排除项影响范围：QVector of (startBeat, endBeat)
+    mutable QVector<QPair<double, double>> m_excludedBeatRanges;
+    bool isBeatInExcludedRange(double beat) const;
+    void drawExcludedRangeBackgrounds(QPainter &painter, double startBeat, double endBeat,
+                                       double baseY, double sign, double invVisibleRange,
+                                       int canvasHeight, int lmargin, int availableWidth,
+                                       double scrollTimeMs, double pixelsPerMs,
+                                       bool useTimeLinear) const;
+
+    // 基于 offset 计算 TimeLinear 模式允许的负数 beat 滚动下限
+    // 返回值为负数，表示 m_scrollBeat 不得低于此值
+    double negativeBeatScrollLimit() const;
+    // TimeLinear 模式下对 scrollTimeMs 应用滚动下限约束
+    void clampScrollTimeToLimit() const;
 
     void rebuildNoteTimesCache();
     const Chart *chart() const;
     Chart *chart();
     QVector<Note> *mutableNotes();
 
-    double effectiveVisibleBeatRange() const
+    double effectiveVisibleBeatRange() const;
+
+    // TimeLinear 模式的有效时间范围
+    double effectiveVisibleTimeRangeMs() const
     {
-        return m_baseVisibleBeatRange / m_timeScale;
+        return m_visibleTimeRangeMs;
     }
+
+    // 从 scrollBeat 反推 scrollTimeMs（TimeLinear 同步用）
+    void syncScrollTimeFromBeat() const;
+    // 从 scrollTimeMs 反推 scrollBeat（BeatLinear 同步用）
+    void syncScrollBeatFromTime() const;
+    // 滚动/缩放时同步另一个坐标系
+    void syncCoordinateState() const;
 
     // Paste preview helpers
     double calculatePasteReferenceTime() const;
-    double yToTime(double y) const;
     // Interval copy selection state.
     enum IntervalState
     {
@@ -257,8 +325,8 @@ private:
     QVector<int> m_sortedRainNoteIndicesByBeat;
     bool m_noteDataDirty;
     bool m_timesDirty;
-    QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
-    bool m_bpmCacheDirty;
+    mutable QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
+    mutable bool m_bpmCacheDirty;
 
     ChartController *m_chartController;
     SelectionController *m_selectionController;
@@ -275,9 +343,16 @@ private:
     int m_timeDivision;
     int m_gridDivision;
     bool m_gridSnap;
-    double m_scrollBeat;
-    double m_baseVisibleBeatRange;
+    CoordinateMode m_coordinateMode;
+    mutable double m_scrollBeat;
+    mutable double m_baseVisibleBeatRange;
     double m_timeScale;
+
+    // Coordinate mapper strategy (active mapper delegates all mode-specific logic)
+    CoordinateMapper *m_mapper;
+    BeatLinearMapper m_beatLinearMapper;
+    TimeLinearMapper m_timeLinearMapper;
+    CoordContext buildCoordContext() const;
     double m_currentPlayTime;
     bool m_autoScrollEnabled;
 
@@ -329,6 +404,14 @@ private:
     QString m_sourceChartPath;
     QVariantMap m_pluginOverlayToggles;
     int m_pluginPlacementDensityOverride;
+    bool m_showUnreachableDivisions;
+
+    // Asynchronous overlay query (moved out of paintEvent for performance)
+    QTimer *m_overlayQueryTimer;
+    bool m_overlayQueryScheduled;
+    int m_overlayQueryIntervalMsIdle;
+    void startOverlayQueryTimer();
+    void stopOverlayQueryTimer();
 
     // Asynchronous overlay query (moved out of paintEvent for performance)
     QTimer *m_overlayQueryTimer;
@@ -372,6 +455,9 @@ private:
     QRect m_gridCacheRect;
     double m_gridCacheStartTime;
     double m_gridCacheEndTime;
+    double m_gridCacheStartBeat;
+    double m_gridCacheEndBeat;
+    CoordinateMode m_gridCacheMode;
     int m_gridCacheDivision;
     int m_gridCacheTimeDivision;
     bool m_gridCacheVerticalFlip;

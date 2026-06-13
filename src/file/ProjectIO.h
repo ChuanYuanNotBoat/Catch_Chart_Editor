@@ -8,6 +8,12 @@ class ProjectIO
 {
 public:
     /**
+     * @brief 初始化内置文件类型注册表
+     * 应在 Application 启动早期调用
+     */
+    static void initializeBuiltinFileTypes();
+
+    /**
      * @brief 解压 MCZ 文件到指定目录
      * @param mczPath MCZ 文件路径
      * @param outputDir 目标目录（将创建）
@@ -20,6 +26,7 @@ public:
      * @brief 将谱面目录打包为 MCZ
      */
     static bool exportToMcz(const QString &outputMczPath, const QString &sourceChartPath);
+    static bool exportToMczPure(const QString &outputMczPath, const QString &sourceChartPath);
 
     /**
      * @brief 递归扫描目录中所有 .mc 文件，并提取难度名

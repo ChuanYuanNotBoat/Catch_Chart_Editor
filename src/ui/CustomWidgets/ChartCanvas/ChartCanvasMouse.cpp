@@ -6,6 +6,7 @@
 #include "utils/MathUtils.h"
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
+#include "logic/UnreachableDivisionManager.h"
 #include "model/Chart.h"
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -13,6 +14,8 @@
 #include <QAction>
 #include <QMessageBox>
 #include <QDateTime>
+#include <QWidgetAction>
+#include <QLabel>
 #include <QCoreApplication>
 #include <QHash>
 #include <algorithm>
@@ -331,8 +334,22 @@ void ChartCanvas::updateMoveSelection(const QPointF &currentPos)
     m_moveDeltaXRaw += deltaX;
     m_moveStartPos = currentPos;
 
+    // 检查参考音符是否在排除范围 — 如果是，仅允许X轴平移
+    bool refInExcludedRange = false;
+    if (m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    {
+        const Note &refOriginal = m_moveChanges[m_dragReferenceIndex].first;
+        double refBeat = MathUtils::beatToFloat(refOriginal.beatNum, refOriginal.numerator, refOriginal.denominator);
+        refInExcludedRange = isBeatInExcludedRange(refBeat);
+    }
+
     double appliedDeltaBeat = m_moveDeltaBeatRaw;
-    if (m_timeDivision > 0 && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    if (refInExcludedRange)
+    {
+        // 排除范围内：不允许beat移动，仅X平移
+        appliedDeltaBeat = 0.0;
+    }
+    else if (m_timeDivision > 0 && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
     {
         const Note &refOriginal = m_moveChanges[m_dragReferenceIndex].first;
         const double refOriginalBeat = MathUtils::beatToFloat(refOriginal.beatNum, refOriginal.numerator, refOriginal.denominator);
@@ -403,8 +420,22 @@ void ChartCanvas::endMoveSelection()
         m_wasGridSnapEnabled = false;
     }
 
+    // 检查参考音符是否在排除范围
+    bool refInExcludedRange = false;
+    if (m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    {
+        const Note &refOriginal = m_moveChanges[m_dragReferenceIndex].first;
+        double refBeat = MathUtils::beatToFloat(refOriginal.beatNum, refOriginal.numerator, refOriginal.denominator);
+        refInExcludedRange = isBeatInExcludedRange(refBeat);
+    }
+
     double finalAppliedDeltaBeat = m_moveDeltaBeatRaw;
-    if (m_timeDivision > 0 && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    if (refInExcludedRange)
+    {
+        // 排除范围内：不允许beat移动
+        finalAppliedDeltaBeat = 0.0;
+    }
+    else if (m_timeDivision > 0 && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
     {
         const Note &refOriginal = m_moveChanges[m_dragReferenceIndex].first;
         const double refOriginalBeat = MathUtils::beatToFloat(refOriginal.beatNum, refOriginal.numerator, refOriginal.denominator);
@@ -653,6 +684,16 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
     if (!colorMenu || targetIndices.isEmpty() || !chart())
         return;
 
+    // --- "显示不可达分度" 开关 (位置1: 颜色编辑子菜单顶部) ---
+    QAction *toggleUnreachableAct = colorMenu->addAction(tr("Show Unreachable Divisions"));
+    toggleUnreachableAct->setCheckable(true);
+    toggleUnreachableAct->setChecked(m_showUnreachableDivisions);
+    connect(toggleUnreachableAct, &QAction::toggled, this, [this](bool checked) {
+        setShowUnreachableDivisions(checked);
+    });
+    colorMenu->addSeparator();
+
+    // --- 计算可达/不可达分度 ---
     const QVector<Note> &notes = chart()->notes();
     QVector<int> availableDenominators;
     for (const ColorDivisionOption &option : kColorDivisionOptions)
@@ -670,14 +711,21 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
             availableDenominators.append(option.denominator);
     }
 
-    if (!availableDenominators.isEmpty())
+    // --- 合并分度列表 ---
+    bool hasAnyAction = false;
+    for (const ColorDivisionOption &option : kColorDivisionOptions)
     {
-        colorMenu->setEnabled(true);
-        for (const ColorDivisionOption &option : kColorDivisionOptions)
-        {
-            if (!availableDenominators.contains(option.denominator))
-                continue;
+        const bool isReachable = availableDenominators.contains(option.denominator);
+        const bool isRain = (targetIndices.size() == 1 && notes[targetIndices[0]].type == NoteType::RAIN);
 
+        // C5: Rain(type=3)不可作为启用目标 — 不可达分度对Rain隐藏
+        if (!isReachable && isRain)
+            continue;
+
+        if (isReachable)
+        {
+            // 可达分度：直接显示，原有逻辑
+            hasAnyAction = true;
             QAction *act = colorMenu->addAction(tr(option.label));
             connect(act, &QAction::triggered, this, [this, targetIndices, option]()
                     {
@@ -719,8 +767,64 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
                                             .arg(changes.size()));
                 } });
         }
+        else if (m_showUnreachableDivisions)
+        {
+            // 不可达分度：仅当开关开启时显示，视觉上加背景色
+            hasAnyAction = true;
+            QWidgetAction *wAct = new QWidgetAction(colorMenu);
+            QLabel *lbl = new QLabel(tr(option.label));
+            lbl->setToolTip(tr("Unreachable at current BPM — will insert BPM points"));
+            lbl->setStyleSheet(
+                "background-color: rgba(255, 200, 50, 120);"
+                "padding: 4px 12px;"
+                "border-radius: 3px;");
+            lbl->setMinimumHeight(22);
+            wAct->setDefaultWidget(lbl);
+            wAct->setData(option.denominator);
+            colorMenu->addAction(wAct);
+            QAction *act = wAct;
+
+            connect(act, &QAction::triggered, this, [this, targetIndices, option]()
+                    {
+                if (!chart())
+                    return;
+                if (!m_chartController)
+                    return;
+                if (targetIndices.isEmpty())
+                    return;
+
+                // 调用ChartController的原子操作（含BPM插入、排除项标记、Note分度变更）
+                bool ok = m_chartController->applyUnreachableDivisionAtomic(
+                    targetIndices, option.denominator);
+                if (ok)
+                {
+                    emit statusMessage(tr("Applied unreachable division %1 to %2 note(s) (BPM points inserted).")
+                                            .arg(option.label)
+                                            .arg(targetIndices.size()));
+                }
+                else
+                {
+                    QString errMsg = m_chartController->lastOperationError();
+                    if (errMsg.isEmpty())
+                        errMsg = tr("Unknown error");
+                    emit statusMessage(tr("Failed to apply unreachable division: %1").arg(errMsg));
+                    QMessageBox::warning(this, tr("Unreachable Division"), errMsg);
+                } });
+        }
     }
 
+    // 如果开关开启且无可达分度（全部不可达），也需确保菜单可用
+    if (m_showUnreachableDivisions)
+        colorMenu->setEnabled(true);
+    else
+        colorMenu->setEnabled(!availableDenominators.isEmpty());
+
+    if (!availableDenominators.isEmpty())
+    {
+        colorMenu->setEnabled(true);
+    }
+
+    // --- Minimal Irregular (Red) ---
     QAction *minimalIrregularAction = colorMenu->addAction(tr("Minimal Irregular (Red)"));
     connect(minimalIrregularAction, &QAction::triggered, this, [this, targetIndices]()
             {
@@ -907,7 +1011,7 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
             }
         }
 
-        QAction *selected = pluginMenu.exec(event->globalPos());
+    QAction *selected = pluginMenu.exec(event->globalPosition().toPoint());
         if (selected == commitCurveAction)
         {
             triggerPluginBatchAction("commit_curve_to_notes", tr("Commit Curve -> Notes"));
@@ -934,7 +1038,7 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
     if (!targetIndices.isEmpty())
         populateColorMenu(colorMenu, targetIndices);
 
-    QAction *selectedAction = menu.exec(event->globalPos());
+    QAction *selectedAction = menu.exec(event->globalPosition().toPoint());
     if (selectedAction == playFromRefAction)
     {
         playFromReferenceLine();
@@ -1001,6 +1105,19 @@ bool ChartCanvas::handleRainPlacementLeftClick(const QPointF &pos)
     const double endTime = MathUtils::beatToMs(endNote.beatNum, endNote.numerator, endNote.denominator,
                                                chart()->bpmList(),
                                                chart()->meta().offset);
+    // 拒绝在负数拍数区域放置 Rain
+    const double startBeat = MathUtils::beatToFloat(startNote.beatNum, startNote.numerator, startNote.denominator);
+    const double endBeat = MathUtils::beatToFloat(endNote.beatNum, endNote.numerator, endNote.denominator);
+    if (startBeat < 0.0 || endBeat < 0.0)
+    {
+        return true;
+    }
+    // 拒绝在排除BPM范围放置 Rain
+    if (isBeatInExcludedRange(startBeat) || isBeatInExcludedRange(endBeat))
+    {
+        return true;
+    }
+
     if (endTime > startTime)
     {
         Note rainNote(startNote.beatNum, startNote.numerator, startNote.denominator,
@@ -1099,6 +1216,11 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
     if (m_currentMode == PlaceNote)
     {
         Note note = posToNote(event->pos());
+        double beat = MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator);
+        if (beat < 0.0)
+            return;  // 拒绝在负数拍数区域放置音符
+        if (isBeatInExcludedRange(beat))
+            return;  // 拒绝在排除BPM范围放置音符
         m_chartController->addNote(note);
     }
 }
@@ -1295,26 +1417,52 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
     const double delta = wheelDeltaY;
     if (delta != 0)
     {
-        double step = effectiveVisibleBeatRange() * kWheelScrollBeatStepRatio;
-        double newPos = m_scrollBeat + (delta / 120.0) * step;
-        if (newPos < 0)
-            newPos = 0;
-        const bool scrollChanged = qAbs(newPos - m_scrollBeat) >= 1e-6;
-        if (scrollChanged && m_playbackController &&
-            m_playbackController->state() == PlaybackController::Playing)
+        if (m_coordinateMode == CoordinateMode::TimeLinear)
         {
-            m_playbackController->pause();
+            const double step = m_visibleTimeRangeMs * kWheelScrollBeatStepRatio;
+            const double newTimeMs = m_scrollTimeMs + (delta / 120.0) * step;
+            const bool scrollChanged = qAbs(newTimeMs - m_scrollTimeMs) >= 0.01;
+            if (scrollChanged && m_playbackController &&
+                m_playbackController->state() == PlaybackController::Playing)
+            {
+                m_playbackController->pause();
+            }
+            const CoordContext ctx = buildCoordContext();
+            m_timeLinearMapper.setScrollTimeMs(newTimeMs, m_scrollBeat, ctx);
+            m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+            clampScrollTimeToLimit();
+            m_autoScrollEnabled = false;
+            if (scrollChanged)
+            {
+                update();
+                emit scrollPositionChanged(m_scrollBeat);
+            }
         }
-        m_scrollBeat = newPos;
-        m_autoScrollEnabled = false;
-        if (scrollChanged)
+        else
         {
-            update();
-            emit scrollPositionChanged(m_scrollBeat);
+            // BeatLinear: 滚动 scrollBeat
+            double step = effectiveVisibleBeatRange() * kWheelScrollBeatStepRatio;
+            double newPos = m_scrollBeat + (delta / 120.0) * step;
+            const double scrollLimit = negativeBeatScrollLimit();
+            if (newPos < scrollLimit)
+                newPos = scrollLimit;
+            const bool scrollChanged = qAbs(newPos - m_scrollBeat) >= 1e-6;
+            if (scrollChanged && m_playbackController &&
+                m_playbackController->state() == PlaybackController::Playing)
+            {
+                m_playbackController->pause();
+            }
+            m_scrollBeat = newPos;
+            m_autoScrollEnabled = false;
+            if (scrollChanged)
+            {
+                syncScrollTimeFromBeat();
+                update();
+                emit scrollPositionChanged(m_scrollBeat);
+            }
         }
 
-        if (scrollChanged)
-            syncCurrentPlayTimeToReferenceLine();
+        syncCurrentPlayTimeToReferenceLine();
     }
 
     startSnapTimer();

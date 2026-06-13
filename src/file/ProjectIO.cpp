@@ -1,5 +1,7 @@
 ﻿#include "ProjectIO.h"
 #include "utils/Logger.h"
+#include "file/BpmAuxFiles.h"
+#include "file/ChartFileSystem.h"
 #include <QDir>
 #include <QFile>
 #include <QProcess>
@@ -15,6 +17,8 @@
 
 namespace
 {
+bool copyFileKeepingStructure(const QString &baseDir, const QString &relativePath, const QString &destRoot);
+
 QString normalizedRelativePath(const QString &baseDir, const QString &pathLike)
 {
     QString p = QDir::fromNativeSeparators(pathLike).trimmed();
@@ -36,16 +40,51 @@ QString normalizedRelativePath(const QString &baseDir, const QString &pathLike)
 
 bool isAllowedAssociatedFile(const QString &relativePath)
 {
-    const QString ext = QFileInfo(relativePath).suffix().toLower();
-    if (ext == "mc")
-        return true;
-    static const QSet<QString> kAllowedAssetExt = {
-        "ogg", "mp3", "wav", "flac", "m4a", "aac",
-        "jpg", "jpeg", "png", "bmp", "webp", "gif",
-        "mp4", "mkv", "avi", "webm", "mov"};
-    return kAllowedAssetExt.contains(ext);
+    // 使用 ChartFileSystem 注册表查询
+    return ChartFileSystem::ChartFileSystemRegistry::isAllowedFile(relativePath);
+}
 }
 
+void ProjectIO::initializeBuiltinFileTypes()
+{
+    Logger::info("ProjectIO::initializeBuiltinFileTypes - Initializing builtin file types");
+
+    // 注册 .mc 文件
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("mc", "Malody Chart File", false, nullptr, 100);
+
+    // 注册常见音频格式
+    QStringList audioExts = {"ogg", "mp3", "wav", "flac", "m4a", "aac"};
+    for (const QString &ext : audioExts)
+    {
+        ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Audio File", false, nullptr, 90);
+    }
+
+    // 注册常见图片格式
+    QStringList imageExts = {"jpg", "jpeg", "png", "bmp", "webp", "gif"};
+    for (const QString &ext : imageExts)
+    {
+        ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Image File", false, nullptr, 90);
+    }
+
+    // 注册常见视频格式
+    QStringList videoExts = {"mp4", "mkv", "avi", "webm", "mov"};
+    for (const QString &ext : videoExts)
+    {
+        ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Video File", false, nullptr, 90);
+    }
+
+    // 注册曲线 sidecar
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("curve_tbd.json", "Curve Sidecar", false, nullptr, 80);
+
+    // 注册 BPM 辅助文件
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("bpm_excludes.json", "BPM Excludes Sidecar", true, nullptr, 80);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("song_bpm.json", "Song BPM Sidecar", true, nullptr, 80);
+
+    Logger::info("ProjectIO::initializeBuiltinFileTypes - Builtin file types initialized");
+}
+
+namespace
+{
 void collectReferencedFilesFromMc(const QString &mcAbsPath, const QString &baseDir, QSet<QString> &outFiles)
 {
     QFile f(mcAbsPath);
@@ -75,6 +114,147 @@ void collectReferencedFilesFromMc(const QString &mcAbsPath, const QString &baseD
         if (obj.value("type").toInt(0) == 1)
             addRef(obj.value("sound").toString());
     }
+}
+
+void collectAllFilesFromDirectory(const QString &baseDir,
+                                  const QString &outputMczPath,
+                                  QSet<QString> &outFiles)
+{
+    const QString excludedOutput = QFileInfo(outputMczPath).absoluteFilePath();
+    QDirIterator it(baseDir,
+                    QDir::Files | QDir::Hidden | QDir::System | QDir::NoSymLinks,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext())
+    {
+        const QString absPath = it.next();
+        if (QFileInfo(absPath).absoluteFilePath() == excludedOutput)
+            continue;
+        const QString rel = QDir(baseDir).relativeFilePath(absPath);
+        const QString cleanRel = QDir::cleanPath(rel);
+        if (cleanRel.startsWith("../") || cleanRel == "..")
+            continue;
+        outFiles.insert(cleanRel);
+    }
+}
+
+bool packSelectedFilesToMcz(const QString &outputMczPath,
+                            const QString &chartBaseDir,
+                            const QSet<QString> &selectedRelativeFiles,
+                            const QString &logTag)
+{
+    if (selectedRelativeFiles.isEmpty())
+    {
+        Logger::error(QString("%1 - No files selected for export").arg(logTag));
+        return false;
+    }
+
+    QTemporaryDir tempDir;
+    if (!tempDir.isValid())
+    {
+        Logger::error(QString("%1 - Failed to create temporary directory").arg(logTag));
+        return false;
+    }
+
+    const QString packRootDir = tempDir.path() + "/mczpack";
+    const QString payloadDir = packRootDir + "/0";
+    if (!QDir().mkpath(payloadDir))
+    {
+        Logger::error(QString("%1 - Failed to create payload directory").arg(logTag));
+        return false;
+    }
+
+    int copiedCount = 0;
+    for (const QString &rel : selectedRelativeFiles)
+    {
+        if (copyFileKeepingStructure(chartBaseDir, rel, payloadDir))
+            copiedCount++;
+    }
+
+    if (copiedCount <= 0)
+    {
+        Logger::error(QString("%1 - No files copied into payload directory").arg(logTag));
+        return false;
+    }
+
+    QString tempZipPath = tempDir.path() + "/output.zip";
+    QProcess process;
+
+#ifdef Q_OS_WIN
+    // 使用 ZipArchive 明确生成 '/' 分隔的 entry，避免 Windows '\' 路径导致 MCZ 兼容性问题。
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("MALODY_MCZ_PACK_DIR", QDir::toNativeSeparators(packRootDir));
+    env.insert("MALODY_MCZ_TEMP_ZIP", QDir::toNativeSeparators(tempZipPath));
+    process.setProcessEnvironment(env);
+
+    QStringList args;
+    args << "-NoProfile"
+         << "-NonInteractive"
+         << "-Command"
+         << "$ErrorActionPreference='Stop'; "
+            "$src = $env:MALODY_MCZ_PACK_DIR; "
+            "$dst = $env:MALODY_MCZ_TEMP_ZIP; "
+            "if ([string]::IsNullOrWhiteSpace($src) -or [string]::IsNullOrWhiteSpace($dst)) "
+            "{ throw 'Missing export paths in environment.' }; "
+            "if (-not (Test-Path -LiteralPath $src)) "
+            "{ throw ('Pack directory not found: ' + $src) }; "
+            "$items = Get-ChildItem -LiteralPath $src -Recurse -File -Force; "
+            "if ($null -eq $items -or $items.Count -eq 0) "
+            "{ throw ('Pack directory is empty: ' + $src) }; "
+            "if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Force }; "
+            "Add-Type -AssemblyName 'System.IO.Compression'; "
+            "Add-Type -AssemblyName 'System.IO.Compression.FileSystem'; "
+            "$base = (Resolve-Path -LiteralPath $src).Path; "
+            "if (-not $base.EndsWith('\\')) { $base = $base + '\\' }; "
+            "$fs = [System.IO.File]::Open($dst, [System.IO.FileMode]::Create); "
+            "try { "
+            "  $zip = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create, $false); "
+            "  try { "
+            "    foreach ($f in $items) { "
+            "      $full = (Resolve-Path -LiteralPath $f.FullName).Path; "
+            "      if (-not $full.StartsWith($base, [System.StringComparison]::OrdinalIgnoreCase)) { continue }; "
+            "      $entryName = $full.Substring($base.Length) -replace '\\\\','/'; "
+            "      $entry = $zip.CreateEntry($entryName, [System.IO.Compression.CompressionLevel]::Optimal); "
+            "      $entryStream = $entry.Open(); "
+            "      try { "
+            "        $in = [System.IO.File]::OpenRead($f.FullName); "
+            "        try { $in.CopyTo($entryStream) } finally { $in.Dispose() } "
+            "      } finally { $entryStream.Dispose() } "
+            "    } "
+            "  } finally { $zip.Dispose() } "
+            "} finally { $fs.Dispose() }";
+    process.start("powershell.exe", args);
+#else
+    process.setWorkingDirectory(packRootDir);
+    process.start("zip", QStringList() << "-r" << "-q" << tempZipPath << ".");
+#endif
+
+    if (!process.waitForFinished(60000))
+    {
+        Logger::error(QString("%1 - Zip process timeout").arg(logTag));
+        process.kill();
+        return false;
+    }
+
+    if (process.exitCode() != 0)
+    {
+        QString errMsg = process.readAllStandardError();
+        Logger::error(QString("%1 - Zip failed: %2").arg(logTag, errMsg));
+        return false;
+    }
+
+    if (QFile::exists(outputMczPath))
+        QFile::remove(outputMczPath);
+
+    if (!QFile::rename(tempZipPath, outputMczPath))
+    {
+        Logger::error(QString("%1 - Failed to rename zip to mcz").arg(logTag));
+        return false;
+    }
+
+    Logger::info(QString("%1 - Export successful (copied %2 files under 0/)")
+                     .arg(logTag)
+                     .arg(copiedCount));
+    return true;
 }
 
 bool copyFileKeepingStructure(const QString &baseDir, const QString &relativePath, const QString &destRoot)
@@ -193,25 +373,28 @@ bool ProjectIO::exportToMcz(const QString &outputMczPath, const QString &sourceC
 
     const QString chartDir = QFileInfo(sourceChartPath).absolutePath();
     const QString chartBaseDir = QDir(chartDir).absolutePath();
+    QSet<QString> selectedRelativeFiles;
+    collectAllFilesFromDirectory(chartBaseDir, outputMczPath, selectedRelativeFiles);
+    return packSelectedFilesToMcz(outputMczPath, chartBaseDir, selectedRelativeFiles, "ProjectIO::exportToMcz");
+}
 
-    QTemporaryDir tempDir;
-    if (!tempDir.isValid())
+bool ProjectIO::exportToMczPure(const QString &outputMczPath, const QString &sourceChartPath)
+{
+    Logger::info(QString("ProjectIO::exportToMczPure - Exporting to %1 from %2").arg(outputMczPath, sourceChartPath));
+
+    if (!QFile::exists(sourceChartPath))
     {
-        Logger::error("ProjectIO::exportToMcz - Failed to create temporary directory");
+        Logger::error(QString("ProjectIO::exportToMczPure - Chart file not found: %1").arg(sourceChartPath));
         return false;
     }
 
-    const QString packRootDir = tempDir.path() + "/mczpack";
-    const QString payloadDir = packRootDir + "/0";
-    if (!QDir().mkpath(payloadDir))
-    {
-        Logger::error("ProjectIO::exportToMcz - Failed to create payload directory");
-        return false;
-    }
+    const QString chartDir = QFileInfo(sourceChartPath).absolutePath();
+    const QString chartBaseDir = QDir(chartDir).absolutePath();
 
     // 收集允许打包的文件：
     // 1) 所有 .mc（包括不同难度，文件名不做限制）
     // 2) 每个 .mc 中引用到的音频/背景/sound 资源
+    // 3) 必须打包的 sidecar 文件（从 ChartFileSystem 注册表获取）
     QSet<QString> selectedRelativeFiles;
     QDirIterator it(chartBaseDir, QStringList() << "*.mc", QDir::Files, QDirIterator::Subdirectories);
     while (it.hasNext())
@@ -225,107 +408,35 @@ bool ProjectIO::exportToMcz(const QString &outputMczPath, const QString &sourceC
         collectReferencedFilesFromMc(mcAbsPath, chartBaseDir, selectedRelativeFiles);
     }
 
+    // 添加必须打包的 sidecar 文件（从 ChartFileSystem 注册表获取）
+    QStringList requiredExtensions = ChartFileSystem::ChartFileSystemRegistry::requiredSidecarExtensions();
+    for (const QString &ext : requiredExtensions)
+    {
+        QString chartStem = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(sourceChartPath);
+        QString sidecarFile = QDir(chartBaseDir).filePath(".mcce-plugin/" + chartStem + "." + ext);
+        if (QFile::exists(sidecarFile))
+        {
+            QString rel = QDir(chartBaseDir).relativeFilePath(sidecarFile);
+            selectedRelativeFiles.insert(QDir::cleanPath(rel));
+            Logger::debug(QString("ProjectIO::exportToMczPure - Added required sidecar: %1").arg(rel));
+        }
+    }
+
     if (selectedRelativeFiles.isEmpty())
     {
-        Logger::error("ProjectIO::exportToMcz - No eligible .mc found under chart directory");
+        Logger::error("ProjectIO::exportToMczPure - No eligible .mc found under chart directory");
         return false;
     }
 
-    int copiedCount = 0;
+    QSet<QString> filteredFiles;
     for (const QString &rel : selectedRelativeFiles)
     {
-        if (!isAllowedAssociatedFile(rel))
-            continue;
-        if (copyFileKeepingStructure(chartBaseDir, rel, payloadDir))
-            copiedCount++;
+        // 使用 ChartFileSystem 注册表查询是否允许打包
+        if (isAllowedAssociatedFile(rel))
+            filteredFiles.insert(rel);
     }
 
-    if (copiedCount <= 0)
-    {
-        Logger::error("ProjectIO::exportToMcz - No files copied into payload directory");
-        return false;
-    }
-
-    QString tempZipPath = tempDir.path() + "/output.zip";
-    QProcess process;
-
-#ifdef Q_OS_WIN
-    // 使用 ZipArchive 明确生成 '/' 分隔的 entry，避免 Windows '\' 路径导致 MCZ 兼容性问题。
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("MALODY_MCZ_PACK_DIR", QDir::toNativeSeparators(packRootDir));
-    env.insert("MALODY_MCZ_TEMP_ZIP", QDir::toNativeSeparators(tempZipPath));
-    process.setProcessEnvironment(env);
-
-    QStringList args;
-    args << "-NoProfile"
-         << "-NonInteractive"
-         << "-Command"
-         << "$ErrorActionPreference='Stop'; "
-            "$src = $env:MALODY_MCZ_PACK_DIR; "
-            "$dst = $env:MALODY_MCZ_TEMP_ZIP; "
-            "if ([string]::IsNullOrWhiteSpace($src) -or [string]::IsNullOrWhiteSpace($dst)) "
-            "{ throw 'Missing export paths in environment.' }; "
-            "if (-not (Test-Path -LiteralPath $src)) "
-            "{ throw ('Pack directory not found: ' + $src) }; "
-            "$items = Get-ChildItem -LiteralPath $src -Recurse -File -Force; "
-            "if ($null -eq $items -or $items.Count -eq 0) "
-            "{ throw ('Pack directory is empty: ' + $src) }; "
-            "if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Force }; "
-            "Add-Type -AssemblyName 'System.IO.Compression'; "
-            "Add-Type -AssemblyName 'System.IO.Compression.FileSystem'; "
-            "$base = (Resolve-Path -LiteralPath $src).Path; "
-            "if (-not $base.EndsWith('\\')) { $base = $base + '\\' }; "
-            "$fs = [System.IO.File]::Open($dst, [System.IO.FileMode]::Create); "
-            "try { "
-            "  $zip = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create, $false); "
-            "  try { "
-            "    foreach ($f in $items) { "
-            "      $full = (Resolve-Path -LiteralPath $f.FullName).Path; "
-            "      if (-not $full.StartsWith($base, [System.StringComparison]::OrdinalIgnoreCase)) { continue }; "
-            "      $entryName = $full.Substring($base.Length) -replace '\\\\','/'; "
-            "      $entry = $zip.CreateEntry($entryName, [System.IO.Compression.CompressionLevel]::Optimal); "
-            "      $entryStream = $entry.Open(); "
-            "      try { "
-            "        $in = [System.IO.File]::OpenRead($f.FullName); "
-            "        try { $in.CopyTo($entryStream) } finally { $in.Dispose() } "
-            "      } finally { $entryStream.Dispose() } "
-            "    } "
-            "  } finally { $zip.Dispose() } "
-            "} finally { $fs.Dispose() }";
-    process.start("powershell.exe", args);
-#else
-    process.setWorkingDirectory(packRootDir);
-    process.start("zip", QStringList() << "-r" << "-q" << tempZipPath << ".");
-#endif
-
-    if (!process.waitForFinished(60000))
-    {
-        Logger::error("ProjectIO::exportToMcz - Zip process timeout");
-        process.kill();
-        return false;
-    }
-
-    if (process.exitCode() != 0)
-    {
-        QString errMsg = process.readAllStandardError();
-        Logger::error(QString("ProjectIO::exportToMcz - Zip failed: %1").arg(errMsg));
-        return false;
-    }
-
-    // 移除已存在的输出文件
-    if (QFile::exists(outputMczPath))
-    {
-        QFile::remove(outputMczPath);
-    }
-
-    if (!QFile::rename(tempZipPath, outputMczPath))
-    {
-        Logger::error("ProjectIO::exportToMcz - Failed to rename zip to mcz");
-        return false;
-    }
-
-    Logger::info(QString("ProjectIO::exportToMcz - Export successful (copied %1 files under 0/)").arg(copiedCount));
-    return true;
+    return packSelectedFilesToMcz(outputMczPath, chartBaseDir, filteredFiles, "ProjectIO::exportToMczPure");
 }
 
 QList<QPair<QString, QString>> ProjectIO::findChartsInDirectory(const QString &dirPath)

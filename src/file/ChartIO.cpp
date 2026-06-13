@@ -525,7 +525,7 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
         return false;
     }
 
-    QByteArray jsonData = doc.toJson();
+    QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
     file.write(jsonData);
     file.close();
 

@@ -27,10 +27,10 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private slots:
-    void onVerboseModeChanged(int state);
-    void onJsonLoggingChanged(int state);
-    void onPerformanceTimingChanged(int state);
-    void onPlaybackProbeChanged(int state);
+    void onVerboseModeChanged(Qt::CheckState state);
+    void onJsonLoggingChanged(Qt::CheckState state);
+    void onPerformanceTimingChanged(Qt::CheckState state);
+    void onPlaybackProbeChanged(Qt::CheckState state);
     void onLogLevelChanged(int index);
     void onClearLogsClicked();
     void onShowLogDialogClicked();

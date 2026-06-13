@@ -52,6 +52,7 @@ private slots:
     void saveChart();
     void saveChartAs();
     void exportMcz();
+    void exportMczPure();
     void undo();
     void redo();
     void toggleColorMode(bool on);
@@ -111,6 +112,7 @@ private:
     void registerShortcutAction(QAction *action, const QString &actionId, const QKeySequence &defaultShortcut);
     void updatePlaybackAvailability(bool canPlay);
     QString beatmapRootPath() const; // Return beatmap root directory.
+    void exportMczInternal(bool pureMode);
     void showInfoCenter(int initialTab);
     void applySidebarTheme();
     void showEditorPanel(QWidget *panel);

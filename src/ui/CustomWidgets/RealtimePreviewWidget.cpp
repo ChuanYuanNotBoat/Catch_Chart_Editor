@@ -152,24 +152,7 @@ void RealtimePreviewWidget::setCurrentTimeMs(double timeMs)
 double RealtimePreviewWidget::beatToTimeMs(double beat)
 {
     ensureNoteCache();
-    if (m_bpmSegments.isEmpty())
-        return 0.0;
-
-    int lo = 0;
-    int hi = m_bpmSegments.size() - 1;
-    while (lo < hi)
-    {
-        const int mid = (lo + hi + 1) / 2;
-        if (m_bpmSegments[mid].beatPos <= beat)
-            lo = mid;
-        else
-            hi = mid - 1;
-    }
-
-    const auto &seg = m_bpmSegments[lo];
-    if (seg.bpm <= 0.0)
-        return seg.accumulatedMs;
-    return seg.accumulatedMs + (beat - seg.beatPos) * (60000.0 / seg.bpm);
+    return MathUtils::beatToMs(beat, m_bpmSegments);
 }
 
 double RealtimePreviewWidget::timeToY(double timeMs,
@@ -303,11 +286,7 @@ void RealtimePreviewWidget::ensureNoteCache()
         return;
     }
 
-    m_bpmSegments.reserve(bpmCache.size());
-    for (const auto &entry : bpmCache)
-    {
-        m_bpmSegments.push_back(BpmSegment{entry.beatPos, entry.accumulatedMs, entry.bpm});
-    }
+    m_bpmSegments = bpmCache;
 
     m_noteStartTimesMs.fill(std::numeric_limits<double>::quiet_NaN(), notes.size());
     m_noteEndTimesMs.fill(std::numeric_limits<double>::quiet_NaN(), notes.size());

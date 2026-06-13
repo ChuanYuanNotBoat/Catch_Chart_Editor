@@ -35,12 +35,20 @@ set(SOURCES
     src/file/ChartIO.cpp
     src/file/SkinIO.cpp
     src/file/ProjectIO.cpp
+    src/file/BpmAuxFiles.cpp
+    src/file/ChartFileSystem.cpp
     src/file/PluginLoader.cpp
     src/audio/AudioPlayer.cpp
+    src/audio/BpmDetector.cpp
+    src/audio/autotiming/AutoTiming.cpp
+    src/audio/autotiming/dsp.cpp
+    src/audio/autotiming/fft.cpp
+    src/audio/autotiming/util.cpp
     src/audio/NoteSoundPlayer.cpp
     src/controller/ChartController.cpp
     src/controller/SelectionController.cpp
     src/controller/PlaybackController.cpp
+    src/logic/UnreachableDivisionManager.cpp
     src/render/NoteRenderer.cpp
     src/render/BeatDivisionColor.cpp
     src/render/GridRenderer.cpp
@@ -64,8 +72,11 @@ set(SOURCES
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp
+    src/coord/BeatLinearMapper.cpp
+    src/coord/TimeLinearMapper.cpp
     src/ui/dialogs/LogSettingsDialog.cpp
     src/ui/dialogs/PluginManagerDialog.cpp
+    src/ui/dialogs/BpmMeasureDialog.cpp
 )
 
 qt_add_executable(${PROJECT_NAME}
@@ -122,7 +133,7 @@ qt6_add_translations(${PROJECT_NAME}
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/resources/default_skin
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>/skins/default
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/skins
 )
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/resources/note_sounds")
@@ -168,16 +179,45 @@ if(BUILD_TESTING)
         src/utils/PerformanceTimer.cpp
         src/utils/DiagnosticCollector.cpp
         src/controller/ChartController.cpp
+        src/logic/UnreachableDivisionManager.cpp
         src/file/ChartIO.cpp
         src/file/ProjectIO.cpp
+        src/file/BpmAuxFiles.cpp
+        src/file/ChartFileSystem.cpp
     )
 
     target_include_directories(CatchChartEditorTests PRIVATE src)
     target_link_libraries(CatchChartEditorTests Qt6::Core Qt6::Gui)
 
+    # Workaround for MSVC 14.44 internal compiler error (C1001) triggered by
+    # QFlags<std::initializer_list> in Qt 6.10.2 headers.
+    target_compile_definitions(CatchChartEditorTests PRIVATE QT_NO_QFLAGS_INITIALIZER_LIST)
+
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
     if(WIN32)
         set_tests_properties(core_minimal_tests PROPERTIES
+            ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
+    endif()
+
+    add_executable(CoordMapperTests
+        tests/coord_mapper_tests.cpp
+        src/model/Note.cpp
+        src/model/BpmEntry.cpp
+        src/utils/MathUtils.cpp
+        src/utils/Logger.cpp
+        src/utils/PerformanceTimer.cpp
+        src/utils/DiagnosticCollector.cpp
+        src/coord/BeatLinearMapper.cpp
+        src/coord/TimeLinearMapper.cpp
+    )
+
+    target_include_directories(CoordMapperTests PRIVATE src)
+    target_link_libraries(CoordMapperTests Qt6::Core Qt6::Gui)
+    target_compile_definitions(CoordMapperTests PRIVATE QT_NO_QFLAGS_INITIALIZER_LIST)
+
+    add_test(NAME coord_mapper_tests COMMAND CoordMapperTests)
+    if(WIN32)
+        set_tests_properties(coord_mapper_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
     endif()
 endif()

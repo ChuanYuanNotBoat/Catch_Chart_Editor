@@ -1,5 +1,7 @@
 #include "ChartController.h"
 #include "file/ChartIO.h"
+#include "file/BpmAuxFiles.h"
+#include "logic/UnreachableDivisionManager.h"
 #include "utils/Logger.h"
 #include "utils/PerformanceTimer.h"
 #include <QUndoCommand>
@@ -374,24 +376,49 @@ private:
     QList<QPair<Note, Note>> m_changes;
 };
 
-// 添加 BPM 命令
+// 添加 BPM 命令（支持去重：同一 beat 位置仅保留一个 BPM）
 class ChartController::AddBpmCommand : public ChartController::ChartCommand
 {
 public:
-    AddBpmCommand(ChartController *controller, const BpmEntry &bpm) : ChartCommand(controller, "Add BPM"), m_bpm(bpm) {}
+    AddBpmCommand(ChartController *controller, const BpmEntry &bpm)
+        : ChartCommand(controller, "Add BPM"), m_bpm(bpm), m_wasReplace(false) {}
     void undo() override
     {
-        removeBpmByValue(m_controller->m_chart, m_bpm, m_controller->m_chart.bpmList().size() - 1);
+        if (m_wasReplace)
+        {
+            // 恢复被替换的旧 BPM 值
+            int existing = m_controller->findDuplicateBpmIndex(m_bpm);
+            if (existing >= 0)
+                m_controller->m_chart.bpmList()[existing] = m_oldReplacedBpm;
+        }
+        else
+        {
+            removeBpmByValue(m_controller->m_chart, m_bpm, m_controller->m_chart.bpmList().size() - 1);
+        }
         m_controller->chartChanged();
     }
     void redo() override
     {
-        m_controller->m_chart.addBpm(m_bpm);
+        int existing = m_controller->findDuplicateBpmIndex(m_bpm);
+        if (existing >= 0)
+        {
+            // 同一 beat 位置已有 BPM，替换其值
+            m_oldReplacedBpm = m_controller->m_chart.bpmList()[existing];
+            m_wasReplace = true;
+            m_controller->m_chart.bpmList()[existing] = m_bpm;
+        }
+        else
+        {
+            m_wasReplace = false;
+            m_controller->m_chart.addBpm(m_bpm);
+        }
         m_controller->chartChanged();
     }
 
 private:
     BpmEntry m_bpm;
+    BpmEntry m_oldReplacedBpm;
+    bool m_wasReplace;
 };
 
 // 删除 BPM 命令
@@ -496,7 +523,96 @@ private:
     QString m_chartPath;
 };
 
+// 不可达分度启用 — 原子撤销命令
+// 将BPM插入 + Note修改 + 排除项更新封装为单条撤销记录
+class ChartController::UnreachableDivisionCommand : public ChartController::ChartCommand
+{
+public:
+    UnreachableDivisionCommand(ChartController *controller,
+                               const QVector<BpmEntry> &newBpms,
+                               const Note &originalNote,
+                               const Note &replacementNote,
+                               const BpmAuxFiles::BpmExcludesData &oldExcludes,
+                               const BpmAuxFiles::BpmExcludesData &newExcludes,
+                               const QString &chartPath)
+        : ChartCommand(controller, QObject::tr("启用不可达分度")),
+          m_newBpms(newBpms),
+          m_originalNote(originalNote),
+          m_replacementNote(replacementNote),
+          m_oldExcludes(oldExcludes),
+          m_newExcludes(newExcludes),
+          m_chartPath(chartPath)
+    {
+    }
+
+    void redo() override
+    {
+        // 1. 插入新BPM点（防御性去重：正常情况下 UnreachableDivisionManager 生成的 BPM 不应冲突）
+        // NOTE: 当排除项BPM自动生成逻辑正确时，此循环内不应触发去重。
+        // 若触发，说明生成算法产生了冲突beat，需排查 UnreachableDivisionManager。
+        for (const BpmEntry &bpm : m_newBpms)
+        {
+            int existing = m_controller->findDuplicateBpmIndex(bpm);
+            if (existing >= 0)
+            {
+                Logger::warn("UnreachableDivisionCommand: duplicate BPM at beat position, replacing");
+                m_controller->m_chart.bpmList()[existing] = bpm;
+            }
+            else
+            {
+                m_controller->m_chart.addBpm(bpm);
+            }
+        }
+
+        // 2. 移动Note (remove old, add new)
+        m_controller->m_chart.removeNote(m_originalNote);
+        m_controller->m_chart.addNote(m_replacementNote);
+
+        // 3. 保存排除项
+        if (!m_chartPath.isEmpty())
+            BpmAuxFiles::saveBpmExcludes(m_chartPath, m_newExcludes);
+
+        m_controller->chartChanged();
+    }
+
+    void undo() override
+    {
+        // 1. 恢复Note (remove new, add old)
+        m_controller->m_chart.removeNote(m_replacementNote);
+        m_controller->m_chart.addNote(m_originalNote);
+
+        // 2. 移除新插入的BPM点
+        for (const BpmEntry &bpm : m_newBpms)
+            removeBpmByValue(m_controller->m_chart, bpm, -1);
+
+        // 3. 恢复排除项
+        if (!m_chartPath.isEmpty())
+            BpmAuxFiles::saveBpmExcludes(m_chartPath, m_oldExcludes);
+
+        m_controller->chartChanged();
+    }
+
+private:
+    QVector<BpmEntry> m_newBpms;
+    Note m_originalNote;
+    Note m_replacementNote;
+    BpmAuxFiles::BpmExcludesData m_oldExcludes;
+    BpmAuxFiles::BpmExcludesData m_newExcludes;
+    QString m_chartPath;
+};
+
 // ---------- ChartController 实现 ----------
+int ChartController::findDuplicateBpmIndex(const BpmEntry &candidate) const
+{
+    const auto &list = m_chart.bpmList();
+    for (int i = 0; i < list.size(); ++i)
+    {
+        if (bpmPositionEqual(list[i], candidate))
+            return i;
+    }
+    return -1;
+}
+
 ChartController::ChartController(QObject *parent) : QObject(parent)
 {
     m_undoStack = new QUndoStack(this);
@@ -710,6 +826,46 @@ bool ChartController::loadChartFromData(const QString &path, Chart loadedChart)
         emit errorOccurred("Unknown exception applying loaded chart");
         return false;
     }
+}
+
+void ChartController::applyUnreachableDivisionAtomic(
+    const QVector<BpmEntry> &newBpms,
+    const Note &originalNote,
+    const Note &replacementNote,
+    const BpmAuxFiles::BpmExcludesData &oldExcludes,
+    const BpmAuxFiles::BpmExcludesData &newExcludes,
+    const QString &chartPath)
+{
+    m_undoStack->push(new UnreachableDivisionCommand(
+        this,
+        newBpms,
+        originalNote,
+        replacementNote,
+        oldExcludes,
+        newExcludes,
+        chartPath));
+}
+
+bool ChartController::applyUnreachableDivisionAtomic(
+    const QVector<int> &noteIndices,
+    int targetDenominator)
+{
+    m_lastOperationError.clear();
+    if (!m_chart.notes().isEmpty() && !noteIndices.isEmpty())
+    {
+        // Use UnreachableDivisionManager for the full pipeline
+        UnreachableDivisionManager mgr;
+        bool ok = mgr.applyUnreachableDivision(
+            this,
+            m_currentChartPath,
+            noteIndices,
+            targetDenominator);
+        if (!ok)
+            m_lastOperationError = mgr.lastError();
+        return ok;
+    }
+    m_lastOperationError = QStringLiteral("No notes selected");
+    return false;
 }
 
 bool ChartController::saveChart(const QString &path)

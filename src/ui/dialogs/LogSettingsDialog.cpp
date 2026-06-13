@@ -82,13 +82,13 @@ void LogSettingsDialog::setupUI()
     mainLayout->addLayout(buttonLayout);
 
     // 连接信号
-    connect(m_verboseModeCheckbox, QOverload<int>::of(&QCheckBox::stateChanged),
+    connect(m_verboseModeCheckbox, &QCheckBox::checkStateChanged,
             this, &LogSettingsDialog::onVerboseModeChanged);
-    connect(m_jsonLoggingCheckbox, QOverload<int>::of(&QCheckBox::stateChanged),
+    connect(m_jsonLoggingCheckbox, &QCheckBox::checkStateChanged,
             this, &LogSettingsDialog::onJsonLoggingChanged);
-    connect(m_performanceTimingCheckbox, QOverload<int>::of(&QCheckBox::stateChanged),
+    connect(m_performanceTimingCheckbox, &QCheckBox::checkStateChanged,
             this, &LogSettingsDialog::onPerformanceTimingChanged);
-    connect(m_playbackProbeCheckbox, QOverload<int>::of(&QCheckBox::stateChanged),
+    connect(m_playbackProbeCheckbox, &QCheckBox::checkStateChanged,
             this, &LogSettingsDialog::onPlaybackProbeChanged);
     connect(m_logLevelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &LogSettingsDialog::onLogLevelChanged);
@@ -120,25 +120,25 @@ void LogSettingsDialog::saveSettings()
     Settings::instance().setPlaybackStutterProbeEnabled(m_playbackProbeCheckbox->isChecked());
 }
 
-void LogSettingsDialog::onVerboseModeChanged(int state)
+void LogSettingsDialog::onVerboseModeChanged(Qt::CheckState state)
 {
     Logger::setVerbose(state == Qt::Checked);
     Logger::info(QString("日志：详细模式 %1").arg(state == Qt::Checked ? "启用" : "禁用"));
 }
 
-void LogSettingsDialog::onJsonLoggingChanged(int state)
+void LogSettingsDialog::onJsonLoggingChanged(Qt::CheckState state)
 {
     Logger::setJsonLoggingEnabled(state == Qt::Checked);
     Logger::info(QString("日志：JSON输出 %1").arg(state == Qt::Checked ? "启用" : "禁用"));
 }
 
-void LogSettingsDialog::onPerformanceTimingChanged(int state)
+void LogSettingsDialog::onPerformanceTimingChanged(Qt::CheckState state)
 {
     PerformanceTimer::setEnabled(state == Qt::Checked);
     Logger::info(QString("日志：性能计时 %1").arg(state == Qt::Checked ? "启用" : "禁用"));
 }
 
-void LogSettingsDialog::onPlaybackProbeChanged(int state)
+void LogSettingsDialog::onPlaybackProbeChanged(Qt::CheckState state)
 {
     const bool enabled = (state == Qt::Checked);
     Settings::instance().setPlaybackStutterProbeEnabled(enabled);

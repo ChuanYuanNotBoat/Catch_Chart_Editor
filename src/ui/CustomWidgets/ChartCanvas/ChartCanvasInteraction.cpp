@@ -116,29 +116,14 @@ void ChartCanvas::setTimeScale(double scale)
     if (qFuzzyCompare(m_timeScale, clampedScale))
         return;
 
-    const double baselineRatio = kReferenceLineRatio;
-    double baselineBeat;
-    if (m_verticalFlip)
-    {
-        baselineBeat = m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange();
-    }
-    else
-    {
-        baselineBeat = m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
-    }
-
+    const CoordContext ctx = buildCoordContext();
+    m_mapper->setTimeScale(clampedScale, m_scrollBeat, ctx);
     m_timeScale = clampedScale;
 
-    if (m_verticalFlip)
-    {
-        m_scrollBeat = baselineBeat - (1.0 - baselineRatio) * effectiveVisibleBeatRange();
-    }
-    else
-    {
-        m_scrollBeat = baselineBeat - baselineRatio * effectiveVisibleBeatRange();
-    }
-    if (m_scrollBeat < 0)
-        m_scrollBeat = 0;
+    // Sync legacy members from mapper (mode-aware: always read from mapper first)
+    m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+    m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
+    m_baseVisibleBeatRange = m_beatLinearMapper.baseVisibleBeatRange();
 
     invalidateGridCache();
     update();
@@ -256,44 +241,17 @@ void ChartCanvas::advancePlaybackVisual(bool scheduleRepaint, bool recordProbe)
 
     if (m_autoScrollEnabled)
     {
-        const QVector<MathUtils::BpmCacheEntry> &cache = bpmTimeCache();
-        if (cache.isEmpty())
-            return;
-
-        auto beatFromTimeMs = [&cache](double timeMs) -> double
-        {
-            int lo = 0;
-            int hi = cache.size() - 1;
-            while (lo < hi)
-            {
-                const int mid = (lo + hi + 1) / 2;
-                if (cache[mid].accumulatedMs <= timeMs)
-                    lo = mid;
-                else
-                    hi = mid - 1;
-            }
-            const auto &seg = cache[lo];
-            if (seg.bpm <= 0.0)
-                return seg.beatPos;
-            return seg.beatPos + (timeMs - seg.accumulatedMs) * (seg.bpm / 60000.0);
-        };
-        const double beat = beatFromTimeMs(m_currentPlayTime);
-
         const double baselineRatio = kReferenceLineRatio;
-        double targetScrollBeat;
-        if (m_verticalFlip)
-        {
-            targetScrollBeat = beat - (1.0 - baselineRatio) * effectiveVisibleBeatRange();
-        }
-        else
-        {
-            targetScrollBeat = beat - baselineRatio * effectiveVisibleBeatRange();
-        }
-
         const double previousScrollBeat = m_scrollBeat;
-        m_scrollBeat = targetScrollBeat;
-        if (m_scrollBeat < 0)
-            m_scrollBeat = 0;
+
+        const CoordContext ctx = buildCoordContext();
+        m_mapper->advancePlayback(m_currentPlayTime, baselineRatio, m_scrollBeat, ctx);
+
+        // Sync legacy members from mapper (mode-aware: always read from mapper first)
+        m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+        m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
+        m_baseVisibleBeatRange = m_beatLinearMapper.baseVisibleBeatRange();
+
         const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
         const bool scrollChanged = std::abs(m_scrollBeat - previousScrollBeat) > kScrollSignalEpsilonBeat;
         if (!m_isPlaying &&

@@ -5,11 +5,13 @@ A desktop chart editor for Malody Catch mode, developed to fill the feature gaps
 
 当前版本 / Current Version: **Beta v1.10.2**
 
-> ⚠️ **Early Stage Notice / 早期状态说明**
-> This project is in a very early stage of development. It is not yet ready for production use. Features may be incomplete, unstable, or subject to change.
-> 本项目处于极早期开发阶段，尚未具备实际使用价值。功能可能不完整、不稳定或随时变更。
-> Use at your own risk / 使用风险自负。
-
+> ~~⚠️ Early Stage / 极早期阶段~~ *(那都是三四十个版本前的事了 / That was 30+ versions ago)*  
+> 🚧 **Current: Beta & Active Development / 当前状态：公测 & 积极开发中**  
+> The project is functional and largely stable, though you might still encounter occasional bugs or edge-case issues.  
+> 项目已具备可用性且大体稳定，只是偶尔仍可能遇到一些 bug 或边界情况问题。  
+> Use at your own risk — but honestly, it's way more solid than it sounds.  
+> 使用风险自负——但说实话，它比这句话听起来要稳得多。  
+> Feedback and bug reports are always welcome / 欢迎随时反馈和提交 bug。
 ---
 
 ## 📥 下载
@@ -39,6 +41,10 @@ A desktop chart editor for Malody Catch mode, developed to fill the feature gaps
   插件系统（实验性）
 - Curve sidecar V3 (`.mcce-plugin/*.curve_tbd.json`): nodes/curves/groups schema, CAS revision conflict guard, stable `curve_id` + unique `curve_no`.
   曲线 sidecar V3（`.mcce-plugin/*.curve_tbd.json`）：节点/曲线/分组结构、CAS 版本冲突保护、稳定 `curve_id` 与唯一 `curve_no`。
+- BPM auxiliary files (`.mcce-plugin/*.bpm_excludes.json`, `.mcce-plugin/*.song_bpm.json`): store BPM-related metadata for BPM measurement tools.
+  BPM 辅助文件（`.mcce-plugin/*.bpm_excludes.json`, `.mcce-plugin/*.song_bpm.json`）：存储 BPM 测量工具相关的 BPM 元数据。
+- ChartFileSystem registry: centralized file type management for MCZ packaging, replacing hardcoded whitelists.
+  ChartFileSystem 注册表：集中式文件类型管理，用于 MCZ 打包，替代硬编码白名单。
 
 ---
 
@@ -202,5 +208,3 @@ This project is licensed under the GPL-3.0 License — see the [LICENSE](LICENSE
 
 - Runtime plugin directory is resolved as `<appDir>/plugins`.
 - 构建后会复制默认皮肤、插件与文档到可执行文件目录，便于开箱即用。
-
-
