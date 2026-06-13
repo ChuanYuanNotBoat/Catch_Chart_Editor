@@ -2175,6 +2175,40 @@ void MainWindow::tryRecoverPreviousSession()
     d->currentChartPath = state.sourcePath;
     if (d->canvas)
         d->canvas->setSourceChartPath(state.sourcePath);
+
+    // 恢复音频加载（正常打开流程在 loadChartFile 中完成，崩溃恢复路径缺失此步骤）
+    updatePlaybackAvailability(false);
+    if (d->chartController && d->chartController->chart())
+    {
+        const QString audioFile = d->chartController->chart()->meta().audioFile;
+        if (!audioFile.isEmpty())
+        {
+            const QString sourceDir = QFileInfo(state.sourcePath).absolutePath();
+            const QString audioPath = sourceDir + "/" + audioFile;
+            if (QFile::exists(audioPath))
+            {
+                d->playbackController->audioPlayer()->load(audioPath);
+            }
+            else
+            {
+                const QString msg = tr("Audio file not found: %1").arg(audioPath);
+                statusBar()->showMessage(msg, 5000);
+            }
+        }
+    }
+
+    // 恢复 BPM 辅助文件
+    BpmAuxFiles::BpmExcludesData excludesData;
+    if (BpmAuxFiles::loadBpmExcludes(state.sourcePath, excludesData))
+    {
+        Logger::info(QString("Recovered BPM excludes data with %1 ranges").arg(excludesData.excludes.size()));
+    }
+    BpmAuxFiles::SongBpmInfo songBpmInfo;
+    if (BpmAuxFiles::loadSongBpm(state.sourcePath, songBpmInfo))
+    {
+        Logger::info(QString("Recovered song BPM: %1").arg(songBpmInfo.originalBpm));
+    }
+
     d->isModified = true;
     d->canvas->update();
     statusBar()->showMessage(tr("Recovered unsaved session"), 3000);
