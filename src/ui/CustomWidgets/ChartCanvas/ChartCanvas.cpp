@@ -189,6 +189,7 @@ void ChartCanvas::rebuildBpmTimeCache() const
     m_excludedRenderBpmCache.clear();
     m_excludedBeatRanges.clear();
     m_hasExcludedBpms = false;
+    m_cachedExcludes.loaded = false;
 
     if (!chart())
     {
@@ -206,7 +207,7 @@ void ChartCanvas::rebuildBpmTimeCache() const
     const int offset = chart()->meta().offset;
     m_bpmTimeCache = MathUtils::buildBpmTimeCache(bpmList, offset);
 
-    // 构建排除项缓存
+    // 构建排除项缓存（缓存数据供 computeBaseBpm 复用）
     BpmAuxFiles::BpmExcludesData excludesData;
     bool hasExcludes = false;
     if (m_chartController)
@@ -260,6 +261,13 @@ void ChartCanvas::rebuildBpmTimeCache() const
         }
     }
 
+    // 缓存排除项数据供 computeBaseBpm 复用
+    if (hasExcludes)
+    {
+        m_cachedExcludes.data = excludesData;
+        m_cachedExcludes.loaded = true;
+    }
+
     m_bpmCacheDirty = false;
 
     // 重新计算基于时间的加权平均 BPM（排除项过滤后）
@@ -282,7 +290,9 @@ const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache() const
     if (m_bpmCacheDirty)
         rebuildBpmTimeCache();
     // 当排除项不参与渲染且存在排除项时，返回过滤后的缓存（用于网格线和beat高度）
-    if (m_excludeRenderingEnabled && m_hasExcludedBpms && !m_excludedRenderBpmCache.isEmpty())
+    // 即使所有BPM被排除（m_excludedRenderBpmCache为空），也应返回空缓存
+    // 而非回退到完整缓存，以确保调用方的isEmpty()守卫生效
+    if (m_excludeRenderingEnabled && m_hasExcludedBpms)
         return m_excludedRenderBpmCache;
     return m_bpmTimeCache;
 }
@@ -597,27 +607,9 @@ void ChartCanvas::setScrollPos(double timeMs)
     const double previousScrollBeat = m_scrollBeat;
 
     double newScrollBeat = m_scrollBeat;
-    if (m_coordinateMode == CoordinateMode::TimeLinear)
     {
         const CoordContext ctx = buildCoordContext();
-        m_timeLinearMapper.advancePlayback(clampedTimeMs, baselineRatio, newScrollBeat, ctx);
-        m_scrollBeat = newScrollBeat;
-        m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
-        m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
-    }
-    else
-    {
-        int beatNum, numerator, denominator;
-        MathUtils::msToBeat(clampedTimeMs, chart()->bpmList(),
-                            chart()->meta().offset,
-                            beatNum, numerator, denominator);
-        const double targetBeat = beatNum + static_cast<double>(numerator) / denominator;
-
-        const double baselineBeatOffset = baselineOffsetRatio * effectiveVisibleBeatRange();
-        newScrollBeat = targetBeat - baselineBeatOffset;
-        const double scrollLimit = negativeBeatScrollLimit();
-        if (newScrollBeat < scrollLimit)
-            newScrollBeat = scrollLimit;
+        m_mapper->advancePlayback(clampedTimeMs, baselineRatio, newScrollBeat, ctx);
     }
 
     const bool scrollChanged = qAbs(newScrollBeat - previousScrollBeat) >= 1e-6;
@@ -627,15 +619,11 @@ void ChartCanvas::setScrollPos(double timeMs)
 
     m_scrollBeat = newScrollBeat;
     m_currentPlayTime = clampedTimeMs;
-    if (m_coordinateMode == CoordinateMode::TimeLinear)
-    {
-        m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
-        m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
-    }
-    else
-    {
-        syncScrollTimeFromBeat();
-    }
+
+    // Sync legacy members from current mode's mapper
+    m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+    m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
+    m_baseVisibleBeatRange = m_beatLinearMapper.baseVisibleBeatRange();
     update();
     if (scrollChanged)
         emit scrollPositionChanged(m_scrollBeat);
@@ -818,15 +806,16 @@ void ChartCanvas::syncScrollBeatFromTime() const
 void ChartCanvas::syncCoordinateState() const
 {
     if (m_coordinateMode == CoordinateMode::TimeLinear)
-        syncScrollTimeFromBeat();
+        syncScrollBeatFromTime();   // time 权威 → 推导 beat
     else
-        syncScrollBeatFromTime();
+        syncScrollTimeFromBeat();   // beat 权威 → 推导 time
 }
 
 double ChartCanvas::computeBaseBpm() const
 {
     // 基于时间的加权平均 BPM：对每个 BPM 段按其持续时间加权平均
     // 排除在 excludes 列表中的 BPM 段
+    // 复用 rebuildBpmTimeCache 缓存的排除项数据（m_cachedExcludes）
     if (!chart())
         return 120.0;
 
@@ -834,28 +823,20 @@ double ChartCanvas::computeBaseBpm() const
     if (bpmList.isEmpty())
         return 120.0;
 
-    // 加载排除数据
-    BpmAuxFiles::BpmExcludesData excludesData;
-    bool hasExcludes = false;
-    if (m_chartController)
-    {
-        const QString chartPath = m_chartController->chartFilePath();
-        if (!chartPath.isEmpty())
-            hasExcludes = BpmAuxFiles::loadBpmExcludes(chartPath, excludesData);
-    }
-
+    // 使用缓存的排除项数据，避免重复加载
+    const bool hasCachedExcludes = m_cachedExcludes.loaded;
     auto isExcluded = [&](const BpmEntry &bpm) -> bool
     {
-        if (!hasExcludes)
+        if (!hasCachedExcludes)
             return false;
-        for (const auto &range : excludesData.excludes)
+        for (const auto &range : m_cachedExcludes.data.excludes)
         {
             bool geStart = (bpm.beatNum > range.startBeatNum)
                            || (bpm.beatNum == range.startBeatNum
                                && bpm.numerator * range.startDenominator >= range.startNumerator * bpm.denominator);
             bool leEnd = (bpm.beatNum < range.endBeatNum)
                          || (bpm.beatNum == range.endBeatNum
-                             && bpm.numerator * range.endDenominator <= range.endNumerator * bpm.denominator);
+                                 && bpm.numerator * range.endDenominator <= range.endNumerator * bpm.denominator);
             if (geStart && leEnd)
                 return true;
         }

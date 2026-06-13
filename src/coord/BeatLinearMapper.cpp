@@ -29,7 +29,7 @@ double BeatLinearMapper::yToBeat(double y, double scrollBeat, const CoordContext
 
 double BeatLinearMapper::timeToY(double timeMs, double scrollBeat, const CoordContext &ctx) const
 {
-    if (!ctx.bpmCache || ctx.bpmCache->isEmpty() || !ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
+    if (!ctx.fullBpmCache || ctx.fullBpmCache->isEmpty())
         return 0;
 
     int scrollBN, scrollN, scrollD;
@@ -37,7 +37,7 @@ double BeatLinearMapper::timeToY(double timeMs, double scrollBeat, const CoordCo
     double scrollMs = MathUtils::beatToMs(scrollBN, scrollN, scrollD, *ctx.fullBpmCache);
 
     double visRange = effectiveVisibleBeatRange(ctx);
-    double scrollBpm = MathUtils::lookupBpmAtBeat(scrollBeat, *ctx.bpmCache);
+    double scrollBpm = MathUtils::lookupBpmAtBeat(scrollBeat, *ctx.fullBpmCache);
     double pixelsPerBeat = (visRange > 0) ? (ctx.canvasHeight / visRange) : 1.0;
     double pixelsPerMs = (scrollBpm > 0) ? (pixelsPerBeat * scrollBpm / 60000.0) : (pixelsPerBeat / 1000.0);
 

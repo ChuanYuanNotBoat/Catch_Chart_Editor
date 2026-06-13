@@ -208,5 +208,3 @@ This project is licensed under the GPL-3.0 License — see the [LICENSE](LICENSE
 
 - Runtime plugin directory is resolved as `<appDir>/plugins`.
 - 构建后会复制默认皮肤、插件与文档到可执行文件目录，便于开箱即用。
-
-

@@ -786,7 +786,7 @@ void ChartCanvas::drawGrid(QPainter &painter)
                 const QRect cacheRect(0, 0, cacheSize.width(), cacheSize.height());
                 m_gridRenderer->drawGrid(cachePainter, cacheRect, m_gridDivision,
                                          cacheStartTime, cacheEndTime,
-                                         m_timeDivision, fullBpmTimeCache(),
+                                         m_timeDivision, bpmTimeCache(),
                                          m_verticalFlip,
                                          colorEnabled,
                                          colorPreset,

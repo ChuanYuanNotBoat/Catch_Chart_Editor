@@ -120,7 +120,7 @@ void ChartCanvas::setTimeScale(double scale)
     m_mapper->setTimeScale(clampedScale, m_scrollBeat, ctx);
     m_timeScale = clampedScale;
 
-    // Sync legacy members for backward compatibility
+    // Sync legacy members from mapper (mode-aware: always read from mapper first)
     m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
     m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
     m_baseVisibleBeatRange = m_beatLinearMapper.baseVisibleBeatRange();
@@ -247,7 +247,7 @@ void ChartCanvas::advancePlaybackVisual(bool scheduleRepaint, bool recordProbe)
         const CoordContext ctx = buildCoordContext();
         m_mapper->advancePlayback(m_currentPlayTime, baselineRatio, m_scrollBeat, ctx);
 
-        // Sync legacy members for backward compatibility
+        // Sync legacy members from mapper (mode-aware: always read from mapper first)
         m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
         m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
         m_baseVisibleBeatRange = m_beatLinearMapper.baseVisibleBeatRange();

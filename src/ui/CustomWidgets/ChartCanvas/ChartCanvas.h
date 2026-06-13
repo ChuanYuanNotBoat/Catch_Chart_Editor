@@ -15,6 +15,7 @@
 #include "utils/MathUtils.h"
 #include "coord/BeatLinearMapper.h"
 #include "coord/TimeLinearMapper.h"
+#include "file/BpmAuxFiles.h"
 
 class ChartController;
 class SelectionController;
@@ -229,8 +230,16 @@ private:
     // 完整BPM缓存（包含排除项），用于粘贴等编辑操作
     const QVector<MathUtils::BpmCacheEntry> &fullBpmTimeCache() const;
     // 基于时间的加权平均 BPM（TimeLinear 模式的缩放基准）
+    // 依赖 m_bpmTimeCache 已构建，应在 rebuildBpmTimeCache 后调用
     double computeBaseBpm() const;
     mutable double m_baseBpm = 120.0;
+
+    // 排除项数据缓存（rebuildBpmTimeCache 加载，computeBaseBpm 复用）
+    struct CachedExcludes {
+        BpmAuxFiles::BpmExcludesData data;
+        bool loaded = false;
+    };
+    mutable CachedExcludes m_cachedExcludes;
 
     // 排除项BPM渲染支持
     mutable QVector<MathUtils::BpmCacheEntry> m_excludedRenderBpmCache; // 过滤掉排除项后的BPM缓存
