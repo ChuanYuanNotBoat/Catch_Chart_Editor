@@ -11,6 +11,7 @@
 #include "utils/Settings.h"
 #include "utils/Logger.h"
 #include "utils/DiagnosticCollector.h"
+#include "file/BpmAuxFiles.h"
 #include "model/Chart.h"
 #include <QPainter>
 #include <QMouseEvent>
@@ -27,6 +28,10 @@
 #include <QMessageBox>
 #include <QMenu>
 #include <QAction>
+#include "app/Application.h"
+#include "plugin/PluginManager.h"
+#include <algorithm>
+#include <cmath>
 #include <QShowEvent>
 #include <QDebug>
 #include <chrono>
@@ -34,6 +39,17 @@
 #include <cmath>
 #include <limits>
 #include <numeric>
+
+namespace
+{
+PluginManager *activePluginManager()
+{
+    auto *app = qobject_cast<Application *>(QCoreApplication::instance());
+    if (!app || !app->pluginSystemReady())
+        return nullptr;
+    return app->pluginManager();
+}
+}
 
 ChartCanvas::ChartCanvas(QWidget *parent)
     : QWidget(parent),
@@ -83,6 +99,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_pluginToolModeActive(false),
       m_pluginToolPluginId(QString()),
       m_pluginPlacementDensityOverride(0),
+      m_showUnreachableDivisions(false),
       m_hyperCacheValid(false),
       m_backgroundCacheDirty(true),
       m_noteDataDirty(true),
@@ -122,7 +139,17 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_playbackVisualFramePending(false),
       m_lastPlaybackTickNs(0),
       m_lastPlaybackVisualAdvanceNs(0),
-      m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying)
+      m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying),
+      m_mapper(&m_beatLinearMapper),
+      m_coordinateMode(CoordinateMode::BeatLinear),
+      m_scrollTimeMs(0.0),
+      m_visibleTimeRangeMs(1000.0),
+      m_gridCacheStartBeat(0.0),
+      m_gridCacheEndBeat(0.0),
+      m_gridCacheMode(CoordinateMode::BeatLinear),
+      m_overlayQueryTimer(new QTimer(this)),
+      m_overlayQueryScheduled(false),
+      m_overlayQueryIntervalMsIdle(0)
 {
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
@@ -137,6 +164,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
     m_noteSoundPlayer->setSoundFile(noteSoundPath);
     m_noteSoundPlayer->setEnabled(!noteSoundPath.isEmpty());
 
+    m_excludeRenderingEnabled = Settings::instance().excludeRenderingEnabled();
     m_fpsTimer.start();
     m_playbackVisualClock.start();
     m_pluginOverlayToggles.insert("overlay_enabled", true);
@@ -145,6 +173,8 @@ ChartCanvas::ChartCanvas(QWidget *parent)
     m_pluginOverlayToggles.insert("handles", true);
     m_pluginOverlayToggles.insert("sample_points", true);
     m_pluginOverlayToggles.insert("labels", true);
+
+    connect(m_overlayQueryTimer, &QTimer::timeout, this, &ChartCanvas::onOverlayQueryTimerFire);
 }
 
 ChartCanvas::~ChartCanvas()
@@ -171,9 +201,14 @@ QVector<Note> *ChartCanvas::mutableNotes()
     return c ? &c->notes() : nullptr;
 }
 
-void ChartCanvas::rebuildBpmTimeCache()
+void ChartCanvas::rebuildBpmTimeCache() const
 {
     m_bpmTimeCache.clear();
+    m_excludedRenderBpmCache.clear();
+    m_excludedBeatRanges.clear();
+    m_hasExcludedBpms = false;
+    m_cachedExcludes.loaded = false;
+
     if (!chart())
     {
         m_bpmCacheDirty = false;
@@ -189,10 +224,98 @@ void ChartCanvas::rebuildBpmTimeCache()
 
     const int offset = chart()->meta().offset;
     m_bpmTimeCache = MathUtils::buildBpmTimeCache(bpmList, offset);
+
+    // 构建排除项缓存（缓存数据供 computeBaseBpm 复用）
+    BpmAuxFiles::BpmExcludesData excludesData;
+    bool hasExcludes = false;
+    if (m_chartController)
+    {
+        const QString chartPath = m_chartController->chartFilePath();
+        if (!chartPath.isEmpty())
+            hasExcludes = BpmAuxFiles::loadBpmExcludes(chartPath, excludesData);
+    }
+
+    if (hasExcludes)
+    {
+        auto isExcluded = [&](const BpmEntry &bpm) -> bool
+        {
+            for (const auto &range : excludesData.excludes)
+            {
+                bool geStart = (bpm.beatNum > range.startBeatNum)
+                               || (bpm.beatNum == range.startBeatNum
+                                   && bpm.numerator * range.startDenominator >= range.startNumerator * bpm.denominator);
+                bool leEnd = (bpm.beatNum < range.endBeatNum)
+                             || (bpm.beatNum == range.endBeatNum
+                                 && bpm.numerator * range.endDenominator <= range.endNumerator * bpm.denominator);
+                if (geStart && leEnd)
+                    return true;
+            }
+            return false;
+        };
+
+        for (const auto &range : excludesData.excludes)
+        {
+            double startBeat = MathUtils::beatToFloat(range.startBeatNum, range.startNumerator, range.startDenominator);
+            double endBeat = MathUtils::beatToFloat(range.endBeatNum, range.endNumerator, range.endDenominator);
+            if (endBeat < startBeat)
+                std::swap(startBeat, endBeat);
+            if (std::abs(endBeat - startBeat) <= 1e-9)
+                continue;
+            m_excludedBeatRanges.append(qMakePair(startBeat, endBeat));
+        }
+        m_hasExcludedBpms = !m_excludedBeatRanges.isEmpty();
+
+        if (m_hasExcludedBpms)
+        {
+            QVector<BpmEntry> filteredBpmList;
+            for (int i = 0; i < bpmList.size(); ++i)
+            {
+                if (isExcluded(bpmList[i]))
+                    continue;
+                filteredBpmList.append(bpmList[i]);
+            }
+            if (!filteredBpmList.isEmpty() && filteredBpmList.size() != bpmList.size())
+                m_excludedRenderBpmCache = MathUtils::buildBpmTimeCache(filteredBpmList, offset);
+        }
+    }
+
+    // 缓存排除项数据供 computeBaseBpm 复用
+    if (hasExcludes)
+    {
+        m_cachedExcludes.data = excludesData;
+        m_cachedExcludes.loaded = true;
+    }
+
     m_bpmCacheDirty = false;
+
+    // 重新计算基于时间的加权平均 BPM（排除项过滤后）
+    m_baseBpm = computeBaseBpm();
+
+    // BPM缓存重建后，如果处于TimeLinear模式，需要重新同步滚动坐标
+    // BeatLinear模式下 m_scrollBeat 是权威状态，不应从时间反推
+    if (m_coordinateMode == CoordinateMode::TimeLinear && !m_bpmTimeCache.isEmpty())
+    {
+        syncScrollTimeFromBeat();  // sync canvas legacy members
+
+        // 同步 mapper 内部状态（m_scrollTimeMs），使其与 canvas 一致
+        const CoordContext ctx = buildCoordContext();
+        m_mapper->syncFromBeat(m_scrollBeat, ctx);
+    }
 }
 
-const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache()
+const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache() const
+{
+    if (m_bpmCacheDirty)
+        rebuildBpmTimeCache();
+    // 当排除项不参与渲染且存在排除项时，返回过滤后的缓存（用于网格线和beat高度）
+    // 即使所有BPM被排除（m_excludedRenderBpmCache为空），也应返回空缓存
+    // 而非回退到完整缓存，以确保调用方的isEmpty()守卫生效
+    if (m_excludeRenderingEnabled && m_hasExcludedBpms)
+        return m_excludedRenderBpmCache;
+    return m_bpmTimeCache;
+}
+
+const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::fullBpmTimeCache() const
 {
     if (m_bpmCacheDirty)
         rebuildBpmTimeCache();
@@ -236,8 +359,10 @@ void ChartCanvas::rebuildNoteTimesCache()
         return;
     }
 
-    const QVector<MathUtils::BpmCacheEntry> &bpmCache = bpmTimeCache();
-    if (bpmCache.isEmpty())
+    // note 时间必须基于完整 BPM 缓存（含排除项），确保播放时间一致
+    // 网格线和 beat 高度使用 bpmTimeCache()（过滤后缓存）
+    const QVector<MathUtils::BpmCacheEntry> &fullCache = fullBpmTimeCache();
+    if (fullCache.isEmpty())
     {
         m_noteBeatPositions.clear();
         m_noteEndBeatPositions.clear();
@@ -280,7 +405,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         }
         double beat = MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator);
         m_noteBeatPositions[i] = beat;
-        m_noteTimesMs[i] = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, bpmCache);
+        m_noteTimesMs[i] = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, fullCache);
         m_playableNoteTimesMs.append(m_noteTimesMs[i]);
         if (note.type == NoteType::RAIN)
         {
@@ -495,29 +620,28 @@ void ChartCanvas::setScrollPos(double timeMs)
         return;
 
     const double clampedTimeMs = qMax(0.0, timeMs);
-
-    int beatNum, numerator, denominator;
-    MathUtils::msToBeat(clampedTimeMs, chart()->bpmList(),
-                        chart()->meta().offset,
-                        beatNum, numerator, denominator);
-    const double targetBeat = beatNum + static_cast<double>(numerator) / denominator;
-
-    // Keep requested time aligned on the visual reference line, not on viewport start.
     const double baselineRatio = kReferenceLineRatio;
-    const double baselineBeatOffset = m_verticalFlip
-                                          ? (1.0 - baselineRatio) * effectiveVisibleBeatRange()
-                                          : baselineRatio * effectiveVisibleBeatRange();
-    double newScrollBeat = targetBeat - baselineBeatOffset;
-    if (newScrollBeat < 0.0)
-        newScrollBeat = 0.0;
+    const double baselineOffsetRatio = m_verticalFlip ? (1.0 - baselineRatio) : baselineRatio;
+    const double previousScrollBeat = m_scrollBeat;
 
-    const bool scrollChanged = qAbs(newScrollBeat - m_scrollBeat) >= 1e-6;
+    double newScrollBeat = m_scrollBeat;
+    {
+        const CoordContext ctx = buildCoordContext();
+        m_mapper->advancePlayback(clampedTimeMs, baselineRatio, newScrollBeat, ctx);
+    }
+
+    const bool scrollChanged = qAbs(newScrollBeat - previousScrollBeat) >= 1e-6;
     const bool timeChanged = qAbs(clampedTimeMs - m_currentPlayTime) >= 0.05;
     if (!scrollChanged && !timeChanged)
         return;
 
     m_scrollBeat = newScrollBeat;
     m_currentPlayTime = clampedTimeMs;
+
+    // Sync legacy members from current mode's mapper
+    m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+    m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
+    m_baseVisibleBeatRange = m_beatLinearMapper.baseVisibleBeatRange();
     update();
     if (scrollChanged)
         emit scrollPositionChanged(m_scrollBeat);
@@ -528,13 +652,23 @@ void ChartCanvas::syncCurrentPlayTimeToReferenceLine()
     if (!chart())
         return;
 
+    const double baselineRatio = kReferenceLineRatio;
+    const double baselineOffsetRatio = m_verticalFlip ? (1.0 - baselineRatio) : baselineRatio;
+
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        const CoordContext ctx = buildCoordContext();
+        const double referenceY = m_verticalFlip
+                                      ? height() - baselineOffsetRatio * height()
+                                      : baselineOffsetRatio * height();
+        const double baselineBeat = m_timeLinearMapper.yToBeat(referenceY, m_scrollBeat, ctx);
+        m_currentPlayTime = qMax(0.0, MathUtils::beatToMs(baselineBeat, fullBpmTimeCache()));
+        return;
+    }
+
     const auto &bpmList = chart()->bpmList();
     const int offset = chart()->meta().offset;
-    const double baselineRatio = kReferenceLineRatio;
-    const double baselineBeat = m_verticalFlip
-                                    ? m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange()
-                                    : m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
-
+    const double baselineBeat = m_scrollBeat + baselineOffsetRatio * effectiveVisibleBeatRange();
     int beatNum = 0;
     int numerator = 0;
     int denominator = 1;
@@ -609,6 +743,398 @@ void ChartCanvas::resetOverlayQueryState()
     m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlaying;
 }
 
+void ChartCanvas::setShowUnreachableDivisions(bool enabled)
+{
+    if (m_showUnreachableDivisions == enabled)
+        return;
+    m_showUnreachableDivisions = enabled;
+    emit showUnreachableDivisionsChanged(enabled);
+}
 
+void ChartCanvas::setCoordinateMode(CoordinateMode mode)
+{
+    if (m_coordinateMode == mode)
+        return;
+
+    CoordinateMapper *newMapper = (mode == CoordinateMode::TimeLinear)
+                                      ? static_cast<CoordinateMapper *>(&m_timeLinearMapper)
+                                      : static_cast<CoordinateMapper *>(&m_beatLinearMapper);
+
+    const CoordContext ctx = buildCoordContext();
+    newMapper->adoptFrom(m_mapper, m_scrollBeat, ctx);
+    // 避免在 adoptFrom 后再次调用 syncFromBeat/syncFromTime；
+    // 对 TimeLinear，visibleTimeRangeMs 是权威状态，额外同步易引入漂移。
+
+    m_mapper = newMapper;
+
+    // Sync legacy members for backward compatibility during transition
+    m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+    m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
+    m_baseVisibleBeatRange = m_beatLinearMapper.baseVisibleBeatRange();
+
+    m_coordinateMode = mode;
+    invalidateGridCache();
+    emit coordinateModeChanged(mode);
+    update();
+}
+
+double ChartCanvas::effectiveVisibleBeatRange() const
+{
+    const CoordContext ctx = buildCoordContext();
+    return m_mapper->effectiveVisibleBeatRange(ctx);
+}
+
+void ChartCanvas::syncScrollTimeFromBeat() const
+{
+    // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间
+    const auto &cache = fullBpmTimeCache();
+    if (cache.isEmpty())
+    {
+        m_scrollTimeMs = 0;
+        return;
+    }
+    m_scrollTimeMs = MathUtils::beatToMs(m_scrollBeat, cache);
+
+    // TimeLinear 模式下不重新计算 visibleTimeRangeMs，它是权威状态
+    if (m_coordinateMode != CoordinateMode::TimeLinear)
+    {
+        const double endBeat = m_scrollBeat + effectiveVisibleBeatRange();
+        const double endTime = MathUtils::beatToMs(endBeat, cache);
+        m_visibleTimeRangeMs = endTime - m_scrollTimeMs;
+    }
+}
+
+void ChartCanvas::syncScrollBeatFromTime() const
+{
+    // 使用完整缓存：m_scrollBeat 始终处于完整 beat 空间，与 m_noteBeatPositions 一致
+    const auto &cache = fullBpmTimeCache();
+    if (cache.isEmpty())
+    {
+        m_scrollBeat = 0;
+        return;
+    }
+    m_scrollBeat = MathUtils::msToBeatFloat(m_scrollTimeMs, cache);
+
+    // BeatLinear 模式下从时间范围反推 baseVisibleBeatRange
+    const double endTime = m_scrollTimeMs + m_visibleTimeRangeMs;
+    const double endBeat = MathUtils::msToBeatFloat(endTime, cache);
+    m_baseVisibleBeatRange = (endBeat - m_scrollBeat) * m_timeScale;
+}
+
+void ChartCanvas::syncCoordinateState() const
+{
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+        syncScrollBeatFromTime();   // time 权威 → 推导 beat
+    else
+        syncScrollTimeFromBeat();   // beat 权威 → 推导 time
+}
+
+double ChartCanvas::computeBaseBpm() const
+{
+    // 基于时间的加权平均 BPM：对每个 BPM 段按其持续时间加权平均
+    // 排除在 excludes 列表中的 BPM 段
+    // 复用 rebuildBpmTimeCache 缓存的排除项数据（m_cachedExcludes）
+    if (!chart())
+        return 120.0;
+
+    const auto &bpmList = chart()->bpmList();
+    if (bpmList.isEmpty())
+        return 120.0;
+
+    // 使用缓存的排除项数据，避免重复加载
+    const bool hasCachedExcludes = m_cachedExcludes.loaded;
+    auto isExcluded = [&](const BpmEntry &bpm) -> bool
+    {
+        if (!hasCachedExcludes)
+            return false;
+        for (const auto &range : m_cachedExcludes.data.excludes)
+        {
+            bool geStart = (bpm.beatNum > range.startBeatNum)
+                           || (bpm.beatNum == range.startBeatNum
+                               && bpm.numerator * range.startDenominator >= range.startNumerator * bpm.denominator);
+            bool leEnd = (bpm.beatNum < range.endBeatNum)
+                         || (bpm.beatNum == range.endBeatNum
+                                 && bpm.numerator * range.endDenominator <= range.endNumerator * bpm.denominator);
+            if (geStart && leEnd)
+                return true;
+        }
+        return false;
+    };
+
+    double totalWeightedBpm = 0.0;
+    double totalTime = 0.0;
+
+    for (int i = 0; i < bpmList.size(); ++i)
+    {
+        const BpmEntry &entry = bpmList[i];
+        if (entry.bpm <= 0.0)
+            continue;
+        if (isExcluded(entry))
+            continue;
+
+        double beatPos = entry.beatNum + static_cast<double>(entry.numerator) / entry.denominator;
+        double nextBeatPos;
+        if (i + 1 < bpmList.size())
+        {
+            const BpmEntry &next = bpmList[i + 1];
+            nextBeatPos = next.beatNum + static_cast<double>(next.numerator) / next.denominator;
+        }
+        else
+        {
+            // 最后一段：用第一段的 beat 范围估计
+            if (bpmList.size() > 1)
+            {
+                const BpmEntry &first = bpmList[0];
+                nextBeatPos = first.beatNum + 1.0 + (beatPos - first.beatNum);
+            }
+            else
+            {
+                nextBeatPos = beatPos + 100.0;
+            }
+        }
+
+        double beatLen = nextBeatPos - beatPos;
+        if (beatLen <= 0)
+            continue;
+
+        double durationMs = beatLen * (60000.0 / entry.bpm);
+        totalWeightedBpm += entry.bpm * durationMs;
+        totalTime += durationMs;
+    }
+
+    if (totalTime <= 0)
+        return bpmList.first().bpm;
+
+    return totalWeightedBpm / totalTime;
+}
+
+double ChartCanvas::negativeBeatScrollLimit() const
+{
+    if (!chart())
+        return 0.0;
+    const CoordContext ctx = buildCoordContext();
+    return m_mapper->negativeBeatScrollLimit(m_scrollBeat, ctx);
+}
+
+void ChartCanvas::clampScrollTimeToLimit() const
+{
+    const CoordContext ctx = buildCoordContext();
+    m_mapper->clampScrollLimit(m_scrollBeat, ctx);
+
+    // 同步 legacy 成员（过渡期）
+    if (m_coordinateMode == CoordinateMode::TimeLinear)
+    {
+        m_scrollTimeMs = m_timeLinearMapper.scrollTimeMsRaw();
+        m_visibleTimeRangeMs = m_timeLinearMapper.visibleTimeRangeMs();
+    }
+    else
+    {
+        syncScrollTimeFromBeat();
+    }
+}
+
+void ChartCanvas::setExcludeRenderingEnabled(bool enabled)
+{
+    if (m_excludeRenderingEnabled == enabled)
+        return;
+    m_excludeRenderingEnabled = enabled;
+    Settings::instance().setExcludeRenderingEnabled(enabled);
+    m_bpmCacheDirty = true;
+    invalidateGridCache();
+    m_timesDirty = true;
+    m_noteDataDirty = true;
+    update();
+}
+
+void ChartCanvas::setBpmCacheDirty()
+{
+    m_bpmCacheDirty = true;
+    invalidateGridCache();
+    m_timesDirty = true;
+    m_noteDataDirty = true;
+}
+
+bool ChartCanvas::isBeatInExcludedRange(double beat) const
+{
+    if (!m_hasExcludedBpms)
+        return false;
+    for (const auto &range : m_excludedBeatRanges)
+    {
+        if (beat >= range.first && beat < range.second)
+            return true;
+    }
+    return false;
+}
+
+void ChartCanvas::drawExcludedRangeBackgrounds(QPainter &painter, double startBeat, double endBeat,
+                                                double baseY, double sign, double invVisibleRange,
+                                                int canvasHeight, int lmargin, int availableWidth,
+                                                double scrollTimeMs, double pixelsPerMs,
+                                                bool useTimeLinear) const
+{
+    if (!m_hasExcludedBpms)
+        return;
+
+    for (int ri = 0; ri < m_excludedBeatRanges.size(); ++ri)
+    {
+        const auto &range = m_excludedBeatRanges[ri];
+        double rangeStart = range.first;
+        double rangeEnd = range.second;
+
+        // 裁剪到可见范围
+        if (rangeEnd <= startBeat || rangeStart >= endBeat)
+            continue;
+        double visStart = qMax(rangeStart, startBeat);
+        double visEnd = qMin(rangeEnd, endBeat);
+
+        double yStart, yEnd;
+        if (useTimeLinear)
+        {
+            // 设计意图：橙色矩形位置 = 音符实际时间位置（受排除项BPM影响），
+            // 网格线位置 = 真实歌曲BPM决定的节奏位置（不受排除项BPM影响）。
+            // 两者刻意不一致，让制谱者直观识别着色调整。
+            double startTimeMs = MathUtils::beatToMs(visStart, fullBpmTimeCache());
+            double endTimeMs = MathUtils::beatToMs(visEnd, fullBpmTimeCache());
+            yStart = baseY + sign * ((startTimeMs - scrollTimeMs) * pixelsPerMs);
+            yEnd = baseY + sign * ((endTimeMs - scrollTimeMs) * pixelsPerMs);
+        }
+        else
+        {
+            yStart = baseY + sign * ((visStart - m_scrollBeat) * invVisibleRange * canvasHeight);
+            yEnd = baseY + sign * ((visEnd - m_scrollBeat) * invVisibleRange * canvasHeight);
+        }
+
+        double rectTop = qMin(yStart, yEnd);
+        double rectHeight = qAbs(yEnd - yStart);
+        if (rectHeight <= 0)
+            continue;
+
+        // 绘制橙色半透明背景
+        QRectF orangeRect(lmargin, rectTop, availableWidth, rectHeight);
+        painter.fillRect(orangeRect, QColor(255, 165, 0, 60));
+
+        QRect canvasRect(lmargin, 0, availableWidth, canvasHeight);
+        m_gridRenderer->drawExcludedRangeGrid(painter, canvasRect, m_gridDivision,
+                                              rangeStart, rangeEnd,
+                                              visStart, visEnd,
+                                              yStart, yEnd,
+                                              useTimeLinear,
+                                              m_timeDivision,
+                                              scrollTimeMs, pixelsPerMs,
+                                              &fullBpmTimeCache(),
+                                              m_verticalFlip);
+    }
+}
+
+CoordContext ChartCanvas::buildCoordContext() const
+{
+    CoordContext ctx;
+    ctx.canvasHeight = height();
+    ctx.timeScale = m_timeScale;
+    ctx.verticalFlip = m_verticalFlip;
+    ctx.bpmCache = &bpmTimeCache();
+    ctx.fullBpmCache = &fullBpmTimeCache();
+    ctx.baseBpm = m_baseBpm;
+    ctx.offsetMs = chart() ? chart()->meta().offset : 0;
+    return ctx;
+}
+
+void ChartCanvas::startOverlayQueryTimer()
+{
+    if (m_overlayQueryTimer->isActive())
+        return;
+
+    const bool isPlaying = m_isPlaying;
+    int intervalMs;
+    if (isPlaying)
+        intervalMs = m_overlayPlaybackIntervalMs;
+    else
+        intervalMs = kOverlayQueryIntervalMsToolMode;
+
+    m_overlayQueryTimer->start(intervalMs);
+    m_overlayQueryScheduled = false;
+}
+
+void ChartCanvas::stopOverlayQueryTimer()
+{
+    m_overlayQueryTimer->stop();
+    m_overlayQueryScheduled = false;
+}
+
+void ChartCanvas::onOverlayQueryTimerFire()
+{
+    if (m_overlayQueryScheduled)
+        return;
+
+    PluginManager *pm = activePluginManager();
+    if (!pm || !m_pluginToolModeActive)
+        return;
+
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const bool canQuery = nowMs >= m_overlayQueryBlockedUntilMs;
+
+    if (!canQuery)
+        return;
+
+    m_overlayQueryScheduled = true;
+
+    QVariantMap overlayContext = buildPluginCanvasContext();
+    overlayContext.insert("overlay_snapshot_requested_at_ms", nowMs);
+
+    QElapsedTimer requestTimer;
+    requestTimer.start();
+
+    QList<PluginInterface::CanvasOverlayItem> newItems = pm->canvasOverlays(overlayContext);
+    m_overlayCache = newItems;
+    m_lastOverlayQueryMs = nowMs;
+
+    const qint64 elapsedMs = requestTimer.elapsed();
+    const bool isPlaying = m_isPlaying;
+
+    if (isPlaying)
+    {
+        if (elapsedMs > kOverlayPlaybackQueryBudgetMs)
+        {
+            if (m_overlayPlaybackIntervalMs < kOverlayQueryIntervalMsToolModePlayingMedium)
+                m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlayingMedium;
+            else if (m_overlayPlaybackIntervalMs < kOverlayQueryIntervalMsToolModePlayingSlow)
+                m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlayingSlow;
+        }
+        else if (m_overlayPlaybackIntervalMs > kOverlayQueryIntervalMsToolModePlaying)
+        {
+            m_overlayPlaybackIntervalMs = (m_overlayPlaybackIntervalMs > kOverlayQueryIntervalMsToolModePlayingMedium)
+                                              ? kOverlayQueryIntervalMsToolModePlayingMedium
+                                              : kOverlayQueryIntervalMsToolModePlaying;
+        }
+        m_overlayQueryBlockedUntilMs = 0;
+    }
+    else
+    {
+        m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlaying;
+        if (elapsedMs > kOverlaySlowCallThresholdMs)
+        {
+            m_overlayQueryBlockedUntilMs = nowMs + kOverlaySlowCallBackoffMs;
+            Logger::warn(QString("Plugin overlay query is slow (%1 ms); temporarily throttling for %2 ms.")
+                             .arg(elapsedMs)
+                             .arg(kOverlaySlowCallBackoffMs));
+        }
+        else
+        {
+            m_overlayQueryBlockedUntilMs = 0;
+        }
+    }
+
+    // Adaptive timer interval
+    int nextIntervalMs;
+    if (isPlaying)
+        nextIntervalMs = m_overlayPlaybackIntervalMs;
+    else
+        nextIntervalMs = kOverlayQueryIntervalMsToolMode;
+
+    m_overlayQueryTimer->start(nextIntervalMs);
+    m_overlayQueryScheduled = false;
+
+    update();
+}
 
 

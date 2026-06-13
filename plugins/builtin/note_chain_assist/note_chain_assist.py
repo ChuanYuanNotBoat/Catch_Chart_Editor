@@ -1988,7 +1988,6 @@ def _mark_dirty(context, flush=False):
 
 def _build_overlay(context):
     callbacks = {
-        "ensure_project_context": _ensure_project_context,
         "normalize_link": _normalize_link,
         "connected_anchor_segments": _connected_anchor_segments,
         "sample_segment_chart": _sample_segment_chart,

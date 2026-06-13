@@ -10,6 +10,7 @@
 #include <QHash>
 #include <QList>
 #include <QString>
+#include <QTimer>
 #include "model/Note.h"
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
@@ -329,6 +330,13 @@ private:
     QVariantMap m_pluginOverlayToggles;
     int m_pluginPlacementDensityOverride;
 
+    // Asynchronous overlay query (moved out of paintEvent for performance)
+    QTimer *m_overlayQueryTimer;
+    bool m_overlayQueryScheduled;
+    int m_overlayQueryIntervalMsIdle;
+    void startOverlayQueryTimer();
+    void stopOverlayQueryTimer();
+
     QSet<int> m_cachedHyperSet;
     bool m_hyperCacheValid;
 
@@ -357,6 +365,7 @@ private slots:
     void onSelectionChanged();
     void requestNextFrame();
     void onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq);
+    void onOverlayQueryTimerFire();
 
 private:
     QPixmap m_gridCache;
