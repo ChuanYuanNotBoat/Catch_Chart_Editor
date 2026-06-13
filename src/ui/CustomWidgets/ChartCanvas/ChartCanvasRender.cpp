@@ -467,76 +467,17 @@ void ChartCanvas::drawMirrorGuide(QPainter &painter, int canvasHeight, int lmarg
 
 void ChartCanvas::drawPluginOverlays(QPainter &painter, int lmargin, int rmargin)
 {
-    PluginManager *pm = activePluginManager();
-    if (!pm)
-        return;
+    Q_UNUSED(lmargin);
+    Q_UNUSED(rmargin);
+
     if (!m_pluginToolModeActive)
         return;
     if (!m_pluginOverlayToggles.value("overlay_enabled", true).toBool())
         return;
 
-    const bool isPlaying = m_playbackController &&
-                           m_playbackController->state() == PlaybackController::Playing;
-    const bool allowQueryInCurrentState = true;
-    const int queryIntervalMs = m_pluginToolModeActive
-                                    ? (isPlaying ? m_overlayPlaybackIntervalMs
-                                                 : kOverlayQueryIntervalMsToolMode)
-                                    : kOverlayQueryIntervalMsIdle;
-
-    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-    const bool canQuery = nowMs >= m_overlayQueryBlockedUntilMs;
-    const bool dueForQuery =
-        (m_lastOverlayQueryMs == 0) ||
-        (nowMs - m_lastOverlayQueryMs >= queryIntervalMs);
-
-    if (allowQueryInCurrentState && canQuery && dueForQuery)
-    {
-        QVariantMap overlayContext = buildPluginCanvasContext();
-        overlayContext.insert("left_margin", lmargin);
-        overlayContext.insert("right_margin", rmargin);
-        overlayContext.insert("overlay_snapshot_requested_at_ms", nowMs);
-
-        QElapsedTimer requestTimer;
-        requestTimer.start();
-        m_overlayCache = pm->canvasOverlays(overlayContext);
-        m_lastOverlayQueryMs = nowMs;
-
-        const qint64 elapsedMs = requestTimer.elapsed();
-        if (isPlaying)
-        {
-            if (elapsedMs > kOverlayPlaybackQueryBudgetMs)
-            {
-                if (m_overlayPlaybackIntervalMs < kOverlayQueryIntervalMsToolModePlayingMedium)
-                    m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlayingMedium;
-                else if (m_overlayPlaybackIntervalMs < kOverlayQueryIntervalMsToolModePlayingSlow)
-                    m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlayingSlow;
-            }
-            else if (m_overlayPlaybackIntervalMs > kOverlayQueryIntervalMsToolModePlaying)
-            {
-                m_overlayPlaybackIntervalMs = (m_overlayPlaybackIntervalMs > kOverlayQueryIntervalMsToolModePlayingMedium)
-                                                  ? kOverlayQueryIntervalMsToolModePlayingMedium
-                                                  : kOverlayQueryIntervalMsToolModePlaying;
-            }
-            m_overlayQueryBlockedUntilMs = 0;
-        }
-        else
-        {
-            m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlaying;
-            if (elapsedMs > kOverlaySlowCallThresholdMs)
-            {
-                m_overlayQueryBlockedUntilMs = nowMs + kOverlaySlowCallBackoffMs;
-                Logger::warn(QString("Plugin overlay query is slow (%1 ms); temporarily throttling for %2 ms.")
-                                 .arg(elapsedMs)
-                                 .arg(kOverlaySlowCallBackoffMs));
-            }
-            else
-            {
-                m_overlayQueryBlockedUntilMs = 0;
-            }
-        }
-    }
-
-    QList<PluginInterface::CanvasOverlayItem> drawItems = m_overlayCache;
+    const QList<PluginInterface::CanvasOverlayItem> &drawItems = m_overlayCache;
+    if (drawItems.isEmpty())
+        return;
 
     for (const auto &item : drawItems)
     {
