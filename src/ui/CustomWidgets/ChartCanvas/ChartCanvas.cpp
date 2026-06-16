@@ -308,9 +308,8 @@ const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache() const
     if (m_bpmCacheDirty)
         rebuildBpmTimeCache();
     // 当排除项不参与渲染且存在排除项时，返回过滤后的缓存（用于网格线和beat高度）
-    // 即使所有BPM被排除（m_excludedRenderBpmCache为空），也应返回空缓存
-    // 而非回退到完整缓存，以确保调用方的isEmpty()守卫生效
-    if (m_excludeRenderingEnabled && m_hasExcludedBpms)
+    // 需检查过滤缓存非空，保证 all-excluded 边界情况不丢失网格渲染
+    if (m_excludeRenderingEnabled && m_hasExcludedBpms && !m_excludedRenderBpmCache.isEmpty())
         return m_excludedRenderBpmCache;
     return m_bpmTimeCache;
 }
