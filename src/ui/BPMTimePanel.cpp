@@ -696,22 +696,53 @@ void BPMTimePanel::refreshExcludesList()
     const QColor excludedBg(255, 140, 140);
     const QColor excludedFg(80, 0, 0);
 
-    // Show excluded BPMs in the same format as BPM list: beatNum:num/den\tbpm
+    // Show exclude ranges with independent numbering
     const auto &bpmList = m_chartController->chart()->bpmList();
-    for (int i = 0; i < bpmList.size(); ++i)
+    for (int ri = 0; ri < m_currentExcludesData.excludes.size(); ++ri)
     {
-        const BpmEntry &bpm = bpmList[i];
-        if (!isBeatExcluded(bpm.beatNum, bpm.numerator, bpm.denominator, m_currentExcludesData))
-            continue;
+        const auto &range = m_currentExcludesData.excludes[ri];
+        QString label;
+        if (range.startBeatNum == range.endBeatNum
+            && range.startNumerator == range.endNumerator
+            && range.startDenominator == range.endDenominator)
+        {
+            label = QString("[%1:%2/%3]")
+                        .arg(range.startBeatNum)
+                        .arg(range.startNumerator)
+                        .arg(range.startDenominator);
+        }
+        else
+        {
+            label = QString("[%1:%2/%3 - %4:%5/%6]")
+                        .arg(range.startBeatNum).arg(range.startNumerator).arg(range.startDenominator)
+                        .arg(range.endBeatNum).arg(range.endNumerator).arg(range.endDenominator);
+        }
 
-        QString text = QString("%1:%2/%3\t%4")
-                           .arg(bpm.beatNum)
-                           .arg(bpm.numerator)
-                           .arg(bpm.denominator)
-                           .arg(bpm.bpm, 0, 'f', 3);
+        // Collect covered BPMs for detail text
+        QStringList coveredBpms;
+        for (int i = 0; i < bpmList.size(); ++i)
+        {
+            const BpmEntry &bpm = bpmList[i];
+            if (isBeatExcluded(bpm.beatNum, bpm.numerator, bpm.denominator, m_currentExcludesData))
+            {
+                // Check if this BPM belongs to this specific range
+                bool geStart = (bpm.beatNum > range.startBeatNum)
+                               || (bpm.beatNum == range.startBeatNum
+                                   && bpm.numerator * range.startDenominator >= range.startNumerator * bpm.denominator);
+                bool leEnd = (bpm.beatNum < range.endBeatNum)
+                             || (bpm.beatNum == range.endBeatNum
+                                 && bpm.numerator * range.endDenominator <= range.endNumerator * bpm.denominator);
+                if (geStart && leEnd)
+                    coveredBpms.append(QString("%1 bpm").arg(QString::number(bpm.bpm, 'f', 3)));
+            }
+        }
+
+        QString text = QString("#%1 %2").arg(ri + 1).arg(label);
+        if (!coveredBpms.isEmpty())
+            text += QString("  %1").arg(coveredBpms.join(", "));
 
         auto *item = new QListWidgetItem(text);
-        item->setData(Qt::UserRole, i);  // store original BPM index
+        item->setData(Qt::UserRole, ri);  // store excludes index
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
         item->setCheckState(Qt::Checked);
         item->setBackground(QBrush(excludedBg));
@@ -727,35 +758,19 @@ void BPMTimePanel::onExcludeItemChanged(QListWidgetItem *item)
     if (!item || !m_chartController || !m_chartController->chart())
         return;
 
-    // If unchecked, remove the exclude for this BPM
+    // If unchecked, remove this exclude range
     if (item->checkState() != Qt::Unchecked)
         return;
 
-    const int bpmIndex = item->data(Qt::UserRole).toInt();
-    const auto &bpmList = m_chartController->chart()->bpmList();
-    if (bpmIndex < 0 || bpmIndex >= bpmList.size())
+    const int excludesIndex = item->data(Qt::UserRole).toInt();
+    if (excludesIndex < 0 || excludesIndex >= m_currentExcludesData.excludes.size())
         return;
 
-    const BpmEntry &bpm = bpmList[bpmIndex];
+    m_currentExcludesData.excludes.removeAt(excludesIndex);
     QString chartPath = m_chartController->chartFilePath();
-    BpmAuxFiles::BpmExcludesData excludesData;
     if (!chartPath.isEmpty())
-        BpmAuxFiles::loadBpmExcludes(chartPath, excludesData);
+        BpmAuxFiles::saveBpmExcludes(chartPath, m_currentExcludesData);
 
-    // Remove matching single-point exclude entry
-    for (int i = excludesData.excludes.size() - 1; i >= 0; --i)
-    {
-        const auto &e = excludesData.excludes[i];
-        if (e.startBeatNum == bpm.beatNum && e.startNumerator == bpm.numerator && e.startDenominator == bpm.denominator
-            && e.endBeatNum == bpm.beatNum && e.endNumerator == bpm.numerator && e.endDenominator == bpm.denominator)
-        {
-            excludesData.excludes.removeAt(i);
-            break;
-        }
-    }
-    if (!chartPath.isEmpty())
-        BpmAuxFiles::saveBpmExcludes(chartPath, excludesData);
-    m_currentExcludesData = excludesData;
     refreshExcludesList();
     refreshBpmList();
     emit excludesDataChanged();

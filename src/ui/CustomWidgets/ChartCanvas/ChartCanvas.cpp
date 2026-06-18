@@ -253,15 +253,67 @@ void ChartCanvas::rebuildBpmTimeCache() const
             return false;
         };
 
+        // 检查特定BPM是否落入特定排除范围（与isExcluded不同：后者检查任意范围）
+        auto bpmInRange = [](const BpmEntry &bpm, const BpmAuxFiles::BpmExcludeRange &rng) -> bool
+        {
+            bool geStart = (bpm.beatNum > rng.startBeatNum)
+                           || (bpm.beatNum == rng.startBeatNum
+                               && bpm.numerator * rng.startDenominator >= rng.startNumerator * bpm.denominator);
+            bool leEnd = (bpm.beatNum < rng.endBeatNum)
+                         || (bpm.beatNum == rng.endBeatNum
+                             && bpm.numerator * rng.endDenominator <= rng.endNumerator * bpm.denominator);
+            return geStart && leEnd;
+        };
+
         for (const auto &range : excludesData.excludes)
         {
             double startBeat = MathUtils::beatToFloat(range.startBeatNum, range.startNumerator, range.startDenominator);
             double endBeat = MathUtils::beatToFloat(range.endBeatNum, range.endNumerator, range.endDenominator);
             if (endBeat < startBeat)
                 std::swap(startBeat, endBeat);
-            if (std::abs(endBeat - startBeat) <= 1e-9)
+
+            // 仅当此排除范围至少覆盖一个真实 BPM 条目时才加入 m_excludedBeatRanges。
+            // 否则空范围会触发橙色背景绘制和网格线跳过，
+            // 导致非排除区域出现橙色线。
+            bool coversBpm = false;
+            for (const auto &bpm : bpmList)
+            {
+                if (bpmInRange(bpm, range))
+                {
+                    coversBpm = true;
+                    break;
+                }
+            }
+            if (!coversBpm)
                 continue;
-            m_excludedBeatRanges.append(qMakePair(startBeat, endBeat));
+
+            if (std::abs(endBeat - startBeat) <= 1e-9)
+            {
+                // Single-point exclude range: extend to the next BPM
+                // position so the orange rectangle and independent
+                // beat-number grid have enough height to render.
+                double extendedEnd = startBeat;
+                for (int i = 0; i < bpmList.size(); ++i)
+                {
+                    if (bpmInRange(bpmList[i], range))
+                    {
+                        if (i + 1 < bpmList.size())
+                            extendedEnd = MathUtils::beatToFloat(bpmList[i + 1].beatNum,
+                                                                 bpmList[i + 1].numerator,
+                                                                 bpmList[i + 1].denominator);
+                        else
+                            extendedEnd = startBeat + 0.5; // minimum visible height
+                        break;
+                    }
+                }
+                if (extendedEnd <= startBeat)
+                    extendedEnd = startBeat + 0.5;
+                m_excludedBeatRanges.append(qMakePair(startBeat, extendedEnd));
+            }
+            else
+            {
+                m_excludedBeatRanges.append(qMakePair(startBeat, endBeat));
+            }
         }
         m_hasExcludedBpms = !m_excludedBeatRanges.isEmpty();
 
