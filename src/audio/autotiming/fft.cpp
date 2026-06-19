@@ -4,11 +4,11 @@
 namespace
 {
 
-const size_t kFftMaxN2 = size_t(1) << (kFftMaxV - 1);
-const double kPi = 3.1415926535897932;
+    const size_t kFftMaxN2 = size_t(1) << (kFftMaxV - 1);
+    const double kPi = 3.1415926535897932;
 
-Complex wTable[kFftMaxN];
-int bTable[kFftMaxN];
+    Complex wTable[kFftMaxN];
+    int bTable[kFftMaxN];
 
 } // namespace
 
@@ -29,7 +29,7 @@ void initFftTables()
     }
 }
 
-void BitReverse(int v, const Complex* datain, Complex* dataout)
+void BitReverse(int v, const Complex *datain, Complex *dataout)
 {
     size_t n = size_t(1) << v;
     size_t m = size_t(1) << (kFftMaxV - v);
@@ -39,7 +39,7 @@ void BitReverse(int v, const Complex* datain, Complex* dataout)
     }
 }
 
-void fft(int v, const Complex* datain, Complex* dataout)
+void fft(int v, const Complex *datain, Complex *dataout)
 {
     if (v < 0 || v > kFftMaxV)
     {

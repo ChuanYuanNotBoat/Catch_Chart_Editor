@@ -74,8 +74,7 @@ void NoteEditPanel::setupUi()
     connect(m_pluginToolsToggleBtn, &QToolButton::clicked, this, [this](bool checked)
             {
                 m_pluginToolsExpanded = checked;
-                refreshPluginToolsUi();
-            });
+                refreshPluginToolsUi(); });
     mainLayout->addWidget(m_pluginToolsToggleBtn);
 
     m_pluginToolsLabel = new QLabel(tr("Note Placement Tools:"), this);
@@ -338,4 +337,3 @@ void NoteEditPanel::retranslateUi()
     if (m_mirrorFlipButton)
         m_mirrorFlipButton->setText(tr("Flip Selected"));
 }
-

@@ -8,7 +8,7 @@
 
 namespace
 {
-constexpr qint64 kSeekSameValueThresholdMs = 2;
+    constexpr qint64 kSeekSameValueThresholdMs = 2;
 }
 
 PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent)
@@ -342,4 +342,3 @@ void PlaybackController::applyObservedTimeToAnchor(double observedMs, qint64 now
 
     resetFrameAnchor(clampedObserved, nowMs);
 }
-

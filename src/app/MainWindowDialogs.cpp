@@ -55,147 +55,147 @@
 
 namespace
 {
-QColor dialogTextColorFor(const QColor &bg)
-{
-    const double r = bg.redF();
-    const double g = bg.greenF();
-    const double b = bg.blueF();
-    const double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    return (luminance >= 0.5) ? QColor(20, 20, 20) : QColor(245, 245, 245);
-}
-
-QString themedDialogCss(const QColor &baseBg)
-{
-    const QColor fg = dialogTextColorFor(baseBg);
-    const bool darkTheme = (fg.lightness() > 128);
-    const QColor panelBg = darkTheme ? baseBg.lighter(108) : baseBg.darker(103);
-    const QColor inputBg = darkTheme ? panelBg.lighter(120) : panelBg.darker(105);
-    const QColor buttonBg = darkTheme ? panelBg.lighter(132) : panelBg.darker(112);
-    const QColor border = darkTheme ? panelBg.lighter(165) : panelBg.darker(145);
-    const QColor disabledText = darkTheme ? QColor("#9A9A9A") : QColor("#707070");
-
-    return QString(
-               "QDialog { background-color: %1; color: %2; }"
-               "QLabel, QCheckBox, QGroupBox { color: %2; }"
-               "QLineEdit, QAbstractSpinBox, QComboBox, QTextEdit, QPlainTextEdit {"
-               "  background-color: %3; color: %2; border: 1px solid %4; }"
-               "QPushButton { background-color: %5; color: %2; border: 1px solid %4; padding: 3px 8px; }"
-               "QPushButton:disabled { color: %6; }"
-               "QGroupBox { border: 1px solid %4; margin-top: 8px; padding-top: 10px; }"
-               "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: %2; }")
-        .arg(panelBg.name(), fg.name(), inputBg.name(), border.name(), buttonBg.name(), disabledText.name());
-}
-
-QString humanizeActionId(const QString &actionId)
-{
-    QStringList parts = actionId.split('_', Qt::SkipEmptyParts);
-    for (QString &p : parts)
+    QColor dialogTextColorFor(const QColor &bg)
     {
-        if (p.isEmpty())
-            continue;
-        p[0] = p[0].toUpper();
+        const double r = bg.redF();
+        const double g = bg.greenF();
+        const double b = bg.blueF();
+        const double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        return (luminance >= 0.5) ? QColor(20, 20, 20) : QColor(245, 245, 245);
     }
-    return parts.join(' ');
-}
 
-bool hasReadableGlyph(const QString &text)
-{
-    for (const QChar ch : text)
+    QString themedDialogCss(const QColor &baseBg)
     {
-        if (ch.isLetterOrNumber())
-            return true;
+        const QColor fg = dialogTextColorFor(baseBg);
+        const bool darkTheme = (fg.lightness() > 128);
+        const QColor panelBg = darkTheme ? baseBg.lighter(108) : baseBg.darker(103);
+        const QColor inputBg = darkTheme ? panelBg.lighter(120) : panelBg.darker(105);
+        const QColor buttonBg = darkTheme ? panelBg.lighter(132) : panelBg.darker(112);
+        const QColor border = darkTheme ? panelBg.lighter(165) : panelBg.darker(145);
+        const QColor disabledText = darkTheme ? QColor("#9A9A9A") : QColor("#707070");
+
+        return QString(
+                   "QDialog { background-color: %1; color: %2; }"
+                   "QLabel, QCheckBox, QGroupBox { color: %2; }"
+                   "QLineEdit, QAbstractSpinBox, QComboBox, QTextEdit, QPlainTextEdit {"
+                   "  background-color: %3; color: %2; border: 1px solid %4; }"
+                   "QPushButton { background-color: %5; color: %2; border: 1px solid %4; padding: 3px 8px; }"
+                   "QPushButton:disabled { color: %6; }"
+                   "QGroupBox { border: 1px solid %4; margin-top: 8px; padding-top: 10px; }"
+                   "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: %2; }")
+            .arg(panelBg.name(), fg.name(), inputBg.name(), border.name(), buttonBg.name(), disabledText.name());
     }
-    return false;
-}
 
-QString safeActionTitle(const PluginInterface::ToolAction &action)
-{
-    const QString raw = action.title.trimmed();
-    if (!raw.isEmpty() && raw != "?" && hasReadableGlyph(raw))
-        return raw;
-
-    const QString fallback = humanizeActionId(action.actionId.trimmed());
-    if (!fallback.isEmpty())
-        return fallback;
-    return QObject::tr("Plugin Action");
-}
-
-QString firstCanvasInteractionPluginId(PluginManager *pm)
-{
-    if (!pm)
-        return QString();
-    const QVector<PluginInterface *> plugins = pm->plugins();
-    for (PluginInterface *p : plugins)
+    QString humanizeActionId(const QString &actionId)
     {
-        if (!p)
-            continue;
-        if (p->pluginId().trimmed() == "builtin.note_chain_assist" &&
-            p->hasCapability(PluginInterface::kCapabilityCanvasInteraction))
+        QStringList parts = actionId.split('_', Qt::SkipEmptyParts);
+        for (QString &p : parts)
         {
+            if (p.isEmpty())
+                continue;
+            p[0] = p[0].toUpper();
+        }
+        return parts.join(' ');
+    }
+
+    bool hasReadableGlyph(const QString &text)
+    {
+        for (const QChar ch : text)
+        {
+            if (ch.isLetterOrNumber())
+                return true;
+        }
+        return false;
+    }
+
+    QString safeActionTitle(const PluginInterface::ToolAction &action)
+    {
+        const QString raw = action.title.trimmed();
+        if (!raw.isEmpty() && raw != "?" && hasReadableGlyph(raw))
+            return raw;
+
+        const QString fallback = humanizeActionId(action.actionId.trimmed());
+        if (!fallback.isEmpty())
+            return fallback;
+        return QObject::tr("Plugin Action");
+    }
+
+    QString firstCanvasInteractionPluginId(PluginManager *pm)
+    {
+        if (!pm)
+            return QString();
+        const QVector<PluginInterface *> plugins = pm->plugins();
+        for (PluginInterface *p : plugins)
+        {
+            if (!p)
+                continue;
+            if (p->pluginId().trimmed() == "builtin.note_chain_assist" &&
+                p->hasCapability(PluginInterface::kCapabilityCanvasInteraction))
+            {
+                return p->pluginId();
+            }
+        }
+        for (PluginInterface *p : plugins)
+        {
+            if (!p)
+                continue;
+            if (!p->hasCapability(PluginInterface::kCapabilityCanvasInteraction))
+                continue;
             return p->pluginId();
         }
+        return QString();
     }
-    for (PluginInterface *p : plugins)
+
+    void seedCurveSidecarFromSourceIfMissing(const QString &workingChartPath, const QString &sourceChartPath)
     {
-        if (!p)
-            continue;
-        if (!p->hasCapability(PluginInterface::kCapabilityCanvasInteraction))
-            continue;
-        return p->pluginId();
+        if (workingChartPath.trimmed().isEmpty() || sourceChartPath.trimmed().isEmpty())
+            return;
+
+        const QFileInfo workingInfo(workingChartPath);
+        const QFileInfo sourceInfo(sourceChartPath);
+        if (!workingInfo.exists() || !sourceInfo.exists())
+            return;
+
+        const QString workingCurve = QDir(workingInfo.absoluteDir().filePath(".mcce-plugin"))
+                                         .filePath(workingInfo.completeBaseName() + ".curve_tbd.json");
+        if (QFileInfo::exists(workingCurve))
+            return;
+
+        const QString sourceCurve = QDir(sourceInfo.absoluteDir().filePath(".mcce-plugin"))
+                                        .filePath(sourceInfo.completeBaseName() + ".curve_tbd.json");
+        if (!QFileInfo::exists(sourceCurve))
+            return;
+
+        QDir().mkpath(QFileInfo(workingCurve).absolutePath());
+        QFile::remove(workingCurve);
+        QFile::copy(sourceCurve, workingCurve);
     }
-    return QString();
-}
 
-void seedCurveSidecarFromSourceIfMissing(const QString &workingChartPath, const QString &sourceChartPath)
-{
-    if (workingChartPath.trimmed().isEmpty() || sourceChartPath.trimmed().isEmpty())
-        return;
+    void enrichContextWithSidecarPaths(QVariantMap *context, const QString &chartPath, const QString &sourceChartPath = QString())
+    {
+        if (!context)
+            return;
+        if (chartPath.trimmed().isEmpty())
+            return;
 
-    const QFileInfo workingInfo(workingChartPath);
-    const QFileInfo sourceInfo(sourceChartPath);
-    if (!workingInfo.exists() || !sourceInfo.exists())
-        return;
+        const QFileInfo fi(chartPath);
+        if (!fi.exists())
+            return;
 
-    const QString workingCurve = QDir(workingInfo.absoluteDir().filePath(".mcce-plugin"))
-                                     .filePath(workingInfo.completeBaseName() + ".curve_tbd.json");
-    if (QFileInfo::exists(workingCurve))
-        return;
+        seedCurveSidecarFromSourceIfMissing(chartPath, sourceChartPath);
 
-    const QString sourceCurve = QDir(sourceInfo.absoluteDir().filePath(".mcce-plugin"))
-                                    .filePath(sourceInfo.completeBaseName() + ".curve_tbd.json");
-    if (!QFileInfo::exists(sourceCurve))
-        return;
+        const QString sidecarDir = fi.absoluteDir().filePath(".mcce-plugin");
+        const QString chartStem = fi.completeBaseName();
+        context->insert("sidecar_dir", sidecarDir);
+        context->insert("curve_project_path", QDir(sidecarDir).filePath(chartStem + ".curve_tbd.json"));
 
-    QDir().mkpath(QFileInfo(workingCurve).absolutePath());
-    QFile::remove(workingCurve);
-    QFile::copy(sourceCurve, workingCurve);
-}
-
-void enrichContextWithSidecarPaths(QVariantMap *context, const QString &chartPath, const QString &sourceChartPath = QString())
-{
-    if (!context)
-        return;
-    if (chartPath.trimmed().isEmpty())
-        return;
-
-    const QFileInfo fi(chartPath);
-    if (!fi.exists())
-        return;
-
-    seedCurveSidecarFromSourceIfMissing(chartPath, sourceChartPath);
-
-    const QString sidecarDir = fi.absoluteDir().filePath(".mcce-plugin");
-    const QString chartStem = fi.completeBaseName();
-    context->insert("sidecar_dir", sidecarDir);
-    context->insert("curve_project_path", QDir(sidecarDir).filePath(chartStem + ".curve_tbd.json"));
-
-    QVariantList styleLibraryPaths;
-    styleLibraryPaths.append(QDir(sidecarDir).filePath("styles"));
-    const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (!appData.isEmpty())
-        styleLibraryPaths.append(QDir(appData).filePath("plugin_styles"));
-    context->insert("style_library_paths", styleLibraryPaths);
-}
+        QVariantList styleLibraryPaths;
+        styleLibraryPaths.append(QDir(sidecarDir).filePath("styles"));
+        const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        if (!appData.isEmpty())
+            styleLibraryPaths.append(QDir(appData).filePath("plugin_styles"));
+        context->insert("style_library_paths", styleLibraryPaths);
+    }
 }
 
 void MainWindow::populatePluginToolsMenu()
@@ -768,8 +768,7 @@ void MainWindow::openPluginManager()
                 if (d->leftPanel)
                     d->leftPanel->setPluginQuickActions({});
                 if (d->notePanel)
-                    d->notePanel->setPluginPlacementActions({});
-            });
+                    d->notePanel->setPluginPlacementActions({}); });
     connect(&dialog, &PluginManagerDialog::pluginsReloaded, this, [this, app]()
             {
                 QString chartPath = d->workingChartPath;
@@ -782,8 +781,7 @@ void MainWindow::openPluginManager()
                     app->pluginManager()->notifyChartLoaded(chartPath);
                     app->pluginManager()->notifyChartChanged();
                 }
-                refreshPluginUiExtensions();
-            });
+                refreshPluginUiExtensions(); });
     dialog.exec();
     refreshPluginUiExtensions();
 }
@@ -1264,10 +1262,3 @@ void MainWindow::adjustNoteSoundVolume()
         d->canvas->setNoteSoundVolume(originalVolume);
     }
 }
-
-
-
-
-
-
-

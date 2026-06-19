@@ -16,32 +16,32 @@
 
 namespace
 {
-bool copyFileKeepingStructure(const QString &baseDir, const QString &relativePath, const QString &destRoot);
+    bool copyFileKeepingStructure(const QString &baseDir, const QString &relativePath, const QString &destRoot);
 
-QString normalizedRelativePath(const QString &baseDir, const QString &pathLike)
-{
-    QString p = QDir::fromNativeSeparators(pathLike).trimmed();
-    if (p.isEmpty())
-        return QString();
-    p = QDir::cleanPath(p);
-    if (p.isEmpty() || p == ".")
-        return QString();
-    if (QDir::isAbsolutePath(p))
-        return QString();
-    if (p.startsWith("../") || p == "..")
-        return QString();
-    const QString abs = QDir(baseDir).absoluteFilePath(p);
-    const QString rel = QDir(baseDir).relativeFilePath(abs);
-    if (rel.startsWith("../") || rel == "..")
-        return QString();
-    return QDir::cleanPath(rel);
-}
+    QString normalizedRelativePath(const QString &baseDir, const QString &pathLike)
+    {
+        QString p = QDir::fromNativeSeparators(pathLike).trimmed();
+        if (p.isEmpty())
+            return QString();
+        p = QDir::cleanPath(p);
+        if (p.isEmpty() || p == ".")
+            return QString();
+        if (QDir::isAbsolutePath(p))
+            return QString();
+        if (p.startsWith("../") || p == "..")
+            return QString();
+        const QString abs = QDir(baseDir).absoluteFilePath(p);
+        const QString rel = QDir(baseDir).relativeFilePath(abs);
+        if (rel.startsWith("../") || rel == "..")
+            return QString();
+        return QDir::cleanPath(rel);
+    }
 
-bool isAllowedAssociatedFile(const QString &relativePath)
-{
-    // 使用 ChartFileSystem 注册表查询
-    return ChartFileSystem::ChartFileSystemRegistry::isAllowedFile(relativePath);
-}
+    bool isAllowedAssociatedFile(const QString &relativePath)
+    {
+        // 使用 ChartFileSystem 注册表查询
+        return ChartFileSystem::ChartFileSystemRegistry::isAllowedFile(relativePath);
+    }
 }
 
 void ProjectIO::initializeBuiltinFileTypes()
@@ -84,191 +84,192 @@ void ProjectIO::initializeBuiltinFileTypes()
 
 namespace
 {
-void collectReferencedFilesFromMc(const QString &mcAbsPath, const QString &baseDir, QSet<QString> &outFiles)
-{
-    QFile f(mcAbsPath);
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return;
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
-    f.close();
-    if (!doc.isObject())
-        return;
-
-    const QJsonObject root = doc.object();
-    const QJsonObject meta = root.value("meta").toObject();
-
-    const auto addRef = [&](const QString &ref) {
-        const QString rel = normalizedRelativePath(baseDir, ref);
-        if (!rel.isEmpty() && isAllowedAssociatedFile(rel))
-            outFiles.insert(rel);
-    };
-
-    addRef(meta.value("audio").toString());
-    addRef(meta.value("background").toString());
-
-    const QJsonArray notes = root.value("note").toArray();
-    for (const QJsonValue &v : notes)
+    void collectReferencedFilesFromMc(const QString &mcAbsPath, const QString &baseDir, QSet<QString> &outFiles)
     {
-        const QJsonObject obj = v.toObject();
-        if (obj.value("type").toInt(0) == 1)
-            addRef(obj.value("sound").toString());
-    }
-}
+        QFile f(mcAbsPath);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+            return;
+        const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+        f.close();
+        if (!doc.isObject())
+            return;
 
-void collectAllFilesFromDirectory(const QString &baseDir,
-                                  const QString &outputMczPath,
-                                  QSet<QString> &outFiles)
-{
-    const QString excludedOutput = QFileInfo(outputMczPath).absoluteFilePath();
-    QDirIterator it(baseDir,
-                    QDir::Files | QDir::Hidden | QDir::System | QDir::NoSymLinks,
-                    QDirIterator::Subdirectories);
-    while (it.hasNext())
-    {
-        const QString absPath = it.next();
-        if (QFileInfo(absPath).absoluteFilePath() == excludedOutput)
-            continue;
-        const QString rel = QDir(baseDir).relativeFilePath(absPath);
-        const QString cleanRel = QDir::cleanPath(rel);
-        if (cleanRel.startsWith("../") || cleanRel == "..")
-            continue;
-        outFiles.insert(cleanRel);
-    }
-}
+        const QJsonObject root = doc.object();
+        const QJsonObject meta = root.value("meta").toObject();
 
-bool packSelectedFilesToMcz(const QString &outputMczPath,
-                            const QString &chartBaseDir,
-                            const QSet<QString> &selectedRelativeFiles,
-                            const QString &logTag)
-{
-    if (selectedRelativeFiles.isEmpty())
-    {
-        Logger::error(QString("%1 - No files selected for export").arg(logTag));
-        return false;
+        const auto addRef = [&](const QString &ref)
+        {
+            const QString rel = normalizedRelativePath(baseDir, ref);
+            if (!rel.isEmpty() && isAllowedAssociatedFile(rel))
+                outFiles.insert(rel);
+        };
+
+        addRef(meta.value("audio").toString());
+        addRef(meta.value("background").toString());
+
+        const QJsonArray notes = root.value("note").toArray();
+        for (const QJsonValue &v : notes)
+        {
+            const QJsonObject obj = v.toObject();
+            if (obj.value("type").toInt(0) == 1)
+                addRef(obj.value("sound").toString());
+        }
     }
 
-    QTemporaryDir tempDir;
-    if (!tempDir.isValid())
+    void collectAllFilesFromDirectory(const QString &baseDir,
+                                      const QString &outputMczPath,
+                                      QSet<QString> &outFiles)
     {
-        Logger::error(QString("%1 - Failed to create temporary directory").arg(logTag));
-        return false;
+        const QString excludedOutput = QFileInfo(outputMczPath).absoluteFilePath();
+        QDirIterator it(baseDir,
+                        QDir::Files | QDir::Hidden | QDir::System | QDir::NoSymLinks,
+                        QDirIterator::Subdirectories);
+        while (it.hasNext())
+        {
+            const QString absPath = it.next();
+            if (QFileInfo(absPath).absoluteFilePath() == excludedOutput)
+                continue;
+            const QString rel = QDir(baseDir).relativeFilePath(absPath);
+            const QString cleanRel = QDir::cleanPath(rel);
+            if (cleanRel.startsWith("../") || cleanRel == "..")
+                continue;
+            outFiles.insert(cleanRel);
+        }
     }
 
-    const QString packRootDir = tempDir.path() + "/mczpack";
-    const QString payloadDir = packRootDir + "/0";
-    if (!QDir().mkpath(payloadDir))
+    bool packSelectedFilesToMcz(const QString &outputMczPath,
+                                const QString &chartBaseDir,
+                                const QSet<QString> &selectedRelativeFiles,
+                                const QString &logTag)
     {
-        Logger::error(QString("%1 - Failed to create payload directory").arg(logTag));
-        return false;
-    }
+        if (selectedRelativeFiles.isEmpty())
+        {
+            Logger::error(QString("%1 - No files selected for export").arg(logTag));
+            return false;
+        }
 
-    int copiedCount = 0;
-    for (const QString &rel : selectedRelativeFiles)
-    {
-        if (copyFileKeepingStructure(chartBaseDir, rel, payloadDir))
-            copiedCount++;
-    }
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+        {
+            Logger::error(QString("%1 - Failed to create temporary directory").arg(logTag));
+            return false;
+        }
 
-    if (copiedCount <= 0)
-    {
-        Logger::error(QString("%1 - No files copied into payload directory").arg(logTag));
-        return false;
-    }
+        const QString packRootDir = tempDir.path() + "/mczpack";
+        const QString payloadDir = packRootDir + "/0";
+        if (!QDir().mkpath(payloadDir))
+        {
+            Logger::error(QString("%1 - Failed to create payload directory").arg(logTag));
+            return false;
+        }
 
-    QString tempZipPath = tempDir.path() + "/output.zip";
-    QProcess process;
+        int copiedCount = 0;
+        for (const QString &rel : selectedRelativeFiles)
+        {
+            if (copyFileKeepingStructure(chartBaseDir, rel, payloadDir))
+                copiedCount++;
+        }
+
+        if (copiedCount <= 0)
+        {
+            Logger::error(QString("%1 - No files copied into payload directory").arg(logTag));
+            return false;
+        }
+
+        QString tempZipPath = tempDir.path() + "/output.zip";
+        QProcess process;
 
 #ifdef Q_OS_WIN
-    // 使用 ZipArchive 明确生成 '/' 分隔的 entry，避免 Windows '\' 路径导致 MCZ 兼容性问题。
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("MALODY_MCZ_PACK_DIR", QDir::toNativeSeparators(packRootDir));
-    env.insert("MALODY_MCZ_TEMP_ZIP", QDir::toNativeSeparators(tempZipPath));
-    process.setProcessEnvironment(env);
+        // 使用 ZipArchive 明确生成 '/' 分隔的 entry，避免 Windows '\' 路径导致 MCZ 兼容性问题。
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert("MALODY_MCZ_PACK_DIR", QDir::toNativeSeparators(packRootDir));
+        env.insert("MALODY_MCZ_TEMP_ZIP", QDir::toNativeSeparators(tempZipPath));
+        process.setProcessEnvironment(env);
 
-    QStringList args;
-    args << "-NoProfile"
-         << "-NonInteractive"
-         << "-Command"
-         << "$ErrorActionPreference='Stop'; "
-            "$src = $env:MALODY_MCZ_PACK_DIR; "
-            "$dst = $env:MALODY_MCZ_TEMP_ZIP; "
-            "if ([string]::IsNullOrWhiteSpace($src) -or [string]::IsNullOrWhiteSpace($dst)) "
-            "{ throw 'Missing export paths in environment.' }; "
-            "if (-not (Test-Path -LiteralPath $src)) "
-            "{ throw ('Pack directory not found: ' + $src) }; "
-            "$items = Get-ChildItem -LiteralPath $src -Recurse -File -Force; "
-            "if ($null -eq $items -or $items.Count -eq 0) "
-            "{ throw ('Pack directory is empty: ' + $src) }; "
-            "if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Force }; "
-            "Add-Type -AssemblyName 'System.IO.Compression'; "
-            "Add-Type -AssemblyName 'System.IO.Compression.FileSystem'; "
-            "$base = (Resolve-Path -LiteralPath $src).Path; "
-            "if (-not $base.EndsWith('\\')) { $base = $base + '\\' }; "
-            "$fs = [System.IO.File]::Open($dst, [System.IO.FileMode]::Create); "
-            "try { "
-            "  $zip = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create, $false); "
-            "  try { "
-            "    foreach ($f in $items) { "
-            "      $full = (Resolve-Path -LiteralPath $f.FullName).Path; "
-            "      if (-not $full.StartsWith($base, [System.StringComparison]::OrdinalIgnoreCase)) { continue }; "
-            "      $entryName = $full.Substring($base.Length) -replace '\\\\','/'; "
-            "      $entry = $zip.CreateEntry($entryName, [System.IO.Compression.CompressionLevel]::Optimal); "
-            "      $entryStream = $entry.Open(); "
-            "      try { "
-            "        $in = [System.IO.File]::OpenRead($f.FullName); "
-            "        try { $in.CopyTo($entryStream) } finally { $in.Dispose() } "
-            "      } finally { $entryStream.Dispose() } "
-            "    } "
-            "  } finally { $zip.Dispose() } "
-            "} finally { $fs.Dispose() }";
-    process.start("powershell.exe", args);
+        QStringList args;
+        args << "-NoProfile"
+             << "-NonInteractive"
+             << "-Command"
+             << "$ErrorActionPreference='Stop'; "
+                "$src = $env:MALODY_MCZ_PACK_DIR; "
+                "$dst = $env:MALODY_MCZ_TEMP_ZIP; "
+                "if ([string]::IsNullOrWhiteSpace($src) -or [string]::IsNullOrWhiteSpace($dst)) "
+                "{ throw 'Missing export paths in environment.' }; "
+                "if (-not (Test-Path -LiteralPath $src)) "
+                "{ throw ('Pack directory not found: ' + $src) }; "
+                "$items = Get-ChildItem -LiteralPath $src -Recurse -File -Force; "
+                "if ($null -eq $items -or $items.Count -eq 0) "
+                "{ throw ('Pack directory is empty: ' + $src) }; "
+                "if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Force }; "
+                "Add-Type -AssemblyName 'System.IO.Compression'; "
+                "Add-Type -AssemblyName 'System.IO.Compression.FileSystem'; "
+                "$base = (Resolve-Path -LiteralPath $src).Path; "
+                "if (-not $base.EndsWith('\\')) { $base = $base + '\\' }; "
+                "$fs = [System.IO.File]::Open($dst, [System.IO.FileMode]::Create); "
+                "try { "
+                "  $zip = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create, $false); "
+                "  try { "
+                "    foreach ($f in $items) { "
+                "      $full = (Resolve-Path -LiteralPath $f.FullName).Path; "
+                "      if (-not $full.StartsWith($base, [System.StringComparison]::OrdinalIgnoreCase)) { continue }; "
+                "      $entryName = $full.Substring($base.Length) -replace '\\\\','/'; "
+                "      $entry = $zip.CreateEntry($entryName, [System.IO.Compression.CompressionLevel]::Optimal); "
+                "      $entryStream = $entry.Open(); "
+                "      try { "
+                "        $in = [System.IO.File]::OpenRead($f.FullName); "
+                "        try { $in.CopyTo($entryStream) } finally { $in.Dispose() } "
+                "      } finally { $entryStream.Dispose() } "
+                "    } "
+                "  } finally { $zip.Dispose() } "
+                "} finally { $fs.Dispose() }";
+        process.start("powershell.exe", args);
 #else
-    process.setWorkingDirectory(packRootDir);
-    process.start("zip", QStringList() << "-r" << "-q" << tempZipPath << ".");
+        process.setWorkingDirectory(packRootDir);
+        process.start("zip", QStringList() << "-r" << "-q" << tempZipPath << ".");
 #endif
 
-    if (!process.waitForFinished(60000))
-    {
-        Logger::error(QString("%1 - Zip process timeout").arg(logTag));
-        process.kill();
-        return false;
+        if (!process.waitForFinished(60000))
+        {
+            Logger::error(QString("%1 - Zip process timeout").arg(logTag));
+            process.kill();
+            return false;
+        }
+
+        if (process.exitCode() != 0)
+        {
+            QString errMsg = process.readAllStandardError();
+            Logger::error(QString("%1 - Zip failed: %2").arg(logTag, errMsg));
+            return false;
+        }
+
+        if (QFile::exists(outputMczPath))
+            QFile::remove(outputMczPath);
+
+        if (!QFile::rename(tempZipPath, outputMczPath))
+        {
+            Logger::error(QString("%1 - Failed to rename zip to mcz").arg(logTag));
+            return false;
+        }
+
+        Logger::info(QString("%1 - Export successful (copied %2 files under 0/)")
+                         .arg(logTag)
+                         .arg(copiedCount));
+        return true;
     }
 
-    if (process.exitCode() != 0)
+    bool copyFileKeepingStructure(const QString &baseDir, const QString &relativePath, const QString &destRoot)
     {
-        QString errMsg = process.readAllStandardError();
-        Logger::error(QString("%1 - Zip failed: %2").arg(logTag, errMsg));
-        return false;
+        const QString src = QDir(baseDir).absoluteFilePath(relativePath);
+        if (!QFileInfo::exists(src) || !QFileInfo(src).isFile())
+            return false;
+
+        const QString dst = QDir(destRoot).absoluteFilePath(relativePath);
+        const QString dstDir = QFileInfo(dst).absolutePath();
+        if (!QDir().mkpath(dstDir))
+            return false;
+        QFile::remove(dst);
+        return QFile::copy(src, dst);
     }
-
-    if (QFile::exists(outputMczPath))
-        QFile::remove(outputMczPath);
-
-    if (!QFile::rename(tempZipPath, outputMczPath))
-    {
-        Logger::error(QString("%1 - Failed to rename zip to mcz").arg(logTag));
-        return false;
-    }
-
-    Logger::info(QString("%1 - Export successful (copied %2 files under 0/)")
-                     .arg(logTag)
-                     .arg(copiedCount));
-    return true;
-}
-
-bool copyFileKeepingStructure(const QString &baseDir, const QString &relativePath, const QString &destRoot)
-{
-    const QString src = QDir(baseDir).absoluteFilePath(relativePath);
-    if (!QFileInfo::exists(src) || !QFileInfo(src).isFile())
-        return false;
-
-    const QString dst = QDir(destRoot).absoluteFilePath(relativePath);
-    const QString dstDir = QFileInfo(dst).absolutePath();
-    if (!QDir().mkpath(dstDir))
-        return false;
-    QFile::remove(dst);
-    return QFile::copy(src, dst);
-}
 }
 
 bool ProjectIO::extractMcz(const QString &mczPath, const QString &outputDir, QString &outExtractedDir)

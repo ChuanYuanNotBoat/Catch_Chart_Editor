@@ -57,17 +57,17 @@ void DensityCurve::setPlaybackController(PlaybackController *controller)
     m_playbackController = controller;
     if (m_playbackController)
     {
-        connect(m_playbackController, &PlaybackController::positionChanged, this, [this](double timeMs) {
+        connect(m_playbackController, &PlaybackController::positionChanged, this, [this](double timeMs)
+                {
             if (!m_dragging)
-                syncCurrentTime(timeMs);
-        });
+                syncCurrentTime(timeMs); });
         if (m_playbackController->audioPlayer())
         {
-            connect(m_playbackController->audioPlayer(), &AudioPlayer::durationChanged, this, [this](qint64) {
+            connect(m_playbackController->audioPlayer(), &AudioPlayer::durationChanged, this, [this](qint64)
+                    {
                 syncDuration();
                 computeDensity();
-                update();
-            });
+                update(); });
         }
     }
     syncDuration();
@@ -82,13 +82,13 @@ void DensityCurve::setCanvas(ChartCanvas *canvas)
     m_canvas = canvas;
     if (m_canvas)
     {
-        connect(m_canvas, &ChartCanvas::scrollPositionChanged, this, [this](double beat) {
+        connect(m_canvas, &ChartCanvas::scrollPositionChanged, this, [this](double beat)
+                {
             if (m_dragging)
                 return;
             if (m_playbackController && m_playbackController->state() == PlaybackController::Playing)
                 return;
-            updateFromCanvasBeat(beat);
-        });
+            updateFromCanvasBeat(beat); });
     }
 }
 
@@ -320,4 +320,3 @@ void DensityCurve::mouseReleaseEvent(QMouseEvent *event)
     }
     event->accept();
 }
-

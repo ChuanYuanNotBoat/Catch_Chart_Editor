@@ -232,9 +232,9 @@ private:
     QPointF m_pasteDragStartPos;
     double m_pasteTimeOffset;
     double m_pasteXOffset;
-    double m_pasteTimeOffsetRaw;                         // Raw paste-preview time offset (unsnapped).
-    double m_pasteXOffsetRaw;                            // Raw paste-preview X offset.
-    double m_pasteAnchorBeat;                            // Reference beat locked when preview starts.
+    double m_pasteTimeOffsetRaw; // Raw paste-preview time offset (unsnapped).
+    double m_pasteXOffsetRaw;    // Raw paste-preview X offset.
+    double m_pasteAnchorBeat;    // Reference beat locked when preview starts.
     double m_pasteRefBeat;
     int m_pasteDragReferenceIndex;
     void cancelPaste();

@@ -9,39 +9,39 @@
 
 namespace
 {
-int reducedDenominator(int numerator, int denominator)
-{
-    if (denominator <= 0)
-        return 1;
-    if (numerator == 0)
-        return 1;
-
-    const int n = qAbs(numerator);
-    const int g = std::gcd(n, denominator);
-    if (g <= 0)
-        return denominator;
-    return denominator / g;
-}
-
-bool shouldColorizeDivision(int reducedDen)
-{
-    return reducedDen == 2 || reducedDen == 3 || reducedDen == 4 || reducedDen == 6;
-}
-
-bool shouldColorizeByPolicy(int reducedDen, int timeDivision,
-                            const QString &colorPreset, const QSet<int> &customDivisions)
-{
-    const QString preset = colorPreset.trimmed().toLower();
-    if (preset == "all")
-        return reducedDen > 0;
-    if (preset == "classic")
+    int reducedDenominator(int numerator, int denominator)
     {
-        if (timeDivision >= 8)
-            return reducedDen == 2 || reducedDen == 4;
-        return shouldColorizeDivision(reducedDen);
+        if (denominator <= 0)
+            return 1;
+        if (numerator == 0)
+            return 1;
+
+        const int n = qAbs(numerator);
+        const int g = std::gcd(n, denominator);
+        if (g <= 0)
+            return denominator;
+        return denominator / g;
     }
-    return customDivisions.contains(reducedDen);
-}
+
+    bool shouldColorizeDivision(int reducedDen)
+    {
+        return reducedDen == 2 || reducedDen == 3 || reducedDen == 4 || reducedDen == 6;
+    }
+
+    bool shouldColorizeByPolicy(int reducedDen, int timeDivision,
+                                const QString &colorPreset, const QSet<int> &customDivisions)
+    {
+        const QString preset = colorPreset.trimmed().toLower();
+        if (preset == "all")
+            return reducedDen > 0;
+        if (preset == "classic")
+        {
+            if (timeDivision >= 8)
+                return reducedDen == 2 || reducedDen == 4;
+            return shouldColorizeDivision(reducedDen);
+        }
+        return customDivisions.contains(reducedDen);
+    }
 }
 
 void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions,

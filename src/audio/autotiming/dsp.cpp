@@ -5,17 +5,17 @@
 #include <algorithm>
 
 #ifdef COMPILER_MSVC
-#pragma warning(disable:4996)
+#pragma warning(disable : 4996)
 #endif
 
 namespace
 {
 
-const double kPi = 3.1415926535897932;
+    const double kPi = 3.1415926535897932;
 
 } // namespace
 
-void filterSos(unsigned sections, const double (*coeff)[5], std::vector<float>& x)
+void filterSos(unsigned sections, const double (*coeff)[5], std::vector<float> &x)
 {
     // Force flushing denormal values to zero. Safe for IIR filters.
 #ifdef ARCH_X86_GENERIC
@@ -57,7 +57,7 @@ void filterSos(unsigned sections, const double (*coeff)[5], std::vector<float>& 
 #endif
 }
 
-std::vector<float> autocorr(const std::vector<float>& x, size_t len)
+std::vector<float> autocorr(const std::vector<float> &x, size_t len)
 {
     int v = ceillog2(x.size() + len - 1);
     size_t n = size_t(1) << v;
@@ -82,8 +82,8 @@ std::vector<float> autocorr(const std::vector<float>& x, size_t len)
     return y;
 }
 
-std::vector<float> xcorrpart(const std::vector<float>& x,
-                             const std::vector<float>& y, size_t maxlen)
+std::vector<float> xcorrpart(const std::vector<float> &x,
+                             const std::vector<float> &y, size_t maxlen)
 {
     size_t len = std::min(std::min(x.size(), y.size()), maxlen);
     size_t pos = (std::min(x.size(), y.size()) - len) / 2;
@@ -114,7 +114,7 @@ std::vector<float> xcorrpart(const std::vector<float>& x,
     return ret;
 }
 
-double corr(const std::vector<float>& x, const std::vector<float>& y, int delay)
+double corr(const std::vector<float> &x, const std::vector<float> &y, int delay)
 {
     double sxx = 0.0;
     double sxy = 0.0;
@@ -130,7 +130,7 @@ double corr(const std::vector<float>& x, const std::vector<float>& y, int delay)
     return sxy / sqrt(sxx * syy);
 }
 
-std::vector<float> resample(const std::vector<float>& x, double rate)
+std::vector<float> resample(const std::vector<float> &x, double rate)
 {
     std::vector<float> y(static_cast<size_t>(ceil(x.size() * rate)));
     for (size_t i = 0; i < y.size(); i++)

@@ -4,7 +4,7 @@
 #include <cmath>
 #include <limits>
 
-HyperfruitDetector::HyperfruitDetector() : m_cs(3.8) 
+HyperfruitDetector::HyperfruitDetector() : m_cs(3.8)
 {
 }
 

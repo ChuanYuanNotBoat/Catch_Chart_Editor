@@ -39,13 +39,13 @@
 
 namespace
 {
-PluginManager *activePluginManager()
-{
-    auto *app = qobject_cast<Application *>(QCoreApplication::instance());
-    if (!app || !app->pluginSystemReady())
-        return nullptr;
-    return app->pluginManager();
-}
+    PluginManager *activePluginManager()
+    {
+        auto *app = qobject_cast<Application *>(QCoreApplication::instance());
+        if (!app || !app->pluginSystemReady())
+            return nullptr;
+        return app->pluginManager();
+    }
 }
 
 ChartCanvas::ChartCanvas(QWidget *parent)
@@ -316,20 +316,23 @@ void ChartCanvas::rebuildNoteTimesCache()
 
     std::sort(m_sortedNormalNoteIndicesByBeat.begin(),
               m_sortedNormalNoteIndicesByBeat.end(),
-              [this](int a, int b) {
+              [this](int a, int b)
+              {
                   return m_noteBeatPositions[a] < m_noteBeatPositions[b];
               });
     std::sort(m_sortedRainNoteIndicesByBeat.begin(),
               m_sortedRainNoteIndicesByBeat.end(),
-              [this](int a, int b) {
+              [this](int a, int b)
+              {
                   return m_noteBeatPositions[a] < m_noteBeatPositions[b];
               });
 
     std::sort(m_playableNoteTimesMs.begin(), m_playableNoteTimesMs.end());
     m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-        m_playableNoteTimesMs.begin(),
-        m_playableNoteTimesMs.end(),
-        m_lastNoteSoundTimeMs) - m_playableNoteTimesMs.begin());
+                                                   m_playableNoteTimesMs.begin(),
+                                                   m_playableNoteTimesMs.end(),
+                                                   m_lastNoteSoundTimeMs) -
+                                               m_playableNoteTimesMs.begin());
 
     m_timesDirty = false;
     m_noteDataDirty = false;

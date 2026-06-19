@@ -16,22 +16,22 @@
 
 namespace
 {
-void fillPluginEventModifiers(PluginInterface::CanvasInputEvent *outEvent, Qt::KeyboardModifiers eventModifiers)
-{
-    if (!outEvent)
-        return;
-    outEvent->modifiers = static_cast<int>(eventModifiers);
-    outEvent->shiftDown = eventModifiers.testFlag(Qt::ShiftModifier);
-    outEvent->ctrlDown = eventModifiers.testFlag(Qt::ControlModifier);
-}
+    void fillPluginEventModifiers(PluginInterface::CanvasInputEvent *outEvent, Qt::KeyboardModifiers eventModifiers)
+    {
+        if (!outEvent)
+            return;
+        outEvent->modifiers = static_cast<int>(eventModifiers);
+        outEvent->shiftDown = eventModifiers.testFlag(Qt::ShiftModifier);
+        outEvent->ctrlDown = eventModifiers.testFlag(Qt::ControlModifier);
+    }
 
-PluginManager *activePluginManager()
-{
-    auto *app = qobject_cast<Application *>(QCoreApplication::instance());
-    if (!app || !app->pluginSystemReady())
-        return nullptr;
-    return app->pluginManager();
-}
+    PluginManager *activePluginManager()
+    {
+        auto *app = qobject_cast<Application *>(QCoreApplication::instance());
+        if (!app || !app->pluginSystemReady())
+            return nullptr;
+        return app->pluginManager();
+    }
 }
 
 void ChartCanvas::playbackPositionChanged(double timeMs)
@@ -49,9 +49,10 @@ void ChartCanvas::playbackPositionChanged(double timeMs)
         m_currentPlayTime = clampedTimeMs;
         m_lastNoteSoundTimeMs = clampedTimeMs;
         m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-            m_playableNoteTimesMs.begin(),
-            m_playableNoteTimesMs.end(),
-            m_lastNoteSoundTimeMs) - m_playableNoteTimesMs.begin());
+                                                       m_playableNoteTimesMs.begin(),
+                                                       m_playableNoteTimesMs.end(),
+                                                       m_lastNoteSoundTimeMs) -
+                                                   m_playableNoteTimesMs.begin());
         if (visualChanged)
             update();
         return;
@@ -67,9 +68,10 @@ void ChartCanvas::playbackPositionChanged(double timeMs)
         if (audioTimeMs < m_lastNoteSoundTimeMs - 2.0)
         {
             m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                m_playableNoteTimesMs.begin(),
-                m_playableNoteTimesMs.end(),
-                audioTimeMs) - m_playableNoteTimesMs.begin());
+                                                           m_playableNoteTimesMs.begin(),
+                                                           m_playableNoteTimesMs.end(),
+                                                           audioTimeMs) -
+                                                       m_playableNoteTimesMs.begin());
         }
 
         bool hasHit = false;
@@ -352,7 +354,3 @@ void ChartCanvas::cancelPaste()
         emit statusMessage(tr("Paste cancelled."));
     }
 }
-
-
-
-

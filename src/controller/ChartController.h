@@ -11,7 +11,7 @@
  *
  * 线程安全：所有方法必须在主线程调用。
  * 修改信号：任何数据变化都会发送 chartChanged() 信号。
- * 
+ *
  */
 class ChartController : public QObject
 {

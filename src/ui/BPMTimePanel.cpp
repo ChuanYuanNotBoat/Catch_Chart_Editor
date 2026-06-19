@@ -191,7 +191,8 @@ void BPMTimePanel::onMeasureBpmClicked()
     BpmMeasureDialog dialog(this);
     dialog.setCurrentTimeText(timeStr);
     dialog.setStatusText(tr("Ready to measure."));
-    connect(&dialog, &BpmMeasureDialog::measureRequested, this, [this, &dialog](int durationSeconds, int mode) {
+    connect(&dialog, &BpmMeasureDialog::measureRequested, this, [this, &dialog](int durationSeconds, int mode)
+            {
         dialog.setMeasuring(true);
         dialog.setStatusText(tr("Measuring audio..."));
         QApplication::processEvents();
@@ -261,8 +262,7 @@ void BPMTimePanel::onMeasureBpmClicked()
         {
             const int measuredOffset = qRound(result.estimatedOffsetMs);
             dialog.setMeasuredOffset(measuredOffset);
-        }
-    });
+        } });
 
     if (dialog.exec() == QDialog::Accepted)
     {
@@ -287,8 +287,7 @@ void BPMTimePanel::onMeasureBpmClicked()
             fromStart
                 ? tr("Write measured BPM %1 at chart start (0:0/1)?").arg(QString::number(measuredBpm, 'f', 2))
                 : tr("Write measured BPM %1 at current time?").arg(QString::number(measuredBpm, 'f', 2)),
-            QMessageBox::Yes | QMessageBox::No
-        );
+            QMessageBox::Yes | QMessageBox::No);
 
         if (reply == QMessageBox::Yes)
         {

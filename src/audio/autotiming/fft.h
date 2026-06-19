@@ -19,4 +19,4 @@ void initFftTables();
 /// @param v      FFT order (2^v = transform size), must be in [0, kFftMaxV].
 /// @param datain  Input array of size 2^v.
 /// @param dataout Output array of size 2^v (may alias datain).
-void fft(int v, const Complex* datain, Complex* dataout);
+void fft(int v, const Complex *datain, Complex *dataout);

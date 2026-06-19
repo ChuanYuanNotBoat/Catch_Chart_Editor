@@ -15,217 +15,217 @@
 
 namespace
 {
-bool bpmLess(const BpmEntry &a, const BpmEntry &b)
-{
-    if (a.beatNum != b.beatNum)
-        return a.beatNum < b.beatNum;
-
-    const double aPos = static_cast<double>(a.numerator) / a.denominator;
-    const double bPos = static_cast<double>(b.numerator) / b.denominator;
-    return aPos < bPos;
-}
-
-bool bpmExactEqual(const BpmEntry &a, const BpmEntry &b)
-{
-    return a.beatNum == b.beatNum &&
-           a.numerator == b.numerator &&
-           a.denominator == b.denominator &&
-           std::abs(a.bpm - b.bpm) < 1e-9;
-}
-
-bool bpmPositionEqual(const BpmEntry &a, const BpmEntry &b)
-{
-    return a.beatNum == b.beatNum &&
-           a.numerator == b.numerator &&
-           a.denominator == b.denominator;
-}
-
-int findBpmExactIndex(const QVector<BpmEntry> &list, const BpmEntry &target)
-{
-    for (int i = 0; i < list.size(); ++i)
+    bool bpmLess(const BpmEntry &a, const BpmEntry &b)
     {
-        if (bpmExactEqual(list[i], target))
-            return i;
+        if (a.beatNum != b.beatNum)
+            return a.beatNum < b.beatNum;
+
+        const double aPos = static_cast<double>(a.numerator) / a.denominator;
+        const double bPos = static_cast<double>(b.numerator) / b.denominator;
+        return aPos < bPos;
     }
-    return -1;
-}
 
-int findBpmIndexByPosition(const QVector<BpmEntry> &list, const BpmEntry &target)
-{
-    int bestIndex = -1;
-    double bestDelta = std::numeric_limits<double>::max();
-    for (int i = 0; i < list.size(); ++i)
+    bool bpmExactEqual(const BpmEntry &a, const BpmEntry &b)
     {
-        if (!bpmPositionEqual(list[i], target))
-            continue;
-        const double delta = std::abs(list[i].bpm - target.bpm);
-        if (delta < bestDelta)
+        return a.beatNum == b.beatNum &&
+               a.numerator == b.numerator &&
+               a.denominator == b.denominator &&
+               std::abs(a.bpm - b.bpm) < 1e-9;
+    }
+
+    bool bpmPositionEqual(const BpmEntry &a, const BpmEntry &b)
+    {
+        return a.beatNum == b.beatNum &&
+               a.numerator == b.numerator &&
+               a.denominator == b.denominator;
+    }
+
+    int findBpmExactIndex(const QVector<BpmEntry> &list, const BpmEntry &target)
+    {
+        for (int i = 0; i < list.size(); ++i)
         {
-            bestDelta = delta;
-            bestIndex = i;
+            if (bpmExactEqual(list[i], target))
+                return i;
         }
+        return -1;
     }
-    return bestIndex;
-}
 
-void sortBpmList(QVector<BpmEntry> &list)
-{
-    std::sort(list.begin(), list.end(), bpmLess);
-}
-
-bool removeBpmByValue(Chart &chart, const BpmEntry &entry, int fallbackIndex)
-{
-    QVector<BpmEntry> &list = chart.bpmList();
-    int idx = findBpmExactIndex(list, entry);
-    if (idx < 0)
-        idx = findBpmIndexByPosition(list, entry);
-    if (idx < 0 && fallbackIndex >= 0 && fallbackIndex < list.size())
-        idx = fallbackIndex;
-    if (idx < 0 || idx >= list.size())
-        return false;
-
-    list.removeAt(idx);
-    return true;
-}
-
-bool replaceBpmByValue(Chart &chart, const BpmEntry &from, const BpmEntry &to, int fallbackIndex)
-{
-    QVector<BpmEntry> &list = chart.bpmList();
-    int idx = findBpmExactIndex(list, from);
-    if (idx < 0)
-        idx = findBpmIndexByPosition(list, from);
-    if (idx < 0 && fallbackIndex >= 0 && fallbackIndex < list.size())
-        idx = fallbackIndex;
-    if (idx < 0 || idx >= list.size())
-        return false;
-
-    list[idx] = to;
-    sortBpmList(list);
-    return true;
-}
-
-QString noteSignature(const Note &note)
-{
-    return QString("%1|%2|%3|%4|%5|%6|%7|%8|%9|%10|%11|%12")
-        .arg(note.id)
-        .arg(static_cast<int>(note.type))
-        .arg(note.beatNum)
-        .arg(note.numerator)
-        .arg(note.denominator)
-        .arg(note.x)
-        .arg(note.endBeatNum)
-        .arg(note.endNumerator)
-        .arg(note.endDenominator)
-        .arg(note.sound)
-        .arg(note.vol)
-        .arg(note.offset);
-}
-
-bool isReferenceNoteValid(const Note &note)
-{
-    // Remove/move-from notes are references to existing data.
-    // We still require basic timeline/lane validity to block malformed payloads.
-    return note.isTimeValid() && note.isXValid();
-}
-
-bool isTargetNoteValid(const Note &note)
-{
-    // Add/move-to notes must be full valid notes before mutating chart data.
-    return note.isValid() && note.isTimeValid() && note.isXValid();
-}
-
-QHash<QString, int> buildNoteInventory(const QVector<Note> &notes)
-{
-    QHash<QString, int> inventory;
-    for (const Note &note : notes)
+    int findBpmIndexByPosition(const QVector<BpmEntry> &list, const BpmEntry &target)
     {
+        int bestIndex = -1;
+        double bestDelta = std::numeric_limits<double>::max();
+        for (int i = 0; i < list.size(); ++i)
+        {
+            if (!bpmPositionEqual(list[i], target))
+                continue;
+            const double delta = std::abs(list[i].bpm - target.bpm);
+            if (delta < bestDelta)
+            {
+                bestDelta = delta;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    void sortBpmList(QVector<BpmEntry> &list)
+    {
+        std::sort(list.begin(), list.end(), bpmLess);
+    }
+
+    bool removeBpmByValue(Chart &chart, const BpmEntry &entry, int fallbackIndex)
+    {
+        QVector<BpmEntry> &list = chart.bpmList();
+        int idx = findBpmExactIndex(list, entry);
+        if (idx < 0)
+            idx = findBpmIndexByPosition(list, entry);
+        if (idx < 0 && fallbackIndex >= 0 && fallbackIndex < list.size())
+            idx = fallbackIndex;
+        if (idx < 0 || idx >= list.size())
+            return false;
+
+        list.removeAt(idx);
+        return true;
+    }
+
+    bool replaceBpmByValue(Chart &chart, const BpmEntry &from, const BpmEntry &to, int fallbackIndex)
+    {
+        QVector<BpmEntry> &list = chart.bpmList();
+        int idx = findBpmExactIndex(list, from);
+        if (idx < 0)
+            idx = findBpmIndexByPosition(list, from);
+        if (idx < 0 && fallbackIndex >= 0 && fallbackIndex < list.size())
+            idx = fallbackIndex;
+        if (idx < 0 || idx >= list.size())
+            return false;
+
+        list[idx] = to;
+        sortBpmList(list);
+        return true;
+    }
+
+    QString noteSignature(const Note &note)
+    {
+        return QString("%1|%2|%3|%4|%5|%6|%7|%8|%9|%10|%11|%12")
+            .arg(note.id)
+            .arg(static_cast<int>(note.type))
+            .arg(note.beatNum)
+            .arg(note.numerator)
+            .arg(note.denominator)
+            .arg(note.x)
+            .arg(note.endBeatNum)
+            .arg(note.endNumerator)
+            .arg(note.endDenominator)
+            .arg(note.sound)
+            .arg(note.vol)
+            .arg(note.offset);
+    }
+
+    bool isReferenceNoteValid(const Note &note)
+    {
+        // Remove/move-from notes are references to existing data.
+        // We still require basic timeline/lane validity to block malformed payloads.
+        return note.isTimeValid() && note.isXValid();
+    }
+
+    bool isTargetNoteValid(const Note &note)
+    {
+        // Add/move-to notes must be full valid notes before mutating chart data.
+        return note.isValid() && note.isTimeValid() && note.isXValid();
+    }
+
+    QHash<QString, int> buildNoteInventory(const QVector<Note> &notes)
+    {
+        QHash<QString, int> inventory;
+        for (const Note &note : notes)
+        {
+            const QString key = noteSignature(note);
+            inventory[key] = inventory.value(key, 0) + 1;
+        }
+        return inventory;
+    }
+
+    bool consumeFromInventory(QHash<QString, int> *inventory, const Note &note)
+    {
+        if (!inventory)
+            return false;
         const QString key = noteSignature(note);
-        inventory[key] = inventory.value(key, 0) + 1;
-    }
-    return inventory;
-}
-
-bool consumeFromInventory(QHash<QString, int> *inventory, const Note &note)
-{
-    if (!inventory)
-        return false;
-    const QString key = noteSignature(note);
-    const int count = inventory->value(key, 0);
-    if (count <= 0)
-        return false;
-    if (count == 1)
-        inventory->remove(key);
-    else
-        (*inventory)[key] = count - 1;
-    return true;
-}
-
-bool validateBatchEditPayload(const QVector<Note> &notesToAdd,
-                              const QVector<Note> &notesToRemove,
-                              const QList<QPair<Note, Note>> &notesToMove,
-                              const Chart &currentChart,
-                              QString *reason)
-{
-    auto fail = [reason](const QString &msg) -> bool
-    {
-        if (reason)
-            *reason = msg;
-        return false;
-    };
-
-    if (notesToAdd.isEmpty() && notesToRemove.isEmpty() && notesToMove.isEmpty())
-        return fail("Batch edit is empty.");
-
-    constexpr int kMaxBatchOperations = 20000;
-    const int totalOps = notesToAdd.size() + notesToRemove.size() + notesToMove.size();
-    if (totalOps > kMaxBatchOperations)
-    {
-        return fail(QString("Batch edit too large (%1 ops > %2 limit).")
-                        .arg(totalOps)
-                        .arg(kMaxBatchOperations));
+        const int count = inventory->value(key, 0);
+        if (count <= 0)
+            return false;
+        if (count == 1)
+            inventory->remove(key);
+        else
+            (*inventory)[key] = count - 1;
+        return true;
     }
 
-    QHash<QString, int> sourceInventory = buildNoteInventory(currentChart.notes());
-
-    QSet<QString> removeKeys;
-    for (const Note &note : notesToRemove)
+    bool validateBatchEditPayload(const QVector<Note> &notesToAdd,
+                                  const QVector<Note> &notesToRemove,
+                                  const QList<QPair<Note, Note>> &notesToMove,
+                                  const Chart &currentChart,
+                                  QString *reason)
     {
-        if (!isReferenceNoteValid(note))
-            return fail("Invalid remove note detected.");
-        if (!consumeFromInventory(&sourceInventory, note))
-            return fail("Remove note does not exist in current chart.");
-        removeKeys.insert(noteSignature(note));
+        auto fail = [reason](const QString &msg) -> bool
+        {
+            if (reason)
+                *reason = msg;
+            return false;
+        };
+
+        if (notesToAdd.isEmpty() && notesToRemove.isEmpty() && notesToMove.isEmpty())
+            return fail("Batch edit is empty.");
+
+        constexpr int kMaxBatchOperations = 20000;
+        const int totalOps = notesToAdd.size() + notesToRemove.size() + notesToMove.size();
+        if (totalOps > kMaxBatchOperations)
+        {
+            return fail(QString("Batch edit too large (%1 ops > %2 limit).")
+                            .arg(totalOps)
+                            .arg(kMaxBatchOperations));
+        }
+
+        QHash<QString, int> sourceInventory = buildNoteInventory(currentChart.notes());
+
+        QSet<QString> removeKeys;
+        for (const Note &note : notesToRemove)
+        {
+            if (!isReferenceNoteValid(note))
+                return fail("Invalid remove note detected.");
+            if (!consumeFromInventory(&sourceInventory, note))
+                return fail("Remove note does not exist in current chart.");
+            removeKeys.insert(noteSignature(note));
+        }
+
+        QSet<QString> moveFromKeys;
+        for (const auto &mv : notesToMove)
+        {
+            const Note &from = mv.first;
+            const Note &to = mv.second;
+            if (!isReferenceNoteValid(from))
+                return fail("Invalid move source note detected.");
+            if (!isTargetNoteValid(to))
+                return fail("Invalid move target note detected.");
+
+            const QString fromKey = noteSignature(from);
+            if (moveFromKeys.contains(fromKey))
+                return fail("Duplicated move source note detected.");
+            moveFromKeys.insert(fromKey);
+
+            if (removeKeys.contains(fromKey))
+                return fail("Conflicting remove + move source detected.");
+            if (!consumeFromInventory(&sourceInventory, from))
+                return fail("Move source note does not exist in current chart.");
+        }
+
+        for (const Note &note : notesToAdd)
+        {
+            if (!isTargetNoteValid(note))
+                return fail("Invalid add note detected.");
+        }
+
+        return true;
     }
-
-    QSet<QString> moveFromKeys;
-    for (const auto &mv : notesToMove)
-    {
-        const Note &from = mv.first;
-        const Note &to = mv.second;
-        if (!isReferenceNoteValid(from))
-            return fail("Invalid move source note detected.");
-        if (!isTargetNoteValid(to))
-            return fail("Invalid move target note detected.");
-
-        const QString fromKey = noteSignature(from);
-        if (moveFromKeys.contains(fromKey))
-            return fail("Duplicated move source note detected.");
-        moveFromKeys.insert(fromKey);
-
-        if (removeKeys.contains(fromKey))
-            return fail("Conflicting remove + move source detected.");
-        if (!consumeFromInventory(&sourceInventory, from))
-            return fail("Move source note does not exist in current chart.");
-    }
-
-    for (const Note &note : notesToAdd)
-    {
-        if (!isTargetNoteValid(note))
-            return fail("Invalid add note detected.");
-    }
-
-    return true;
-}
 } // namespace
 
 // 撤销命令基类

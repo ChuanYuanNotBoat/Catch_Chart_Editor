@@ -41,49 +41,48 @@
 
 namespace
 {
-PluginManager *activePluginManager()
-{
-    auto *app = qobject_cast<Application *>(QCoreApplication::instance());
-    if (!app || !app->pluginSystemReady())
-        return nullptr;
-    return app->pluginManager();
-}
+    PluginManager *activePluginManager()
+    {
+        auto *app = qobject_cast<Application *>(QCoreApplication::instance());
+        if (!app || !app->pluginSystemReady())
+            return nullptr;
+        return app->pluginManager();
+    }
 
-QString sidecarDirForChart(const QString &chartPath)
-{
-    if (chartPath.trimmed().isEmpty())
-        return QString();
-    const QFileInfo fi(chartPath);
-    if (!fi.exists())
-        return QString();
-    return fi.absoluteDir().filePath(".mcce-plugin");
-}
+    QString sidecarDirForChart(const QString &chartPath)
+    {
+        if (chartPath.trimmed().isEmpty())
+            return QString();
+        const QFileInfo fi(chartPath);
+        if (!fi.exists())
+            return QString();
+        return fi.absoluteDir().filePath(".mcce-plugin");
+    }
 
-QVariantMap serializeSelectedNoteForPlugin(const Note &note)
-{
-    QVariantMap noteObj;
-    noteObj.insert("id", note.id);
-    noteObj.insert("x", note.x);
-    noteObj.insert("lane_x", note.x);
-    noteObj.insert("beat", MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator));
-    return noteObj;
-}
+    QVariantMap serializeSelectedNoteForPlugin(const Note &note)
+    {
+        QVariantMap noteObj;
+        noteObj.insert("id", note.id);
+        noteObj.insert("x", note.x);
+        noteObj.insert("lane_x", note.x);
+        noteObj.insert("beat", MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator));
+        return noteObj;
+    }
 
-QVariantMap serializeNotePositionForPlugin(const Note &note)
-{
-    QVariantMap noteObj;
-    noteObj.insert("type", static_cast<int>(note.type));
-    noteObj.insert("x", note.x);
+    QVariantMap serializeNotePositionForPlugin(const Note &note)
+    {
+        QVariantMap noteObj;
+        noteObj.insert("type", static_cast<int>(note.type));
+        noteObj.insert("x", note.x);
 
-    QVariantList beat;
-    beat.append(note.beatNum);
-    beat.append(note.numerator);
-    beat.append(note.denominator);
-    noteObj.insert("beat", beat);
-    return noteObj;
+        QVariantList beat;
+        beat.append(note.beatNum);
+        beat.append(note.numerator);
+        beat.append(note.denominator);
+        noteObj.insert("beat", beat);
+        return noteObj;
+    }
 }
-}
-
 
 void ChartCanvas::showGridSettings()
 {

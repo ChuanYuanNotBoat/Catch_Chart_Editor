@@ -98,7 +98,8 @@ def sync_anchor_selection_from_host_notes(context, callbacks):
         return
 
     raw_ids = context.get("selected_note_ids")
-    selected_ids = [str(v) for v in raw_ids if isinstance(v, str) and v] if isinstance(raw_ids, list) else []
+    selected_ids = [str(v) for v in raw_ids if isinstance(
+        v, str) and v] if isinstance(raw_ids, list) else []
     if selected_ids == list(state.get("last_host_selected_note_ids", [])):
         return
     state["last_host_selected_note_ids"] = list(selected_ids)
@@ -170,9 +171,11 @@ def handle_key_down(event, callbacks):
     if key == key_shift or event_has_shift(event):
         state["shift_down"] = True
     if not ctrl and key == key_a and not host_controls_anchor_mode(state["last_context"]):
-        state["anchor_placement_enabled"] = not bool(state.get("anchor_placement_enabled", False))
+        state["anchor_placement_enabled"] = not bool(
+            state.get("anchor_placement_enabled", False))
         consumed = True
-        status = tr(state["last_context"], "anchor_enabled") if state["anchor_placement_enabled"] else tr(state["last_context"], "anchor_disabled")
+        status = tr(state["last_context"], "anchor_enabled") if state["anchor_placement_enabled"] else tr(
+            state["last_context"], "anchor_disabled")
         # Mode toggles are UI-only and should not create undo checkpoints.
     elif key in (key_delete, key_backspace):
         changed_segments = disconnect_selected_segments(state["last_context"])
@@ -220,7 +223,8 @@ def resolve_link_drag_mouse_up(callbacks):
 
     source_id = int(link_drag.get("source_anchor_id", -1))
     target_id = int(link_drag.get("hover_anchor_id", -1))
-    state["link_drag"] = {"active": False, "source_anchor_id": -1, "hover_anchor_id": -1, "x": 0.0, "y": 0.0}
+    state["link_drag"] = {"active": False, "source_anchor_id": -
+                          1, "hover_anchor_id": -1, "x": 0.0, "y": 0.0}
     request_checkpoint = False
 
     if source_id > 0 and target_id > 0 and source_id != target_id:
@@ -233,9 +237,11 @@ def resolve_link_drag_mouse_up(callbacks):
             invalidate_curve_cache()
             record_history_state(state["last_context"])
             request_checkpoint = True
-            status = tr(state["last_context"], "status_link_connected", from_idx=src_i, to_idx=dst_i)
+            status = tr(
+                state["last_context"], "status_link_connected", from_idx=src_i, to_idx=dst_i)
         else:
-            status = tr(state["last_context"], "status_link_already_connected", from_idx=src_i, to_idx=dst_i)
+            status = tr(
+                state["last_context"], "status_link_already_connected", from_idx=src_i, to_idx=dst_i)
     else:
         status = tr(state["last_context"], "status_link_cancelled")
 
@@ -255,7 +261,8 @@ def resolve_mouse_up_after_link_drag(callbacks):
     if bool(state.get("box_select", {}).get("active", False)):
         changed = apply_box_selection(state["last_context"])
         state["drag"] = {"mode": "", "index": -1}
-        status = tr(state["last_context"], "status_box_selection_applied") if changed else tr(state["last_context"], "status_box_selection_cleared")
+        status = tr(state["last_context"], "status_box_selection_applied") if changed else tr(
+            state["last_context"], "status_box_selection_cleared")
         return {
             "consumed": True,
             "status": status,
@@ -285,7 +292,8 @@ def resolve_mouse_up_after_link_drag(callbacks):
 
 def handle_cancel(state, tr_fn):
     state["drag"] = {"mode": "", "index": -1}
-    state["link_drag"] = {"active": False, "source_anchor_id": -1, "hover_anchor_id": -1, "x": 0.0, "y": 0.0}
+    state["link_drag"] = {"active": False, "source_anchor_id": -
+                          1, "hover_anchor_id": -1, "x": 0.0, "y": 0.0}
     return {
         "consumed": True,
         "status": tr_fn(state["last_context"], "interaction_cancelled"),
@@ -305,7 +313,8 @@ def update_link_drag_on_mouse_move(x, y, callbacks):
 
     link_drag["x"] = x
     link_drag["y"] = y
-    hidx = find_anchor_hit(state["last_context"], x, y) if selection_enabled("anchors") else -1
+    hidx = find_anchor_hit(state["last_context"],
+                           x, y) if selection_enabled("anchors") else -1
     hover_id = -1
     if hidx >= 0:
         hit_id = int(state["anchors"][hidx].get("id", 0))
@@ -318,7 +327,8 @@ def update_link_drag_on_mouse_move(x, y, callbacks):
         idx_map = anchor_index_map()
         src_i = idx_map.get(int(link_drag.get("source_anchor_id", -1)), -1)
         dst_i = idx_map.get(hover_id, -1)
-        status = tr(state["last_context"], "status_link_drag_target", from_idx=src_i, to_idx=dst_i)
+        status = tr(state["last_context"],
+                    "status_link_drag_target", from_idx=src_i, to_idx=dst_i)
     else:
         status = tr(state["last_context"], "status_link_dragging")
 
@@ -383,7 +393,8 @@ def handle_drag_edit_on_mouse_move(x, y, callbacks):
     canvas_to_chart = callbacks["canvas_to_chart"]
     snap_chart_point = callbacks["snap_chart_point"]
     enforce_handle_time_constraints = callbacks["enforce_handle_time_constraints"]
-    enforce_anchor_and_connected_handle_constraints = callbacks["enforce_anchor_and_connected_handle_constraints"]
+    enforce_anchor_and_connected_handle_constraints = callbacks[
+        "enforce_anchor_and_connected_handle_constraints"]
     set_anchor_in_abs_chart = callbacks["set_anchor_in_abs_chart"]
     set_anchor_out_abs_chart = callbacks["set_anchor_out_abs_chart"]
     invalidate_curve_cache = callbacks["invalidate_curve_cache"]
@@ -399,10 +410,12 @@ def handle_drag_edit_on_mouse_move(x, y, callbacks):
     cursor = "arrow"
     if mode == "anchor":
         lane_x, beat = canvas_to_chart(state["last_context"], x, y)
-        lane_x, beat = snap_chart_point(state["last_context"], lane_x, beat, snap_beat=True, snap_lane=False)
+        lane_x, beat = snap_chart_point(
+            state["last_context"], lane_x, beat, snap_beat=True, snap_lane=False)
         a["lane_x"] = lane_x
         a["beat"] = beat
-        enforce_anchor_and_connected_handle_constraints(idx, state["last_context"])
+        enforce_anchor_and_connected_handle_constraints(
+            idx, state["last_context"])
         cursor = "size_all"
     elif mode == "in":
         lane_x, beat = canvas_to_chart(state["last_context"], x, y)
@@ -447,20 +460,26 @@ def analyze_mouse_down_context(x, y, event, callbacks):
     ctrl_modifier_mask = callbacks["ctrl_modifier_mask"]
 
     hkind, hidx = find_handle_hit(state["last_context"], x, y)
-    aidx = find_anchor_hit(state["last_context"], x, y) if selection_enabled("anchors") else -1
-    seg_hit = find_segment_hit(state["last_context"], x, y) if selection_enabled("segments") else None
+    aidx = find_anchor_hit(state["last_context"],
+                           x, y) if selection_enabled("anchors") else -1
+    seg_hit = find_segment_hit(
+        state["last_context"], x, y) if selection_enabled("segments") else None
     mods = int(event.get("modifiers", 0))
     ctrl = (mods & ctrl_modifier_mask) != 0
     # For pointer interactions, trust real-time event modifiers only.
     # This avoids stale keyboard-state cache causing accidental link-drag.
     shift = event_has_shift(event)
-    host_sel = state["last_context"].get("host_selection_tool", {}) if isinstance(state["last_context"], dict) else {}
-    is_select_mode = bool(host_sel.get("is_select_mode", False)) if isinstance(host_sel, dict) else False
+    host_sel = state["last_context"].get("host_selection_tool", {}) if isinstance(
+        state["last_context"], dict) else {}
+    is_select_mode = bool(host_sel.get("is_select_mode", False)) if isinstance(
+        host_sel, dict) else False
     notes_selectable = selection_enabled("notes")
-    anchor_placement_enabled = bool(state.get("anchor_placement_enabled", False))
+    anchor_placement_enabled = bool(
+        state.get("anchor_placement_enabled", False))
     host_select_passthrough = bool(is_select_mode and notes_selectable)
     blank_hit = hidx < 0 and aidx < 0 and seg_hit is None
-    had_selection = bool(state.get("selected_anchor_ids")) or bool(state.get("selected_links"))
+    had_selection = bool(state.get("selected_anchor_ids")
+                         ) or bool(state.get("selected_links"))
 
     return {
         "hkind": hkind,
@@ -491,10 +510,13 @@ def handle_mouse_down_left_prebranches(hkind, hidx, callbacks):
     host_select_passthrough = callbacks["host_select_passthrough"]
     blank_hit = callbacks["blank_hit"]
     had_selection = callbacks["had_selection"]
-    anchor_placement_enabled = bool(callbacks.get("anchor_placement_enabled", False))
+    anchor_placement_enabled = bool(
+        callbacks.get("anchor_placement_enabled", False))
 
-    selected_anchor_ids = [int(v) for v in state.get("selected_anchor_ids", []) if int(v) > 0]
-    single_anchor_selected = len(selected_anchor_ids) == 1 and not bool(state.get("selected_links"))
+    selected_anchor_ids = [int(v) for v in state.get(
+        "selected_anchor_ids", []) if int(v) > 0]
+    single_anchor_selected = len(selected_anchor_ids) == 1 and not bool(
+        state.get("selected_links"))
 
     if blank_hit and had_selection:
         # Intentional behavior (not a bug): with exactly one anchor selected in anchor-placement mode,
@@ -566,14 +588,17 @@ def handle_mouse_down_anchor_hit(aidx, x, y, ts, ctrl, shift, callbacks):
         add_selected_anchor(anchor_id)
         state["selected_links"] = []
 
-    is_double = state["last_click_anchor"] == aidx and ts - state["last_click_ms"] <= 280
+    is_double = state["last_click_anchor"] == aidx and ts - \
+        state["last_click_ms"] <= 280
     state["last_click_anchor"] = aidx
     state["last_click_ms"] = ts
     if is_double:
-        state["anchors"][aidx]["smooth"] = not bool(state["anchors"][aidx].get("smooth", True))
+        state["anchors"][aidx]["smooth"] = not bool(
+            state["anchors"][aidx].get("smooth", True))
         invalidate_curve_cache()
         record_history_state(state["last_context"])
-        mode = tr(state["last_context"], "mode_smooth") if state["anchors"][aidx]["smooth"] else tr(state["last_context"], "mode_corner")
+        mode = tr(state["last_context"], "mode_smooth") if state["anchors"][aidx]["smooth"] else tr(
+            state["last_context"], "mode_corner")
         return {
             "consumed": True,
             "cursor": "arrow",
@@ -610,7 +635,8 @@ def handle_mouse_down_segment_hit(seg_hit, ctrl, callbacks):
             if aid > 0 and aid not in seg_anchor_ids:
                 seg_anchor_ids.append(aid)
         if ctrl:
-            merged = [int(v) for v in state.get("selected_anchor_ids", []) if int(v) > 0]
+            merged = [int(v) for v in state.get(
+                "selected_anchor_ids", []) if int(v) > 0]
             for aid in seg_anchor_ids:
                 if aid not in merged:
                     merged.append(aid)
@@ -634,7 +660,8 @@ def maybe_start_box_selection_on_mouse_down(x, y, ctrl, is_select_mode, notes_se
     if not ((ctrl or is_select_mode) and (not notes_selectable)):
         return None
 
-    state["box_select"] = {"active": True, "start": [x, y], "end": [x, y], "append": bool(ctrl)}
+    state["box_select"] = {"active": True, "start": [
+        x, y], "end": [x, y], "append": bool(ctrl)}
     return {
         "consumed": True,
         "cursor": "arrow",
@@ -685,7 +712,8 @@ def handle_mouse_down_empty_area(x, y, notes_selectable, anchor_placement_enable
     # Intentional behavior: clicks outside the editable lane should clear selection
     # and never create a boundary-clamped anchor.
     if not point_in_edit_bounds(state.get("last_context", {}), x, y):
-        had_selection = bool(state.get("selected_anchor_ids")) or bool(state.get("selected_links"))
+        had_selection = bool(state.get("selected_anchor_ids")) or bool(
+            state.get("selected_links"))
         state["selected_anchor_ids"] = []
         state["selected_links"] = []
         state["pending_connect_anchor_id"] = -1
@@ -698,7 +726,8 @@ def handle_mouse_down_empty_area(x, y, notes_selectable, anchor_placement_enable
 
     new_idx = append_anchor(state["last_context"], x, y)
     new_anchor_id = int(state["anchors"][new_idx].get("id", 0))
-    selected = [int(v) for v in state.get("selected_anchor_ids", []) if int(v) > 0]
+    selected = [int(v) for v in state.get(
+        "selected_anchor_ids", []) if int(v) > 0]
     if len(selected) == 1 and new_anchor_id > 0:
         # Intentional behavior (not a bug): preserve legacy fast chaining flow for single selection.
         add_link(selected[0], new_anchor_id)
@@ -761,8 +790,10 @@ def handle_mouse_down_event(x, y, button, event, ts, cursor, status, request_che
         )
     elif button == left_button:
         notes_selectable = bool(mouse_down_ctx["notes_selectable"])
-        anchor_placement_enabled = bool(mouse_down_ctx["anchor_placement_enabled"])
-        host_select_passthrough = bool(mouse_down_ctx["host_select_passthrough"])
+        anchor_placement_enabled = bool(
+            mouse_down_ctx["anchor_placement_enabled"])
+        host_select_passthrough = bool(
+            mouse_down_ctx["host_select_passthrough"])
         blank_hit = bool(mouse_down_ctx["blank_hit"])
         had_selection = bool(mouse_down_ctx["had_selection"])
         left_pre = handle_mouse_down_left_prebranches(
@@ -1062,7 +1093,8 @@ def handle_canvas_input(payload, callbacks):
         consumed = bool(mouse_down_result.get("consumed", consumed))
         cursor = str(mouse_down_result.get("cursor", cursor))
         status = str(mouse_down_result.get("status", status))
-        request_checkpoint = bool(mouse_down_result.get("request_checkpoint", request_checkpoint))
+        request_checkpoint = bool(mouse_down_result.get(
+            "request_checkpoint", request_checkpoint))
         if bool(mouse_down_result.get("immediate_return", False)):
             return build_canvas_response(consumed, cursor, status, request_checkpoint, response_callbacks)
     elif et == "mouse_move":
@@ -1078,7 +1110,8 @@ def handle_canvas_input(payload, callbacks):
         consumed = bool(mouse_move_result.get("consumed", consumed))
         cursor = str(mouse_move_result.get("cursor", cursor))
         status = str(mouse_move_result.get("status", status))
-        request_checkpoint = bool(mouse_move_result.get("request_checkpoint", request_checkpoint))
+        request_checkpoint = bool(mouse_move_result.get(
+            "request_checkpoint", request_checkpoint))
         if bool(mouse_move_result.get("immediate_return", False)):
             return build_canvas_response(consumed, cursor, status, request_checkpoint, response_callbacks)
     elif et == "mouse_up":
@@ -1091,7 +1124,8 @@ def handle_canvas_input(payload, callbacks):
         consumed = bool(mouse_up_result.get("consumed", consumed))
         cursor = str(mouse_up_result.get("cursor", cursor))
         status = str(mouse_up_result.get("status", status))
-        request_checkpoint = bool(mouse_up_result.get("request_checkpoint", request_checkpoint))
+        request_checkpoint = bool(mouse_up_result.get(
+            "request_checkpoint", request_checkpoint))
         if bool(mouse_up_result.get("immediate_return", False)):
             return build_canvas_response(consumed, cursor, status, request_checkpoint, response_callbacks)
     elif et == "cancel":

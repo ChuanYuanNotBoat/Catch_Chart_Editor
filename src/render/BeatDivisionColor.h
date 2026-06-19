@@ -4,6 +4,5 @@
 
 namespace BeatDivisionColor
 {
-QColor noteColorForDivision(int denominator, int numerator = 0);
+    QColor noteColorForDivision(int denominator, int numerator = 0);
 }
-

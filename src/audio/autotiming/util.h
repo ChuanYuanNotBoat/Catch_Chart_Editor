@@ -40,7 +40,7 @@ inline int ceillog2(uint32_t n)
 
 /// Round double to int32 using SSE cvtsd2si when available.
 #if defined(COMPILER_MSVC) && defined(ARCH_X86_GENERIC)
-inline int32_t i32rint(const double& x)
+inline int32_t i32rint(const double &x)
 {
     return _mm_cvtsd_si32(_mm_load_sd(&x));
 }
@@ -99,7 +99,7 @@ inline double peakv(double ym1, double y0, double y1)
 /// @param x    input array.
 /// @param bin  bin resolution exponent; range -22..8; lower = more precise but slower.
 /// @return approximate median value.
-float medianApprox(const std::vector<float>& x, int bin);
+float medianApprox(const std::vector<float> &x, int bin);
 static_assert(sizeof(float) == sizeof(uint32_t), "float is not 32-bit");
 
 /// Non-linear compression: y[i + delay] += ln(x[i] * mul + 1) * weight (approximate).
@@ -108,7 +108,7 @@ static_assert(sizeof(float) == sizeof(uint32_t), "float is not 32-bit");
 /// @param mul    multiplier applied before log.
 /// @param weight scaling factor.
 /// @param delay  sample offset applied before accumulation.
-void compressApprox(const std::vector<float>& x, std::vector<float>& y,
+void compressApprox(const std::vector<float> &x, std::vector<float> &y,
                     float mul, float weight, int delay);
 
 /// Supported PCM sample formats.
@@ -126,5 +126,5 @@ enum class SampleFormat
 /// @param format   sample format.
 /// @param channels number of interleaved channels.
 /// @return mono float samples, one per multi-channel frame.
-std::vector<float> convertToMono(const char* data, uint32_t size,
+std::vector<float> convertToMono(const char *data, uint32_t size,
                                  SampleFormat format, unsigned channels);

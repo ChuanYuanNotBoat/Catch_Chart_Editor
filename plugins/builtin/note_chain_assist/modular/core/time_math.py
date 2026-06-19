@@ -75,7 +75,8 @@ def context_dims(context):
 
     # Host currently provides left/right margins. Keep this path as primary to
     # preserve the legacy coordinate mapping used before modularization.
-    has_margin_fields = isinstance(context, dict) and ("left_margin" in context or "right_margin" in context)
+    has_margin_fields = isinstance(context, dict) and (
+        "left_margin" in context or "right_margin" in context)
     if has_margin_fields:
         l = float(context.get("left_margin", 0.0))
         r_margin = float(context.get("right_margin", 0.0))
@@ -123,7 +124,8 @@ def snap_chart_point(context, lane_x, beat, snap_beat=True, snap_lane=True):
 
     lane_x = clamp(float(lane_x), 0.0, lane_w)
     if snap_lane and grid_snap and grid_div > 0:
-        lane_x = round((lane_x / lane_w) * grid_div) * (lane_w / float(grid_div))
+        lane_x = round((lane_x / lane_w) * grid_div) * \
+            (lane_w / float(grid_div))
 
     if snap_beat:
         beat = round(float(beat) * time_div) / float(time_div)

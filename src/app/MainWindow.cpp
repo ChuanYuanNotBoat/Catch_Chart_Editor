@@ -96,966 +96,966 @@
 
 namespace
 {
-PluginManager *activePluginManager()
-{
-    auto *app = qobject_cast<Application *>(QCoreApplication::instance());
-    return app ? app->pluginManager() : nullptr;
-}
-
-QColor sidebarTextColorFor(const QColor &bg)
-{
-    const double r = bg.redF();
-    const double g = bg.greenF();
-    const double b = bg.blueF();
-    const double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    return (luminance >= 0.5) ? QColor(20, 20, 20) : QColor(245, 245, 245);
-}
-
-bool isModifierKey(int key)
-{
-    return key == Qt::Key_Control || key == Qt::Key_Shift || key == Qt::Key_Alt || key == Qt::Key_Meta;
-}
-
-int modifierCount(Qt::KeyboardModifiers mods)
-{
-    int count = 0;
-    if (mods.testFlag(Qt::ControlModifier))
-        ++count;
-    if (mods.testFlag(Qt::AltModifier))
-        ++count;
-    if (mods.testFlag(Qt::ShiftModifier))
-        ++count;
-    if (mods.testFlag(Qt::MetaModifier))
-        ++count;
-    return count;
-}
-
-QString modifiersPreviewText(Qt::KeyboardModifiers mods)
-{
-    QStringList parts;
-    if (mods.testFlag(Qt::ControlModifier))
-        parts << QObject::tr("Ctrl");
-    if (mods.testFlag(Qt::AltModifier))
-        parts << QObject::tr("Alt");
-    if (mods.testFlag(Qt::ShiftModifier))
-        parts << QObject::tr("Shift");
-    if (mods.testFlag(Qt::MetaModifier))
-        parts << QObject::tr("Meta");
-
-    if (parts.isEmpty())
-        return QString();
-    return parts.join("+") + "+...";
-}
-
-bool extractSemver(const QString &text, int &major, int &minor, int &patch)
-{
-    const QRegularExpression re("(\\d+)\\.(\\d+)\\.(\\d+)");
-    const QRegularExpressionMatch match = re.match(text);
-    if (!match.hasMatch())
-        return false;
-
-    bool ok1 = false;
-    bool ok2 = false;
-    bool ok3 = false;
-    major = match.captured(1).toInt(&ok1);
-    minor = match.captured(2).toInt(&ok2);
-    patch = match.captured(3).toInt(&ok3);
-    return ok1 && ok2 && ok3;
-}
-
-QString firstLocalMczPathFromMimeData(const QMimeData *mimeData)
-{
-    if (!mimeData || !mimeData->hasUrls())
-        return QString();
-
-    const QList<QUrl> urls = mimeData->urls();
-    for (const QUrl &url : urls)
+    PluginManager *activePluginManager()
     {
-        if (!url.isLocalFile())
-            continue;
-
-        const QString path = url.toLocalFile();
-        if (QFileInfo(path).suffix().compare(QStringLiteral("mcz"), Qt::CaseInsensitive) == 0)
-            return path;
+        auto *app = qobject_cast<Application *>(QCoreApplication::instance());
+        return app ? app->pluginManager() : nullptr;
     }
-    return QString();
-}
 
-int compareSemver(const QString &current, const QString &latest)
-{
-    int cMaj = 0, cMin = 0, cPat = 0;
-    int lMaj = 0, lMin = 0, lPat = 0;
-    if (!extractSemver(current, cMaj, cMin, cPat) || !extractSemver(latest, lMaj, lMin, lPat))
+    QColor sidebarTextColorFor(const QColor &bg)
+    {
+        const double r = bg.redF();
+        const double g = bg.greenF();
+        const double b = bg.blueF();
+        const double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        return (luminance >= 0.5) ? QColor(20, 20, 20) : QColor(245, 245, 245);
+    }
+
+    bool isModifierKey(int key)
+    {
+        return key == Qt::Key_Control || key == Qt::Key_Shift || key == Qt::Key_Alt || key == Qt::Key_Meta;
+    }
+
+    int modifierCount(Qt::KeyboardModifiers mods)
+    {
+        int count = 0;
+        if (mods.testFlag(Qt::ControlModifier))
+            ++count;
+        if (mods.testFlag(Qt::AltModifier))
+            ++count;
+        if (mods.testFlag(Qt::ShiftModifier))
+            ++count;
+        if (mods.testFlag(Qt::MetaModifier))
+            ++count;
+        return count;
+    }
+
+    QString modifiersPreviewText(Qt::KeyboardModifiers mods)
+    {
+        QStringList parts;
+        if (mods.testFlag(Qt::ControlModifier))
+            parts << QObject::tr("Ctrl");
+        if (mods.testFlag(Qt::AltModifier))
+            parts << QObject::tr("Alt");
+        if (mods.testFlag(Qt::ShiftModifier))
+            parts << QObject::tr("Shift");
+        if (mods.testFlag(Qt::MetaModifier))
+            parts << QObject::tr("Meta");
+
+        if (parts.isEmpty())
+            return QString();
+        return parts.join("+") + "+...";
+    }
+
+    bool extractSemver(const QString &text, int &major, int &minor, int &patch)
+    {
+        const QRegularExpression re("(\\d+)\\.(\\d+)\\.(\\d+)");
+        const QRegularExpressionMatch match = re.match(text);
+        if (!match.hasMatch())
+            return false;
+
+        bool ok1 = false;
+        bool ok2 = false;
+        bool ok3 = false;
+        major = match.captured(1).toInt(&ok1);
+        minor = match.captured(2).toInt(&ok2);
+        patch = match.captured(3).toInt(&ok3);
+        return ok1 && ok2 && ok3;
+    }
+
+    QString firstLocalMczPathFromMimeData(const QMimeData *mimeData)
+    {
+        if (!mimeData || !mimeData->hasUrls())
+            return QString();
+
+        const QList<QUrl> urls = mimeData->urls();
+        for (const QUrl &url : urls)
+        {
+            if (!url.isLocalFile())
+                continue;
+
+            const QString path = url.toLocalFile();
+            if (QFileInfo(path).suffix().compare(QStringLiteral("mcz"), Qt::CaseInsensitive) == 0)
+                return path;
+        }
+        return QString();
+    }
+
+    int compareSemver(const QString &current, const QString &latest)
+    {
+        int cMaj = 0, cMin = 0, cPat = 0;
+        int lMaj = 0, lMin = 0, lPat = 0;
+        if (!extractSemver(current, cMaj, cMin, cPat) || !extractSemver(latest, lMaj, lMin, lPat))
+            return 0;
+
+        if (cMaj != lMaj)
+            return (cMaj < lMaj) ? -1 : 1;
+        if (cMin != lMin)
+            return (cMin < lMin) ? -1 : 1;
+        if (cPat != lPat)
+            return (cPat < lPat) ? -1 : 1;
         return 0;
-
-    if (cMaj != lMaj)
-        return (cMaj < lMaj) ? -1 : 1;
-    if (cMin != lMin)
-        return (cMin < lMin) ? -1 : 1;
-    if (cPat != lPat)
-        return (cPat < lPat) ? -1 : 1;
-    return 0;
-}
-
-QString loadUtf8TextFile(const QString &path)
-{
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return QString();
-
-    QTextStream in(&file);
-    in.setEncoding(QStringConverter::Utf8);
-    return in.readAll();
-}
-
-QString loadDocText(const QStringList &candidatePaths, QString *resolvedPath = nullptr)
-{
-    for (const QString &path : candidatePaths)
-    {
-        const QString text = loadUtf8TextFile(path);
-        if (!text.trimmed().isEmpty())
-        {
-            if (resolvedPath)
-                *resolvedPath = path;
-            return text;
-        }
-    }
-    if (resolvedPath)
-        resolvedPath->clear();
-    return QString();
-}
-
-struct HistorySection
-{
-    QString title;
-    QStringList lines;
-};
-
-struct HistoryPrefixGroup
-{
-    QString key;
-    QString label;
-    QList<HistorySection> sections;
-};
-
-QList<HistorySection> parseHistorySections(const QString &historyText)
-{
-    QList<HistorySection> sections;
-    HistorySection current;
-    const QStringList rawLines = historyText.split('\n');
-    for (QString line : rawLines)
-    {
-        line = line.trimmed();
-        if (line.isEmpty())
-            continue;
-
-        if (line.startsWith("## "))
-        {
-            if (!current.title.isEmpty() || !current.lines.isEmpty())
-                sections.push_back(current);
-            current = HistorySection{};
-            current.title = line.mid(3).trimmed();
-            continue;
-        }
-
-        if (current.title.isEmpty())
-            current.title = QObject::tr("History");
-        current.lines.push_back(line);
     }
 
-    if (!current.title.isEmpty() || !current.lines.isEmpty())
-        sections.push_back(current);
-    return sections;
-}
-
-QString historyPrefixFromTitle(const QString &title)
-{
-    const QString text = title.trimmed();
-    if (text.isEmpty())
-        return QString();
-
-    const QRegularExpression re("^\\[?([A-Za-z][A-Za-z0-9_-]*)\\]?");
-    const QRegularExpressionMatch m = re.match(text);
-    if (!m.hasMatch())
-        return QString();
-    return m.captured(1).trimmed();
-}
-
-QString normalizedPrefixLabel(const QString &prefix)
-{
-    if (prefix.isEmpty())
-        return QObject::tr("Other");
-    const QString lower = prefix.toLower();
-    return lower.left(1).toUpper() + lower.mid(1);
-}
-
-QString sanitizeFileStem(QString stem)
-{
-    stem = stem.trimmed();
-    if (stem.isEmpty())
-        return QString();
-
-    stem.replace(QRegularExpression("[\\\\/:*?\"<>|]"), "_");
-    stem.replace(QRegularExpression("\\s+"), " ");
-    while (stem.endsWith(' ') || stem.endsWith('.'))
-        stem.chop(1);
-    return stem.trimmed();
-}
-
-QList<HistoryPrefixGroup> groupHistorySectionsByPrefix(const QList<HistorySection> &sections)
-{
-    QList<HistoryPrefixGroup> groups;
-    for (const HistorySection &section : sections)
+    QString loadUtf8TextFile(const QString &path)
     {
-        const QString rawPrefix = historyPrefixFromTitle(section.title);
-        const QString label = normalizedPrefixLabel(rawPrefix);
-        const QString key = rawPrefix.isEmpty() ? QString("__other__") : rawPrefix.toCaseFolded();
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            return QString();
 
-        int index = -1;
-        for (int i = 0; i < groups.size(); ++i)
+        QTextStream in(&file);
+        in.setEncoding(QStringConverter::Utf8);
+        return in.readAll();
+    }
+
+    QString loadDocText(const QStringList &candidatePaths, QString *resolvedPath = nullptr)
+    {
+        for (const QString &path : candidatePaths)
         {
-            if (groups[i].key == key)
+            const QString text = loadUtf8TextFile(path);
+            if (!text.trimmed().isEmpty())
             {
-                index = i;
-                break;
+                if (resolvedPath)
+                    *resolvedPath = path;
+                return text;
             }
         }
+        if (resolvedPath)
+            resolvedPath->clear();
+        return QString();
+    }
 
-        if (index < 0)
+    struct HistorySection
+    {
+        QString title;
+        QStringList lines;
+    };
+
+    struct HistoryPrefixGroup
+    {
+        QString key;
+        QString label;
+        QList<HistorySection> sections;
+    };
+
+    QList<HistorySection> parseHistorySections(const QString &historyText)
+    {
+        QList<HistorySection> sections;
+        HistorySection current;
+        const QStringList rawLines = historyText.split('\n');
+        for (QString line : rawLines)
         {
-            HistoryPrefixGroup group;
-            group.key = key;
-            group.label = label;
-            groups.push_back(group);
-            index = groups.size() - 1;
+            line = line.trimmed();
+            if (line.isEmpty())
+                continue;
+
+            if (line.startsWith("## "))
+            {
+                if (!current.title.isEmpty() || !current.lines.isEmpty())
+                    sections.push_back(current);
+                current = HistorySection{};
+                current.title = line.mid(3).trimmed();
+                continue;
+            }
+
+            if (current.title.isEmpty())
+                current.title = QObject::tr("History");
+            current.lines.push_back(line);
         }
 
-        groups[index].sections.push_back(section);
-    }
-    return groups;
-}
-
-void setBrowserContentFromDoc(QTextBrowser *browser,
-                              const QStringList &candidatePaths,
-                              const QString &fallbackMarkdown)
-{
-    if (!browser)
-        return;
-
-    QString resolvedPath;
-    const QString docText = loadDocText(candidatePaths, &resolvedPath);
-    if (!docText.isEmpty())
-    {
-        const QString lower = resolvedPath.toLower();
-        if (lower.endsWith(".md") || lower.endsWith(".markdown") || lower.endsWith(".txt"))
-            browser->setMarkdown(docText);
-        else
-            browser->setPlainText(docText);
-        return;
-    }
-    browser->setMarkdown(fallbackMarkdown);
-}
-
-class ShortcutCaptureEdit final : public QLineEdit
-{
-public:
-    explicit ShortcutCaptureEdit(QWidget *parent = nullptr) : QLineEdit(parent)
-    {
-        // Keep editable so the built-in clear button ('x') remains clickable.
-        // We fully control text via key handlers below.
-        setReadOnly(false);
-        setClearButtonEnabled(true);
-        setContextMenuPolicy(Qt::NoContextMenu);
-        setDragEnabled(false);
-        connect(this, &QLineEdit::textChanged, this, [this](const QString &text) {
-            if (text.isEmpty())
-                m_sequence = QKeySequence();
-        });
+        if (!current.title.isEmpty() || !current.lines.isEmpty())
+            sections.push_back(current);
+        return sections;
     }
 
-    QKeySequence keySequence() const
+    QString historyPrefixFromTitle(const QString &title)
     {
-        return m_sequence;
+        const QString text = title.trimmed();
+        if (text.isEmpty())
+            return QString();
+
+        const QRegularExpression re("^\\[?([A-Za-z][A-Za-z0-9_-]*)\\]?");
+        const QRegularExpressionMatch m = re.match(text);
+        if (!m.hasMatch())
+            return QString();
+        return m.captured(1).trimmed();
     }
 
-    void setKeySequence(const QKeySequence &seq)
+    QString normalizedPrefixLabel(const QString &prefix)
     {
-        int k1 = seq.count() > 0 ? seq[0] : 0;
-        int k2 = seq.count() > 1 ? seq[1] : 0;
-        int k3 = seq.count() > 2 ? seq[2] : 0;
-        int k4 = seq.count() > 3 ? seq[3] : 0;
-        m_sequence = QKeySequence(k1, k2, k3, k4);
-        m_blockedChordAttempt = false;
-        refreshText();
+        if (prefix.isEmpty())
+            return QObject::tr("Other");
+        const QString lower = prefix.toLower();
+        return lower.left(1).toUpper() + lower.mid(1);
     }
 
-protected:
-    void keyPressEvent(QKeyEvent *event) override
+    QString sanitizeFileStem(QString stem)
     {
-        if (!event || event->isAutoRepeat())
-            return;
-        if (m_blockedChordAttempt)
-            return;
+        stem = stem.trimmed();
+        if (stem.isEmpty())
+            return QString();
 
-        const int key = event->key();
-        const Qt::KeyboardModifiers mods = event->modifiers();
+        stem.replace(QRegularExpression("[\\\\/:*?\"<>|]"), "_");
+        stem.replace(QRegularExpression("\\s+"), " ");
+        while (stem.endsWith(' ') || stem.endsWith('.'))
+            stem.chop(1);
+        return stem.trimmed();
+    }
 
-        if ((key == Qt::Key_Backspace || key == Qt::Key_Delete) && mods == Qt::NoModifier)
+    QList<HistoryPrefixGroup> groupHistorySectionsByPrefix(const QList<HistorySection> &sections)
+    {
+        QList<HistoryPrefixGroup> groups;
+        for (const HistorySection &section : sections)
         {
-            setKeySequence(QKeySequence());
-            return;
+            const QString rawPrefix = historyPrefixFromTitle(section.title);
+            const QString label = normalizedPrefixLabel(rawPrefix);
+            const QString key = rawPrefix.isEmpty() ? QString("__other__") : rawPrefix.toCaseFolded();
+
+            int index = -1;
+            for (int i = 0; i < groups.size(); ++i)
+            {
+                if (groups[i].key == key)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index < 0)
+            {
+                HistoryPrefixGroup group;
+                group.key = key;
+                group.label = label;
+                groups.push_back(group);
+                index = groups.size() - 1;
+            }
+
+            groups[index].sections.push_back(section);
         }
+        return groups;
+    }
 
-        if (isModifierKey(key))
+    void setBrowserContentFromDoc(QTextBrowser *browser,
+                                  const QStringList &candidatePaths,
+                                  const QString &fallbackMarkdown)
+    {
+        if (!browser)
+            return;
+
+        QString resolvedPath;
+        const QString docText = loadDocText(candidatePaths, &resolvedPath);
+        if (!docText.isEmpty())
         {
-            m_hasModifierPreview = true;
-            const QString preview = modifiersPreviewText(mods);
-            if (m_sequence.isEmpty())
-                setText(preview);
+            const QString lower = resolvedPath.toLower();
+            if (lower.endsWith(".md") || lower.endsWith(".markdown") || lower.endsWith(".txt"))
+                browser->setMarkdown(docText);
             else
-                setText(m_sequence.toString(QKeySequence::PortableText) + ", " + preview);
+                browser->setPlainText(docText);
             return;
         }
+        browser->setMarkdown(fallbackMarkdown);
+    }
 
-        const int comboKeyCount = modifierCount(mods) + 1;
-        if (comboKeyCount > 2)
+    class ShortcutCaptureEdit final : public QLineEdit
+    {
+    public:
+        explicit ShortcutCaptureEdit(QWidget *parent = nullptr) : QLineEdit(parent)
         {
-            m_blockedChordAttempt = true;
-            return;
+            // Keep editable so the built-in clear button ('x') remains clickable.
+            // We fully control text via key handlers below.
+            setReadOnly(false);
+            setClearButtonEnabled(true);
+            setContextMenuPolicy(Qt::NoContextMenu);
+            setDragEnabled(false);
+            connect(this, &QLineEdit::textChanged, this, [this](const QString &text)
+                    {
+            if (text.isEmpty())
+                m_sequence = QKeySequence(); });
         }
 
-        appendChord(key | mods);
-        m_hasModifierPreview = false;
-    }
-
-    void mouseDoubleClickEvent(QMouseEvent *event) override
-    {
-        // Do not start inline text editing behavior.
-        QLineEdit::mouseDoubleClickEvent(event);
-        deselect();
-    }
-
-    void keyReleaseEvent(QKeyEvent *event) override
-    {
-        if (!event || event->isAutoRepeat())
-            return;
-
-        if (m_blockedChordAttempt && QApplication::keyboardModifiers() == Qt::NoModifier)
+        QKeySequence keySequence() const
         {
+            return m_sequence;
+        }
+
+        void setKeySequence(const QKeySequence &seq)
+        {
+            int k1 = seq.count() > 0 ? seq[0] : 0;
+            int k2 = seq.count() > 1 ? seq[1] : 0;
+            int k3 = seq.count() > 2 ? seq[2] : 0;
+            int k4 = seq.count() > 3 ? seq[3] : 0;
+            m_sequence = QKeySequence(k1, k2, k3, k4);
             m_blockedChordAttempt = false;
             refreshText();
         }
 
-        if (m_hasModifierPreview && QApplication::keyboardModifiers() == Qt::NoModifier)
+    protected:
+        void keyPressEvent(QKeyEvent *event) override
         {
-            refreshText();
+            if (!event || event->isAutoRepeat())
+                return;
+            if (m_blockedChordAttempt)
+                return;
+
+            const int key = event->key();
+            const Qt::KeyboardModifiers mods = event->modifiers();
+
+            if ((key == Qt::Key_Backspace || key == Qt::Key_Delete) && mods == Qt::NoModifier)
+            {
+                setKeySequence(QKeySequence());
+                return;
+            }
+
+            if (isModifierKey(key))
+            {
+                m_hasModifierPreview = true;
+                const QString preview = modifiersPreviewText(mods);
+                if (m_sequence.isEmpty())
+                    setText(preview);
+                else
+                    setText(m_sequence.toString(QKeySequence::PortableText) + ", " + preview);
+                return;
+            }
+
+            const int comboKeyCount = modifierCount(mods) + 1;
+            if (comboKeyCount > 2)
+            {
+                m_blockedChordAttempt = true;
+                return;
+            }
+
+            appendChord(key | mods);
             m_hasModifierPreview = false;
         }
 
-    }
-
-    void focusOutEvent(QFocusEvent *event) override
-    {
-        QLineEdit::focusOutEvent(event);
-        if (m_hasModifierPreview)
+        void mouseDoubleClickEvent(QMouseEvent *event) override
         {
-            refreshText();
-            m_hasModifierPreview = false;
+            // Do not start inline text editing behavior.
+            QLineEdit::mouseDoubleClickEvent(event);
+            deselect();
         }
+
+        void keyReleaseEvent(QKeyEvent *event) override
+        {
+            if (!event || event->isAutoRepeat())
+                return;
+
+            if (m_blockedChordAttempt && QApplication::keyboardModifiers() == Qt::NoModifier)
+            {
+                m_blockedChordAttempt = false;
+                refreshText();
+            }
+
+            if (m_hasModifierPreview && QApplication::keyboardModifiers() == Qt::NoModifier)
+            {
+                refreshText();
+                m_hasModifierPreview = false;
+            }
+        }
+
+        void focusOutEvent(QFocusEvent *event) override
+        {
+            QLineEdit::focusOutEvent(event);
+            if (m_hasModifierPreview)
+            {
+                refreshText();
+                m_hasModifierPreview = false;
+            }
+        }
+
+    private:
+        void appendChord(int chord)
+        {
+            if (chord == 0)
+                return;
+
+            int keys[4] = {0, 0, 0, 0};
+            const int count = qMin(m_sequence.count(), 4);
+            for (int i = 0; i < count; ++i)
+                keys[i] = m_sequence[i];
+
+            if (count < 4)
+                keys[count] = chord;
+            else
+                keys[3] = chord;
+
+            m_sequence = QKeySequence(keys[0], keys[1], keys[2], keys[3]);
+            refreshText();
+        }
+
+        void refreshText()
+        {
+            setText(m_sequence.toString(QKeySequence::PortableText));
+        }
+
+        QKeySequence m_sequence;
+        bool m_hasModifierPreview = false;
+        bool m_blockedChordAttempt = false;
+    };
+
+    QString sessionWorkingCopyRootDir()
+    {
+        const QString base = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        return QDir(base).filePath("session_working_copies");
     }
 
-private:
-    void appendChord(int chord)
+    QString recoveryManifestPath()
     {
-        if (chord == 0)
+        return QDir(sessionWorkingCopyRootDir()).filePath("recovery.json");
+    }
+
+    struct RecoverySessionState
+    {
+        QString sourcePath;
+        QString workingPath;
+        bool modified = false;
+    };
+
+    bool writeRecoveryState(const RecoverySessionState &state)
+    {
+        if (!QDir().mkpath(sessionWorkingCopyRootDir()))
+            return false;
+
+        const QJsonObject obj{
+            {"source_path", state.sourcePath},
+            {"working_path", state.workingPath},
+            {"modified", state.modified},
+            {"updated_at_utc", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
+        QFile file(recoveryManifestPath());
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+            return false;
+        const QJsonDocument doc(obj);
+        return file.write(doc.toJson(QJsonDocument::Indented)) > 0;
+    }
+
+    bool readRecoveryState(RecoverySessionState *state)
+    {
+        if (!state)
+            return false;
+        *state = RecoverySessionState{};
+
+        QFile file(recoveryManifestPath());
+        if (!file.exists() || !file.open(QIODevice::ReadOnly | QIODevice::Text))
+            return false;
+
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+            return false;
+
+        const QJsonObject obj = doc.object();
+        state->sourcePath = obj.value("source_path").toString();
+        state->workingPath = obj.value("working_path").toString();
+        state->modified = obj.value("modified").toBool(false);
+        return !state->workingPath.isEmpty();
+    }
+
+    void removeRecoveryState()
+    {
+        QFile::remove(recoveryManifestPath());
+    }
+
+    QString workingSessionDirFromWorkingPath(const QString &workingPath)
+    {
+        if (workingPath.isEmpty())
+            return QString();
+
+        const QString baseRoot = QDir(sessionWorkingCopyRootDir()).absolutePath();
+        const QString workingDir = QFileInfo(workingPath).absoluteDir().absolutePath();
+        const QString rel = QDir(baseRoot).relativeFilePath(workingDir);
+        if (rel.isEmpty() || rel.startsWith(".."))
+            return workingDir;
+
+        const QString firstSegment = rel.section('/', 0, 0);
+        if (firstSegment.isEmpty() || firstSegment == ".")
+            return workingDir;
+        return QDir(baseRoot).filePath(firstSegment);
+    }
+
+    void removePathRecursively(const QString &path)
+    {
+        if (path.isEmpty())
             return;
 
-        int keys[4] = {0, 0, 0, 0};
-        const int count = qMin(m_sequence.count(), 4);
-        for (int i = 0; i < count; ++i)
-            keys[i] = m_sequence[i];
+        const QFileInfo fi(path);
+        if (!fi.exists() && !fi.isSymLink())
+            return;
 
-        if (count < 4)
-            keys[count] = chord;
-        else
-            keys[3] = chord;
+        if (fi.isDir() && !fi.isSymLink())
+        {
+            QDir(path).removeRecursively();
+            return;
+        }
 
-        m_sequence = QKeySequence(keys[0], keys[1], keys[2], keys[3]);
-        refreshText();
+        QFile::remove(path);
     }
 
-    void refreshText()
+    struct CopyProgressState
     {
-        setText(m_sequence.toString(QKeySequence::PortableText));
-    }
+        std::atomic<qint64> totalFiles{0};
+        std::atomic<qint64> copiedFiles{0};
+        std::atomic<qint64> totalBytes{0};
+        std::atomic<qint64> copiedBytes{0};
+        std::atomic<qint64> maxSingleFileMs{0};
+        std::atomic<bool> cancelRequested{false};
+    };
 
-    QKeySequence m_sequence;
-    bool m_hasModifierPreview = false;
-    bool m_blockedChordAttempt = false;
-};
-
-QString sessionWorkingCopyRootDir()
-{
-    const QString base = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-    return QDir(base).filePath("session_working_copies");
-}
-
-QString recoveryManifestPath()
-{
-    return QDir(sessionWorkingCopyRootDir()).filePath("recovery.json");
-}
-
-struct RecoverySessionState
-{
-    QString sourcePath;
-    QString workingPath;
-    bool modified = false;
-};
-
-bool writeRecoveryState(const RecoverySessionState &state)
-{
-    if (!QDir().mkpath(sessionWorkingCopyRootDir()))
-        return false;
-
-    const QJsonObject obj{
-        {"source_path", state.sourcePath},
-        {"working_path", state.workingPath},
-        {"modified", state.modified},
-        {"updated_at_utc", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
-    QFile file(recoveryManifestPath());
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
-        return false;
-    const QJsonDocument doc(obj);
-    return file.write(doc.toJson(QJsonDocument::Indented)) > 0;
-}
-
-bool readRecoveryState(RecoverySessionState *state)
-{
-    if (!state)
-        return false;
-    *state = RecoverySessionState{};
-
-    QFile file(recoveryManifestPath());
-    if (!file.exists() || !file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return false;
-
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !doc.isObject())
-        return false;
-
-    const QJsonObject obj = doc.object();
-    state->sourcePath = obj.value("source_path").toString();
-    state->workingPath = obj.value("working_path").toString();
-    state->modified = obj.value("modified").toBool(false);
-    return !state->workingPath.isEmpty();
-}
-
-void removeRecoveryState()
-{
-    QFile::remove(recoveryManifestPath());
-}
-
-QString workingSessionDirFromWorkingPath(const QString &workingPath)
-{
-    if (workingPath.isEmpty())
-        return QString();
-
-    const QString baseRoot = QDir(sessionWorkingCopyRootDir()).absolutePath();
-    const QString workingDir = QFileInfo(workingPath).absoluteDir().absolutePath();
-    const QString rel = QDir(baseRoot).relativeFilePath(workingDir);
-    if (rel.isEmpty() || rel.startsWith(".."))
-        return workingDir;
-
-    const QString firstSegment = rel.section('/', 0, 0);
-    if (firstSegment.isEmpty() || firstSegment == ".")
-        return workingDir;
-    return QDir(baseRoot).filePath(firstSegment);
-}
-
-void removePathRecursively(const QString &path)
-{
-    if (path.isEmpty())
-        return;
-
-    const QFileInfo fi(path);
-    if (!fi.exists() && !fi.isSymLink())
-        return;
-
-    if (fi.isDir() && !fi.isSymLink())
-    {
-        QDir(path).removeRecursively();
-        return;
-    }
-
-    QFile::remove(path);
-}
-
-struct CopyProgressState
-{
-    std::atomic<qint64> totalFiles{0};
-    std::atomic<qint64> copiedFiles{0};
-    std::atomic<qint64> totalBytes{0};
-    std::atomic<qint64> copiedBytes{0};
-    std::atomic<qint64> maxSingleFileMs{0};
-    std::atomic<bool> cancelRequested{false};
-};
-
-bool copyDirectoryRecursively(const QString &sourceDirPath,
-                              const QString &targetDirPath,
-                              QString *errorOut,
-                              CopyProgressState *progress)
-{
-    if (errorOut)
-        errorOut->clear();
-
-    const QDir sourceDir(sourceDirPath);
-    if (!sourceDir.exists())
+    bool copyDirectoryRecursively(const QString &sourceDirPath,
+                                  const QString &targetDirPath,
+                                  QString *errorOut,
+                                  CopyProgressState *progress)
     {
         if (errorOut)
-            *errorOut = QObject::tr("Source directory does not exist:\n%1").arg(sourceDirPath);
-        return false;
-    }
+            errorOut->clear();
 
-    if (!QDir().mkpath(targetDirPath))
-    {
-        if (errorOut)
-            *errorOut = QObject::tr("Failed to create working directory:\n%1").arg(targetDirPath);
-        return false;
-    }
-
-    QVector<QFileInfo> directories;
-    QVector<QFileInfo> files;
-    qint64 totalBytes = 0;
-
-    QDirIterator scanIt(sourceDirPath,
-                        QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System,
-                        QDirIterator::Subdirectories);
-    while (scanIt.hasNext())
-    {
-        scanIt.next();
-        const QFileInfo entry = scanIt.fileInfo();
-        if (entry.isDir() && !entry.isSymLink())
-        {
-            directories.append(entry);
-            continue;
-        }
-        files.append(entry);
-        totalBytes += qMax<qint64>(0, entry.size());
-    }
-
-    if (progress)
-    {
-        progress->totalFiles.store(files.size());
-        progress->totalBytes.store(totalBytes);
-        progress->copiedFiles.store(0);
-        progress->copiedBytes.store(0);
-        progress->maxSingleFileMs.store(0);
-    }
-
-    for (const QFileInfo &entry : directories)
-    {
-        if (progress && progress->cancelRequested.load())
+        const QDir sourceDir(sourceDirPath);
+        if (!sourceDir.exists())
         {
             if (errorOut)
-                *errorOut = QObject::tr("Copy cancelled by user.");
+                *errorOut = QObject::tr("Source directory does not exist:\n%1").arg(sourceDirPath);
             return false;
         }
 
-        const QString relPath = sourceDir.relativeFilePath(entry.absoluteFilePath());
-        const QString targetPath = QDir(targetDirPath).filePath(relPath);
-        if (!QDir().mkpath(targetPath))
+        if (!QDir().mkpath(targetDirPath))
         {
             if (errorOut)
-                *errorOut = QObject::tr("Failed to create working subdirectory:\n%1").arg(targetPath);
-            return false;
-        }
-    }
-
-    for (const QFileInfo &entry : files)
-    {
-        if (progress && progress->cancelRequested.load())
-        {
-            if (errorOut)
-                *errorOut = QObject::tr("Copy cancelled by user.");
+                *errorOut = QObject::tr("Failed to create working directory:\n%1").arg(targetDirPath);
             return false;
         }
 
-        const QString relPath = sourceDir.relativeFilePath(entry.absoluteFilePath());
-        const QString targetPath = QDir(targetDirPath).filePath(relPath);
-        if (!QDir().mkpath(QFileInfo(targetPath).absolutePath()))
-        {
-            if (errorOut)
-                *errorOut = QObject::tr("Failed to prepare working file path:\n%1").arg(targetPath);
-            return false;
-        }
+        QVector<QFileInfo> directories;
+        QVector<QFileInfo> files;
+        qint64 totalBytes = 0;
 
-        QElapsedTimer fileTimer;
-        fileTimer.start();
-        QFile::remove(targetPath);
-        if (!QFile::copy(entry.absoluteFilePath(), targetPath))
+        QDirIterator scanIt(sourceDirPath,
+                            QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System,
+                            QDirIterator::Subdirectories);
+        while (scanIt.hasNext())
         {
-            if (errorOut)
-                *errorOut = QObject::tr("Failed to copy required file:\n%1").arg(entry.absoluteFilePath());
-            return false;
+            scanIt.next();
+            const QFileInfo entry = scanIt.fileInfo();
+            if (entry.isDir() && !entry.isSymLink())
+            {
+                directories.append(entry);
+                continue;
+            }
+            files.append(entry);
+            totalBytes += qMax<qint64>(0, entry.size());
         }
 
         if (progress)
         {
-            progress->copiedFiles.fetch_add(1);
-            progress->copiedBytes.fetch_add(qMax<qint64>(0, entry.size()));
-            const qint64 fileMs = fileTimer.elapsed();
-            qint64 expected = progress->maxSingleFileMs.load();
-            while (fileMs > expected && !progress->maxSingleFileMs.compare_exchange_weak(expected, fileMs))
+            progress->totalFiles.store(files.size());
+            progress->totalBytes.store(totalBytes);
+            progress->copiedFiles.store(0);
+            progress->copiedBytes.store(0);
+            progress->maxSingleFileMs.store(0);
+        }
+
+        for (const QFileInfo &entry : directories)
+        {
+            if (progress && progress->cancelRequested.load())
             {
+                if (errorOut)
+                    *errorOut = QObject::tr("Copy cancelled by user.");
+                return false;
+            }
+
+            const QString relPath = sourceDir.relativeFilePath(entry.absoluteFilePath());
+            const QString targetPath = QDir(targetDirPath).filePath(relPath);
+            if (!QDir().mkpath(targetPath))
+            {
+                if (errorOut)
+                    *errorOut = QObject::tr("Failed to create working subdirectory:\n%1").arg(targetPath);
+                return false;
             }
         }
+
+        for (const QFileInfo &entry : files)
+        {
+            if (progress && progress->cancelRequested.load())
+            {
+                if (errorOut)
+                    *errorOut = QObject::tr("Copy cancelled by user.");
+                return false;
+            }
+
+            const QString relPath = sourceDir.relativeFilePath(entry.absoluteFilePath());
+            const QString targetPath = QDir(targetDirPath).filePath(relPath);
+            if (!QDir().mkpath(QFileInfo(targetPath).absolutePath()))
+            {
+                if (errorOut)
+                    *errorOut = QObject::tr("Failed to prepare working file path:\n%1").arg(targetPath);
+                return false;
+            }
+
+            QElapsedTimer fileTimer;
+            fileTimer.start();
+            QFile::remove(targetPath);
+            if (!QFile::copy(entry.absoluteFilePath(), targetPath))
+            {
+                if (errorOut)
+                    *errorOut = QObject::tr("Failed to copy required file:\n%1").arg(entry.absoluteFilePath());
+                return false;
+            }
+
+            if (progress)
+            {
+                progress->copiedFiles.fetch_add(1);
+                progress->copiedBytes.fetch_add(qMax<qint64>(0, entry.size()));
+                const qint64 fileMs = fileTimer.elapsed();
+                qint64 expected = progress->maxSingleFileMs.load();
+                while (fileMs > expected && !progress->maxSingleFileMs.compare_exchange_weak(expected, fileMs))
+                {
+                }
+            }
+        }
+
+        return true;
     }
 
-    return true;
-}
+    QString chartSongTitleFromFile(const QString &chartPath)
+    {
+        QFile file(chartPath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            return QString();
 
-QString chartSongTitleFromFile(const QString &chartPath)
-{
-    QFile file(chartPath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return QString();
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+            return QString();
 
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !doc.isObject())
-        return QString();
+        const QJsonObject root = doc.object();
+        const QJsonObject meta = root.value("meta").toObject();
+        const QJsonObject song = meta.value("song").toObject();
 
-    const QJsonObject root = doc.object();
-    const QJsonObject meta = root.value("meta").toObject();
-    const QJsonObject song = meta.value("song").toObject();
+        QString title = song.value("title").toString().trimmed();
+        if (title.isEmpty())
+            title = meta.value("title").toString().trimmed();
+        return title;
+    }
 
-    QString title = song.value("title").toString().trimmed();
-    if (title.isEmpty())
-        title = meta.value("title").toString().trimmed();
-    return title;
-}
+    QStringList collectReferencedResources(const QString &chartPath)
+    {
+        QStringList resources;
+        QFile file(chartPath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            return resources;
 
-QStringList collectReferencedResources(const QString &chartPath)
-{
-    QStringList resources;
-    QFile file(chartPath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+            return resources;
+
+        const auto appendIfPresent = [&resources](const QJsonObject &obj, const char *key)
+        {
+            const QString value = obj.value(QString::fromUtf8(key)).toString().trimmed();
+            if (!value.isEmpty())
+                resources.append(value);
+        };
+
+        const QJsonObject root = doc.object();
+        const QJsonObject meta = root.value("meta").toObject();
+        appendIfPresent(meta, "background");
+        appendIfPresent(meta, "audio");
+
+        const QJsonArray notes = root.value("note").toArray();
+        for (const QJsonValue &v : notes)
+        {
+            if (!v.isObject())
+                continue;
+            appendIfPresent(v.toObject(), "sound");
+        }
+
+        resources.removeDuplicates();
         return resources;
-
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !doc.isObject())
-        return resources;
-
-    const auto appendIfPresent = [&resources](const QJsonObject &obj, const char *key) {
-        const QString value = obj.value(QString::fromUtf8(key)).toString().trimmed();
-        if (!value.isEmpty())
-            resources.append(value);
-    };
-
-    const QJsonObject root = doc.object();
-    const QJsonObject meta = root.value("meta").toObject();
-    appendIfPresent(meta, "background");
-    appendIfPresent(meta, "audio");
-
-    const QJsonArray notes = root.value("note").toArray();
-    for (const QJsonValue &v : notes)
-    {
-        if (!v.isObject())
-            continue;
-        appendIfPresent(v.toObject(), "sound");
     }
 
-    resources.removeDuplicates();
-    return resources;
-}
-
-bool isPathInsideRoot(const QString &rootPath, const QString &targetPath)
-{
-    const QString root = QDir::cleanPath(rootPath);
-    const QString target = QDir::cleanPath(targetPath);
-    const QString prefix = root.endsWith('/') ? root : (root + '/');
-    return target == root || target.startsWith(prefix, Qt::CaseInsensitive);
-}
-
-void copyReferencedExternalResources(const QString &sourceChartPath, const QString &workingChartPath)
-{
-    if (sourceChartPath.isEmpty() || workingChartPath.isEmpty())
-        return;
-
-    const QString sourceChartDir = QFileInfo(sourceChartPath).absoluteDir().absolutePath();
-    const QString workingChartDir = QFileInfo(workingChartPath).absoluteDir().absolutePath();
-    const QString sessionRoot = workingSessionDirFromWorkingPath(workingChartPath);
-    const QStringList resources = collectReferencedResources(sourceChartPath);
-    for (const QString &resource : resources)
+    bool isPathInsideRoot(const QString &rootPath, const QString &targetPath)
     {
-        if (resource.isEmpty() || QDir::isAbsolutePath(resource))
-            continue;
+        const QString root = QDir::cleanPath(rootPath);
+        const QString target = QDir::cleanPath(targetPath);
+        const QString prefix = root.endsWith('/') ? root : (root + '/');
+        return target == root || target.startsWith(prefix, Qt::CaseInsensitive);
+    }
 
-        const QString sourceAbs = QDir::cleanPath(QDir(sourceChartDir).absoluteFilePath(resource));
-        const QFileInfo sourceFi(sourceAbs);
-        if (!sourceFi.exists())
-            continue;
+    void copyReferencedExternalResources(const QString &sourceChartPath, const QString &workingChartPath)
+    {
+        if (sourceChartPath.isEmpty() || workingChartPath.isEmpty())
+            return;
 
-        const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(resource));
-        if (!isPathInsideRoot(sessionRoot, targetAbs))
+        const QString sourceChartDir = QFileInfo(sourceChartPath).absoluteDir().absolutePath();
+        const QString workingChartDir = QFileInfo(workingChartPath).absoluteDir().absolutePath();
+        const QString sessionRoot = workingSessionDirFromWorkingPath(workingChartPath);
+        const QStringList resources = collectReferencedResources(sourceChartPath);
+        for (const QString &resource : resources)
         {
-            Logger::warn(QString("Skip copying referenced resource outside working session root: %1").arg(resource));
-            continue;
-        }
+            if (resource.isEmpty() || QDir::isAbsolutePath(resource))
+                continue;
 
-        if (sourceFi.isDir() && !sourceFi.isSymLink())
-        {
-            QString copyError;
-            if (!copyDirectoryRecursively(sourceAbs, targetAbs, &copyError, nullptr))
+            const QString sourceAbs = QDir::cleanPath(QDir(sourceChartDir).absoluteFilePath(resource));
+            const QFileInfo sourceFi(sourceAbs);
+            if (!sourceFi.exists())
+                continue;
+
+            const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(resource));
+            if (!isPathInsideRoot(sessionRoot, targetAbs))
             {
-                Logger::warn(QString("Failed to copy referenced resource directory: %1 (%2)").arg(resource, copyError));
+                Logger::warn(QString("Skip copying referenced resource outside working session root: %1").arg(resource));
+                continue;
             }
-            continue;
-        }
 
-        QDir().mkpath(QFileInfo(targetAbs).absolutePath());
-        QFile::remove(targetAbs);
-        if (!QFile::copy(sourceAbs, targetAbs))
-        {
-            Logger::warn(QString("Failed to copy referenced resource file: %1").arg(resource));
-        }
-    }
-}
-
-void syncSidecarDirectoryForChart(const QString &sourceChartPath, const QString &targetChartPath)
-{
-    if (sourceChartPath.isEmpty() || targetChartPath.isEmpty())
-        return;
-
-    const QString sourceDir = QFileInfo(sourceChartPath).absoluteDir().absolutePath();
-    const QString targetDir = QFileInfo(targetChartPath).absoluteDir().absolutePath();
-    if (sourceDir.isEmpty() || targetDir.isEmpty())
-        return;
-    if (QDir::cleanPath(sourceDir) == QDir::cleanPath(targetDir))
-        return;
-
-    const QString sourceSidecar = QDir(sourceDir).filePath(".mcce-plugin");
-    if (!QDir(sourceSidecar).exists())
-        return;
-
-    const QString targetSidecar = QDir(targetDir).filePath(".mcce-plugin");
-    QString copyError;
-    if (!copyDirectoryRecursively(sourceSidecar, targetSidecar, &copyError, nullptr))
-    {
-        Logger::warn(QString("Failed to sync sidecar directory: %1 -> %2 (%3)")
-                         .arg(sourceSidecar, targetSidecar, copyError));
-    }
-}
-
-void syncAllKnownSidecars(const QString &sourceChartPath, const QString &targetChartPath)
-{
-    if (sourceChartPath.isEmpty() || targetChartPath.isEmpty())
-        return;
-
-    Logger::debug(QString("syncAllKnownSidecars - Syncing known sidecars from %1 to %2")
-                     .arg(sourceChartPath, targetChartPath));
-
-    // 从 ChartFileSystem 注册表获取所有已注册的 sidecar 扩展名
-    QVector<ChartFileSystem::RegisteredTypeInfo> registeredTypes = ChartFileSystem::ChartFileSystemRegistry::registeredFileTypes();
-    QStringList knownSidecarExtensions;
-    for (const ChartFileSystem::RegisteredTypeInfo &type : registeredTypes)
-    {
-        // 只处理 sidecar 文件（包含 .json 的扩展名）
-        if (type.extension.contains(".json"))
-        {
-            knownSidecarExtensions << type.extension;
-        }
-    }
-
-    QFileInfo sourceFi(sourceChartPath);
-    QFileInfo targetFi(targetChartPath);
-    QString sourceDir = sourceFi.absoluteDir().absolutePath();
-    QString targetDir = targetFi.absoluteDir().absolutePath();
-    const QString sourceChartStem = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(sourceChartPath);
-    const QString targetChartStem = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(targetChartPath);
-
-    QString sourceSidecarDir = QDir(sourceDir).filePath(".mcce-plugin");
-    QString targetSidecarDir = QDir(targetDir).filePath(".mcce-plugin");
-
-    // 确保目标 sidecar 目录存在
-    if (!QDir(targetSidecarDir).exists())
-    {
-        QDir(targetSidecarDir).mkpath(".");
-    }
-
-    // 遍历已知 sidecar 文件并复制
-    for (const QString &ext : knownSidecarExtensions)
-    {
-        QString sourceFile = QDir(sourceSidecarDir).filePath(sourceChartStem + "." + ext);
-        QString targetFile = QDir(targetSidecarDir).filePath(targetChartStem + "." + ext);
-
-        if (QFile::exists(sourceFile))
-        {
-            QFile::remove(targetFile);
-            if (QFile::copy(sourceFile, targetFile))
+            if (sourceFi.isDir() && !sourceFi.isSymLink())
             {
-                Logger::debug(QString("syncAllKnownSidecars - Copied sidecar: %1").arg(ext));
+                QString copyError;
+                if (!copyDirectoryRecursively(sourceAbs, targetAbs, &copyError, nullptr))
+                {
+                    Logger::warn(QString("Failed to copy referenced resource directory: %1 (%2)").arg(resource, copyError));
+                }
+                continue;
             }
-            else
+
+            QDir().mkpath(QFileInfo(targetAbs).absolutePath());
+            QFile::remove(targetAbs);
+            if (!QFile::copy(sourceAbs, targetAbs))
             {
-                Logger::warn(QString("syncAllKnownSidecars - Failed to copy sidecar: %1").arg(ext));
+                Logger::warn(QString("Failed to copy referenced resource file: %1").arg(resource));
             }
         }
     }
 
-    Logger::debug("syncAllKnownSidecars - Known sidecars synced");
-}
-
-void syncReferencedResourcesForSavedChart(const QString &workingChartPath, const QString &savedChartPath)
-{
-    if (workingChartPath.isEmpty() || savedChartPath.isEmpty())
-        return;
-    if (QDir::cleanPath(workingChartPath) == QDir::cleanPath(savedChartPath))
-        return;
-
-    copyReferencedExternalResources(workingChartPath, savedChartPath);
-}
-
-void cleanupSessionWorkingCopies(const QString &preserveWorkingPath)
-{
-    QDir dir(sessionWorkingCopyRootDir());
-    if (!dir.exists())
-        return;
-
-    const QString preservedDir = workingSessionDirFromWorkingPath(preserveWorkingPath);
-    const QFileInfoList entries = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System);
-    for (const QFileInfo &fi : entries)
+    void syncSidecarDirectoryForChart(const QString &sourceChartPath, const QString &targetChartPath)
     {
-        if (fi.fileName().compare("recovery.json", Qt::CaseInsensitive) == 0)
-            continue;
-        const QString abs = fi.absoluteFilePath();
-        if (!preservedDir.isEmpty() && abs == preservedDir)
-            continue;
-        removePathRecursively(abs);
+        if (sourceChartPath.isEmpty() || targetChartPath.isEmpty())
+            return;
+
+        const QString sourceDir = QFileInfo(sourceChartPath).absoluteDir().absolutePath();
+        const QString targetDir = QFileInfo(targetChartPath).absoluteDir().absolutePath();
+        if (sourceDir.isEmpty() || targetDir.isEmpty())
+            return;
+        if (QDir::cleanPath(sourceDir) == QDir::cleanPath(targetDir))
+            return;
+
+        const QString sourceSidecar = QDir(sourceDir).filePath(".mcce-plugin");
+        if (!QDir(sourceSidecar).exists())
+            return;
+
+        const QString targetSidecar = QDir(targetDir).filePath(".mcce-plugin");
+        QString copyError;
+        if (!copyDirectoryRecursively(sourceSidecar, targetSidecar, &copyError, nullptr))
+        {
+            Logger::warn(QString("Failed to sync sidecar directory: %1 -> %2 (%3)")
+                             .arg(sourceSidecar, targetSidecar, copyError));
+        }
     }
-}
 
-QString buildWorkingCopyPath(const QString &sourcePath, QString *workingSessionDirOut)
-{
-    if (workingSessionDirOut)
-        workingSessionDirOut->clear();
-    const QString fileName = QFileInfo(sourcePath).fileName();
-    const QString stamp = QDateTime::currentDateTimeUtc().toString("yyyyMMdd_HHmmss_zzz");
-    const QString uid = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    const QString sourceDirName = QFileInfo(sourcePath).absoluteDir().dirName();
-    const QString sessionName = QString("%1_%2_%3")
-                                    .arg(stamp,
-                                         uid,
-                                         sourceDirName.isEmpty() ? QStringLiteral("chart_session") : sourceDirName);
-    const QString sessionDir = QDir(sessionWorkingCopyRootDir()).filePath(sessionName);
-    const QString chartDirName = sourceDirName.isEmpty() ? QStringLiteral("chart_dir") : sourceDirName;
-    const QString chartDir = QDir(sessionDir).filePath(chartDirName);
-    if (workingSessionDirOut)
-        *workingSessionDirOut = sessionDir;
-    return QDir(chartDir).filePath(fileName);
-}
-
-bool createWorkingCopyFromSource(const QString &sourcePath, QString *workingPathOut, QString *errorOut)
-{
-    if (workingPathOut)
-        workingPathOut->clear();
-    if (errorOut)
-        errorOut->clear();
-
-    if (sourcePath.isEmpty())
+    void syncAllKnownSidecars(const QString &sourceChartPath, const QString &targetChartPath)
     {
+        if (sourceChartPath.isEmpty() || targetChartPath.isEmpty())
+            return;
+
+        Logger::debug(QString("syncAllKnownSidecars - Syncing known sidecars from %1 to %2")
+                          .arg(sourceChartPath, targetChartPath));
+
+        // 从 ChartFileSystem 注册表获取所有已注册的 sidecar 扩展名
+        QVector<ChartFileSystem::RegisteredTypeInfo> registeredTypes = ChartFileSystem::ChartFileSystemRegistry::registeredFileTypes();
+        QStringList knownSidecarExtensions;
+        for (const ChartFileSystem::RegisteredTypeInfo &type : registeredTypes)
+        {
+            // 只处理 sidecar 文件（包含 .json 的扩展名）
+            if (type.extension.contains(".json"))
+            {
+                knownSidecarExtensions << type.extension;
+            }
+        }
+
+        QFileInfo sourceFi(sourceChartPath);
+        QFileInfo targetFi(targetChartPath);
+        QString sourceDir = sourceFi.absoluteDir().absolutePath();
+        QString targetDir = targetFi.absoluteDir().absolutePath();
+        const QString sourceChartStem = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(sourceChartPath);
+        const QString targetChartStem = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(targetChartPath);
+
+        QString sourceSidecarDir = QDir(sourceDir).filePath(".mcce-plugin");
+        QString targetSidecarDir = QDir(targetDir).filePath(".mcce-plugin");
+
+        // 确保目标 sidecar 目录存在
+        if (!QDir(targetSidecarDir).exists())
+        {
+            QDir(targetSidecarDir).mkpath(".");
+        }
+
+        // 遍历已知 sidecar 文件并复制
+        for (const QString &ext : knownSidecarExtensions)
+        {
+            QString sourceFile = QDir(sourceSidecarDir).filePath(sourceChartStem + "." + ext);
+            QString targetFile = QDir(targetSidecarDir).filePath(targetChartStem + "." + ext);
+
+            if (QFile::exists(sourceFile))
+            {
+                QFile::remove(targetFile);
+                if (QFile::copy(sourceFile, targetFile))
+                {
+                    Logger::debug(QString("syncAllKnownSidecars - Copied sidecar: %1").arg(ext));
+                }
+                else
+                {
+                    Logger::warn(QString("syncAllKnownSidecars - Failed to copy sidecar: %1").arg(ext));
+                }
+            }
+        }
+
+        Logger::debug("syncAllKnownSidecars - Known sidecars synced");
+    }
+
+    void syncReferencedResourcesForSavedChart(const QString &workingChartPath, const QString &savedChartPath)
+    {
+        if (workingChartPath.isEmpty() || savedChartPath.isEmpty())
+            return;
+        if (QDir::cleanPath(workingChartPath) == QDir::cleanPath(savedChartPath))
+            return;
+
+        copyReferencedExternalResources(workingChartPath, savedChartPath);
+    }
+
+    void cleanupSessionWorkingCopies(const QString &preserveWorkingPath)
+    {
+        QDir dir(sessionWorkingCopyRootDir());
+        if (!dir.exists())
+            return;
+
+        const QString preservedDir = workingSessionDirFromWorkingPath(preserveWorkingPath);
+        const QFileInfoList entries = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System);
+        for (const QFileInfo &fi : entries)
+        {
+            if (fi.fileName().compare("recovery.json", Qt::CaseInsensitive) == 0)
+                continue;
+            const QString abs = fi.absoluteFilePath();
+            if (!preservedDir.isEmpty() && abs == preservedDir)
+                continue;
+            removePathRecursively(abs);
+        }
+    }
+
+    QString buildWorkingCopyPath(const QString &sourcePath, QString *workingSessionDirOut)
+    {
+        if (workingSessionDirOut)
+            workingSessionDirOut->clear();
+        const QString fileName = QFileInfo(sourcePath).fileName();
+        const QString stamp = QDateTime::currentDateTimeUtc().toString("yyyyMMdd_HHmmss_zzz");
+        const QString uid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        const QString sourceDirName = QFileInfo(sourcePath).absoluteDir().dirName();
+        const QString sessionName = QString("%1_%2_%3")
+                                        .arg(stamp,
+                                             uid,
+                                             sourceDirName.isEmpty() ? QStringLiteral("chart_session") : sourceDirName);
+        const QString sessionDir = QDir(sessionWorkingCopyRootDir()).filePath(sessionName);
+        const QString chartDirName = sourceDirName.isEmpty() ? QStringLiteral("chart_dir") : sourceDirName;
+        const QString chartDir = QDir(sessionDir).filePath(chartDirName);
+        if (workingSessionDirOut)
+            *workingSessionDirOut = sessionDir;
+        return QDir(chartDir).filePath(fileName);
+    }
+
+    bool createWorkingCopyFromSource(const QString &sourcePath, QString *workingPathOut, QString *errorOut)
+    {
+        if (workingPathOut)
+            workingPathOut->clear();
         if (errorOut)
-            *errorOut = QObject::tr("Source chart path is empty.");
-        return false;
-    }
+            errorOut->clear();
 
-    const QString rootDir = sessionWorkingCopyRootDir();
-    if (!QDir().mkpath(rootDir))
-    {
-        if (errorOut)
-            *errorOut = QObject::tr("Failed to create working copy directory:\n%1").arg(rootDir);
-        return false;
-    }
+        if (sourcePath.isEmpty())
+        {
+            if (errorOut)
+                *errorOut = QObject::tr("Source chart path is empty.");
+            return false;
+        }
 
-    const QFileInfo sourceInfo(sourcePath);
-    if (!sourceInfo.exists() || !sourceInfo.isFile())
-    {
-        if (errorOut)
-            *errorOut = QObject::tr("Source chart does not exist:\n%1").arg(sourcePath);
-        return false;
-    }
+        const QString rootDir = sessionWorkingCopyRootDir();
+        if (!QDir().mkpath(rootDir))
+        {
+            if (errorOut)
+                *errorOut = QObject::tr("Failed to create working copy directory:\n%1").arg(rootDir);
+            return false;
+        }
 
-    QString workingSessionDir;
-    const QString workingPath = buildWorkingCopyPath(sourcePath, &workingSessionDir);
-    removePathRecursively(workingSessionDir);
-    if (!copyDirectoryRecursively(sourceInfo.absolutePath(), QFileInfo(workingPath).absoluteDir().absolutePath(), errorOut, nullptr))
-    {
+        const QFileInfo sourceInfo(sourcePath);
+        if (!sourceInfo.exists() || !sourceInfo.isFile())
+        {
+            if (errorOut)
+                *errorOut = QObject::tr("Source chart does not exist:\n%1").arg(sourcePath);
+            return false;
+        }
+
+        QString workingSessionDir;
+        const QString workingPath = buildWorkingCopyPath(sourcePath, &workingSessionDir);
         removePathRecursively(workingSessionDir);
-        return false;
+        if (!copyDirectoryRecursively(sourceInfo.absolutePath(), QFileInfo(workingPath).absoluteDir().absolutePath(), errorOut, nullptr))
+        {
+            removePathRecursively(workingSessionDir);
+            return false;
+        }
+        if (!QFile::exists(workingPath))
+        {
+            if (errorOut)
+                *errorOut = QObject::tr("Working copy chart file is missing:\n%1").arg(workingPath);
+            return false;
+        }
+
+        copyReferencedExternalResources(sourcePath, workingPath);
+        syncSidecarDirectoryForChart(sourcePath, workingPath);
+
+        if (workingPathOut)
+            *workingPathOut = workingPath;
+        return true;
     }
-    if (!QFile::exists(workingPath))
+
+    bool createWorkingCopyFromSourceWithProgress(QWidget *parent,
+                                                 const QString &sourcePath,
+                                                 QString *workingPathOut,
+                                                 QString *errorOut)
     {
+        if (workingPathOut)
+            workingPathOut->clear();
         if (errorOut)
-            *errorOut = QObject::tr("Working copy chart file is missing:\n%1").arg(workingPath);
-        return false;
-    }
+            errorOut->clear();
 
-    copyReferencedExternalResources(sourcePath, workingPath);
-    syncSidecarDirectoryForChart(sourcePath, workingPath);
+        if (sourcePath.isEmpty())
+        {
+            if (errorOut)
+                *errorOut = QObject::tr("Source chart path is empty.");
+            return false;
+        }
 
-    if (workingPathOut)
-        *workingPathOut = workingPath;
-    return true;
-}
+        const QString rootDir = sessionWorkingCopyRootDir();
+        if (!QDir().mkpath(rootDir))
+        {
+            if (errorOut)
+                *errorOut = QObject::tr("Failed to create working copy directory:\n%1").arg(rootDir);
+            return false;
+        }
 
-bool createWorkingCopyFromSourceWithProgress(QWidget *parent,
-                                             const QString &sourcePath,
-                                             QString *workingPathOut,
-                                             QString *errorOut)
-{
-    if (workingPathOut)
-        workingPathOut->clear();
-    if (errorOut)
-        errorOut->clear();
+        const QFileInfo sourceInfo(sourcePath);
+        if (!sourceInfo.exists() || !sourceInfo.isFile())
+        {
+            if (errorOut)
+                *errorOut = QObject::tr("Source chart does not exist:\n%1").arg(sourcePath);
+            return false;
+        }
 
-    if (sourcePath.isEmpty())
-    {
-        if (errorOut)
-            *errorOut = QObject::tr("Source chart path is empty.");
-        return false;
-    }
+        QString workingSessionDir;
+        const QString workingPath = buildWorkingCopyPath(sourcePath, &workingSessionDir);
+        removePathRecursively(workingSessionDir);
 
-    const QString rootDir = sessionWorkingCopyRootDir();
-    if (!QDir().mkpath(rootDir))
-    {
-        if (errorOut)
-            *errorOut = QObject::tr("Failed to create working copy directory:\n%1").arg(rootDir);
-        return false;
-    }
+        CopyProgressState progress;
+        std::atomic<bool> finished{false};
+        std::atomic<bool> success{false};
+        QString asyncError;
 
-    const QFileInfo sourceInfo(sourcePath);
-    if (!sourceInfo.exists() || !sourceInfo.isFile())
-    {
-        if (errorOut)
-            *errorOut = QObject::tr("Source chart does not exist:\n%1").arg(sourcePath);
-        return false;
-    }
-
-    QString workingSessionDir;
-    const QString workingPath = buildWorkingCopyPath(sourcePath, &workingSessionDir);
-    removePathRecursively(workingSessionDir);
-
-    CopyProgressState progress;
-    std::atomic<bool> finished{false};
-    std::atomic<bool> success{false};
-    QString asyncError;
-
-    QElapsedTimer timer;
-    timer.start();
-    QThread *worker = QThread::create([&]()
-    {
+        QElapsedTimer timer;
+        timer.start();
+        QThread *worker = QThread::create([&]()
+                                          {
         QString localError;
         const bool copied = copyDirectoryRecursively(sourceInfo.absolutePath(),
                                                      QFileInfo(workingPath).absoluteDir().absolutePath(),
@@ -1072,107 +1072,106 @@ bool createWorkingCopyFromSourceWithProgress(QWidget *parent,
         if (!localError.isEmpty())
             asyncError = localError;
         success.store(localError.isEmpty() && copied);
-        finished.store(true);
-    });
-    worker->start();
+        finished.store(true); });
+        worker->start();
 
-    QProgressDialog progressDialog(QObject::tr("Preparing working copy..."),
-                                   QObject::tr("Cancel"),
-                                   0,
-                                   100,
-                                   parent);
-    progressDialog.setWindowModality(Qt::ApplicationModal);
-    progressDialog.setAutoClose(false);
-    progressDialog.setAutoReset(false);
-    progressDialog.show();
+        QProgressDialog progressDialog(QObject::tr("Preparing working copy..."),
+                                       QObject::tr("Cancel"),
+                                       0,
+                                       100,
+                                       parent);
+        progressDialog.setWindowModality(Qt::ApplicationModal);
+        progressDialog.setAutoClose(false);
+        progressDialog.setAutoReset(false);
+        progressDialog.show();
 
-    while (!finished.load())
-    {
-        const qint64 totalFiles = qMax<qint64>(1, progress.totalFiles.load());
-        const qint64 copiedFiles = qBound<qint64>(0, progress.copiedFiles.load(), totalFiles);
-        const qint64 copiedBytes = qMax<qint64>(0, progress.copiedBytes.load());
-        const qint64 totalBytes = qMax<qint64>(0, progress.totalBytes.load());
-        const int percent = static_cast<int>((copiedFiles * 100) / totalFiles);
-        progressDialog.setValue(qBound(0, percent, 100));
-        progressDialog.setLabelText(QObject::tr("Preparing working copy...\n%1/%2 files, %3/%4 MB")
-                                        .arg(copiedFiles)
-                                        .arg(totalFiles)
-                                        .arg(QString::number(copiedBytes / 1024.0 / 1024.0, 'f', 1))
-                                        .arg(QString::number(totalBytes / 1024.0 / 1024.0, 'f', 1)));
+        while (!finished.load())
+        {
+            const qint64 totalFiles = qMax<qint64>(1, progress.totalFiles.load());
+            const qint64 copiedFiles = qBound<qint64>(0, progress.copiedFiles.load(), totalFiles);
+            const qint64 copiedBytes = qMax<qint64>(0, progress.copiedBytes.load());
+            const qint64 totalBytes = qMax<qint64>(0, progress.totalBytes.load());
+            const int percent = static_cast<int>((copiedFiles * 100) / totalFiles);
+            progressDialog.setValue(qBound(0, percent, 100));
+            progressDialog.setLabelText(QObject::tr("Preparing working copy...\n%1/%2 files, %3/%4 MB")
+                                            .arg(copiedFiles)
+                                            .arg(totalFiles)
+                                            .arg(QString::number(copiedBytes / 1024.0 / 1024.0, 'f', 1))
+                                            .arg(QString::number(totalBytes / 1024.0 / 1024.0, 'f', 1)));
 
-        if (progressDialog.wasCanceled())
-            progress.cancelRequested.store(true);
+            if (progressDialog.wasCanceled())
+                progress.cancelRequested.store(true);
 
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-        QThread::msleep(15);
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+            QThread::msleep(15);
+        }
+
+        worker->wait();
+        delete worker;
+        progressDialog.setValue(100);
+
+        const qint64 elapsedMs = timer.elapsed();
+        Logger::logStructured(Logger::Info,
+                              QString("Working copy completed in %1 ms").arg(elapsedMs),
+                              "WorkingCopy",
+                              QMap<QString, QString>{
+                                  {"source_path", sourcePath},
+                                  {"working_path", workingPath},
+                                  {"elapsed_ms", QString::number(elapsedMs)},
+                                  {"files_total", QString::number(progress.totalFiles.load())},
+                                  {"files_copied", QString::number(progress.copiedFiles.load())},
+                                  {"bytes_total", QString::number(progress.totalBytes.load())},
+                                  {"bytes_copied", QString::number(progress.copiedBytes.load())},
+                                  {"max_file_ms", QString::number(progress.maxSingleFileMs.load())},
+                                  {"success", success.load() ? "true" : "false"},
+                              });
+
+        if (progress.cancelRequested.load())
+        {
+            removePathRecursively(workingSessionDir);
+            if (errorOut)
+                *errorOut = QObject::tr("Copy cancelled by user.");
+            return false;
+        }
+
+        if (!success.load())
+        {
+            removePathRecursively(workingSessionDir);
+            if (errorOut)
+                *errorOut = asyncError.isEmpty()
+                                ? QObject::tr("Failed to create working copy.")
+                                : asyncError;
+            return false;
+        }
+
+        if (workingPathOut)
+            *workingPathOut = workingPath;
+        return true;
     }
 
-    worker->wait();
-    delete worker;
-    progressDialog.setValue(100);
-
-    const qint64 elapsedMs = timer.elapsed();
-    Logger::logStructured(Logger::Info,
-                          QString("Working copy completed in %1 ms").arg(elapsedMs),
-                          "WorkingCopy",
-                          QMap<QString, QString>{
-                              {"source_path", sourcePath},
-                              {"working_path", workingPath},
-                              {"elapsed_ms", QString::number(elapsedMs)},
-                              {"files_total", QString::number(progress.totalFiles.load())},
-                              {"files_copied", QString::number(progress.copiedFiles.load())},
-                              {"bytes_total", QString::number(progress.totalBytes.load())},
-                              {"bytes_copied", QString::number(progress.copiedBytes.load())},
-                              {"max_file_ms", QString::number(progress.maxSingleFileMs.load())},
-                              {"success", success.load() ? "true" : "false"},
-                          });
-
-    if (progress.cancelRequested.load())
-    {
-        removePathRecursively(workingSessionDir);
-        if (errorOut)
-            *errorOut = QObject::tr("Copy cancelled by user.");
-        return false;
-    }
-
-    if (!success.load())
-    {
-        removePathRecursively(workingSessionDir);
-        if (errorOut)
-            *errorOut = asyncError.isEmpty()
-                            ? QObject::tr("Failed to create working copy.")
-                            : asyncError;
-        return false;
-    }
-
-    if (workingPathOut)
-        *workingPathOut = workingPath;
-    return true;
-}
-
-bool loadWorkingChartWithProgress(QWidget *parent,
-                                  ChartController *chartController,
-                                  const QString &workingChartPath,
-                                  QString *errorOut)
-{
-    if (errorOut)
-        errorOut->clear();
-    if (!chartController)
+    bool loadWorkingChartWithProgress(QWidget *parent,
+                                      ChartController *chartController,
+                                      const QString &workingChartPath,
+                                      QString *errorOut)
     {
         if (errorOut)
-            *errorOut = QObject::tr("Chart controller is not available.");
-        return false;
-    }
+            errorOut->clear();
+        if (!chartController)
+        {
+            if (errorOut)
+                *errorOut = QObject::tr("Chart controller is not available.");
+            return false;
+        }
 
-    std::atomic<bool> finished{false};
-    std::atomic<bool> success{false};
-    QString asyncError;
-    Chart loadedChart;
+        std::atomic<bool> finished{false};
+        std::atomic<bool> success{false};
+        QString asyncError;
+        Chart loadedChart;
 
-    QElapsedTimer timer;
-    timer.start();
-    QThread *worker = QThread::create([&]()
-    {
+        QElapsedTimer timer;
+        timer.start();
+        QThread *worker = QThread::create([&]()
+                                          {
         QString localError;
         Chart parsedChart;
         const bool loaded = ChartIO::load(workingChartPath, parsedChart, false);
@@ -1188,57 +1187,56 @@ bool loadWorkingChartWithProgress(QWidget *parent,
         if (!localError.isEmpty())
             asyncError = localError;
         success.store(localError.isEmpty() && loaded);
-        finished.store(true);
-    });
-    worker->start();
+        finished.store(true); });
+        worker->start();
 
-    QProgressDialog progressDialog(QObject::tr("Loading chart data..."),
-                                   QString(),
-                                   0,
-                                   0,
-                                   parent);
-    progressDialog.setWindowModality(Qt::ApplicationModal);
-    progressDialog.setCancelButton(nullptr);
-    progressDialog.setMinimumDuration(0);
-    progressDialog.show();
+        QProgressDialog progressDialog(QObject::tr("Loading chart data..."),
+                                       QString(),
+                                       0,
+                                       0,
+                                       parent);
+        progressDialog.setWindowModality(Qt::ApplicationModal);
+        progressDialog.setCancelButton(nullptr);
+        progressDialog.setMinimumDuration(0);
+        progressDialog.show();
 
-    while (!finished.load())
-    {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-        QThread::msleep(15);
+        while (!finished.load())
+        {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+            QThread::msleep(15);
+        }
+
+        worker->wait();
+        delete worker;
+
+        const qint64 elapsedMs = timer.elapsed();
+        Logger::logStructured(Logger::Info,
+                              QString("Working chart parsed in %1 ms").arg(elapsedMs),
+                              "WorkingCopy",
+                              QMap<QString, QString>{
+                                  {"working_path", workingChartPath},
+                                  {"elapsed_ms", QString::number(elapsedMs)},
+                                  {"notes", success.load() ? QString::number(loadedChart.notes().size()) : QString("0")},
+                                  {"success", success.load() ? "true" : "false"},
+                              });
+
+        if (!success.load())
+        {
+            if (errorOut)
+                *errorOut = asyncError.isEmpty()
+                                ? QObject::tr("Failed to parse chart data.")
+                                : asyncError;
+            return false;
+        }
+
+        if (!chartController->loadChartFromData(workingChartPath, std::move(loadedChart)))
+        {
+            if (errorOut)
+                *errorOut = QObject::tr("Failed to apply loaded chart.");
+            return false;
+        }
+        return true;
     }
-
-    worker->wait();
-    delete worker;
-
-    const qint64 elapsedMs = timer.elapsed();
-    Logger::logStructured(Logger::Info,
-                          QString("Working chart parsed in %1 ms").arg(elapsedMs),
-                          "WorkingCopy",
-                          QMap<QString, QString>{
-                              {"working_path", workingChartPath},
-                              {"elapsed_ms", QString::number(elapsedMs)},
-                              {"notes", success.load() ? QString::number(loadedChart.notes().size()) : QString("0")},
-                              {"success", success.load() ? "true" : "false"},
-                          });
-
-    if (!success.load())
-    {
-        if (errorOut)
-            *errorOut = asyncError.isEmpty()
-                            ? QObject::tr("Failed to parse chart data.")
-                            : asyncError;
-        return false;
-    }
-
-    if (!chartController->loadChartFromData(workingChartPath, std::move(loadedChart)))
-    {
-        if (errorOut)
-            *errorOut = QObject::tr("Failed to apply loaded chart.");
-        return false;
-    }
-    return true;
-}
 }
 
 MainWindow::MainWindow(ChartController *chartCtrl,
@@ -1750,9 +1748,8 @@ void MainWindow::configureShortcuts()
         edit->setKeySequence(action->shortcut());
 
         QPushButton *resetBtn = new QPushButton(tr("Reset"), row);
-        connect(resetBtn, &QPushButton::clicked, this, [this, actionId, edit]() {
-            edit->setKeySequence(d->shortcutDefaults.value(actionId));
-        });
+        connect(resetBtn, &QPushButton::clicked, this, [this, actionId, edit]()
+                { edit->setKeySequence(d->shortcutDefaults.value(actionId)); });
 
         rowLayout->addWidget(edit, 1);
         rowLayout->addWidget(resetBtn);
@@ -1767,11 +1764,12 @@ void MainWindow::configureShortcuts()
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     QPushButton *resetAllBtn = buttons->addButton(tr("Reset All"), QDialogButtonBox::ResetRole);
-    connect(resetAllBtn, &QPushButton::clicked, this, [this, &editors]() {
+    connect(resetAllBtn, &QPushButton::clicked, this, [this, &editors]()
+            {
         for (auto it = editors.constBegin(); it != editors.constEnd(); ++it)
-            it.value()->setKeySequence(d->shortcutDefaults.value(it.key()));
-    });
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, [&dialog]() { dialog.accept(); });
+            it.value()->setKeySequence(d->shortcutDefaults.value(it.key())); });
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, [&dialog]()
+            { dialog.accept(); });
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
 
@@ -1853,13 +1851,13 @@ void MainWindow::createCentralArea()
 
     connect(d->canvas, &ChartCanvas::statusMessage, this, [this](const QString &msg)
             { statusBar()->showMessage(msg, 2000); });
-    connect(d->canvas, &ChartCanvas::scrollPositionChanged, this, [this](double) {
+    connect(d->canvas, &ChartCanvas::scrollPositionChanged, this, [this](double)
+            {
         if (!d->previewWidget || !d->canvas)
             return;
         if (d->playbackController && d->playbackController->state() == PlaybackController::Playing)
             return;
-        d->previewWidget->setCurrentTimeMs(d->canvas->currentPlayTime());
-    });
+        d->previewWidget->setCurrentTimeMs(d->canvas->currentPlayTime()); });
 
     d->leftPanel->setChartCanvas(d->canvas);
 
@@ -1875,17 +1873,18 @@ void MainWindow::createCentralArea()
     canvasLayout->addWidget(d->canvas, 1);
     canvasLayout->addWidget(d->rightDensityBar, 0);
 
-    connect(d->rightDensityBar, &DensityCurve::seekGestureStarted, this, [this]() {
+    connect(d->rightDensityBar, &DensityCurve::seekGestureStarted, this, [this]()
+            {
         d->densitySeekGestureActive = true;
         d->densityPendingSeekMs = std::numeric_limits<double>::quiet_NaN();
         if (d->playbackController && d->playbackController->state() == PlaybackController::Playing)
         {
             Logger::debug("Playback paused due to density bar drag interaction");
             d->playbackController->pause();
-        }
-    });
+        } });
 
-    const auto clampSeekMs = [this](double targetTimeMs) -> double {
+    const auto clampSeekMs = [this](double targetTimeMs) -> double
+    {
         double clamped = qMax(0.0, targetTimeMs);
         if (d->playbackController && d->playbackController->audioPlayer())
         {
@@ -1896,16 +1895,17 @@ void MainWindow::createCentralArea()
         return clamped;
     };
 
-    connect(d->rightDensityBar, &DensityCurve::seekPreviewRequested, this, [this, clampSeekMs](double targetTimeMs) {
+    connect(d->rightDensityBar, &DensityCurve::seekPreviewRequested, this, [this, clampSeekMs](double targetTimeMs)
+            {
         if (!d->canvas)
             return;
         const double clamped = clampSeekMs(targetTimeMs);
         d->densityPendingSeekMs = clamped;
         // Preview path: update visual playhead only; defer real seek to gesture end.
-        d->canvas->setScrollPos(clamped);
-    });
+        d->canvas->setScrollPos(clamped); });
 
-    connect(d->rightDensityBar, &DensityCurve::seekRequested, this, [this, clampSeekMs](double targetTimeMs) {
+    connect(d->rightDensityBar, &DensityCurve::seekRequested, this, [this, clampSeekMs](double targetTimeMs)
+            {
         if (!d->playbackController || !d->canvas)
             return;
         const double clamped = clampSeekMs(targetTimeMs);
@@ -1913,14 +1913,13 @@ void MainWindow::createCentralArea()
         d->canvas->setScrollPos(clamped);
         // Fallback for non-gesture calls.
         if (!d->densitySeekGestureActive)
-            d->playbackController->seekTo(clamped);
-    });
+            d->playbackController->seekTo(clamped); });
 
-    connect(d->rightDensityBar, &DensityCurve::seekGestureFinished, this, [this]() {
+    connect(d->rightDensityBar, &DensityCurve::seekGestureFinished, this, [this]()
+            {
         if (d->playbackController && std::isfinite(d->densityPendingSeekMs))
             d->playbackController->seekTo(d->densityPendingSeekMs);
-        d->densitySeekGestureActive = false;
-    });
+        d->densitySeekGestureActive = false; });
 
     d->rightPanelContainer = new QWidget(this);
     d->rightPanelContainer->setObjectName("rightPanelRoot");
@@ -1990,14 +1989,11 @@ void MainWindow::createCentralArea()
     setCentralWidget(d->splitter);
     d->mainToolBar = addToolBar(tr("Tools"));
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
-                                                   {
-        showEditorPanel(d->notePanel); });
+                                                   { showEditorPanel(d->notePanel); });
     d->bpmPanelAction = d->mainToolBar->addAction(tr("BPM"), [this]()
-                                                  {
-        showEditorPanel(d->bpmPanel); });
+                                                  { showEditorPanel(d->bpmPanel); });
     d->metaPanelAction = d->mainToolBar->addAction(tr("Meta"), [this]()
-                                                   {
-        showEditorPanel(d->metaPanel); });
+                                                   { showEditorPanel(d->metaPanel); });
     addToolBarBreak(Qt::TopToolBarArea);
     d->pluginToolBar = addToolBar(tr("Plugins"));
     d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
@@ -2460,7 +2456,7 @@ void MainWindow::loadChartFile(const QString &filePath)
 
     d->canvas->update();
     d->isModified = false;
-    
+
     persistRecoveryState();
     statusBar()->showMessage(tr("Loaded: %1").arg(QFileInfo(actualChartPath).fileName()), 3000);
 }
@@ -2582,10 +2578,10 @@ QString MainWindow::selectChartFromFolder(const QString &rootDir,
     if (firstChartItem)
         tree->setCurrentItem(firstChartItem);
 
-    connect(tree, &QTreeWidget::itemDoubleClicked, &dialog, [&dialog](QTreeWidgetItem *item, int) {
+    connect(tree, &QTreeWidget::itemDoubleClicked, &dialog, [&dialog](QTreeWidgetItem *item, int)
+            {
         if (!item->data(0, Qt::UserRole).toString().isEmpty())
-            dialog.accept();
-    });
+            dialog.accept(); });
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -2671,10 +2667,10 @@ QString MainWindow::selectChartFromLibrary(const QString &libraryRoot, const QSt
     }
 
     tree->expandToDepth(0);
-    connect(tree, &QTreeWidget::itemDoubleClicked, &dialog, [&dialog](QTreeWidgetItem *item, int) {
+    connect(tree, &QTreeWidget::itemDoubleClicked, &dialog, [&dialog](QTreeWidgetItem *item, int)
+            {
         if (!item->data(0, Qt::UserRole).toString().isEmpty())
-            dialog.accept();
-    });
+            dialog.accept(); });
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -3037,9 +3033,8 @@ void MainWindow::openTimelineDivisionColorSettings()
         customGroup->setEnabled(p == "custom");
     };
     refreshCustomEnabled();
-    connect(presetCombo, qOverload<int>(&QComboBox::currentIndexChanged), &dialog, [refreshCustomEnabled](int) {
-        refreshCustomEnabled();
-    });
+    connect(presetCombo, qOverload<int>(&QComboBox::currentIndexChanged), &dialog, [refreshCustomEnabled](int)
+            { refreshCustomEnabled(); });
 
     connect(addBtn, &QPushButton::clicked, &dialog, [this, addEdit, extraList, commonDivisions]()
             {
@@ -3064,8 +3059,7 @@ void MainWindow::openTimelineDivisionColorSettings()
         addEdit->clear(); });
 
     connect(removeBtn, &QPushButton::clicked, &dialog, [extraList]()
-            {
-        qDeleteAll(extraList->selectedItems()); });
+            { qDeleteAll(extraList->selectedItems()); });
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -3488,14 +3482,16 @@ void MainWindow::showInfoCenter(int initialTab)
     logLayout->addLayout(logButtons);
     tabs->addTab(logTab, tr("Logs"));
 
-    auto logsDirPath = [this]() -> QString {
+    auto logsDirPath = [this]() -> QString
+    {
         const QString currentLog = Logger::logFilePath();
         if (!currentLog.isEmpty())
             return QFileInfo(currentLog).absolutePath();
         return QCoreApplication::applicationDirPath() + "/logs";
     };
 
-    auto refreshLogs = [logTable, logsDirPath]() {
+    auto refreshLogs = [logTable, logsDirPath]()
+    {
         const QDir dir(logsDirPath());
         const QFileInfoList files = dir.entryInfoList(
             QStringList() << "*.log" << "*.jsonl",
@@ -3519,7 +3515,8 @@ void MainWindow::showInfoCenter(int initialTab)
     };
 
     connect(refreshBtn, &QPushButton::clicked, &dialog, refreshLogs);
-    connect(openSelectedBtn, &QPushButton::clicked, &dialog, [this, logTable]() {
+    connect(openSelectedBtn, &QPushButton::clicked, &dialog, [this, logTable]()
+            {
         const int row = logTable->currentRow();
         if (row < 0 || !logTable->item(row, 0))
             return;
@@ -3527,26 +3524,25 @@ void MainWindow::showInfoCenter(int initialTab)
         if (!path.isEmpty())
             QDesktopServices::openUrl(QUrl::fromLocalFile(path));
         else
-            QMessageBox::information(this, tr("Logs"), tr("No log file selected."));
-    });
-    connect(openCurrentBtn, &QPushButton::clicked, &dialog, [this]() {
+            QMessageBox::information(this, tr("Logs"), tr("No log file selected.")); });
+    connect(openCurrentBtn, &QPushButton::clicked, &dialog, [this]()
+            {
         const QString currentLog = Logger::logFilePath();
         if (currentLog.isEmpty())
         {
             QMessageBox::information(this, tr("Logs"), tr("Current log file is not available yet."));
             return;
         }
-        QDesktopServices::openUrl(QUrl::fromLocalFile(currentLog));
-    });
-    connect(openDirBtn, &QPushButton::clicked, &dialog, [this, logsDirPath]() {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(currentLog)); });
+    connect(openDirBtn, &QPushButton::clicked, &dialog, [this, logsDirPath]()
+            {
         const QString dir = logsDirPath();
         if (!QFileInfo::exists(dir))
         {
             QMessageBox::information(this, tr("Logs"), tr("Log folder does not exist yet."));
             return;
         }
-        QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
-    });
+        QDesktopServices::openUrl(QUrl::fromLocalFile(dir)); });
 
     refreshLogs();
     if (initialTab >= 0 && initialTab < tabs->count())
@@ -3670,6 +3666,3 @@ void MainWindow::applySidebarTheme()
                                        panelDisabledText.name(), panelButtonHoverBg.name(), panelButtonPressedBg.name());
     qApp->setStyleSheet(dialogCss);
 }
-
-
-

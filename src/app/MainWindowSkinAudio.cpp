@@ -19,105 +19,105 @@
 
 namespace
 {
-QStringList skinBaseDirs()
-{
-    const QString appDir = QCoreApplication::applicationDirPath();
-    QStringList candidates;
-    candidates << (appDir + "/skins")
-               << (appDir + "/resources/default_skin");
-
-    QStringList result;
-    for (const QString &dir : candidates)
+    QStringList skinBaseDirs()
     {
-        if (QDir(dir).exists() && !result.contains(dir))
-            result.append(dir);
+        const QString appDir = QCoreApplication::applicationDirPath();
+        QStringList candidates;
+        candidates << (appDir + "/skins")
+                   << (appDir + "/resources/default_skin");
+
+        QStringList result;
+        for (const QString &dir : candidates)
+        {
+            if (QDir(dir).exists() && !result.contains(dir))
+                result.append(dir);
+        }
+        return result;
     }
-    return result;
-}
 
-QString resolveSkinPathByName(const QString &skinName)
-{
-    for (const QString &baseDir : skinBaseDirs())
+    QString resolveSkinPathByName(const QString &skinName)
     {
-        const QString fullPath = baseDir + "/" + skinName;
-        if (QDir(fullPath).exists())
-            return fullPath;
+        for (const QString &baseDir : skinBaseDirs())
+        {
+            const QString fullPath = baseDir + "/" + skinName;
+            if (QDir(fullPath).exists())
+                return fullPath;
+        }
+        return QString();
     }
-    return QString();
-}
 
-struct CachedSkinEntry
-{
-    QString name;
-    QString path;
-    QString displayName;
-};
-
-QString skinDirsFingerprint()
-{
-    QStringList parts;
-    const QStringList dirs = skinBaseDirs();
-    for (const QString &dir : dirs)
+    struct CachedSkinEntry
     {
-        const QFileInfo fi(dir);
-        parts.append(fi.canonicalFilePath().isEmpty() ? fi.absoluteFilePath() : fi.canonicalFilePath());
-        parts.append(QString::number(fi.lastModified().toMSecsSinceEpoch()));
+        QString name;
+        QString path;
+        QString displayName;
+    };
+
+    QString skinDirsFingerprint()
+    {
+        QStringList parts;
+        const QStringList dirs = skinBaseDirs();
+        for (const QString &dir : dirs)
+        {
+            const QFileInfo fi(dir);
+            parts.append(fi.canonicalFilePath().isEmpty() ? fi.absoluteFilePath() : fi.canonicalFilePath());
+            parts.append(QString::number(fi.lastModified().toMSecsSinceEpoch()));
+        }
+        return parts.join("||");
     }
-    return parts.join("||");
-}
 
-QVector<CachedSkinEntry> querySkinEntries(bool *cacheHit = nullptr)
-{
-    static bool initialized = false;
-    static QString fingerprint;
-    static QVector<CachedSkinEntry> cache;
-
-    const QString newFingerprint = skinDirsFingerprint();
-    if (initialized && newFingerprint == fingerprint)
+    QVector<CachedSkinEntry> querySkinEntries(bool *cacheHit = nullptr)
     {
+        static bool initialized = false;
+        static QString fingerprint;
+        static QVector<CachedSkinEntry> cache;
+
+        const QString newFingerprint = skinDirsFingerprint();
+        if (initialized && newFingerprint == fingerprint)
+        {
+            if (cacheHit)
+                *cacheHit = true;
+            return cache;
+        }
+
+        QVector<CachedSkinEntry> entries;
+        QSet<QString> seenNames;
+        for (const QString &baseDir : skinBaseDirs())
+        {
+            for (const QString &skinName : SkinIO::getSkinList(baseDir))
+            {
+                if (seenNames.contains(skinName))
+                    continue;
+                seenNames.insert(skinName);
+
+                const QString path = baseDir + "/" + skinName;
+                entries.append({skinName, path, SkinIO::getSkinDisplayName(path)});
+            }
+        }
+
+        cache = entries;
+        fingerprint = newFingerprint;
+        initialized = true;
         if (cacheHit)
-            *cacheHit = true;
+            *cacheHit = false;
         return cache;
     }
 
-    QVector<CachedSkinEntry> entries;
-    QSet<QString> seenNames;
-    for (const QString &baseDir : skinBaseDirs())
+    QStringList noteSoundBaseDirs()
     {
-        for (const QString &skinName : SkinIO::getSkinList(baseDir))
+        const QString appDir = QCoreApplication::applicationDirPath();
+        QStringList candidates;
+        candidates << (appDir + "/note_sounds")
+                   << (appDir + "/resources/note_sounds");
+
+        QStringList result;
+        for (const QString &dir : candidates)
         {
-            if (seenNames.contains(skinName))
-                continue;
-            seenNames.insert(skinName);
-
-            const QString path = baseDir + "/" + skinName;
-            entries.append({skinName, path, SkinIO::getSkinDisplayName(path)});
+            if (QDir(dir).exists() && !result.contains(dir))
+                result.append(dir);
         }
+        return result;
     }
-
-    cache = entries;
-    fingerprint = newFingerprint;
-    initialized = true;
-    if (cacheHit)
-        *cacheHit = false;
-    return cache;
-}
-
-QStringList noteSoundBaseDirs()
-{
-    const QString appDir = QCoreApplication::applicationDirPath();
-    QStringList candidates;
-    candidates << (appDir + "/note_sounds")
-               << (appDir + "/resources/note_sounds");
-
-    QStringList result;
-    for (const QString &dir : candidates)
-    {
-        if (QDir(dir).exists() && !result.contains(dir))
-            result.append(dir);
-    }
-    return result;
-}
 } // namespace
 
 void MainWindow::changeNoteSound(const QString &soundPath)
@@ -276,5 +276,3 @@ void MainWindow::setSkin(Skin *skin)
         d->canvas->setSkin(skin);
     Logger::debug("Skin set externally");
 }
-
-

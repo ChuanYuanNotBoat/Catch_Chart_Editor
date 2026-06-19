@@ -10,66 +10,66 @@
 
 namespace
 {
-QString currentLocale()
-{
-    QString locale = Settings::instance().language().trimmed();
-    if (locale.isEmpty())
-        locale = QLocale::system().name();
-    return locale;
-}
+    QString currentLocale()
+    {
+        QString locale = Settings::instance().language().trimmed();
+        if (locale.isEmpty())
+            locale = QLocale::system().name();
+        return locale;
+    }
 
-QVariantMap enrichContextWithLocale(const QVariantMap &context)
-{
-    QVariantMap enriched = context;
-    const QString locale = currentLocale();
-    if (!enriched.contains("locale"))
-        enriched.insert("locale", locale);
+    QVariantMap enrichContextWithLocale(const QVariantMap &context)
+    {
+        QVariantMap enriched = context;
+        const QString locale = currentLocale();
+        if (!enriched.contains("locale"))
+            enriched.insert("locale", locale);
 
-    QString language = locale;
-    const int split = language.indexOf('_');
-    if (split > 0)
-        language = language.left(split);
-    if (!enriched.contains("language"))
-        enriched.insert("language", language);
-    return enriched;
-}
+        QString language = locale;
+        const int split = language.indexOf('_');
+        if (split > 0)
+            language = language.left(split);
+        if (!enriched.contains("language"))
+            enriched.insert("language", language);
+        return enriched;
+    }
 
-QString normalizedPluginDisplayName(PluginInterface *plugin, const QString &locale)
-{
-    if (!plugin)
-        return QString();
-    QString name = plugin->localizedDisplayName(locale).trimmed();
-    if (name.isEmpty())
-        name = plugin->displayName().trimmed();
-    return name.toCaseFolded();
-}
+    QString normalizedPluginDisplayName(PluginInterface *plugin, const QString &locale)
+    {
+        if (!plugin)
+            return QString();
+        QString name = plugin->localizedDisplayName(locale).trimmed();
+        if (name.isEmpty())
+            name = plugin->displayName().trimmed();
+        return name.toCaseFolded();
+    }
 
-bool isBuiltinPluginId(const QString &pluginId)
-{
-    return pluginId.trimmed().toLower().startsWith("builtin.");
-}
+    bool isBuiltinPluginId(const QString &pluginId)
+    {
+        return pluginId.trimmed().toLower().startsWith("builtin.");
+    }
 
-bool shouldPreferPlugin(PluginInterface *currentWinner, PluginInterface *candidate)
-{
-    if (!candidate)
+    bool shouldPreferPlugin(PluginInterface *currentWinner, PluginInterface *candidate)
+    {
+        if (!candidate)
+            return false;
+        if (!currentWinner)
+            return true;
+
+        const bool winnerBuiltin = isBuiltinPluginId(currentWinner->pluginId());
+        const bool candidateBuiltin = isBuiltinPluginId(candidate->pluginId());
+        if (winnerBuiltin != candidateBuiltin)
+            return candidateBuiltin;
+
+        // Keep deterministic ordering for same tier.
         return false;
-    if (!currentWinner)
-        return true;
+    }
 
-    const bool winnerBuiltin = isBuiltinPluginId(currentWinner->pluginId());
-    const bool candidateBuiltin = isBuiltinPluginId(candidate->pluginId());
-    if (winnerBuiltin != candidateBuiltin)
-        return candidateBuiltin;
-
-    // Keep deterministic ordering for same tier.
-    return false;
-}
-
-bool isLegacyNativeNoteChainPluginId(const QString &pluginId)
-{
-    const QString id = pluginId.trimmed().toLower();
-    return id == "tool.note_chain_assist.cpp" || id == "tool.note_chain_assist";
-}
+    bool isLegacyNativeNoteChainPluginId(const QString &pluginId)
+    {
+        const QString id = pluginId.trimmed().toLower();
+        return id == "tool.note_chain_assist.cpp" || id == "tool.note_chain_assist";
+    }
 }
 
 PluginManager::PluginManager(QObject *parent) : QObject(parent)

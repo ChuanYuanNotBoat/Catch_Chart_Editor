@@ -93,12 +93,14 @@ def normalize_group_entries(entries, default_group_id, default_name, *, state, c
         })
 
     if default_group_id not in used_ids:
-        normalized.insert(0, default_group_entry(default_group_id, default_name))
+        normalized.insert(0, default_group_entry(
+            default_group_id, default_name))
         used_ids.add(default_group_id)
 
     dedupe_group_names(normalized)
     max_id = max(used_ids) if used_ids else 1
-    state["next_group_id"] = max(int(state.get("next_group_id", 2)), max_id + 1)
+    state["next_group_id"] = max(
+        int(state.get("next_group_id", 2)), max_id + 1)
     return normalized
 
 
@@ -121,7 +123,8 @@ def ensure_groups_contain_ids(groups_key, required_ids, default_prefix, *, state
     dedupe_group_names(groups)
     state[groups_key] = groups
     if used_ids:
-        state["next_group_id"] = max(int(state.get("next_group_id", 2)), max(used_ids) + 1)
+        state["next_group_id"] = max(
+            int(state.get("next_group_id", 2)), max(used_ids) + 1)
 
 
 def set_save_error(state, code, detail=""):
@@ -165,16 +168,20 @@ def save_project(
 
         disk_revision = 0
         if isinstance(disk_payload, dict):
-            disk_revision = max(0, parse_int_fn(disk_payload.get("revision", 0), 0))
-        state_revision = max(0, parse_int_fn(state.get("project_revision", 0), 0))
+            disk_revision = max(0, parse_int_fn(
+                disk_payload.get("revision", 0), 0))
+        state_revision = max(0, parse_int_fn(
+            state.get("project_revision", 0), 0))
         if disk_revision != state_revision:
-            set_save_error_fn("revision_conflict", "file updated by another instance, please refresh")
+            set_save_error_fn(
+                "revision_conflict", "file updated by another instance, please refresh")
             return False
 
         payload = build_v3_payload_fn()
         payload["revision"] = disk_revision + 1
         payload["updated_at"] = int(time_module.time() * 1000)
-        payload["last_writer_instance"] = str(state.get("instance_id", "") or "")
+        payload["last_writer_instance"] = str(
+            state.get("instance_id", "") or "")
 
         tmp_path = f"{path}.tmp.{os_module.getpid()}.{int(time_module.time() * 1000)}"
         with open(tmp_path, "w", encoding="utf-8") as f:
@@ -184,7 +191,8 @@ def save_project(
         state["project_dirty"] = False
         state["project_revision"] = int(payload.get("revision", 0))
         state["project_file_uuid"] = str(payload.get("file_uuid", "") or "")
-        state["project_last_writer_instance"] = str(payload.get("last_writer_instance", "") or "")
+        state["project_last_writer_instance"] = str(
+            payload.get("last_writer_instance", "") or "")
         set_save_error_fn("", "")
         return True
     except Exception as ex:
