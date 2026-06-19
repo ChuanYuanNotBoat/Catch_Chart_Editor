@@ -52,7 +52,8 @@ void GridRenderer::drawGridBeatLinear(QPainter &painter, const QRect &rect, int 
                                       bool verticalFlip,
                                       bool colorizeTimeDivisions,
                                       const QString &colorPreset,
-                                      const QList<int> &customDivisions)
+                                      const QList<int> &customDivisions,
+                                      const QVector<QPair<double, double>> *excludedRanges)
 {
     try
     {
@@ -130,22 +131,38 @@ void GridRenderer::drawGridBeatLinear(QPainter &painter, const QRect &rect, int 
 
             if (isIntegerBeat)
             {
-                const QString text = QString::number(beatNum);
-                painter.setPen(Qt::darkGray);
-                int textY = y;
-                if (verticalFlip)
+                // 跳过排除范围内的全局编号（由 drawExcludedRangeGrid 绘制独立编号）
+                bool inExcluded = false;
+                if (excludedRanges)
                 {
-                    textY = y + 12;
-                    if (textY > rect.bottom())
-                        textY = y - 12;
+                    for (const auto &range : *excludedRanges)
+                    {
+                        if (beat >= range.first && beat < range.second)
+                        {
+                            inExcluded = true;
+                            break;
+                        }
+                    }
                 }
-                else
+                if (!inExcluded)
                 {
-                    textY = y - 2;
-                    if (textY < rect.top())
+                    const QString text = QString::number(beatNum);
+                    painter.setPen(Qt::darkGray);
+                    int textY = y;
+                    if (verticalFlip)
+                    {
                         textY = y + 12;
+                        if (textY > rect.bottom())
+                            textY = y - 12;
+                    }
+                    else
+                    {
+                        textY = y - 2;
+                        if (textY < rect.top())
+                            textY = y + 12;
+                    }
+                    painter.drawText(rect.left() + 2, textY, text);
                 }
-                painter.drawText(rect.left() + 2, textY, text);
             }
         }
     }
@@ -336,14 +353,16 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
         const double startBeatPos = MathUtils::msToBeatFloat(startTime, bpmCache);
         const double endBeatPos = MathUtils::msToBeatFloat(endTime, bpmCache);
 
-        // 预计算排除范围的 ms 区间（避免在循环中重复二分查找）
+        // 预计算排除范围的 ms 区间（使用过滤缓存 bpmCache，
+        // 与主循环中 tickMs 的 beat→ms 转换使用同一缓存，
+        // 确保排除范围跳过边界一致。）
         QVector<QPair<double, double>> excludedRangesMs;
         if (excludedRanges && fullBpmCache && !fullBpmCache->isEmpty())
         {
             for (const auto &range : *excludedRanges)
             {
-                double ms1 = MathUtils::beatToMs(range.first, *fullBpmCache);
-                double ms2 = MathUtils::beatToMs(range.second, *fullBpmCache);
+                double ms1 = MathUtils::beatToMs(range.first, bpmCache);
+                double ms2 = MathUtils::beatToMs(range.second, bpmCache);
                 excludedRangesMs.append(qMakePair(ms1, ms2));
             }
         }

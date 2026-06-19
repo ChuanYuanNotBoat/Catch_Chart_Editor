@@ -645,7 +645,8 @@ void ChartCanvas::drawGrid(QPainter &painter)
                                                    m_verticalFlip,
                                                    colorEnabled,
                                                    colorPreset,
-                                                   colorCustom);
+                                                   colorCustom,
+                                                   (m_excludeRenderingEnabled && m_hasExcludedBpms) ? &m_excludedBeatRanges : nullptr);
                 m_gridCacheRect = rect;
                 m_gridCacheStartBeat = cacheStartBeat;
                 m_gridCacheEndBeat = cacheEndBeat;

@@ -28,7 +28,8 @@ public:
                             bool verticalFlip = false,
                             bool colorizeTimeDivisions = false,
                             const QString &colorPreset = QString(),
-                            const QList<int> &customDivisions = QList<int>());
+                            const QList<int> &customDivisions = QList<int>(),
+                            const QVector<QPair<double, double>> *excludedRanges = nullptr);
 
     // 排除范围内的网格绘制（独立编号，使用time-based Y映射与主网格一致）
     // @param bpmCache  过滤后的BPM缓存（不含排除项BPM）。网格线高度仅由此缓存决定，保证每拍像素恒定。
