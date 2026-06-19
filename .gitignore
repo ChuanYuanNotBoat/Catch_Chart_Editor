@@ -96,3 +96,13 @@ docs/branch_context/feat-rain-length-drag.md
 REVERSE_ENGINEERING_PROGRESS.md
 AUTOTIMING_BINARY_MAPPING.md
 tools/*.py
+render_style_source.txt
+retry_build.cmd
+tmp_impl_plan.md
+.cursor/hooks.json
+.cursor/hooks/kagent-capture.mjs
+.cursor/hooks/kagent-record.mjs
+.kagent/config.json
+.kagent/events.ndjson
+.kagent/symbols.json
+docs/EXCLUDE_BPM_TODO.md
