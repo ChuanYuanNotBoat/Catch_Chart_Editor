@@ -21,7 +21,6 @@
 #include "file/SkinIO.h"
 #include "file/ProjectIO.h"
 #include "file/ChartIO.h"
-#include "file/BpmAuxFiles.h"
 #include "file/ChartFileSystem.h"
 #include "model/Skin.h"
 #include "utils/Logger.h"
@@ -848,35 +847,6 @@ void syncSidecarDirectoryForChart(const QString &sourceChartPath, const QString 
         Logger::warn(QString("Failed to sync sidecar directory: %1 -> %2 (%3)")
                          .arg(sourceSidecar, targetSidecar, copyError));
     }
-}
-
-void syncBpmAuxFilesForChart(const QString &chartPath)
-{
-    if (chartPath.isEmpty())
-        return;
-
-    Logger::debug(QString("syncBpmAuxFilesForChart - Syncing BPM aux files for: %1").arg(chartPath));
-
-    // 确保 .mcce-plugin 目录存在
-    QFileInfo chartFileInfo(chartPath);
-    QDir chartDir = chartFileInfo.absoluteDir();
-    QString sidecarDir = chartDir.absoluteFilePath(".mcce-plugin");
-    if (!QDir(sidecarDir).exists())
-    {
-        QDir(sidecarDir).mkpath(".");
-    }
-
-    // 保存空的 BPM 排除文件（如果不存在）
-    BpmAuxFiles::BpmExcludesData excludesData;
-    if (!QFile::exists(BpmAuxFiles::bpmExcludesFilePath(chartPath)))
-    {
-        BpmAuxFiles::saveBpmExcludes(chartPath, excludesData);
-    }
-
-    // 不保存空的歌曲 BPM 文件（避免 self-invalidation）
-    // SongBpmInfo 仅在用户明确设置 BPM 值后才保存
-
-    Logger::debug("syncBpmAuxFilesForChart - BPM aux files synced");
 }
 
 void syncAllKnownSidecars(const QString &sourceChartPath, const QString &targetChartPath)
@@ -2491,19 +2461,6 @@ void MainWindow::loadChartFile(const QString &filePath)
     d->canvas->update();
     d->isModified = false;
     
-    // 加载 BPM 辅助文件
-    BpmAuxFiles::BpmExcludesData excludesData;
-    if (BpmAuxFiles::loadBpmExcludes(actualChartPath, excludesData))
-    {
-        Logger::info(QString("Loaded BPM excludes data with %1 ranges").arg(excludesData.excludes.size()));
-    }
-    
-    BpmAuxFiles::SongBpmInfo songBpmInfo;
-    if (BpmAuxFiles::loadSongBpm(actualChartPath, songBpmInfo))
-    {
-        Logger::info(QString("Loaded song BPM: %1").arg(songBpmInfo.originalBpm));
-    }
-    
     persistRecoveryState();
     statusBar()->showMessage(tr("Loaded: %1").arg(QFileInfo(actualChartPath).fileName()), 3000);
 }
@@ -2806,7 +2763,6 @@ void MainWindow::saveChart()
             d->chartController->saveChart(d->workingChartPath);
         syncReferencedResourcesForSavedChart(d->workingChartPath, currentPath);
         syncSidecarDirectoryForChart(d->workingChartPath, currentPath);
-        syncBpmAuxFilesForChart(currentPath);
         if (!d->workingChartPath.isEmpty())
             d->chartController->saveChart(d->workingChartPath);
         else
@@ -2845,7 +2801,6 @@ void MainWindow::saveChartAs()
             d->chartController->saveChart(d->workingChartPath);
         syncReferencedResourcesForSavedChart(d->workingChartPath, fileName);
         syncSidecarDirectoryForChart(d->workingChartPath, fileName);
-        syncBpmAuxFilesForChart(fileName);
         if (!d->workingChartPath.isEmpty())
             d->chartController->saveChart(d->workingChartPath);
         else

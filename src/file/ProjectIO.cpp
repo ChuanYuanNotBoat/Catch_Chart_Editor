@@ -1,6 +1,5 @@
 ﻿#include "ProjectIO.h"
 #include "utils/Logger.h"
-#include "file/BpmAuxFiles.h"
 #include "file/ChartFileSystem.h"
 #include <QDir>
 #include <QFile>

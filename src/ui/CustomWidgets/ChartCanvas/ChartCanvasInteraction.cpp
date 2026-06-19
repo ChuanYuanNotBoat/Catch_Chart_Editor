@@ -430,12 +430,19 @@ void ChartCanvas::setPluginToolMode(bool enabled, const QString &pluginId)
         m_pluginToolPluginId = pluginId.trimmed();
     if (!enabled)
     {
+        stopOverlayQueryTimer();
         m_overlayCache.clear();
         m_eventOverlayCache.clear();
         m_lastOverlayQueryMs = 0;
         m_overlayQueryBlockedUntilMs = 0;
         m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlaying;
         applyPluginCursor(QString());
+    }
+    else
+    {
+        // Trigger an immediate query so overlay appears without waiting for timer
+        m_overlayQueryScheduled = false;
+        onOverlayQueryTimerFire();
     }
     update();
 }

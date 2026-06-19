@@ -5,7 +5,6 @@
 #include "model/Chart.h"
 #include "ui/dialogs/BpmMeasureDialog.h"
 #include "utils/MathUtils.h"
-#include "file/BpmAuxFiles.h"
 #include "audio/BpmDetector.h"
 #include <QFileInfo>
 #include <QDir>
@@ -67,10 +66,6 @@ void BPMTimePanel::setupUi()
     m_measureBtn = new QPushButton(tr("Measure BPM..."), this);
     mainLayout->addWidget(m_measureBtn);
 
-    // Excludes label
-    m_excludesLabel = new QLabel(tr("Excluded ranges: 0"), this);
-    mainLayout->addWidget(m_excludesLabel);
-
     mainLayout->addStretch();
 
     connect(m_addBtn, &QPushButton::clicked, this, &BPMTimePanel::onAddClicked);
@@ -94,18 +89,6 @@ void BPMTimePanel::refreshBpmList()
                            .arg(bpm.denominator)
                            .arg(bpm.bpm, 0, 'f', 3);
         m_bpmListWidget->addItem(text);
-    }
-
-    // Load and display exclude ranges count
-    BpmAuxFiles::BpmExcludesData excludesData;
-    QString chartPath = m_chartController->chartFilePath();
-    if (!chartPath.isEmpty() && BpmAuxFiles::loadBpmExcludes(chartPath, excludesData))
-    {
-        m_excludesLabel->setText(tr("Excluded ranges: %1").arg(excludesData.excludes.size()));
-    }
-    else
-    {
-        m_excludesLabel->setText(tr("Excluded ranges: 0"));
     }
 }
 
@@ -417,20 +400,6 @@ void BPMTimePanel::retranslateUi()
         m_removeBtn->setText(tr("Remove"));
     if (m_measureBtn)
         m_measureBtn->setText(tr("Measure BPM..."));
-    if (m_excludesLabel)
-    {
-        // Refresh excludes count
-        BpmAuxFiles::BpmExcludesData excludesData;
-        QString chartPath = m_chartController ? m_chartController->chartFilePath() : QString();
-        if (!chartPath.isEmpty() && BpmAuxFiles::loadBpmExcludes(chartPath, excludesData))
-        {
-            m_excludesLabel->setText(tr("Excluded ranges: %1").arg(excludesData.excludes.size()));
-        }
-        else
-        {
-            m_excludesLabel->setText(tr("Excluded ranges: 0"));
-        }
-    }
     if (m_timeEdit)
         m_timeEdit->setPlaceholderText(tr("e.g. 0:1/1"));
 }

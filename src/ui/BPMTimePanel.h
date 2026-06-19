@@ -48,6 +48,5 @@ private:
     QPushButton *m_addBtn;
     QPushButton *m_removeBtn;
     QPushButton *m_measureBtn;
-    QLabel *m_excludesLabel;
     int m_selectedIndex;
 };

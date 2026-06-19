@@ -12,7 +12,6 @@
  * 线程安全：所有方法必须在主线程调用。
  * 修改信号：任何数据变化都会发送 chartChanged() 信号。
  * 
- * ChartController 暂时不添加辅助文件访问接口，因为辅助文件通过 BpmAuxFiles 命名空间函数直接访问即可
  */
 class ChartController : public QObject
 {

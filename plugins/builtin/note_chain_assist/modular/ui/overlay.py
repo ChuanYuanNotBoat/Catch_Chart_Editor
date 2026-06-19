@@ -1,5 +1,4 @@
 def build_overlay(context, callbacks):
-    ensure_project_context = callbacks["ensure_project_context"]
     normalize_link = callbacks["normalize_link"]
     connected_anchor_segments = callbacks["connected_anchor_segments"]
     sample_segment_chart = callbacks["sample_segment_chart"]
@@ -12,7 +11,6 @@ def build_overlay(context, callbacks):
     chart_to_canvas = callbacks["chart_to_canvas"]
     state = callbacks["state"]
 
-    ensure_project_context(context)
     if not bool(state.get("curve_visible", True)):
         return []
     toggles = context.get("overlay_toggles", {}) if isinstance(context, dict) else {}
