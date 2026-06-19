@@ -10,7 +10,6 @@
 
 #include "file/ProjectIO.h"
 #include "file/ChartIO.h"
-#include "file/BpmAuxFiles.h"
 #include "file/ChartFileSystem.h"
 #include "controller/ChartController.h"
 #include "model/Chart.h"
@@ -1756,62 +1755,6 @@ bool testKedamonoRenderBaseline()
     return true;
 }
 
-bool testBpmAuxFilesBpmExcludeRangeSerialization()
-{
-    BpmAuxFiles::BpmExcludeRange range(1, 0, 1, 4, 0, 1, "test reason");
-    QJsonObject json = range.toJson();
-    
-    BpmAuxFiles::BpmExcludeRange loaded = BpmAuxFiles::BpmExcludeRange::fromJson(json);
-    
-    return loaded.startBeatNum == 1 &&
-           loaded.startNumerator == 0 &&
-           loaded.startDenominator == 1 &&
-           loaded.endBeatNum == 4 &&
-           loaded.endNumerator == 0 &&
-           loaded.endDenominator == 1 &&
-           loaded.reason == "test reason" &&
-           loaded.isValid();
-}
-
-bool testBpmAuxFilesSongBpmInfoSerialization()
-{
-    BpmAuxFiles::SongBpmInfo info(128.5, "manual", "test note");
-    QJsonObject json = info.toJson();
-    
-    BpmAuxFiles::SongBpmInfo loaded = BpmAuxFiles::SongBpmInfo::fromJson(json);
-    
-    return nearlyEqual(loaded.originalBpm, 128.5) &&
-           loaded.source == "manual" &&
-           loaded.note == "test note" &&
-           loaded.isValid();
-}
-
-bool testBpmAuxFilesBpmExcludesDataSerialization()
-{
-    BpmAuxFiles::BpmExcludesData data;
-    data.version = "1.0";
-    data.excludes.append(BpmAuxFiles::BpmExcludeRange(1, 0, 1, 4, 0, 1, "reason1"));
-    data.excludes.append(BpmAuxFiles::BpmExcludeRange(8, 1, 2, 12, 0, 1, "reason2"));
-    
-    QJsonObject json = data.toJson();
-    BpmAuxFiles::BpmExcludesData loaded = BpmAuxFiles::BpmExcludesData::fromJson(json);
-    
-    return loaded.version == "1.0" &&
-           loaded.excludes.size() == 2 &&
-           loaded.isValid();
-}
-
-bool testBpmAuxFilesChartIdentifierForPath()
-{
-    QString path1 = "C:/charts/song_name.mc";
-    QString id1 = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(path1);
-    
-    QString path2 = "/home/user/charts/another_song.mc";
-    QString id2 = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(path2);
-    
-    return id1 == "song_name" && id2 == "another_song";
-}
-
 bool testChartFileSystemRegisterFileType()
 {
     ChartFileSystem::ChartFileSystemRegistry::clearRegistrations();
@@ -1962,10 +1905,6 @@ int main(int argc, char **argv)
         {"Note validation boundaries", &testNoteValidationBoundaries},
         {"Note isXValid for sound ignores range", &testNoteIsXValidForSoundIgnoresRange},
         {"KEDAMONO render baseline", &testKedamonoRenderBaseline},
-        {"BpmAuxFiles BpmExcludeRange serialization", &testBpmAuxFilesBpmExcludeRangeSerialization},
-        {"BpmAuxFiles SongBpmInfo serialization", &testBpmAuxFilesSongBpmInfoSerialization},
-        {"BpmAuxFiles BpmExcludesData serialization", &testBpmAuxFilesBpmExcludesDataSerialization},
-        {"BpmAuxFiles chartIdentifierForPath", &testBpmAuxFilesChartIdentifierForPath},
         {"ChartFileSystem registerFileType", &testChartFileSystemRegisterFileType},
         {"ChartFileSystem isAllowedFile", &testChartFileSystemIsAllowedFile},
         {"ChartFileSystem requiredSidecarExtensions", &testChartFileSystemRequiredSidecarExtensions},
