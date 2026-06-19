@@ -97,10 +97,14 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
         const int startTick = static_cast<int>(std::ceil(startBeatPos * timeDivInt));
         const int endTick = static_cast<int>(std::floor(endBeatPos * timeDivInt));
 
-        const double pixelsPerMs = rect.height() / totalDuration;
+        const double totalBeats = endBeatPos - startBeatPos;
+        if (totalBeats <= 0)
+            return;
+
+        const double pixelsPerBeat = rect.height() / totalBeats;
         const double minPixelStep = 5.0;
-        const double msPerTick = (60000.0 / 120.0) / timeDivInt;
-        const bool skipDenseTicks = (msPerTick * pixelsPerMs < minPixelStep);
+        const double beatsPerTick = 1.0 / timeDivInt;
+        const bool skipDenseTicks = (beatsPerTick * pixelsPerBeat < minPixelStep);
 
         QFont font = painter.font();
         font.setPointSize(8);
@@ -115,15 +119,13 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
             const int denominator = timeDivInt;
             const bool isIntegerBeat = (numerator == 0);
 
-            const double ms = MathUtils::beatToMs(beatNum, numerator, denominator, bpmCache);
-            if (ms < startTime || ms > endTime)
-                continue;
+            const double beatFloat = beatNum + static_cast<double>(numerator) / denominator;
 
             int y = 0;
             if (!verticalFlip)
-                y = rect.top() + static_cast<int>((ms - startTime) / totalDuration * rect.height());
+                y = rect.top() + static_cast<int>((beatFloat - startBeatPos) / totalBeats * rect.height());
             else
-                y = rect.bottom() - static_cast<int>((ms - startTime) / totalDuration * rect.height());
+                y = rect.bottom() - static_cast<int>((beatFloat - startBeatPos) / totalBeats * rect.height());
 
             if (skipDenseTicks && !isIntegerBeat)
                 continue;
