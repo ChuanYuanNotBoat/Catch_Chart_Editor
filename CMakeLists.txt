@@ -35,7 +35,6 @@ set(SOURCES
     src/file/ChartIO.cpp
     src/file/SkinIO.cpp
     src/file/ProjectIO.cpp
-    src/file/BpmAuxFiles.cpp
     src/file/ChartFileSystem.cpp
     src/file/PluginLoader.cpp
     src/audio/AudioPlayer.cpp
@@ -178,7 +177,6 @@ if(BUILD_TESTING)
         src/controller/ChartController.cpp
         src/file/ChartIO.cpp
         src/file/ProjectIO.cpp
-        src/file/BpmAuxFiles.cpp
         src/file/ChartFileSystem.cpp
     )
 

@@ -126,8 +126,7 @@ void LeftPanel::setChartCanvas(ChartCanvas *canvas)
             {
                 m_timeScaleSpin->blockSignals(true);
                 m_timeScaleSpin->setValue(scale);
-                m_timeScaleSpin->blockSignals(false);
-            });
+                m_timeScaleSpin->blockSignals(false); });
     m_timeScaleSpin->setValue(canvas->timeScale());
 }
 
@@ -194,8 +193,7 @@ void LeftPanel::setPluginQuickActions(const QList<PluginQuickAction> &actions)
                     {
                         m_pluginSectionExpanded.insert(pluginId, checked);
                         body->setVisible(checked);
-                        updateGeometry();
-                    });
+                        updateGeometry(); });
         }
 
         for (const PluginQuickAction &a : pluginActions)

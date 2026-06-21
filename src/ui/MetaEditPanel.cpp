@@ -113,7 +113,8 @@ void MetaEditPanel::setupUi()
     mainLayout->addWidget(m_saveBtn);
     mainLayout->addStretch();
 
-    const auto connectLineAutoSave = [this](QLineEdit *edit) {
+    const auto connectLineAutoSave = [this](QLineEdit *edit)
+    {
         connect(edit, &QLineEdit::textChanged, this, &MetaEditPanel::onMetaFieldChanged);
     };
     connectLineAutoSave(m_titleEdit);

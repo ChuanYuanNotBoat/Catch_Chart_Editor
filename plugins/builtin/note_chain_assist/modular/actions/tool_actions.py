@@ -13,7 +13,8 @@ def list_tool_actions(callbacks):
     density_mode = str(density_state.get("mode", ""))
     density_den = int(density_state.get("den", 0) or 0)
     density_has_target = bool(density_state.get("has_target", False))
-    right_panel_target_shape_key = "shape_curve" if active_link_shape_is_polyline() else "shape_polyline"
+    right_panel_target_shape_key = "shape_curve" if active_link_shape_is_polyline(
+    ) else "shape_polyline"
     context_target_shape_key = "shape_curve" if context_links_all_polyline() else "shape_polyline"
     right_panel_toggle_title = (
         f"{tr(state.get('last_context', {}), 'action_polyline_mode')}: "
@@ -237,7 +238,8 @@ def run_tool_action(payload, callbacks):
                 return False
         return True
     if action_id == "toggle_anchor_placement":
-        state["anchor_placement_enabled"] = not bool(state.get("anchor_placement_enabled", False))
+        state["anchor_placement_enabled"] = not bool(
+            state.get("anchor_placement_enabled", False))
         # UI mode toggle only: avoid polluting plugin/host undo stacks.
         return True
     if action_id == "toggle_curve_visible":
@@ -270,7 +272,7 @@ def run_tool_action(payload, callbacks):
     if action_id == "set_segment_density_follow":
         return set_density_for_selected_segments(context, 0)
     if action_id.startswith("set_segment_density_"):
-        suffix = action_id[len("set_segment_density_") :]
+        suffix = action_id[len("set_segment_density_"):]
         try:
             den = int(suffix)
         except Exception:

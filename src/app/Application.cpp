@@ -16,64 +16,64 @@
 
 namespace
 {
-QStringList availableSkinBaseDirs()
-{
-    const QString appDir = QCoreApplication::applicationDirPath();
-    QStringList candidates;
-    candidates << (appDir + "/skins")
-               << (appDir + "/resources/default_skin");
-
-    QStringList result;
-    for (const QString &dir : candidates)
+    QStringList availableSkinBaseDirs()
     {
-        if (dir.isEmpty() || result.contains(dir))
-            continue;
-        if (!QDir(dir).exists())
-            continue;
-        if (SkinIO::getSkinList(dir).isEmpty())
-            continue;
-        result.append(dir);
-    }
-    return result;
-}
+        const QString appDir = QCoreApplication::applicationDirPath();
+        QStringList candidates;
+        candidates << (appDir + "/skins")
+                   << (appDir + "/resources/default_skin");
 
-QString resolvePluginsDir()
-{
-    const QString envDirRaw = qEnvironmentVariable("MCCE_PLUGINS_DIR").trimmed();
-    if (!envDirRaw.isEmpty())
-    {
-        QFileInfo envInfo(envDirRaw);
-        const QString envPath = envInfo.isAbsolute()
-                                    ? envInfo.absoluteFilePath()
-                                    : QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(envDirRaw);
-        return QDir(envPath).absolutePath();
-    }
-
-    const QString appDir = QCoreApplication::applicationDirPath();
-    const QDir appDirObj(appDir);
-
-    // Developer convenience: when running from a local build directory, prefer
-    // repository plugins so script/manifest edits are hot-reloadable without
-    // recompiling the host executable.
-    const QStringList devRootCandidates = {
-        appDirObj.absoluteFilePath("../.."),
-        appDirObj.absoluteFilePath(".."),
-    };
-    for (const QString &root : devRootCandidates)
-    {
-        const QString cmakePath = QDir(root).filePath("CMakeLists.txt");
-        const QString srcPath = QDir(root).filePath("src");
-        const QString pluginsPath = QDir(root).filePath("plugins");
-        if (QFileInfo::exists(cmakePath) &&
-            QFileInfo(srcPath).isDir() &&
-            QFileInfo(pluginsPath).isDir())
+        QStringList result;
+        for (const QString &dir : candidates)
         {
-            return QDir(pluginsPath).absolutePath();
+            if (dir.isEmpty() || result.contains(dir))
+                continue;
+            if (!QDir(dir).exists())
+                continue;
+            if (SkinIO::getSkinList(dir).isEmpty())
+                continue;
+            result.append(dir);
         }
+        return result;
     }
 
-    return QDir(appDir).filePath("plugins");
-}
+    QString resolvePluginsDir()
+    {
+        const QString envDirRaw = qEnvironmentVariable("MCCE_PLUGINS_DIR").trimmed();
+        if (!envDirRaw.isEmpty())
+        {
+            QFileInfo envInfo(envDirRaw);
+            const QString envPath = envInfo.isAbsolute()
+                                        ? envInfo.absoluteFilePath()
+                                        : QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(envDirRaw);
+            return QDir(envPath).absolutePath();
+        }
+
+        const QString appDir = QCoreApplication::applicationDirPath();
+        const QDir appDirObj(appDir);
+
+        // Developer convenience: when running from a local build directory, prefer
+        // repository plugins so script/manifest edits are hot-reloadable without
+        // recompiling the host executable.
+        const QStringList devRootCandidates = {
+            appDirObj.absoluteFilePath("../.."),
+            appDirObj.absoluteFilePath(".."),
+        };
+        for (const QString &root : devRootCandidates)
+        {
+            const QString cmakePath = QDir(root).filePath("CMakeLists.txt");
+            const QString srcPath = QDir(root).filePath("src");
+            const QString pluginsPath = QDir(root).filePath("plugins");
+            if (QFileInfo::exists(cmakePath) &&
+                QFileInfo(srcPath).isDir() &&
+                QFileInfo(pluginsPath).isDir())
+            {
+                return QDir(pluginsPath).absolutePath();
+            }
+        }
+
+        return QDir(appDir).filePath("plugins");
+    }
 } // namespace
 
 Application::Application(int &argc, char **argv)

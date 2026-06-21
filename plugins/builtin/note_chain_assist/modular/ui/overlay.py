@@ -1,5 +1,4 @@
 def build_overlay(context, callbacks):
-    ensure_project_context = callbacks["ensure_project_context"]
     normalize_link = callbacks["normalize_link"]
     connected_anchor_segments = callbacks["connected_anchor_segments"]
     sample_segment_chart = callbacks["sample_segment_chart"]
@@ -12,10 +11,10 @@ def build_overlay(context, callbacks):
     chart_to_canvas = callbacks["chart_to_canvas"]
     state = callbacks["state"]
 
-    ensure_project_context(context)
     if not bool(state.get("curve_visible", True)):
         return []
-    toggles = context.get("overlay_toggles", {}) if isinstance(context, dict) else {}
+    toggles = context.get("overlay_toggles", {}) if isinstance(
+        context, dict) else {}
     if not bool(toggles.get("overlay_enabled", True)):
         return []
 
@@ -33,7 +32,8 @@ def build_overlay(context, callbacks):
             norm = normalize_link(raw[0], raw[1])
             if norm is not None:
                 selected_link_set.add(norm)
-    selected_anchor_set = set(int(v) for v in state.get("selected_anchor_ids", []))
+    selected_anchor_set = set(int(v)
+                              for v in state.get("selected_anchor_ids", []))
 
     if show_preview:
         for _i0, _i1, id0, id1, a0, a1 in connected_anchor_segments():
@@ -137,7 +137,8 @@ def build_overlay(context, callbacks):
             })
 
         if show_labels:
-            mode = tr(context, "anchor_mode_smooth") if a.get("smooth", True) else tr(context, "anchor_mode_corner")
+            mode = tr(context, "anchor_mode_smooth") if a.get(
+                "smooth", True) else tr(context, "anchor_mode_corner")
             items.append({
                 "kind": "text",
                 "coord_space": "chart",
@@ -150,17 +151,23 @@ def build_overlay(context, callbacks):
 
     if show_labels:
         dens = state.get("style", {}).get("denominators", [4, 8, 12, 16])
-        override_den = int(context.get("plugin_time_division_override", 0) or 0) if isinstance(context, dict) else 0
-        effective_den = override_den if override_den > 0 else max(1, int(context.get("time_division", 4))) if isinstance(context, dict) else 4
-        anchor_mode = tr(context, "anchor_on") if bool(state.get("anchor_placement_enabled", False)) else tr(context, "anchor_off")
-        label = tr(context, "overlay_summary", dens="/".join(str(d) for d in dens), den=effective_den, anchor_mode=anchor_mode)
-        items.append({"kind": "text", "x1": 16, "y1": 18, "text": label, "color": "#DDEEFF", "font_px": 12})
+        override_den = int(context.get(
+            "plugin_time_division_override", 0) or 0) if isinstance(context, dict) else 0
+        effective_den = override_den if override_den > 0 else max(
+            1, int(context.get("time_division", 4))) if isinstance(context, dict) else 4
+        anchor_mode = tr(context, "anchor_on") if bool(
+            state.get("anchor_placement_enabled", False)) else tr(context, "anchor_off")
+        label = tr(context, "overlay_summary", dens="/".join(str(d)
+                   for d in dens), den=effective_den, anchor_mode=anchor_mode)
+        items.append({"kind": "text", "x1": 16, "y1": 18,
+                     "text": label, "color": "#DDEEFF", "font_px": 12})
 
     box = state.get("box_select", {})
     if bool(box.get("active", False)):
         sx, sy = box.get("start", [0.0, 0.0])
         ex, ey = box.get("end", [0.0, 0.0])
-        x0, y0, x1, y1 = rect_normalized(float(sx), float(sy), float(ex), float(ey))
+        x0, y0, x1, y1 = rect_normalized(
+            float(sx), float(sy), float(ex), float(ey))
         items.append({
             "kind": "rect",
             "x": x0,

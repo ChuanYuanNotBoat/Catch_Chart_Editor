@@ -8,19 +8,19 @@
 
 namespace
 {
-int sanitizePlaybackFrameRateCap(int fpsCap)
-{
-    switch (fpsCap)
+    int sanitizePlaybackFrameRateCap(int fpsCap)
     {
-    case 0:
-    case 60:
-    case 90:
-    case 120:
-        return fpsCap;
-    default:
-        return 120;
+        switch (fpsCap)
+        {
+        case 0:
+        case 60:
+        case 90:
+        case 120:
+            return fpsCap;
+        default:
+            return 120;
+        }
     }
-}
 }
 
 Settings::Settings() : m_settings("CatchEditor", "CatchChartEditor") {}

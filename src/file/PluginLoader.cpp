@@ -15,107 +15,107 @@
 
 namespace
 {
-struct PluginRuntime
-{
-    QLibrary *library = nullptr;
-    DestroyPluginFn destroy = nullptr;
-    QString filePath;
-};
-
-QHash<PluginInterface *, PluginRuntime> g_pluginRuntime;
-
-bool isNativePluginFile(const QString &fileName)
-{
-    return fileName.endsWith(".dll", Qt::CaseInsensitive) ||
-           fileName.endsWith(".so", Qt::CaseInsensitive) ||
-           fileName.endsWith(".dylib", Qt::CaseInsensitive);
-}
-
-bool isProcessPluginManifestFile(const QString &fileName)
-{
-    return fileName.endsWith(".plugin.json", Qt::CaseInsensitive);
-}
-
-bool isSamplePluginPath(const QString &relativePath)
-{
-    const QString normalized = QDir::fromNativeSeparators(relativePath).toLower();
-    return normalized.startsWith("samples/");
-}
-
-QStringList jsonArrayToStringList(const QJsonArray &arr)
-{
-    QStringList out;
-    out.reserve(arr.size());
-    for (const QJsonValue &v : arr)
-        out.append(v.toString());
-    return out;
-}
-
-ExternalProcessPlugin::Manifest parseProcessManifest(const QString &manifestPath, bool *ok)
-{
-    *ok = false;
-    ExternalProcessPlugin::Manifest manifest;
-    manifest.manifestPath = manifestPath;
-    QFileInfo manifestInfo(manifestPath);
-    QString baseName = manifestInfo.completeBaseName();
-    if (baseName.endsWith(".plugin", Qt::CaseInsensitive))
-        baseName.chop(QString(".plugin").size());
-
-    QFile f(manifestPath);
-    if (!f.open(QIODevice::ReadOnly))
+    struct PluginRuntime
     {
-        qWarning() << "Failed to open process plugin manifest:" << manifestPath;
-        return manifest;
+        QLibrary *library = nullptr;
+        DestroyPluginFn destroy = nullptr;
+        QString filePath;
+    };
+
+    QHash<PluginInterface *, PluginRuntime> g_pluginRuntime;
+
+    bool isNativePluginFile(const QString &fileName)
+    {
+        return fileName.endsWith(".dll", Qt::CaseInsensitive) ||
+               fileName.endsWith(".so", Qt::CaseInsensitive) ||
+               fileName.endsWith(".dylib", Qt::CaseInsensitive);
     }
 
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+    bool isProcessPluginManifestFile(const QString &fileName)
     {
-        qWarning() << "Invalid process plugin manifest JSON:" << manifestPath << parseError.errorString();
-        return manifest;
+        return fileName.endsWith(".plugin.json", Qt::CaseInsensitive);
     }
 
-    const QJsonObject obj = doc.object();
-    manifest.pluginId = obj.value("pluginId").toString().trimmed();
-    manifest.displayName = obj.value("displayName").toString().trimmed();
-    manifest.version = obj.value("version").toString().trimmed();
-    manifest.description = obj.value("description").toString().trimmed();
-    manifest.author = obj.value("author").toString().trimmed();
-    manifest.apiVersion = obj.value("pluginApiVersion").toInt(-1);
-    manifest.executable = obj.value("executable").toString();
-    manifest.args = jsonArrayToStringList(obj.value("args").toArray());
-    manifest.capabilities = jsonArrayToStringList(obj.value("capabilities").toArray());
-
-    const QJsonValue displayNameL10n = obj.value("localizedDisplayName");
-    if (displayNameL10n.isObject())
-        manifest.localizedDisplayName = displayNameL10n.toObject();
-
-    const QJsonValue descL10n = obj.value("localizedDescription");
-    if (descL10n.isObject())
-        manifest.localizedDescription = descL10n.toObject();
-
-    if (manifest.pluginId.isEmpty())
-        manifest.pluginId = QString("process.%1").arg(baseName);
-    if (manifest.displayName.isEmpty())
-        manifest.displayName = baseName;
-    if (manifest.version.isEmpty())
-        manifest.version = "0.0.0";
-
-    const bool hasRequired = !manifest.pluginId.isEmpty() &&
-                             !manifest.displayName.isEmpty() &&
-                             !manifest.version.isEmpty() &&
-                             !manifest.executable.isEmpty() &&
-                             manifest.apiVersion > 0;
-    if (!hasRequired)
+    bool isSamplePluginPath(const QString &relativePath)
     {
-        qWarning() << "Process plugin manifest missing required fields:" << manifestPath;
-        return manifest;
+        const QString normalized = QDir::fromNativeSeparators(relativePath).toLower();
+        return normalized.startsWith("samples/");
     }
 
-    *ok = true;
-    return manifest;
-}
+    QStringList jsonArrayToStringList(const QJsonArray &arr)
+    {
+        QStringList out;
+        out.reserve(arr.size());
+        for (const QJsonValue &v : arr)
+            out.append(v.toString());
+        return out;
+    }
+
+    ExternalProcessPlugin::Manifest parseProcessManifest(const QString &manifestPath, bool *ok)
+    {
+        *ok = false;
+        ExternalProcessPlugin::Manifest manifest;
+        manifest.manifestPath = manifestPath;
+        QFileInfo manifestInfo(manifestPath);
+        QString baseName = manifestInfo.completeBaseName();
+        if (baseName.endsWith(".plugin", Qt::CaseInsensitive))
+            baseName.chop(QString(".plugin").size());
+
+        QFile f(manifestPath);
+        if (!f.open(QIODevice::ReadOnly))
+        {
+            qWarning() << "Failed to open process plugin manifest:" << manifestPath;
+            return manifest;
+        }
+
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+        {
+            qWarning() << "Invalid process plugin manifest JSON:" << manifestPath << parseError.errorString();
+            return manifest;
+        }
+
+        const QJsonObject obj = doc.object();
+        manifest.pluginId = obj.value("pluginId").toString().trimmed();
+        manifest.displayName = obj.value("displayName").toString().trimmed();
+        manifest.version = obj.value("version").toString().trimmed();
+        manifest.description = obj.value("description").toString().trimmed();
+        manifest.author = obj.value("author").toString().trimmed();
+        manifest.apiVersion = obj.value("pluginApiVersion").toInt(-1);
+        manifest.executable = obj.value("executable").toString();
+        manifest.args = jsonArrayToStringList(obj.value("args").toArray());
+        manifest.capabilities = jsonArrayToStringList(obj.value("capabilities").toArray());
+
+        const QJsonValue displayNameL10n = obj.value("localizedDisplayName");
+        if (displayNameL10n.isObject())
+            manifest.localizedDisplayName = displayNameL10n.toObject();
+
+        const QJsonValue descL10n = obj.value("localizedDescription");
+        if (descL10n.isObject())
+            manifest.localizedDescription = descL10n.toObject();
+
+        if (manifest.pluginId.isEmpty())
+            manifest.pluginId = QString("process.%1").arg(baseName);
+        if (manifest.displayName.isEmpty())
+            manifest.displayName = baseName;
+        if (manifest.version.isEmpty())
+            manifest.version = "0.0.0";
+
+        const bool hasRequired = !manifest.pluginId.isEmpty() &&
+                                 !manifest.displayName.isEmpty() &&
+                                 !manifest.version.isEmpty() &&
+                                 !manifest.executable.isEmpty() &&
+                                 manifest.apiVersion > 0;
+        if (!hasRequired)
+        {
+            qWarning() << "Process plugin manifest missing required fields:" << manifestPath;
+            return manifest;
+        }
+
+        *ok = true;
+        return manifest;
+    }
 }
 
 QVector<PluginInterface *> PluginLoader::loadPlugins(const QString &pluginsDir)

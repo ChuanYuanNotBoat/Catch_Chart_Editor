@@ -98,13 +98,15 @@ def build_batch_from_curve(context, target_links, callbacks):
                 target_set.add(norm)
         if not target_set:
             return {"add": [], "remove": [], "move": []}
-        segments = [seg for seg in segments if normalize_link(seg[2], seg[3]) in target_set]
+        segments = [seg for seg in segments if normalize_link(
+            seg[2], seg[3]) in target_set]
 
     if not segments:
         return {"add": [], "remove": [], "move": []}
 
     override_den = int(context.get("plugin_time_division_override", 0) or 0)
-    default_den = max(1, override_den if override_den > 0 else int(context.get("time_division", 4)))
+    default_den = max(1, override_den if override_den >
+                      0 else int(context.get("time_division", 4)))
 
     out = []
     existing = note_position_keys_fn(context)

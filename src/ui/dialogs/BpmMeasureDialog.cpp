@@ -145,11 +145,16 @@ void BpmMeasureDialog::setupUi()
     connect(m_okBtn, &QPushButton::clicked, this, &BpmMeasureDialog::onOkClicked);
     connect(m_cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
 
-    connect(m_x2Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(2); });
-    connect(m_x3Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(3); });
-    connect(m_x4Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(4); });
-    connect(m_x6Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(6); });
-    connect(m_x8Btn, &QPushButton::clicked, this, [this]() { onQuickMultiply(8); });
+    connect(m_x2Btn, &QPushButton::clicked, this, [this]()
+            { onQuickMultiply(2); });
+    connect(m_x3Btn, &QPushButton::clicked, this, [this]()
+            { onQuickMultiply(3); });
+    connect(m_x4Btn, &QPushButton::clicked, this, [this]()
+            { onQuickMultiply(4); });
+    connect(m_x6Btn, &QPushButton::clicked, this, [this]()
+            { onQuickMultiply(6); });
+    connect(m_x8Btn, &QPushButton::clicked, this, [this]()
+            { onQuickMultiply(8); });
 
     // Ctrl+Z undo shortcut
     m_undoShortcut = new QShortcut(QKeySequence::Undo, this);
@@ -165,11 +170,14 @@ void BpmMeasureDialog::setupUi()
 void BpmMeasureDialog::setCurrentTimeText(const QString &text)
 {
     // Find the time value label (second widget in timeLayout)
-    if (layout() && layout()->itemAt(0) && layout()->itemAt(0)->layout()) {
+    if (layout() && layout()->itemAt(0) && layout()->itemAt(0)->layout())
+    {
         QLayoutItem *item = layout()->itemAt(0)->layout()->itemAt(1);
-        if (item && item->widget()) {
-            QLabel *label = qobject_cast<QLabel*>(item->widget());
-            if (label) {
+        if (item && item->widget())
+        {
+            QLabel *label = qobject_cast<QLabel *>(item->widget());
+            if (label)
+            {
                 label->setText(text);
             }
         }
@@ -253,7 +261,8 @@ bool BpmMeasureDialog::applyOffset() const
 
 void BpmMeasureDialog::setMeasuredOffset(int offsetMs)
 {
-    if (m_finalOffsetSpin) {
+    if (m_finalOffsetSpin)
+    {
         m_finalOffsetSpin->setValue(offsetMs);
         m_applyOffsetCheck->setChecked(true);
     }
@@ -267,7 +276,8 @@ void BpmMeasureDialog::onMeasureClicked()
 
 void BpmMeasureDialog::onOkClicked()
 {
-    if (m_measuredBpm > 0) {
+    if (m_measuredBpm > 0)
+    {
         accept();
     }
 }
@@ -290,7 +300,8 @@ void BpmMeasureDialog::onModeChanged(int index)
     bool isFromStart = (index == 0);
     if (m_finalOffsetSpin)
         m_finalOffsetSpin->setEnabled(isFromStart);
-    if (m_applyOffsetCheck) {
+    if (m_applyOffsetCheck)
+    {
         m_applyOffsetCheck->setEnabled(isFromStart);
         if (!isFromStart)
             m_applyOffsetCheck->setChecked(false);

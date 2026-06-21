@@ -26,7 +26,7 @@ def run_plugin_loop(callbacks):
         if not raw:
             continue
         try:
-            msg = json.loads(raw)
+            msg = jsoFn.loads(raw)
         except Exception:
             continue
 

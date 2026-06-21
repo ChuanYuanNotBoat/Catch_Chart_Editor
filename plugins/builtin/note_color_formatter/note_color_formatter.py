@@ -60,7 +60,8 @@ def detect_lang(default="zh"):
 
 
 def tr(lang, key, **kwargs):
-    text = TRANSLATIONS.get(key, {}).get(lang, TRANSLATIONS.get(key, {}).get("en", key))
+    text = TRANSLATIONS.get(key, {}).get(
+        lang, TRANSLATIONS.get(key, {}).get("en", key))
     return text.format(**kwargs)
 
 
@@ -223,7 +224,8 @@ def run_process_plugin():
             try:
                 _send_response(req_id, simplify_beats_path(chart_path))
             except Exception as exc:
-                print(tr(lang, "failed", file=os.path.basename(chart_path), error=str(exc)), file=sys.stderr)
+                print(tr(lang, "failed", file=os.path.basename(
+                    chart_path), error=str(exc)), file=sys.stderr)
                 _send_response(req_id, False)
             continue
 
@@ -244,7 +246,8 @@ def run_standalone():
     _configure_stdio_utf8()
     lang = detect_lang("zh")
     cwd = os.getcwd()
-    targets = [os.path.join(cwd, n) for n in os.listdir(cwd) if n.lower().endswith((".mc", ".mcz"))]
+    targets = [os.path.join(cwd, n) for n in os.listdir(
+        cwd) if n.lower().endswith((".mc", ".mcz"))]
     if not targets:
         return 1
     for path in targets:
@@ -253,7 +256,8 @@ def run_standalone():
             if ok:
                 print(tr(lang, "processed", file=os.path.basename(path)))
         except Exception as exc:
-            print(tr(lang, "failed", file=os.path.basename(path), error=str(exc)), file=sys.stderr)
+            print(tr(lang, "failed", file=os.path.basename(
+                path), error=str(exc)), file=sys.stderr)
     return 0
 
 

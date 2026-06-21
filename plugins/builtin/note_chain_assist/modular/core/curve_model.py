@@ -38,7 +38,8 @@ def segment_denominator_for_link(segment_denominators, curve_density_mode_by_lin
     if not key:
         return max(1, int(fallback_den))
     if isinstance(curve_density_mode_by_link, dict):
-        mode = str(curve_density_mode_by_link.get(key, "") or "").strip().lower()
+        mode = str(curve_density_mode_by_link.get(
+            key, "") or "").strip().lower()
         if mode == "follow":
             return max(1, int(fallback_den))
     if isinstance(segment_denominators, dict):
@@ -60,8 +61,10 @@ def set_segment_denominator(segment_denominators, curve_density_mode_by_link, id
     except Exception:
         val = 0
 
-    seg_map = dict(segment_denominators) if isinstance(segment_denominators, dict) else {}
-    density_mode = dict(curve_density_mode_by_link) if isinstance(curve_density_mode_by_link, dict) else {}
+    seg_map = dict(segment_denominators) if isinstance(
+        segment_denominators, dict) else {}
+    density_mode = dict(curve_density_mode_by_link) if isinstance(
+        curve_density_mode_by_link, dict) else {}
     prev = int(seg_map.get(key, 0) or 0)
 
     if val <= 0:

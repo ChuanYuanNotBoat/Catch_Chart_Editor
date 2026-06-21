@@ -7,9 +7,7 @@
 #include <QDateTime>
 #include <QVector>
 #include <QElapsedTimer>
-#include <QHash>
-#include <QList>
-#include <QString>
+#include <QTimer>
 #include "model/Note.h"
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
@@ -234,9 +232,9 @@ private:
     QPointF m_pasteDragStartPos;
     double m_pasteTimeOffset;
     double m_pasteXOffset;
-    double m_pasteTimeOffsetRaw;                         // Raw paste-preview time offset (unsnapped).
-    double m_pasteXOffsetRaw;                            // Raw paste-preview X offset.
-    double m_pasteAnchorBeat;                            // Reference beat locked when preview starts.
+    double m_pasteTimeOffsetRaw; // Raw paste-preview time offset (unsnapped).
+    double m_pasteXOffsetRaw;    // Raw paste-preview X offset.
+    double m_pasteAnchorBeat;    // Reference beat locked when preview starts.
     double m_pasteRefBeat;
     int m_pasteDragReferenceIndex;
     void cancelPaste();
@@ -329,6 +327,13 @@ private:
     QVariantMap m_pluginOverlayToggles;
     int m_pluginPlacementDensityOverride;
 
+    // Asynchronous overlay query (moved out of paintEvent for performance)
+    QTimer *m_overlayQueryTimer;
+    bool m_overlayQueryScheduled;
+    int m_overlayQueryIntervalMsIdle;
+    void startOverlayQueryTimer();
+    void stopOverlayQueryTimer();
+
     QSet<int> m_cachedHyperSet;
     bool m_hyperCacheValid;
 
@@ -357,6 +362,7 @@ private slots:
     void onSelectionChanged();
     void requestNextFrame();
     void onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq);
+    void onOverlayQueryTimerFire();
 
 private:
     QPixmap m_gridCache;

@@ -17,80 +17,80 @@
 
 namespace
 {
-constexpr int kShiftModifierMask = 0x02000000;
-constexpr int kCtrlModifierMask = 0x04000000;
+    constexpr int kShiftModifierMask = 0x02000000;
+    constexpr int kCtrlModifierMask = 0x04000000;
 
-QJsonObject toJsonObject(const QVariantMap &map)
-{
-    return QJsonObject::fromVariantMap(map);
-}
+    QJsonObject toJsonObject(const QVariantMap &map)
+    {
+        return QJsonObject::fromVariantMap(map);
+    }
 
-QString currentLocale()
-{
-    QString locale = Settings::instance().language().trimmed();
-    if (locale.isEmpty())
-        locale = QLocale::system().name();
-    return locale;
-}
+    QString currentLocale()
+    {
+        QString locale = Settings::instance().language().trimmed();
+        if (locale.isEmpty())
+            locale = QLocale::system().name();
+        return locale;
+    }
 
-QString languageFromLocale(const QString &locale)
-{
-    QString language = locale.trimmed();
-    const int split = language.indexOf('_');
-    if (split > 0)
-        language = language.left(split);
-    return language;
-}
+    QString languageFromLocale(const QString &locale)
+    {
+        QString language = locale.trimmed();
+        const int split = language.indexOf('_');
+        if (split > 0)
+            language = language.left(split);
+        return language;
+    }
 
-void applyUtf8ProcessEnv(QProcessEnvironment *env)
-{
-    if (!env)
-        return;
-    // Force UTF-8 stdio for cross-locale plugin protocol I/O on Windows.
-    env->insert("PYTHONUTF8", "1");
-    env->insert("PYTHONIOENCODING", "utf-8");
-    if (!env->contains("LC_ALL") || env->value("LC_ALL").trimmed().isEmpty())
-        env->insert("LC_ALL", "C.UTF-8");
-}
+    void applyUtf8ProcessEnv(QProcessEnvironment *env)
+    {
+        if (!env)
+            return;
+        // Force UTF-8 stdio for cross-locale plugin protocol I/O on Windows.
+        env->insert("PYTHONUTF8", "1");
+        env->insert("PYTHONIOENCODING", "utf-8");
+        if (!env->contains("LC_ALL") || env->value("LC_ALL").trimmed().isEmpty())
+            env->insert("LC_ALL", "C.UTF-8");
+    }
 
-int requestTimeoutMsForMethod(const QString &method)
-{
-    if (method == "runToolAction")
-        return 15000;
-    if (method == "openAdvancedColorEditor")
-        return 10000;
-    if (method == "listToolActions")
+    int requestTimeoutMsForMethod(const QString &method)
+    {
+        if (method == "runToolAction")
+            return 15000;
+        if (method == "openAdvancedColorEditor")
+            return 10000;
+        if (method == "listToolActions")
+            return 5000;
+        if (method == "buildBatchEdit")
+            return 8000;
+        if (method == "listCanvasOverlays")
+            return 120;
+        if (method == "handleCanvasInput")
+            return 50;
+        if (method == "getPanelWorkspaceConfig")
+            return 3000;
         return 5000;
-    if (method == "buildBatchEdit")
-        return 8000;
-    if (method == "listCanvasOverlays")
-        return 120;
-    if (method == "handleCanvasInput")
-        return 50;
-    if (method == "getPanelWorkspaceConfig")
-        return 3000;
-    return 5000;
-}
+    }
 
-constexpr int kHealthProbeTimeoutMs = 300;
-constexpr int kMaxNoteIdLength = 256;
-constexpr int kMaxSoundPathLength = 1024;
-constexpr int kMaxAbsBeatComponent = 1000000;
-constexpr int kMaxDenominator = 8192;
-constexpr int kMaxAbsOffsetMs = 3600000;
-constexpr int kMaxAbsVolume = 1000;
+    constexpr int kHealthProbeTimeoutMs = 300;
+    constexpr int kMaxNoteIdLength = 256;
+    constexpr int kMaxSoundPathLength = 1024;
+    constexpr int kMaxAbsBeatComponent = 1000000;
+    constexpr int kMaxDenominator = 8192;
+    constexpr int kMaxAbsOffsetMs = 3600000;
+    constexpr int kMaxAbsVolume = 1000;
 
-QJsonObject initializePayloadFor(const ExternalProcessPlugin::Manifest &manifest)
-{
-    QString locale = Settings::instance().language().trimmed();
-    if (locale.isEmpty())
-        locale = QLocale::system().name();
-    return QJsonObject{
-        {"plugin_id", manifest.pluginId},
-        {"locale", locale},
-        {"host_api_version", PluginInterface::kHostApiVersion},
-    };
-}
+    QJsonObject initializePayloadFor(const ExternalProcessPlugin::Manifest &manifest)
+    {
+        QString locale = Settings::instance().language().trimmed();
+        if (locale.isEmpty())
+            locale = QLocale::system().name();
+        return QJsonObject{
+            {"plugin_id", manifest.pluginId},
+            {"locale", locale},
+            {"host_api_version", PluginInterface::kHostApiVersion},
+        };
+    }
 
 }
 

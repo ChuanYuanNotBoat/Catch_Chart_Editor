@@ -27,6 +27,8 @@
 #include <QMessageBox>
 #include <QMenu>
 #include <QAction>
+#include "app/Application.h"
+#include "plugin/PluginManager.h"
 #include <QShowEvent>
 #include <QDebug>
 #include <chrono>
@@ -34,6 +36,17 @@
 #include <cmath>
 #include <limits>
 #include <numeric>
+
+namespace
+{
+    PluginManager *activePluginManager()
+    {
+        auto *app = qobject_cast<Application *>(QCoreApplication::instance());
+        if (!app || !app->pluginSystemReady())
+            return nullptr;
+        return app->pluginManager();
+    }
+}
 
 ChartCanvas::ChartCanvas(QWidget *parent)
     : QWidget(parent),
@@ -122,7 +135,10 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_playbackVisualFramePending(false),
       m_lastPlaybackTickNs(0),
       m_lastPlaybackVisualAdvanceNs(0),
-      m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying)
+      m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying),
+      m_overlayQueryTimer(new QTimer(this)),
+      m_overlayQueryScheduled(false),
+      m_overlayQueryIntervalMsIdle(0)
 {
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
@@ -145,6 +161,8 @@ ChartCanvas::ChartCanvas(QWidget *parent)
     m_pluginOverlayToggles.insert("handles", true);
     m_pluginOverlayToggles.insert("sample_points", true);
     m_pluginOverlayToggles.insert("labels", true);
+
+    connect(m_overlayQueryTimer, &QTimer::timeout, this, &ChartCanvas::onOverlayQueryTimerFire);
 }
 
 ChartCanvas::~ChartCanvas()
@@ -298,20 +316,23 @@ void ChartCanvas::rebuildNoteTimesCache()
 
     std::sort(m_sortedNormalNoteIndicesByBeat.begin(),
               m_sortedNormalNoteIndicesByBeat.end(),
-              [this](int a, int b) {
+              [this](int a, int b)
+              {
                   return m_noteBeatPositions[a] < m_noteBeatPositions[b];
               });
     std::sort(m_sortedRainNoteIndicesByBeat.begin(),
               m_sortedRainNoteIndicesByBeat.end(),
-              [this](int a, int b) {
+              [this](int a, int b)
+              {
                   return m_noteBeatPositions[a] < m_noteBeatPositions[b];
               });
 
     std::sort(m_playableNoteTimesMs.begin(), m_playableNoteTimesMs.end());
     m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-        m_playableNoteTimesMs.begin(),
-        m_playableNoteTimesMs.end(),
-        m_lastNoteSoundTimeMs) - m_playableNoteTimesMs.begin());
+                                                   m_playableNoteTimesMs.begin(),
+                                                   m_playableNoteTimesMs.end(),
+                                                   m_lastNoteSoundTimeMs) -
+                                               m_playableNoteTimesMs.begin());
 
     m_timesDirty = false;
     m_noteDataDirty = false;
@@ -609,6 +630,100 @@ void ChartCanvas::resetOverlayQueryState()
     m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlaying;
 }
 
+void ChartCanvas::startOverlayQueryTimer()
+{
+    if (m_overlayQueryTimer->isActive())
+        return;
 
+    const bool isPlaying = m_isPlaying;
+    int intervalMs;
+    if (isPlaying)
+        intervalMs = m_overlayPlaybackIntervalMs;
+    else
+        intervalMs = kOverlayQueryIntervalMsToolMode;
 
+    m_overlayQueryTimer->start(intervalMs);
+    m_overlayQueryScheduled = false;
+}
 
+void ChartCanvas::stopOverlayQueryTimer()
+{
+    m_overlayQueryTimer->stop();
+    m_overlayQueryScheduled = false;
+}
+
+void ChartCanvas::onOverlayQueryTimerFire()
+{
+    if (m_overlayQueryScheduled)
+        return;
+
+    PluginManager *pm = activePluginManager();
+    if (!pm || !m_pluginToolModeActive)
+        return;
+
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const bool canQuery = nowMs >= m_overlayQueryBlockedUntilMs;
+
+    if (!canQuery)
+        return;
+
+    m_overlayQueryScheduled = true;
+
+    QVariantMap overlayContext = buildPluginCanvasContext();
+    overlayContext.insert("overlay_snapshot_requested_at_ms", nowMs);
+
+    QElapsedTimer requestTimer;
+    requestTimer.start();
+
+    QList<PluginInterface::CanvasOverlayItem> newItems = pm->canvasOverlays(overlayContext);
+    m_overlayCache = newItems;
+    m_lastOverlayQueryMs = nowMs;
+
+    const qint64 elapsedMs = requestTimer.elapsed();
+    const bool isPlaying = m_isPlaying;
+
+    if (isPlaying)
+    {
+        if (elapsedMs > kOverlayPlaybackQueryBudgetMs)
+        {
+            if (m_overlayPlaybackIntervalMs < kOverlayQueryIntervalMsToolModePlayingMedium)
+                m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlayingMedium;
+            else if (m_overlayPlaybackIntervalMs < kOverlayQueryIntervalMsToolModePlayingSlow)
+                m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlayingSlow;
+        }
+        else if (m_overlayPlaybackIntervalMs > kOverlayQueryIntervalMsToolModePlaying)
+        {
+            m_overlayPlaybackIntervalMs = (m_overlayPlaybackIntervalMs > kOverlayQueryIntervalMsToolModePlayingMedium)
+                                              ? kOverlayQueryIntervalMsToolModePlayingMedium
+                                              : kOverlayQueryIntervalMsToolModePlaying;
+        }
+        m_overlayQueryBlockedUntilMs = 0;
+    }
+    else
+    {
+        m_overlayPlaybackIntervalMs = kOverlayQueryIntervalMsToolModePlaying;
+        if (elapsedMs > kOverlaySlowCallThresholdMs)
+        {
+            m_overlayQueryBlockedUntilMs = nowMs + kOverlaySlowCallBackoffMs;
+            Logger::warn(QString("Plugin overlay query is slow (%1 ms); temporarily throttling for %2 ms.")
+                             .arg(elapsedMs)
+                             .arg(kOverlaySlowCallBackoffMs));
+        }
+        else
+        {
+            m_overlayQueryBlockedUntilMs = 0;
+        }
+    }
+
+    // Adaptive timer interval
+    int nextIntervalMs;
+    if (isPlaying)
+        nextIntervalMs = m_overlayPlaybackIntervalMs;
+    else
+        nextIntervalMs = kOverlayQueryIntervalMsToolMode;
+
+    m_overlayQueryTimer->start(nextIntervalMs);
+    m_overlayQueryScheduled = false;
+
+    update();
+}

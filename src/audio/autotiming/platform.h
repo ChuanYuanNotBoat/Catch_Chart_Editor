@@ -1,3 +1,5 @@
+#pragma once
+
 #if defined(_MSC_VER)
 #define COMPILER_MSVC
 #if defined(_M_IX86)

@@ -459,7 +459,3 @@ void ChartCanvas::confirmPaste()
     m_pasteAnchorBeat = 0.0;
     update();
 }
-
-
-
-

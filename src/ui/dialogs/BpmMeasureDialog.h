@@ -24,13 +24,13 @@ public:
     };
 
     explicit BpmMeasureDialog(QWidget *parent = nullptr);
-    
+
     double measuredBpm() const { return m_measuredBpm; }
     double finalBpm() const;
     int finalOffset() const;
     bool applyOffset() const;
     int measureDurationSeconds() const { return m_measureDuration; }
-    
+
     void setCurrentTimeText(const QString &text);
     void setMeasuredBpm(double bpm);
     void setResultDetailsText(const QString &text);
@@ -84,7 +84,7 @@ private:
     QCheckBox *m_applyOffsetCheck;
 
     QShortcut *m_undoShortcut;
-    
+
     double m_measuredBpm;
     double m_lastFinalBpm; // for undo
     int m_measureDuration;

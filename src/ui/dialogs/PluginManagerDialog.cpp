@@ -17,16 +17,16 @@
 
 namespace
 {
-enum Column
-{
-    ColEnabled = 0,
-    ColActive,
-    ColName,
-    ColId,
-    ColVersion,
-    ColAuthor,
-    ColCount
-};
+    enum Column
+    {
+        ColEnabled = 0,
+        ColActive,
+        ColName,
+        ColId,
+        ColVersion,
+        ColAuthor,
+        ColCount
+    };
 }
 
 PluginManagerDialog::PluginManagerDialog(PluginManager *pluginManager, QWidget *parent)
@@ -124,7 +124,6 @@ void PluginManagerDialog::openPluginsFolder()
         path = m_pluginManager->pluginsDir();
     if (path.isEmpty())
         path = QCoreApplication::applicationDirPath() + "/plugins";
-    
 
     if (!QDir(path).exists())
     {

@@ -1,16 +1,15 @@
-import json
-import locale
-import math
-import os
-import shutil
-import sys
-import time
-import uuid
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
-
+from modular.ui import input_handler as input_ui
+from modular.ui import overlay as overlay_ui
+from modular.runtime import workspace as ws_runtime
+from modular.runtime import protocol_io as proto_io
+from modular.runtime.plugin_loop import run_plugin_loop as run_protocol_loop
+from modular.actions import batch_commit as bc
+from modular.actions import tool_actions as ta
+from modular.core import i18n as i18n_core
+from modular.core import sidecar_v3 as scv3
+from modular.core import curve_model as cm
+from modular.core import time_math as tm
+from modular.core import state as state_core
 from modular.core.state import (
     CTRL_MODIFIER_MASK,
     CURVE_CHECKPOINT_PREFIX,
@@ -28,18 +27,19 @@ from modular.core.state import (
     STATE,
     STYLE_PRESETS,
 )
-from modular.core import state as state_core
-from modular.core import time_math as tm
-from modular.core import curve_model as cm
-from modular.core import sidecar_v3 as scv3
-from modular.core import i18n as i18n_core
-from modular.actions import tool_actions as ta
-from modular.actions import batch_commit as bc
-from modular.runtime.plugin_loop import run_plugin_loop as run_protocol_loop
-from modular.runtime import protocol_io as proto_io
-from modular.runtime import workspace as ws_runtime
-from modular.ui import overlay as overlay_ui
-from modular.ui import input_handler as input_ui
+import json
+import locale
+import math
+import os
+import shutil
+import sys
+import time
+import uuid
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
 
 TRANSLATIONS = {
     "anchor_mode_smooth": {"en": "S", "zh": "平", "ja": "滑"},
@@ -413,8 +413,10 @@ def _set_segment_shape(id_a, id_b, shape):
 def _context_default_segment_denominator(context=None):
     ctx = context if isinstance(context, dict) else {}
     if not ctx:
-        ctx = STATE.get("last_context", {}) if isinstance(STATE.get("last_context", {}), dict) else {}
-    override_den = int(ctx.get("plugin_time_division_override", 0) or 0) if isinstance(ctx, dict) else 0
+        ctx = STATE.get("last_context", {}) if isinstance(
+            STATE.get("last_context", {}), dict) else {}
+    override_den = int(ctx.get("plugin_time_division_override", 0)
+                       or 0) if isinstance(ctx, dict) else 0
     if override_den > 0:
         return max(1, override_den)
     if isinstance(ctx, dict):
@@ -424,7 +426,8 @@ def _context_default_segment_denominator(context=None):
                 return time_div
         except Exception:
             pass
-    dens = _sanitize_denominators(STATE.get("style", {}).get("denominators", [4]), ctx)
+    dens = _sanitize_denominators(
+        STATE.get("style", {}).get("denominators", [4]), ctx)
     if dens:
         return max(1, int(dens[0]))
     return 4
@@ -473,7 +476,8 @@ def _add_link(id_a, id_b):
         links = []
     links.append([norm[0], norm[1]])
     STATE["links"] = links
-    _set_segment_denominator(norm[0], norm[1], _context_default_segment_denominator())
+    _set_segment_denominator(
+        norm[0], norm[1], _context_default_segment_denominator())
     _set_segment_shape(norm[0], norm[1], _active_link_shape())
     return True
 
@@ -553,7 +557,8 @@ def _cleanup_links_and_selection():
                 density_mode_cleaned[key] = mode
     STATE["curve_density_mode_by_link"] = density_mode_cleaned
 
-    selected_anchor_ids = [int(aid) for aid in STATE.get("selected_anchor_ids", []) if int(aid) in valid_ids]
+    selected_anchor_ids = [int(aid) for aid in STATE.get(
+        "selected_anchor_ids", []) if int(aid) in valid_ids]
     if not _selection_enabled("anchors"):
         selected_anchor_ids = []
     STATE["selected_anchor_ids"] = selected_anchor_ids
@@ -622,7 +627,8 @@ def _add_selected_anchor(anchor_id):
     aid = int(anchor_id)
     if aid <= 0:
         return
-    selected = [int(v) for v in STATE.get("selected_anchor_ids", []) if int(v) > 0]
+    selected = [int(v) for v in STATE.get(
+        "selected_anchor_ids", []) if int(v) > 0]
     if aid not in selected:
         selected.append(aid)
     STATE["selected_anchor_ids"] = selected
@@ -650,7 +656,8 @@ def _find_segment_hit(context, cx, cy, threshold=14.0):
         prev = _chart_to_canvas(context, sampled[0][0], sampled[0][1])
         for lane_x, beat in sampled[1:]:
             cur = _chart_to_canvas(context, lane_x, beat)
-            d = _distance_point_to_segment(cx, cy, prev[0], prev[1], cur[0], cur[1])
+            d = _distance_point_to_segment(
+                cx, cy, prev[0], prev[1], cur[0], cur[1])
             if d < threshold and d < best_d:
                 best_d = d
                 best = (id0, id1)
@@ -700,7 +707,8 @@ def _selection_enabled(kind):
 
 def _connect_selected_anchors(context):
     idx_map = _anchor_index_map()
-    selected = [int(v) for v in STATE.get("selected_anchor_ids", []) if int(v) in idx_map]
+    selected = [int(v) for v in STATE.get(
+        "selected_anchor_ids", []) if int(v) in idx_map]
     if len(selected) < 2:
         return False
     selected.sort(key=lambda aid: idx_map.get(aid, 1 << 30))
@@ -759,7 +767,8 @@ def _apply_box_selection(context):
     rect = _rect_normalized(float(sx), float(sy), float(ex), float(ey))
     append = bool(box.get("append", False))
 
-    selected_anchor_ids = set(int(v) for v in STATE.get("selected_anchor_ids", [])) if append else set()
+    selected_anchor_ids = set(int(v) for v in STATE.get(
+        "selected_anchor_ids", [])) if append else set()
     selected_links = set()
     if append:
         for raw in STATE.get("selected_links", []):
@@ -783,9 +792,11 @@ def _apply_box_selection(context):
         if hit:
             selected_links.add((id0, id1))
 
-    STATE["selected_anchor_ids"] = [aid for aid in sorted(selected_anchor_ids) if aid > 0]
+    STATE["selected_anchor_ids"] = [
+        aid for aid in sorted(selected_anchor_ids) if aid > 0]
     STATE["selected_links"] = [[a, b] for (a, b) in sorted(selected_links)]
-    STATE["box_select"] = {"active": False, "start": [0.0, 0.0], "end": [0.0, 0.0], "append": False}
+    STATE["box_select"] = {"active": False, "start": [
+        0.0, 0.0], "end": [0.0, 0.0], "append": False}
     _cleanup_links_and_selection()
     return True
 
@@ -841,9 +852,11 @@ def _register_host_undo_action(context, action_id):
         if action_id == "reset_curve":
             title = tr(STATE.get("last_context", {}), "action_reset_curve")
         elif action_id in ("connect_selected_nodes", "connect_selected_nodes_ctx"):
-            title = tr(STATE.get("last_context", {}), "action_connect_selected")
+            title = tr(STATE.get("last_context", {}),
+                       "action_connect_selected")
         elif action_id in ("disconnect_selected_segments", "disconnect_selected_segments_ctx"):
-            title = tr(STATE.get("last_context", {}), "action_disconnect_selected_segments")
+            title = tr(STATE.get("last_context", {}),
+                       "action_disconnect_selected_segments")
     if not title:
         return
 
@@ -867,7 +880,7 @@ def _extract_host_action_title(action_text):
             sep_idx = idx
             break
     if sep_idx >= 0:
-        return text[sep_idx + 1 :].strip()
+        return text[sep_idx + 1:].strip()
     return text
 
 
@@ -886,7 +899,8 @@ def _is_registered_host_undo_action(action_text):
 
 def _context_density_menu_state():
     links = _context_menu_target_links()
-    dens = _sanitize_denominators(STATE.get("style", {}).get("denominators", [4, 8, 12, 16]), STATE.get("last_context", {}))
+    dens = _sanitize_denominators(STATE.get("style", {}).get(
+        "denominators", [4, 8, 12, 16]), STATE.get("last_context", {}))
     if not links:
         return {"has_target": False, "mixed": False, "mode": "", "den": 0, "denominators": dens}
 
@@ -894,11 +908,13 @@ def _context_density_menu_state():
     density_mode_map = STATE.get("curve_density_mode_by_link", {})
     for id0, id1 in links:
         key = _link_key(id0, id1)
-        mode = str(density_mode_map.get(key, "") if isinstance(density_mode_map, dict) else "").strip().lower()
+        mode = str(density_mode_map.get(key, "") if isinstance(
+            density_mode_map, dict) else "").strip().lower()
         if mode == "follow":
             signatures.append(("follow", 0))
         else:
-            den = _segment_denominator_for_link(id0, id1, _context_default_segment_denominator(STATE.get("last_context", {})))
+            den = _segment_denominator_for_link(
+                id0, id1, _context_default_segment_denominator(STATE.get("last_context", {})))
             signatures.append(("fixed", int(den)))
     first = signatures[0] if signatures else ("", 0)
     mixed = any(sig != first for sig in signatures[1:])
@@ -912,7 +928,8 @@ def _context_density_menu_state():
 
 
 def _safe_denominator_set(context):
-    values = context.get("safe_denominators") if isinstance(context, dict) else None
+    values = context.get("safe_denominators") if isinstance(
+        context, dict) else None
     out = set()
     if isinstance(values, list):
         for v in values:
@@ -1007,7 +1024,8 @@ def _load_style(context):
         with open(path, "r", encoding="utf-8") as f:
             payload = json.load(f)
         dens = _sanitize_denominators(payload.get("denominators"), context)
-        STATE["style"] = {"style_name": str(payload.get("style_name", "imported")), "denominators": dens}
+        STATE["style"] = {"style_name": str(payload.get(
+            "style_name", "imported")), "denominators": dens}
         return True
     except Exception:
         return False
@@ -1240,10 +1258,12 @@ def _enforce_handle_time_constraints(index, context):
         other_b = float(other.get("beat", 0.0))
         if other_b > cur_beat:
             candidate = max(0.0, other_b - cur_beat - eps)
-            out_upper = candidate if out_upper is None else min(out_upper, candidate)
+            out_upper = candidate if out_upper is None else min(
+                out_upper, candidate)
         elif other_b < cur_beat:
             candidate = min(0.0, other_b - cur_beat + eps)
-            in_lower = candidate if in_lower is None else max(in_lower, candidate)
+            in_lower = candidate if in_lower is None else max(
+                in_lower, candidate)
 
     if out_upper is not None:
         a["out"][1] = _clamp(a["out"][1], 0.0, out_upper)
@@ -1352,7 +1372,8 @@ def _deserialize_anchor(raw, context):
 
     # Legacy canvas-space format migration.
     if "x" in raw and "y" in raw:
-        lane_x, beat = _canvas_to_chart(context, float(raw.get("x", 0.0)), float(raw.get("y", 0.0)))
+        lane_x, beat = _canvas_to_chart(context, float(
+            raw.get("x", 0.0)), float(raw.get("y", 0.0)))
         lane_x, beat = _snap_chart_point(context, lane_x, beat)
         return {
             "id": int(raw.get("id", 0)),
@@ -1413,7 +1434,8 @@ def _normalize_group_entries(entries, default_group_id, default_name):
 
 
 def _ensure_groups_contain_ids(groups_key, required_ids, default_prefix):
-    scv3.ensure_groups_contain_ids(groups_key, required_ids, default_prefix, state=STATE)
+    scv3.ensure_groups_contain_ids(
+        groups_key, required_ids, default_prefix, state=STATE)
 
 
 def _cleanup_v3_metadata():
@@ -1426,7 +1448,8 @@ def _cleanup_v3_metadata():
             continue
         valid_link_keys.add(f"{norm[0]}:{norm[1]}")
 
-    valid_anchor_ids = set(int(a.get("id", 0)) for a in STATE.get("anchors", []) if isinstance(a, dict))
+    valid_anchor_ids = set(int(a.get("id", 0))
+                           for a in STATE.get("anchors", []) if isinstance(a, dict))
 
     for key in ("anchor_group_ids", "anchor_reserved", "anchor_compat_handles"):
         raw_map = STATE.get(key, {})
@@ -1459,33 +1482,42 @@ def _cleanup_v3_metadata():
     required_node_group_ids = set()
     for aid in valid_anchor_ids:
         key = str(aid)
-        gids = _unique_positive_int_list(STATE.get("anchor_group_ids", {}).get(key, []), DEFAULT_NODE_GROUP_ID)
+        gids = _unique_positive_int_list(
+            STATE.get("anchor_group_ids", {}).get(key, []), DEFAULT_NODE_GROUP_ID)
         STATE["anchor_group_ids"][key] = gids
         required_node_group_ids.update(gids)
-        STATE["anchor_reserved"][key] = _clone_dict_or_empty(STATE.get("anchor_reserved", {}).get(key))
+        STATE["anchor_reserved"][key] = _clone_dict_or_empty(
+            STATE.get("anchor_reserved", {}).get(key))
 
     required_curve_group_ids = set()
     density_mode = STATE.get("curve_density_mode_by_link", {})
     if not isinstance(density_mode, dict):
         density_mode = {}
     for link_key in valid_link_keys:
-        gids = _unique_positive_int_list(STATE.get("curve_group_ids_by_link", {}).get(link_key, []), DEFAULT_CURVE_GROUP_ID)
+        gids = _unique_positive_int_list(STATE.get(
+            "curve_group_ids_by_link", {}).get(link_key, []), DEFAULT_CURVE_GROUP_ID)
         STATE["curve_group_ids_by_link"][link_key] = gids
         required_curve_group_ids.update(gids)
         mode = str(density_mode.get(link_key, "") or "").strip().lower()
         if mode not in ("fixed", "follow"):
-            den = _parse_int(STATE.get("segment_denominators", {}).get(link_key, 0), 0)
+            den = _parse_int(
+                STATE.get("segment_denominators", {}).get(link_key, 0), 0)
             density_mode[link_key] = "fixed" if den > 0 else "follow"
-        STATE["curve_reserved_by_link"][link_key] = _clone_dict_or_empty(STATE.get("curve_reserved_by_link", {}).get(link_key))
+        STATE["curve_reserved_by_link"][link_key] = _clone_dict_or_empty(
+            STATE.get("curve_reserved_by_link", {}).get(link_key))
         STATE["curve_special_joystick_by_link"][link_key] = _clone_dict_or_empty(
             STATE.get("curve_special_joystick_by_link", {}).get(link_key)
         )
     STATE["curve_density_mode_by_link"] = density_mode
 
-    STATE["node_groups"] = _normalize_group_entries(STATE.get("node_groups", []), DEFAULT_NODE_GROUP_ID, "base")
-    STATE["curve_groups"] = _normalize_group_entries(STATE.get("curve_groups", []), DEFAULT_CURVE_GROUP_ID, "base")
-    _ensure_groups_contain_ids("node_groups", required_node_group_ids, "node_group")
-    _ensure_groups_contain_ids("curve_groups", required_curve_group_ids, "curve_group")
+    STATE["node_groups"] = _normalize_group_entries(
+        STATE.get("node_groups", []), DEFAULT_NODE_GROUP_ID, "base")
+    STATE["curve_groups"] = _normalize_group_entries(
+        STATE.get("curve_groups", []), DEFAULT_CURVE_GROUP_ID, "base")
+    _ensure_groups_contain_ids(
+        "node_groups", required_node_group_ids, "node_group")
+    _ensure_groups_contain_ids(
+        "curve_groups", required_curve_group_ids, "curve_group")
 
 
 def _ensure_curve_identity_and_numbers():
@@ -1534,8 +1566,10 @@ def _serialize_node_for_v3(anchor):
     aid = int(anchor.get("id", 0))
     key = str(aid)
     out_handle = anchor.get("out", [0.0, 0.0])
-    out_dx = _parse_float(out_handle[0] if isinstance(out_handle, list) and len(out_handle) >= 1 else 0.0, 0.0)
-    out_db = _parse_float(out_handle[1] if isinstance(out_handle, list) and len(out_handle) >= 2 else 0.0, 0.0)
+    out_dx = _parse_float(out_handle[0] if isinstance(
+        out_handle, list) and len(out_handle) >= 1 else 0.0, 0.0)
+    out_db = _parse_float(out_handle[1] if isinstance(
+        out_handle, list) and len(out_handle) >= 2 else 0.0, 0.0)
     compat_raw = STATE.get("anchor_compat_handles", {}).get(key, {})
     compat = _clone_dict_or_empty(compat_raw)
     if not compat:
@@ -1564,14 +1598,16 @@ def _serialize_node_for_v3(anchor):
 def _serialize_curve_for_v3(norm):
     key = f"{norm[0]}:{norm[1]}"
     den = _parse_int(STATE.get("segment_denominators", {}).get(key, 0), 0)
-    density_mode = str(STATE.get("curve_density_mode_by_link", {}).get(key, "") or "").strip().lower()
+    density_mode = str(STATE.get("curve_density_mode_by_link",
+                       {}).get(key, "") or "").strip().lower()
     if density_mode == "follow":
         density = {"mode": "follow"}
     elif den > 0:
         density = {"mode": "fixed", "denominator": den}
     else:
         density = {"mode": "follow"}
-    shape = _normalize_shape_name(STATE.get("segment_shapes", {}).get(key, "curve"))
+    shape = _normalize_shape_name(
+        STATE.get("segment_shapes", {}).get(key, "curve"))
     return {
         "curve_id": _parse_int(STATE.get("curve_id_by_link", {}).get(key, 0), 0),
         "curve_no": _parse_int(STATE.get("curve_no_by_link", {}).get(key, 0), 0),
@@ -1624,7 +1660,8 @@ def _set_save_error(code, detail=""):
     scv3.set_save_error(STATE, code, detail)
     if code:
         try:
-            sys.stderr.write(f"[note_chain_assist] save failed: {code} {detail}\n")
+            sys.stderr.write(
+                f"[note_chain_assist] save failed: {code} {detail}\n")
             sys.stderr.flush()
         except Exception:
             pass
@@ -1636,7 +1673,8 @@ def _read_disk_payload(path):
 
 def _save_project(path, context=None):
     if bool(STATE.get("project_load_failed", False)) and str(STATE.get("project_path", "") or "") == str(path or ""):
-        _set_save_error("load_failed_blocked", "sidecar load failed; save blocked to protect existing file")
+        _set_save_error("load_failed_blocked",
+                        "sidecar load failed; save blocked to protect existing file")
         return False
     return scv3.save_project(
         STATE,
@@ -1669,12 +1707,14 @@ def _load_project_v2_payload(payload, context):
     else:
         STATE["links"] = _default_links_for_anchors()
     seg_dens = payload.get("segment_denominators")
-    STATE["segment_denominators"] = _clone(seg_dens) if isinstance(seg_dens, dict) else {}
+    STATE["segment_denominators"] = _clone(
+        seg_dens) if isinstance(seg_dens, dict) else {}
     seg_shapes = payload.get("segment_shapes")
     if isinstance(seg_shapes, dict):
         STATE["segment_shapes"] = _clone(seg_shapes)
     else:
-        legacy_shape = _normalize_shape_name(payload.get("curve_shape", "curve"))
+        legacy_shape = _normalize_shape_name(
+            payload.get("curve_shape", "curve"))
         STATE["segment_shapes"] = {}
         if legacy_shape == "polyline":
             for raw in STATE.get("links", []):
@@ -1710,8 +1750,10 @@ def _load_project_v2_payload(payload, context):
     STATE["curve_density_mode_by_link"] = {}
     STATE["curve_reserved_by_link"] = {}
     STATE["curve_special_joystick_by_link"] = {}
-    STATE["node_groups"] = [_default_group_entry(DEFAULT_NODE_GROUP_ID, "base")]
-    STATE["curve_groups"] = [_default_group_entry(DEFAULT_CURVE_GROUP_ID, "base")]
+    STATE["node_groups"] = [_default_group_entry(
+        DEFAULT_NODE_GROUP_ID, "base")]
+    STATE["curve_groups"] = [_default_group_entry(
+        DEFAULT_CURVE_GROUP_ID, "base")]
 
     style = payload.get("style")
     if isinstance(style, dict):
@@ -1719,12 +1761,16 @@ def _load_project_v2_payload(payload, context):
             "style_name": str(style.get("style_name", "loaded")),
             "denominators": _sanitize_denominators(style.get("denominators"), context),
         }
-    active_shape = payload.get("active_link_shape", payload.get("curve_shape", "curve"))
+    active_shape = payload.get(
+        "active_link_shape", payload.get("curve_shape", "curve"))
     STATE["active_link_shape"] = _normalize_shape_name(active_shape)
-    STATE["note_curve_snap_enabled"] = bool(payload.get("note_curve_snap_enabled", False))
+    STATE["note_curve_snap_enabled"] = bool(
+        payload.get("note_curve_snap_enabled", False))
     STATE["project_revision"] = 0
-    STATE["project_file_uuid"] = str(STATE.get("project_file_uuid", "") or "") or uuid.uuid4().hex
-    STATE["project_last_writer_instance"] = str(payload.get("last_writer_instance", "") or "")
+    STATE["project_file_uuid"] = str(
+        STATE.get("project_file_uuid", "") or "") or uuid.uuid4().hex
+    STATE["project_last_writer_instance"] = str(
+        payload.get("last_writer_instance", "") or "")
     _cleanup_links_and_selection()
     _seed_missing_segment_denominators(context)
     _ensure_curve_identity_and_numbers()
@@ -1751,7 +1797,8 @@ def _load_project_v3_payload(payload, context):
                 joy_db = _beat_from_any(joystick_raw.get("beat_delta"), 0.0)
             else:
                 compat_raw = raw.get("compat_handles", {})
-                out_raw = compat_raw.get("out", {}) if isinstance(compat_raw, dict) else {}
+                out_raw = compat_raw.get("out", {}) if isinstance(
+                    compat_raw, dict) else {}
                 joy_dx = _parse_float(out_raw.get("lane_dx", 0.0), 0.0)
                 joy_db = _beat_from_any(out_raw.get("beat_delta"), 0.0)
 
@@ -1765,7 +1812,8 @@ def _load_project_v3_payload(payload, context):
                 "smooth": bool(raw.get("smooth", True)),
             })
             key = str(aid)
-            anchor_group_ids[key] = _unique_positive_int_list(raw.get("group_ids"), DEFAULT_NODE_GROUP_ID)
+            anchor_group_ids[key] = _unique_positive_int_list(
+                raw.get("group_ids"), DEFAULT_NODE_GROUP_ID)
             anchor_reserved[key] = _clone_dict_or_empty(raw.get("reserved"))
             compat_payload = raw.get("compat_handles")
             if isinstance(compat_payload, dict) and compat_payload:
@@ -1776,7 +1824,8 @@ def _load_project_v3_payload(payload, context):
                     "out": {"lane_dx": joy_dx, "beat_delta": _triplet_from_any(joy_db, joy_db)},
                 }
 
-    parsed_anchors.sort(key=lambda a: (float(a.get("beat", 0.0)), float(a.get("lane_x", 0.0)), int(a.get("id", 0))))
+    parsed_anchors.sort(key=lambda a: (float(a.get("beat", 0.0)), float(
+        a.get("lane_x", 0.0)), int(a.get("id", 0))))
     STATE["anchors"] = parsed_anchors
     _ensure_anchor_ids()
 
@@ -1804,14 +1853,19 @@ def _load_project_v3_payload(payload, context):
             key = f"{norm[0]}:{norm[1]}"
             curve_id_by_link[key] = _parse_int(raw.get("curve_id", 0), 0)
             curve_no_by_link[key] = _parse_int(raw.get("curve_no", 0), 0)
-            curve_group_ids_by_link[key] = _unique_positive_int_list(raw.get("group_ids"), DEFAULT_CURVE_GROUP_ID)
-            curve_reserved_by_link[key] = _clone_dict_or_empty(raw.get("reserved"))
-            curve_special_joystick_by_link[key] = _clone_dict_or_empty(raw.get("special_joystick_reserved"))
+            curve_group_ids_by_link[key] = _unique_positive_int_list(
+                raw.get("group_ids"), DEFAULT_CURVE_GROUP_ID)
+            curve_reserved_by_link[key] = _clone_dict_or_empty(
+                raw.get("reserved"))
+            curve_special_joystick_by_link[key] = _clone_dict_or_empty(
+                raw.get("special_joystick_reserved"))
 
             density = raw.get("density", {})
-            mode = str(density.get("mode", "follow") if isinstance(density, dict) else "follow").strip().lower()
+            mode = str(density.get("mode", "follow") if isinstance(
+                density, dict) else "follow").strip().lower()
             if mode == "fixed":
-                den = _parse_int(density.get("denominator", 0), 0) if isinstance(density, dict) else 0
+                den = _parse_int(density.get("denominator", 0),
+                                 0) if isinstance(density, dict) else 0
                 if den > 0:
                     STATE["segment_denominators"][key] = den
                     curve_density_mode_by_link[key] = "fixed"
@@ -1831,8 +1885,10 @@ def _load_project_v3_payload(payload, context):
     STATE["curve_density_mode_by_link"] = curve_density_mode_by_link
     STATE["curve_reserved_by_link"] = curve_reserved_by_link
     STATE["curve_special_joystick_by_link"] = curve_special_joystick_by_link
-    STATE["node_groups"] = _normalize_group_entries(payload.get("node_groups", []), DEFAULT_NODE_GROUP_ID, "base")
-    STATE["curve_groups"] = _normalize_group_entries(payload.get("curve_groups", []), DEFAULT_CURVE_GROUP_ID, "base")
+    STATE["node_groups"] = _normalize_group_entries(
+        payload.get("node_groups", []), DEFAULT_NODE_GROUP_ID, "base")
+    STATE["curve_groups"] = _normalize_group_entries(
+        payload.get("curve_groups", []), DEFAULT_CURVE_GROUP_ID, "base")
 
     style = payload.get("style")
     if isinstance(style, dict):
@@ -1840,12 +1896,17 @@ def _load_project_v3_payload(payload, context):
             "style_name": str(style.get("style_name", "loaded")),
             "denominators": _sanitize_denominators(style.get("denominators"), context),
         }
-    active_shape = payload.get("active_link_shape", payload.get("curve_shape", "curve"))
+    active_shape = payload.get(
+        "active_link_shape", payload.get("curve_shape", "curve"))
     STATE["active_link_shape"] = _normalize_shape_name(active_shape)
-    STATE["note_curve_snap_enabled"] = bool(payload.get("note_curve_snap_enabled", False))
-    STATE["project_revision"] = max(0, _parse_int(payload.get("revision", 0), 0))
-    STATE["project_file_uuid"] = str(payload.get("file_uuid", "") or "").strip() or uuid.uuid4().hex
-    STATE["project_last_writer_instance"] = str(payload.get("last_writer_instance", "") or "")
+    STATE["note_curve_snap_enabled"] = bool(
+        payload.get("note_curve_snap_enabled", False))
+    STATE["project_revision"] = max(
+        0, _parse_int(payload.get("revision", 0), 0))
+    STATE["project_file_uuid"] = str(payload.get(
+        "file_uuid", "") or "").strip() or uuid.uuid4().hex
+    STATE["project_last_writer_instance"] = str(
+        payload.get("last_writer_instance", "") or "")
     _cleanup_links_and_selection()
     _seed_missing_segment_denominators(context)
     _ensure_curve_identity_and_numbers()
@@ -1901,8 +1962,10 @@ def _ensure_project_context(context):
             STATE["curve_density_mode_by_link"] = {}
             STATE["curve_reserved_by_link"] = {}
             STATE["curve_special_joystick_by_link"] = {}
-            STATE["node_groups"] = [_default_group_entry(DEFAULT_NODE_GROUP_ID, "base")]
-            STATE["curve_groups"] = [_default_group_entry(DEFAULT_CURVE_GROUP_ID, "base")]
+            STATE["node_groups"] = [_default_group_entry(
+                DEFAULT_NODE_GROUP_ID, "base")]
+            STATE["curve_groups"] = [_default_group_entry(
+                DEFAULT_CURVE_GROUP_ID, "base")]
             STATE["next_curve_id"] = 1
             STATE["next_group_id"] = 2
             STATE["project_revision"] = 0
@@ -1940,7 +2003,8 @@ def _try_seed_curve_project_from_source(context, target_curve_path):
         return False
 
     source_stem = os.path.splitext(os.path.basename(source_chart))[0]
-    source_curve = os.path.join(os.path.dirname(source_chart), ".mcce-plugin", source_stem + ".curve_tbd.json")
+    source_curve = os.path.join(os.path.dirname(
+        source_chart), ".mcce-plugin", source_stem + ".curve_tbd.json")
     if not os.path.exists(source_curve):
         return False
 
@@ -1962,7 +2026,8 @@ def _sync_project_sidecar_to_chart(chart_path):
     if not chart_path:
         return False
     target_dir = os.path.join(os.path.dirname(chart_path), ".mcce-plugin")
-    target_name = os.path.splitext(os.path.basename(chart_path))[0] + ".curve_tbd.json"
+    target_name = os.path.splitext(os.path.basename(chart_path))[
+        0] + ".curve_tbd.json"
     target_sidecar = os.path.join(target_dir, target_name)
     if os.path.normcase(os.path.abspath(source_sidecar)) == os.path.normcase(os.path.abspath(target_sidecar)):
         return True
@@ -1988,7 +2053,6 @@ def _mark_dirty(context, flush=False):
 
 def _build_overlay(context):
     callbacks = {
-        "ensure_project_context": _ensure_project_context,
         "normalize_link": _normalize_link,
         "connected_anchor_segments": _connected_anchor_segments,
         "sample_segment_chart": _sample_segment_chart,
@@ -2018,15 +2082,18 @@ def _reset_anchors(context):
     STATE["curve_density_mode_by_link"] = {}
     STATE["curve_reserved_by_link"] = {}
     STATE["curve_special_joystick_by_link"] = {}
-    STATE["node_groups"] = [_default_group_entry(DEFAULT_NODE_GROUP_ID, "base")]
-    STATE["curve_groups"] = [_default_group_entry(DEFAULT_CURVE_GROUP_ID, "base")]
+    STATE["node_groups"] = [_default_group_entry(
+        DEFAULT_NODE_GROUP_ID, "base")]
+    STATE["curve_groups"] = [_default_group_entry(
+        DEFAULT_CURVE_GROUP_ID, "base")]
     STATE["next_curve_id"] = 1
     STATE["next_group_id"] = 2
     STATE["drag"] = {"mode": "", "index": -1}
     STATE["selected_anchor_ids"] = []
     STATE["selected_links"] = []
     STATE["context_menu_links"] = []
-    STATE["link_drag"] = {"active": False, "source_anchor_id": -1, "hover_anchor_id": -1, "x": 0.0, "y": 0.0}
+    STATE["link_drag"] = {"active": False, "source_anchor_id": -
+                          1, "hover_anchor_id": -1, "x": 0.0, "y": 0.0}
     STATE["pending_connect_anchor_id"] = -1
     _invalidate_curve_cache()
     _record_history_state(context)
@@ -2038,7 +2105,8 @@ def _append_anchor(context, cx, cy):
     anchors = STATE["anchors"]
 
     if not anchors:
-        anchors.append({"id": _new_anchor_id(), "lane_x": lane_x, "beat": beat, "in": [-16.0, 0.0], "out": [16.0, 0.0], "smooth": True})
+        anchors.append({"id": _new_anchor_id(), "lane_x": lane_x, "beat": beat,
+                       "in": [-16.0, 0.0], "out": [16.0, 0.0], "smooth": True})
         return len(anchors) - 1
 
     idx = len(anchors)
@@ -2072,7 +2140,8 @@ def _append_anchor(context, cx, cy):
         ol = _clamp(dl * 0.25, -96.0, 96.0)
         ob = _clamp(db * 0.25, -2.0, 2.0)
 
-    anchors.insert(idx, {"id": _new_anchor_id(), "lane_x": lane_x, "beat": beat, "in": [-ol, -ob], "out": [ol, ob], "smooth": True})
+    anchors.insert(idx, {"id": _new_anchor_id(), "lane_x": lane_x,
+                   "beat": beat, "in": [-ol, -ob], "out": [ol, ob], "smooth": True})
     _enforce_anchor_and_connected_handle_constraints(idx, context)
     _cleanup_links_and_selection()
     _invalidate_curve_cache()
@@ -2146,7 +2215,8 @@ def _connected_curve_segment_groups():
                 if id1 not in comp_anchor_ids:
                     queue.append(id1)
         visited_anchor_ids.update(comp_anchor_ids)
-        comp_segments.sort(key=lambda s: (min(float(s[4]["beat"]), float(s[5]["beat"])), max(float(s[4]["beat"]), float(s[5]["beat"]))))
+        comp_segments.sort(key=lambda s: (min(float(s[4]["beat"]), float(
+            s[5]["beat"])), max(float(s[4]["beat"]), float(s[5]["beat"]))))
         grouped.append(comp_segments)
     return grouped
 
@@ -2190,7 +2260,8 @@ def _selected_target_links():
     if selected_links:
         return selected_links
 
-    selected_anchor_ids = [int(v) for v in STATE.get("selected_anchor_ids", []) if int(v) > 0]
+    selected_anchor_ids = [int(v) for v in STATE.get(
+        "selected_anchor_ids", []) if int(v) > 0]
     if len(selected_anchor_ids) == 2:
         norm = _normalize_link(selected_anchor_ids[0], selected_anchor_ids[1])
         if norm is not None and _link_exists(norm[0], norm[1]):
@@ -2273,7 +2344,8 @@ def _toggle_polyline_for_context_links(context):
     if not links:
         return False
 
-    target = "curve" if all(_segment_shape_for_link(id0, id1) == "polyline" for id0, id1 in links) else "polyline"
+    target = "curve" if all(_segment_shape_for_link(
+        id0, id1) == "polyline" for id0, id1 in links) else "polyline"
     changed = False
     for id0, id1 in links:
         changed = _set_segment_shape(id0, id1, target) or changed

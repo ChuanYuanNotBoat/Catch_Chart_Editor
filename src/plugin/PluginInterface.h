@@ -20,7 +20,7 @@ public:
         QString title;
         QString description;
         QString confirmMessage;
-        QString hostAction; // "" | undo | redo
+        QString hostAction;               // "" | undo | redo
         QString placement = "tools_menu"; // tools_menu | top_toolbar | left_sidebar | right_note_panel | plugin_context_menu
         bool requiresUndoSnapshot = true;
         bool checkable = false;

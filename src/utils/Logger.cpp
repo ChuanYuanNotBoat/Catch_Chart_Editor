@@ -30,68 +30,68 @@ QStringList Logger::s_qtMessageFilterPrefixes;
 
 namespace
 {
-QString levelPrefix(Logger::Level level)
-{
-    switch (level)
+    QString levelPrefix(Logger::Level level)
     {
-    case Logger::Debug:
-        return "[DEBUG] ";
-    case Logger::Info:
-        return "[INFO] ";
-    case Logger::Warning:
-        return "[WARN] ";
-    case Logger::Error:
-    default:
-        return "[ERROR] ";
+        switch (level)
+        {
+        case Logger::Debug:
+            return "[DEBUG] ";
+        case Logger::Info:
+            return "[INFO] ";
+        case Logger::Warning:
+            return "[WARN] ";
+        case Logger::Error:
+        default:
+            return "[ERROR] ";
+        }
     }
-}
 
-Logger::Level qtTypeToLevel(QtMsgType type)
-{
-    switch (type)
+    Logger::Level qtTypeToLevel(QtMsgType type)
     {
-    case QtDebugMsg:
-        return Logger::Debug;
-    case QtInfoMsg:
-        return Logger::Info;
-    case QtWarningMsg:
-        return Logger::Warning;
-    case QtCriticalMsg:
-    case QtFatalMsg:
-    default:
-        return Logger::Error;
+        switch (type)
+        {
+        case QtDebugMsg:
+            return Logger::Debug;
+        case QtInfoMsg:
+            return Logger::Info;
+        case QtWarningMsg:
+            return Logger::Warning;
+        case QtCriticalMsg:
+        case QtFatalMsg:
+        default:
+            return Logger::Error;
+        }
     }
-}
 
-bool shouldSuppressQtMessage(QtMsgType type,
-                             const QMessageLogContext &context,
-                             const QString &msg,
-                             bool filterEnabled,
-                             const QStringList &categories,
-                             const QStringList &prefixes)
-{
-    if (!filterEnabled)
+    bool shouldSuppressQtMessage(QtMsgType type,
+                                 const QMessageLogContext &context,
+                                 const QString &msg,
+                                 bool filterEnabled,
+                                 const QStringList &categories,
+                                 const QStringList &prefixes)
+    {
+        if (!filterEnabled)
+            return false;
+        if (type == QtCriticalMsg || type == QtFatalMsg)
+            return false;
+
+        const QString category = context.category ? QString::fromUtf8(context.category).trimmed() : QString();
+        const QString trimmedMsg = msg.trimmed();
+
+        for (const QString &pattern : categories)
+        {
+            if (category.compare(pattern, Qt::CaseInsensitive) == 0)
+                return true;
+        }
+
+        for (const QString &prefix : prefixes)
+        {
+            if (trimmedMsg.startsWith(prefix, Qt::CaseInsensitive))
+                return true;
+        }
+
         return false;
-    if (type == QtCriticalMsg || type == QtFatalMsg)
-        return false;
-
-    const QString category = context.category ? QString::fromUtf8(context.category).trimmed() : QString();
-    const QString trimmedMsg = msg.trimmed();
-
-    for (const QString &pattern : categories)
-    {
-        if (category.compare(pattern, Qt::CaseInsensitive) == 0)
-            return true;
     }
-
-    for (const QString &prefix : prefixes)
-    {
-        if (trimmedMsg.startsWith(prefix, Qt::CaseInsensitive))
-            return true;
-    }
-
-    return false;
-}
 } // namespace
 
 void Logger::init(const QString &logsDir)

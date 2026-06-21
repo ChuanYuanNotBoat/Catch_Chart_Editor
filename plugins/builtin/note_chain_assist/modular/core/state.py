@@ -129,36 +129,52 @@ def restore_snapshot(
 ):
     if not isinstance(snapshot, dict):
         return
-    state["anchors"] = clone_fn(snapshot.get("anchors", [])) if isinstance(snapshot.get("anchors"), list) else []
-    state["links"] = clone_fn(snapshot.get("links", [])) if isinstance(snapshot.get("links"), list) else []
+    state["anchors"] = clone_fn(snapshot.get("anchors", [])) if isinstance(
+        snapshot.get("anchors"), list) else []
+    state["links"] = clone_fn(snapshot.get("links", [])) if isinstance(
+        snapshot.get("links"), list) else []
     style = snapshot.get("style")
-    state["style"] = clone_fn(style) if isinstance(style, dict) else {"denominators": [4, 8, 12, 16], "style_name": "balanced"}
+    state["style"] = clone_fn(style) if isinstance(style, dict) else {
+        "denominators": [4, 8, 12, 16], "style_name": "balanced"}
     seg_dens = snapshot.get("segment_denominators")
-    state["segment_denominators"] = clone_fn(seg_dens) if isinstance(seg_dens, dict) else {}
+    state["segment_denominators"] = clone_fn(
+        seg_dens) if isinstance(seg_dens, dict) else {}
     seg_shapes = snapshot.get("segment_shapes")
-    state["segment_shapes"] = clone_fn(seg_shapes) if isinstance(seg_shapes, dict) else {}
+    state["segment_shapes"] = clone_fn(
+        seg_shapes) if isinstance(seg_shapes, dict) else {}
     anchor_group_ids = snapshot.get("anchor_group_ids")
-    state["anchor_group_ids"] = clone_fn(anchor_group_ids) if isinstance(anchor_group_ids, dict) else {}
+    state["anchor_group_ids"] = clone_fn(
+        anchor_group_ids) if isinstance(anchor_group_ids, dict) else {}
     anchor_reserved = snapshot.get("anchor_reserved")
-    state["anchor_reserved"] = clone_fn(anchor_reserved) if isinstance(anchor_reserved, dict) else {}
+    state["anchor_reserved"] = clone_fn(
+        anchor_reserved) if isinstance(anchor_reserved, dict) else {}
     anchor_compat = snapshot.get("anchor_compat_handles")
-    state["anchor_compat_handles"] = clone_fn(anchor_compat) if isinstance(anchor_compat, dict) else {}
+    state["anchor_compat_handles"] = clone_fn(
+        anchor_compat) if isinstance(anchor_compat, dict) else {}
     curve_id_by_link = snapshot.get("curve_id_by_link")
-    state["curve_id_by_link"] = clone_fn(curve_id_by_link) if isinstance(curve_id_by_link, dict) else {}
+    state["curve_id_by_link"] = clone_fn(
+        curve_id_by_link) if isinstance(curve_id_by_link, dict) else {}
     curve_no_by_link = snapshot.get("curve_no_by_link")
-    state["curve_no_by_link"] = clone_fn(curve_no_by_link) if isinstance(curve_no_by_link, dict) else {}
+    state["curve_no_by_link"] = clone_fn(
+        curve_no_by_link) if isinstance(curve_no_by_link, dict) else {}
     curve_group_ids_by_link = snapshot.get("curve_group_ids_by_link")
-    state["curve_group_ids_by_link"] = clone_fn(curve_group_ids_by_link) if isinstance(curve_group_ids_by_link, dict) else {}
+    state["curve_group_ids_by_link"] = clone_fn(
+        curve_group_ids_by_link) if isinstance(curve_group_ids_by_link, dict) else {}
     curve_density_mode_by_link = snapshot.get("curve_density_mode_by_link")
-    state["curve_density_mode_by_link"] = clone_fn(curve_density_mode_by_link) if isinstance(curve_density_mode_by_link, dict) else {}
+    state["curve_density_mode_by_link"] = clone_fn(
+        curve_density_mode_by_link) if isinstance(curve_density_mode_by_link, dict) else {}
     curve_reserved_by_link = snapshot.get("curve_reserved_by_link")
-    state["curve_reserved_by_link"] = clone_fn(curve_reserved_by_link) if isinstance(curve_reserved_by_link, dict) else {}
+    state["curve_reserved_by_link"] = clone_fn(
+        curve_reserved_by_link) if isinstance(curve_reserved_by_link, dict) else {}
     curve_special_js = snapshot.get("curve_special_joystick_by_link")
-    state["curve_special_joystick_by_link"] = clone_fn(curve_special_js) if isinstance(curve_special_js, dict) else {}
+    state["curve_special_joystick_by_link"] = clone_fn(
+        curve_special_js) if isinstance(curve_special_js, dict) else {}
     node_groups = snapshot.get("node_groups")
-    state["node_groups"] = clone_fn(node_groups) if isinstance(node_groups, list) else [{"group_id": default_node_group_id, "group_name": "base", "reserved": {}}]
+    state["node_groups"] = clone_fn(node_groups) if isinstance(node_groups, list) else [
+        {"group_id": default_node_group_id, "group_name": "base", "reserved": {}}]
     curve_groups = snapshot.get("curve_groups")
-    state["curve_groups"] = clone_fn(curve_groups) if isinstance(curve_groups, list) else [{"group_id": default_curve_group_id, "group_name": "base", "reserved": {}}]
+    state["curve_groups"] = clone_fn(curve_groups) if isinstance(curve_groups, list) else [
+        {"group_id": default_curve_group_id, "group_name": "base", "reserved": {}}]
     targets = snapshot.get("selection_targets")
     if isinstance(targets, dict):
         state["selection_targets"] = {
@@ -167,19 +183,26 @@ def restore_snapshot(
             "notes": bool(targets.get("notes", False)),
         }
     else:
-        state["selection_targets"] = {"anchors": True, "segments": True, "notes": False}
+        state["selection_targets"] = {
+            "anchors": True, "segments": True, "notes": False}
     state["curve_visible"] = bool(snapshot.get("curve_visible", True))
-    active_shape = str(snapshot.get("active_link_shape", snapshot.get("curve_shape", "curve")) or "curve").strip().lower()
+    active_shape = str(snapshot.get("active_link_shape", snapshot.get(
+        "curve_shape", "curve")) or "curve").strip().lower()
     state["active_link_shape"] = "polyline" if active_shape == "polyline" else "curve"
-    state["note_curve_snap_enabled"] = bool(snapshot.get("note_curve_snap_enabled", False))
-    state["anchor_placement_enabled"] = bool(snapshot.get("anchor_placement_enabled", False))
+    state["note_curve_snap_enabled"] = bool(
+        snapshot.get("note_curve_snap_enabled", False))
+    state["anchor_placement_enabled"] = bool(
+        snapshot.get("anchor_placement_enabled", False))
     state["drag"] = {"mode": "", "index": -1}
     state["selected_anchor_ids"] = []
     state["selected_links"] = []
-    state["box_select"] = {"active": False, "start": [0.0, 0.0], "end": [0.0, 0.0], "append": False}
-    state["link_drag"] = {"active": False, "source_anchor_id": -1, "hover_anchor_id": -1, "x": 0.0, "y": 0.0}
+    state["box_select"] = {"active": False, "start": [
+        0.0, 0.0], "end": [0.0, 0.0], "append": False}
+    state["link_drag"] = {"active": False, "source_anchor_id": -
+                          1, "hover_anchor_id": -1, "x": 0.0, "y": 0.0}
     state["shift_down"] = False
-    state["pending_connect_anchor_id"] = int(snapshot.get("pending_connect_anchor_id", -1))
+    state["pending_connect_anchor_id"] = int(
+        snapshot.get("pending_connect_anchor_id", -1))
     state["next_anchor_id"] = max(1, int(snapshot.get("next_anchor_id", 1)))
     state["next_curve_id"] = max(1, int(snapshot.get("next_curve_id", 1)))
     state["next_group_id"] = max(2, int(snapshot.get("next_group_id", 2)))
