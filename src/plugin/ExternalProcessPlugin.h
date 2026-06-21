@@ -74,9 +74,16 @@ private:
     static bool parseBatchEditJson(const QJsonObject &obj, BatchEdit *outEdit);
     static QList<CanvasOverlayItem> parseOverlayItems(const QJsonArray &arr);
 
+    void invalidateToolActionsCache();
+
 private:
     Manifest m_manifest;
     mutable QProcess m_process;
     bool m_initialized = false;
     bool m_needsReinitialize = false;
+    mutable QList<ToolAction> m_cachedToolActions;
+    mutable bool m_toolActionsCached = false;
+    mutable QList<CanvasOverlayItem> m_cachedCanvasOverlays;
+    mutable bool m_canvasOverlaysCached = false;
+    void invalidateCanvasOverlayCache();
 };

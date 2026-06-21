@@ -229,11 +229,20 @@ bool ExternalProcessPlugin::openAdvancedColorEditor(const QVariantMap &context)
 
 QList<PluginInterface::ToolAction> ExternalProcessPlugin::toolActions() const
 {
+    if (m_toolActionsCached)
+        return m_cachedToolActions;
+
     QJsonValue result;
     if (!requestJson("listToolActions", QJsonObject(), &result))
+    {
+        m_toolActionsCached = true;
         return {};
+    }
     if (!result.isArray())
+    {
+        m_toolActionsCached = true;
         return {};
+    }
 
     QList<ToolAction> actions;
     const QJsonArray arr = result.toArray();
@@ -259,7 +268,16 @@ QList<PluginInterface::ToolAction> ExternalProcessPlugin::toolActions() const
             continue;
         actions.append(action);
     }
+
+    m_cachedToolActions = actions;
+    m_toolActionsCached = true;
     return actions;
+}
+
+void ExternalProcessPlugin::invalidateToolActionsCache()
+{
+    m_toolActionsCached = false;
+    m_cachedToolActions.clear();
 }
 
 bool ExternalProcessPlugin::runToolAction(const QString &actionId, const QVariantMap &context)
@@ -380,12 +398,31 @@ bool ExternalProcessPlugin::buildToolActionBatchEdit(const QString &actionId,
 
 QList<PluginInterface::CanvasOverlayItem> ExternalProcessPlugin::canvasOverlays(const QVariantMap &context) const
 {
+    Q_UNUSED(context);
+    if (m_canvasOverlaysCached)
+        return m_cachedCanvasOverlays;
+
     QJsonValue result;
-    if (!requestJson("listCanvasOverlays", toJsonObject(context), &result))
+    if (!requestJson("listCanvasOverlays", QJsonObject(), &result))
+    {
+        m_canvasOverlaysCached = true;
         return {};
+    }
     if (!result.isArray())
+    {
+        m_canvasOverlaysCached = true;
         return {};
-    return parseOverlayItems(result.toArray());
+    }
+
+    m_cachedCanvasOverlays = parseOverlayItems(result.toArray());
+    m_canvasOverlaysCached = true;
+    return m_cachedCanvasOverlays;
+}
+
+void ExternalProcessPlugin::invalidateCanvasOverlayCache()
+{
+    m_canvasOverlaysCached = false;
+    m_cachedCanvasOverlays.clear();
 }
 
 bool ExternalProcessPlugin::handleCanvasInput(const QVariantMap &context,
@@ -740,6 +777,8 @@ void ExternalProcessPlugin::forceRestartProcess(const QString &reason)
     m_process.readAllStandardOutput();
     m_process.readAllStandardError();
     m_needsReinitialize = wasInitialized;
+    invalidateToolActionsCache();
+    invalidateCanvasOverlayCache();
 }
 
 bool ExternalProcessPlugin::sendInitializeNotification()
