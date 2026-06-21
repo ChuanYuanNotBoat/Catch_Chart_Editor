@@ -2163,18 +2163,6 @@ void MainWindow::tryRecoverPreviousSession()
         }
     }
 
-    // 恢复 BPM 辅助文件
-    BpmAuxFiles::BpmExcludesData excludesData;
-    if (BpmAuxFiles::loadBpmExcludes(state.sourcePath, excludesData))
-    {
-        Logger::info(QString("Recovered BPM excludes data with %1 ranges").arg(excludesData.excludes.size()));
-    }
-    BpmAuxFiles::SongBpmInfo songBpmInfo;
-    if (BpmAuxFiles::loadSongBpm(state.sourcePath, songBpmInfo))
-    {
-        Logger::info(QString("Recovered song BPM: %1").arg(songBpmInfo.originalBpm));
-    }
-
     d->isModified = true;
     d->canvas->update();
     statusBar()->showMessage(tr("Recovered unsaved session"), 3000);
