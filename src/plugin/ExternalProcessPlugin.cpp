@@ -860,9 +860,7 @@ bool ExternalProcessPlugin::writeLine(const QByteArray &line)
         return false;
 
     const qint64 written = m_process.write(line);
-    if (written <= 0)
-        return false;
-    return m_process.waitForBytesWritten(1000);
+    return written > 0;
 }
 
 bool ExternalProcessPlugin::parseBatchEditJson(const QJsonObject &obj, BatchEdit *outEdit)
