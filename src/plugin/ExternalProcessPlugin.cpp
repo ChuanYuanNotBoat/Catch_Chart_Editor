@@ -232,6 +232,13 @@ QList<PluginInterface::ToolAction> ExternalProcessPlugin::toolActions() const
     if (m_toolActionsCached)
         return m_cachedToolActions;
 
+    // If process is not even running yet (async init still in progress),
+    // return empty immediately without blocking the UI thread.
+    if (m_process.state() != QProcess::Running)
+    {
+        return {};
+    }
+
     QJsonValue result;
     if (!requestJson("listToolActions", QJsonObject(), &result))
     {
