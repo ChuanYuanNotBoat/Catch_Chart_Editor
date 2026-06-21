@@ -43,6 +43,7 @@ public:
     void loadPlugins(const QString &pluginsDir, QWidget *parent = nullptr);
     void reloadPlugins();
     void unloadPlugins();
+    void initializePendingPlugins();
     QVector<PluginInterface *> plugins() const;
     QVector<PluginInfo> pluginInfos() const;
     QString pluginsDir() const;
@@ -86,6 +87,7 @@ private:
 private:
     QVector<PluginInterface *> m_plugins;
     QVector<PluginInfo> m_pluginInfos;
+    QVector<PluginInterface *> m_pendingInit;
     QStringList m_disabledPluginIds;
     QString m_pluginsDir;
     QPointer<QWidget> m_parentWidget;

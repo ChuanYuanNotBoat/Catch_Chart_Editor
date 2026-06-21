@@ -6,6 +6,7 @@
 #include <QLocale>
 #include <QSet>
 #include <QElapsedTimer>
+#include <QTimer>
 #include <exception>
 
 namespace
@@ -196,52 +197,26 @@ void PluginManager::loadPlugins(const QString &pluginsDir, QWidget *parent)
                 continue;
             }
 
-            try
-            {
-                const bool ok = p->initialize(parent);
-                if (!ok)
-                {
-                    info.active = false;
-                    info.loadError = "initialize() returned false";
-                    rejected.append(p);
-                    Logger::warn(QString("Plugin '%1' initialize returned false.").arg(info.pluginId));
-                }
-                else
-                {
-                    info.active = true;
-                    m_plugins.append(p);
-                    Logger::info(QString("Plugin initialized: id='%1', name='%2', version='%3', author='%4'")
-                                     .arg(info.pluginId)
-                                     .arg(info.displayName)
-                                     .arg(info.version)
-                                     .arg(info.author));
-                }
-            }
-            catch (const std::exception &e)
-            {
-                info.active = false;
-                info.loadError = QString("initialize() exception: %1").arg(e.what());
-                rejected.append(p);
-                Logger::error(QString("Error initializing plugin %1: %2").arg(i).arg(e.what()));
-            }
-            catch (...)
-            {
-                info.active = false;
-                info.loadError = "initialize() unknown exception";
-                rejected.append(p);
-                Logger::error(QString("Unknown error initializing plugin %1").arg(i));
-            }
-
+            // Defer initialize() to background: collect metadata first, then
+            // schedule async init via the event loop to avoid blocking UI thread
+            // on process-plugin cold starts.
+            info.active = false; // will become true after async init
+            info.loadError = QString();
             m_pluginInfos.append(info);
+            m_pendingInit.append(p);
         }
 
         if (!rejected.isEmpty())
             PluginLoader::unloadPlugins(rejected);
 
-        Logger::info(QString("PluginManager ready: %1 active plugins, %2 total entries.")
-                         .arg(m_plugins.size())
-                         .arg(m_pluginInfos.size()));
+        Logger::info(QString("PluginManager metadata collected: %1 candidates, %2 pending init.")
+                         .arg(m_pluginInfos.size())
+                         .arg(m_pendingInit.size()));
         emit pluginsChanged();
+
+        // Kick off async initialization in the next event-loop iteration so
+        // the UI stays responsive.
+        QTimer::singleShot(0, this, [this]() { initializePendingPlugins(); });
     }
     catch (const std::exception &e)
     {
@@ -705,4 +680,64 @@ QString PluginManager::localizedNameForLog(PluginInterface *plugin) const
     if (!name.isEmpty())
         return name;
     return plugin->displayName();
+}
+
+void PluginManager::initializePendingPlugins()
+{
+    if (m_pendingInit.isEmpty())
+        return;
+
+    Logger::info(QString("Starting async initialization of %1 plugins...").arg(m_pendingInit.size()));
+    QWidget *parent = m_parentWidget.data();
+
+    for (int i = 0; i < m_pendingInit.size(); ++i)
+    {
+        PluginInterface *p = m_pendingInit[i];
+        if (!p)
+            continue;
+
+        const QString pluginId = p->pluginId();
+
+        try
+        {
+            const bool ok = p->initialize(parent);
+            if (!ok)
+            {
+                Logger::warn(QString("Plugin '%1' async initialize returned false.").arg(pluginId));
+                continue;
+            }
+
+            m_plugins.append(p);
+            Logger::info(QString("Plugin async initialized: id='%1', name='%2', version='%3', author='%4'")
+                             .arg(pluginId)
+                             .arg(p->localizedDisplayName(currentLocale()))
+                             .arg(p->version())
+                             .arg(p->author()));
+
+            // Update PluginInfo entry to reflect active status
+            for (int j = 0; j < m_pluginInfos.size(); ++j)
+            {
+                if (m_pluginInfos[j].pluginId == pluginId)
+                {
+                    m_pluginInfos[j].active = true;
+                    m_pluginInfos[j].loadError.clear();
+                    break;
+                }
+            }
+        }
+        catch (const std::exception &e)
+        {
+            Logger::error(QString("Error during async init of plugin %1: %2").arg(pluginId).arg(e.what()));
+        }
+        catch (...)
+        {
+            Logger::error(QString("Unknown error during async init of plugin %1").arg(pluginId));
+        }
+    }
+
+    m_pendingInit.clear();
+    Logger::info(QString("PluginManager async init complete: %1 active plugins, %2 total entries.")
+                     .arg(m_plugins.size())
+                     .arg(m_pluginInfos.size()));
+    emit pluginsChanged();
 }
