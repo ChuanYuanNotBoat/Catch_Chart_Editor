@@ -60,11 +60,11 @@ namespace
         if (method == "openAdvancedColorEditor")
             return 10000;
         if (method == "listToolActions")
-            return 5000;
+            return 500;
         if (method == "buildBatchEdit")
             return 8000;
         if (method == "listCanvasOverlays")
-            return 120;
+            return 30;
         if (method == "handleCanvasInput")
             return 50;
         if (method == "getPanelWorkspaceConfig")
@@ -242,7 +242,8 @@ QList<PluginInterface::ToolAction> ExternalProcessPlugin::toolActions() const
     QJsonValue result;
     if (!requestJson("listToolActions", QJsonObject(), &result))
     {
-        m_toolActionsCached = true;
+        // Don't cache on failure — process may not be ready yet.
+        // Next call will retry without blocking for the full timeout.
         return {};
     }
     if (!result.isArray())
