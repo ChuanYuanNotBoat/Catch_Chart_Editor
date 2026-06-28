@@ -330,6 +330,7 @@ private:
     // Asynchronous overlay query (moved out of paintEvent for performance)
     QTimer *m_overlayQueryTimer;
     bool m_overlayQueryScheduled;
+    bool m_overlayQueryInCanvasInput;
     int m_overlayQueryIntervalMsIdle;
     void startOverlayQueryTimer();
     void stopOverlayQueryTimer();

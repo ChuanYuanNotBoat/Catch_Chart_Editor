@@ -138,6 +138,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying),
       m_overlayQueryTimer(new QTimer(this)),
       m_overlayQueryScheduled(false),
+      m_overlayQueryInCanvasInput(false),
       m_overlayQueryIntervalMsIdle(0)
 {
     setFocusPolicy(Qt::StrongFocus);
@@ -654,7 +655,7 @@ void ChartCanvas::stopOverlayQueryTimer()
 
 void ChartCanvas::onOverlayQueryTimerFire()
 {
-    if (m_overlayQueryScheduled)
+    if (m_overlayQueryScheduled || m_overlayQueryInCanvasInput)
         return;
 
     PluginManager *pm = activePluginManager();

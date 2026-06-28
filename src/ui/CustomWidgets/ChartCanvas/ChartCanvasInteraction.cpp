@@ -659,7 +659,10 @@ bool ChartCanvas::dispatchPluginCanvasInput(const PluginInterface::CanvasInputEv
 
     PluginInterface::CanvasInputResult result;
     const QVariantMap context = buildPluginCanvasContext();
-    if (!pm->handleCanvasInput(pluginId, context, event, &result))
+    m_overlayQueryInCanvasInput = true;
+    const bool handled = pm->handleCanvasInput(pluginId, context, event, &result);
+    m_overlayQueryInCanvasInput = false;
+    if (!handled)
         return false;
 
     m_eventOverlayCache = result.overlay;
