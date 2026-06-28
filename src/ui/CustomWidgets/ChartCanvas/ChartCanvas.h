@@ -120,6 +120,7 @@ private:
     static constexpr int kSideMarginDivisor = 20;
     static constexpr int kOverlayQueryIntervalMsToolMode = 33;
     static constexpr int kOverlayQueryIntervalMsToolModePlaying = 16;
+    static constexpr int kPluginMouseMoveMinIntervalMs = 16;
     static constexpr int kOverlayQueryIntervalMsToolModePlayingMedium = 33;
     static constexpr int kOverlayQueryIntervalMsToolModePlayingSlow = 50;
     static constexpr int kOverlayQueryIntervalMsIdle = 800;
@@ -331,6 +332,7 @@ private:
     QTimer *m_overlayQueryTimer;
     bool m_overlayQueryScheduled;
     bool m_overlayQueryInCanvasInput;
+    qint64 m_lastPluginMouseMoveDispatchMs;
     int m_overlayQueryIntervalMsIdle;
     void startOverlayQueryTimer();
     void stopOverlayQueryTimer();

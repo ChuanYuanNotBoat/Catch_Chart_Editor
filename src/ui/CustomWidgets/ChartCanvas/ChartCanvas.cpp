@@ -139,6 +139,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_overlayQueryTimer(new QTimer(this)),
       m_overlayQueryScheduled(false),
       m_overlayQueryInCanvasInput(false),
+      m_lastPluginMouseMoveDispatchMs(0),
       m_overlayQueryIntervalMsIdle(0)
 {
     setFocusPolicy(Qt::StrongFocus);

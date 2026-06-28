@@ -1139,6 +1139,11 @@ void ChartCanvas::mousePressEvent(QMouseEvent *event)
 
 void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
 {
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    if (nowMs - m_lastPluginMouseMoveDispatchMs < kPluginMouseMoveMinIntervalMs)
+        return;
+    m_lastPluginMouseMoveDispatchMs = nowMs;
+
     PluginInterface::CanvasInputEvent pluginEvent;
     pluginEvent.type = "mouse_move";
     pluginEvent.x = event->position().x();
@@ -1146,7 +1151,7 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
     pluginEvent.button = static_cast<int>(Qt::NoButton);
     pluginEvent.buttons = static_cast<int>(event->buttons());
     fillPluginEventModifiers(&pluginEvent, event->modifiers());
-    pluginEvent.timestampMs = QDateTime::currentMSecsSinceEpoch();
+    pluginEvent.timestampMs = nowMs;
     bool consumed = false;
     if (dispatchPluginCanvasInput(pluginEvent, &consumed) && consumed)
     {
