@@ -473,7 +473,11 @@ bool ExternalProcessPlugin::handleCanvasInput(const QVariantMap &context,
     outResult->requestUndoCheckpoint = obj.value("request_undo_checkpoint").toBool(false);
     outResult->undoCheckpointLabel = obj.value("undo_checkpoint_label").toString().trimmed();
     if (obj.value("overlay").isArray())
+    {
         outResult->overlay = parseOverlayItems(obj.value("overlay").toArray());
+        m_cachedCanvasOverlays = outResult->overlay;
+        m_canvasOverlaysCached = true;
+    }
     if (obj.value("preview_batch_edit").isObject())
         parseBatchEditJson(obj.value("preview_batch_edit").toObject(), &outResult->previewEdit);
     return true;
