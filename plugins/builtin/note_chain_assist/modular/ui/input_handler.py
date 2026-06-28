@@ -434,6 +434,7 @@ def handle_drag_edit_on_mouse_move(x, y, callbacks):
         "consumed": True,
         "cursor": cursor,
         "status": tr(state["last_context"], "editing_anchor", index=idx),
+        "immediate_return": True,
     }
 
 

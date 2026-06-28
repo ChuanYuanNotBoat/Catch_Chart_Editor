@@ -472,6 +472,11 @@ bool ExternalProcessPlugin::handleCanvasInput(const QVariantMap &context,
     outResult->statusText = obj.value("status_text").toString();
     outResult->requestUndoCheckpoint = obj.value("request_undo_checkpoint").toBool(false);
     outResult->undoCheckpointLabel = obj.value("undo_checkpoint_label").toString().trimmed();
+    // After handling canvas input (drag/move/click), invalidate the
+    // internal overlay cache so the next timer-driven listCanvasOverlays
+    // query fetches fresh overlay data.  This avoids duplicating the
+    // expensive _build_overlay call inside handleCanvasInput.
+    invalidateCanvasOverlayCache();
     if (obj.value("overlay").isArray())
     {
         outResult->overlay = parseOverlayItems(obj.value("overlay").toArray());

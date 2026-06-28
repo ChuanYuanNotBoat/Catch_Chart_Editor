@@ -669,8 +669,8 @@ bool ChartCanvas::dispatchPluginCanvasInput(const PluginInterface::CanvasInputEv
     {
         m_eventOverlayCache = result.overlay;
         m_overlayCache = result.overlay;
+        update();
     }
-    update();
     if (!result.cursor.trimmed().isEmpty())
         applyPluginCursor(result.cursor);
     if (!result.statusText.trimmed().isEmpty())
