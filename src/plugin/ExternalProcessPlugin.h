@@ -85,5 +85,6 @@ private:
     mutable bool m_toolActionsCached = false;
     mutable QList<CanvasOverlayItem> m_cachedCanvasOverlays;
     mutable bool m_canvasOverlaysCached = false;
+    mutable bool m_pendingProcessRestart = false;
     void invalidateCanvasOverlayCache();
 };

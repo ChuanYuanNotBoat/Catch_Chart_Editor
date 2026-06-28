@@ -550,8 +550,7 @@ bool ExternalProcessPlugin::requestJson(const QString &method, const QJsonObject
         Logger::warn(QString("Process plugin '%1' request '%2' failed: writeLine error.")
                          .arg(m_manifest.pluginId)
                          .arg(method));
-        const_cast<ExternalProcessPlugin *>(this)->forceRestartProcess(
-            QString("writeLine failed for request '%1'").arg(method));
+        m_pendingProcessRestart = true;
         return false;
     }
 
@@ -599,8 +598,11 @@ bool ExternalProcessPlugin::requestJson(const QString &method, const QJsonObject
 
     if (!probeProcessHealth(kHealthProbeTimeoutMs))
     {
-        const_cast<ExternalProcessPlugin *>(this)->forceRestartProcess(
-            QString("health probe failed after request timeout '%1'").arg(method));
+        m_pendingProcessRestart = true;
+        Logger::warn(QString("Process plugin '%1' health probe failed after request '%2' timeout; "
+                             "deferred restart pending.")
+                         .arg(m_manifest.pluginId)
+                         .arg(method));
     }
     else
     {
@@ -809,6 +811,11 @@ bool ExternalProcessPlugin::sendInitializeNotification()
 
 bool ExternalProcessPlugin::ensureProcessRunning()
 {
+    if (m_pendingProcessRestart)
+    {
+        m_pendingProcessRestart = false;
+        forceRestartProcess("deferred restart from prior I/O failure");
+    }
     if (m_process.state() == QProcess::Running)
     {
         if (m_needsReinitialize && !sendInitializeNotification())
