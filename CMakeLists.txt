@@ -70,6 +70,7 @@ set(SOURCES
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp
     src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp
+    src/ui/CustomWidgets/ChartCanvas/ChartCanvasNoteChain.cpp
     src/ui/dialogs/LogSettingsDialog.cpp
     src/ui/dialogs/PluginManagerDialog.cpp
     src/ui/dialogs/BpmMeasureDialog.cpp

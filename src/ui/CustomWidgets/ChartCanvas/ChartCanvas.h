@@ -11,6 +11,8 @@
 #include "model/Note.h"
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
+#include "editor/NoteChain/NoteChainEditor.h"
+#include "editor/NoteChain/NoteChainCanvasBridge.h"
 
 class ChartController;
 class SelectionController;
@@ -23,6 +25,8 @@ class PlaybackController;
 class NoteSoundPlayer;
 class Chart;
 class QMenu;
+
+namespace NoteChain { class NoteChainEditor; }
 
 class ChartCanvas : public QWidget
 {
@@ -87,6 +91,11 @@ public:
     QVariantMap pluginCanvasActionContext() const;
     bool triggerPluginDeleteSelection();
     void recordManualJerkMark();
+
+    // NoteChain native integration
+    void setNoteChainModeActive(bool active);
+    bool isNoteChainModeActive() const { return m_noteChainModeActive; }
+    NoteChain::NoteChainEditor *noteChainEditor() const { return m_noteChainEditor; }
 
 public slots:
     void showGridSettings();
@@ -327,6 +336,10 @@ private:
     QString m_sourceChartPath;
     QVariantMap m_pluginOverlayToggles;
     int m_pluginPlacementDensityOverride;
+
+    // NoteChain native integration
+    bool m_noteChainModeActive = false;
+    NoteChain::NoteChainEditor *m_noteChainEditor = nullptr;
 
     // Asynchronous overlay query (moved out of paintEvent for performance)
     QTimer *m_overlayQueryTimer;

@@ -7,6 +7,7 @@
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
 #include "model/Chart.h"
+#include "editor/NoteChain/NoteChainCanvasBridge.h"
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QMenu>
@@ -1105,6 +1106,19 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
 
 void ChartCanvas::mousePressEvent(QMouseEvent *event)
 {
+    // NoteChain native: dispatch before plugin
+    if (m_noteChainModeActive && m_noteChainEditor) {
+        bool shift = event->modifiers().testFlag(Qt::ShiftModifier);
+        bool ctrl  = event->modifiers().testFlag(Qt::ControlModifier);
+        if (NoteChain::bridgeHandleMousePress(m_noteChainEditor, event,
+                event->position().x(), event->position().y(), shift, ctrl)) {
+            event->accept();
+            update();
+            return;
+        }
+    }
+
+
     PluginInterface::CanvasInputEvent pluginEvent;
     pluginEvent.type = "mouse_down";
     pluginEvent.x = event->position().x();

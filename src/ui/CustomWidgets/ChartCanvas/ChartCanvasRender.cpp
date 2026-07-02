@@ -13,6 +13,7 @@
 #include "utils/DiagnosticCollector.h"
 #include "utils/Logger.h"
 #include "model/Chart.h"
+#include "editor/NoteChain/NoteChainCanvasBridge.h"
 #include <QPainter>
 #include <QPen>
 #include <QDir>
@@ -237,6 +238,10 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     }
 
     drawPluginOverlays(painter, lmargin, rmargin);
+
+    // NoteChain native: render overlay
+    if (m_noteChainModeActive && m_noteChainEditor)
+        NoteChain::bridgeRenderOverlay(m_noteChainEditor, &painter, painter.viewport(), 0, 0);
 
     painter.setPen(Qt::white);
     painter.setBrush(QColor(0, 0, 0, 128));
