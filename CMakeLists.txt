@@ -73,6 +73,8 @@ set(SOURCES
     src/ui/dialogs/LogSettingsDialog.cpp
     src/ui/dialogs/PluginManagerDialog.cpp
     src/ui/dialogs/BpmMeasureDialog.cpp
+    src/editor/NoteChain/NoteChainState.cpp
+    src/editor/NoteChain/NoteChainHistory.cpp
 )
 
 qt_add_executable(${PROJECT_NAME}
