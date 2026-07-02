@@ -46,9 +46,7 @@ void fillPluginEventModifiers(PluginInterface::CanvasInputEvent *outEvent, Qt::K
     outEvent->modifiers = static_cast<int>(eventModifiers);
     outEvent->shiftDown = eventModifiers.testFlag(Qt::ShiftModifier);
     outEvent->ctrlDown = eventModifiers.testFlag(Qt::ControlModifier);
-}
-
-struct ColorDivisionOption
+}struct ColorDivisionOption
 {
     int denominator;
     const char *label;
@@ -1153,6 +1151,16 @@ void ChartCanvas::mousePressEvent(QMouseEvent *event)
 
 void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
 {
+    // NoteChain native: dispatch before plugin
+    if (m_noteChainModeActive && m_noteChainEditor) {
+        if (NoteChain::bridgeHandleMouseMove(m_noteChainEditor, event,
+                event->position().x(), event->position().y())) {
+            event->accept();
+            update();
+            return;
+        }
+    }
+
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     if (nowMs - m_lastPluginMouseMoveDispatchMs < kPluginMouseMoveMinIntervalMs)
         return;
@@ -1248,6 +1256,16 @@ bool ChartCanvas::handleGenericDragRelease()
 
 void ChartCanvas::mouseReleaseEvent(QMouseEvent *event)
 {
+    // NoteChain native: dispatch before plugin
+    if (m_noteChainModeActive && m_noteChainEditor) {
+        if (NoteChain::bridgeHandleMouseRelease(m_noteChainEditor, event,
+                event->position().x(), event->position().y())) {
+            event->accept();
+            update();
+            return;
+        }
+    }
+
     PluginInterface::CanvasInputEvent pluginEvent;
     pluginEvent.type = "mouse_up";
     pluginEvent.x = event->position().x();

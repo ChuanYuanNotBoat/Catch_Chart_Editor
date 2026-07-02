@@ -80,6 +80,7 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMousePress(
                 if (shiftDown) {
                     m_dragMode = DragMode::LinkDrag;
                     m_linkDragFromId = hitId;
+                    recordHistory();
                     return MouseResult::NeedsRepaint;
                 } else {
                     m_dragMode = DragMode::Anchor;
@@ -125,6 +126,9 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMouseMove(
     Q_UNUSED(event)
 
     if (!m_active || m_dragMode == DragMode::None)
+        return MouseResult::NotHandled;
+
+    if (m_dragMode == DragMode::LinkDrag)
         return MouseResult::NotHandled;
 
     if (m_dragMode == DragMode::Anchor && m_dragAnchorId >= 0) {
