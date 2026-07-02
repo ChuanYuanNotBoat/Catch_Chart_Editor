@@ -77,6 +77,8 @@ set(SOURCES
     src/editor/NoteChain/NoteChainHistory.cpp
     src/editor/NoteChain/NoteChainPersistence.cpp
     src/editor/NoteChain/NoteChainCurveSampler.cpp
+    src/editor/NoteChain/NoteChainOverlay.cpp
+    src/editor/NoteChain/NoteChainEditor.cpp
 )
 
 qt_add_executable(${PROJECT_NAME}
@@ -114,10 +116,8 @@ if(WIN32 AND CATCHEDITOR_ENABLE_WINDEPLOYQT)
     endif()
 endif()
 
-# Add `src` include dir so project headers can be included as "model/Note.h".
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 
-# Translation files.
 set(TRANSLATION_TS_FILES
     resources/translations/catch_editor_en_US.ts
     resources/translations/catch_editor_zh_CN.ts
@@ -129,7 +129,6 @@ qt6_add_translations(${PROJECT_NAME}
     TS_FILES ${TRANSLATION_TS_FILES}
 )
 
-# Copy default skin assets after build.
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/resources/default_skin
