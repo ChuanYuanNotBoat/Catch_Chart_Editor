@@ -75,6 +75,7 @@ set(SOURCES
     src/ui/dialogs/BpmMeasureDialog.cpp
     src/editor/NoteChain/NoteChainState.cpp
     src/editor/NoteChain/NoteChainHistory.cpp
+    src/editor/NoteChain/NoteChainPersistence.cpp
 )
 
 qt_add_executable(${PROJECT_NAME}

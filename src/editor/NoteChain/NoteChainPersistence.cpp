@@ -1,0 +1,372 @@
+// NoteChainPersistence.cpp — V3 JSON 持久化实现
+
+#include "NoteChainPersistence.h"
+
+#include <QFile>
+#include <QFileInfo>
+#include <QDir>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QUuid>
+#include <QDateTime>
+
+namespace NoteChain {
+
+// ---- 序列化工具函数 ----
+
+static QJsonArray tripletFromDouble(double value, int den = 288)
+{
+    // Malody triplet 格式：[value, 0, 0, den]
+    // 简化处理：存储 double 到 triplet 格式（后续阶段完善）
+    Q_UNUSED(den)
+    QJsonArray arr;
+    arr.append(value);
+    arr.append(0);
+    arr.append(0);
+    arr.append(288);
+    return arr;
+}
+
+static double doubleFromTriplet(const QJsonValue &val, double fallback = 0.0)
+{
+    if (val.isArray()) {
+        QJsonArray arr = val.toArray();
+        if (arr.size() >= 1)
+            return arr[0].toDouble(fallback);
+    } else if (val.isDouble()) {
+        return val.toDouble(fallback);
+    }
+    return fallback;
+}
+
+static int parseInt(const QJsonValue &val, int fallback = 0)
+{
+    if (val.isDouble())
+        return static_cast<int>(val.toDouble(fallback));
+    if (val.isString()) {
+        bool ok = false;
+        int i = val.toString().toInt(&ok);
+        return ok ? i : fallback;
+    }
+    return fallback;
+}
+
+// ---- 锚点序列化 ----
+
+QJsonObject NoteChainPersistence::serializeAnchor(const Anchor &anchor)
+{
+    QJsonObject obj;
+    obj["id"] = anchor.id;
+    obj["lane_x"] = anchor.x;
+    obj["beat"] = tripletFromDouble(anchor.y);
+
+    QJsonObject inObj;
+    inObj["lane_dx"] = anchor.hx_i;
+    inObj["beat_delta"] = tripletFromDouble(anchor.hy_i);
+    obj["in"] = inObj;
+
+    QJsonObject outObj;
+    outObj["lane_dx"] = anchor.hx_o;
+    outObj["beat_delta"] = tripletFromDouble(anchor.hy_o);
+    obj["out"] = outObj;
+
+    obj["smooth"] = true;
+    return obj;
+}
+
+bool NoteChainPersistence::deserializeAnchor(const QJsonObject &json, Anchor &anchor, QString *errorMsg)
+{
+    Q_UNUSED(errorMsg)
+
+    // V3 格式：包含 lane_x
+    if (json.contains("lane_x")) {
+        anchor.id  = parseInt(json.value("id"), -1);
+        anchor.x   = json.value("lane_x").toDouble(0.0);
+        anchor.y   = doubleFromTriplet(json.value("beat"), 0.0);
+
+        QJsonObject inRaw  = json.value("in").toObject();
+        QJsonObject outRaw = json.value("out").toObject();
+
+        anchor.hx_i = inRaw.value("lane_dx").toDouble(0.0);
+        anchor.hy_i = doubleFromTriplet(inRaw.value("beat_delta"), 0.0);
+        anchor.hx_o = outRaw.value("lane_dx").toDouble(0.0);
+        anchor.hy_o = doubleFromTriplet(outRaw.value("beat_delta"), 0.0);
+
+        return anchor.id >= 0;
+    }
+
+    // 旧格式兼容：包含 x/y（画布坐标）
+    if (json.contains("x") && json.contains("y")) {
+        anchor.id  = parseInt(json.value("id"), -1);
+        anchor.x   = json.value("x").toDouble(0.0);
+        anchor.y   = json.value("y").toDouble(0.0);
+
+        QJsonValue inVal  = json.value("in");
+        QJsonValue outVal = json.value("out");
+        QJsonArray inArr  = inVal.isArray() ? inVal.toArray() : QJsonArray{0.0, 0.0};
+        QJsonArray outArr = outVal.isArray() ? outVal.toArray() : QJsonArray{0.0, 0.0};
+
+        anchor.hx_i = inArr.size() >= 1  ? inArr[0].toDouble(0.0)  : 0.0;
+        anchor.hy_i = inArr.size() >= 2  ? inArr[1].toDouble(0.0)  : 0.0;
+        anchor.hx_o = outArr.size() >= 1 ? outArr[0].toDouble(0.0) : 0.0;
+        anchor.hy_o = outArr.size() >= 2 ? outArr[1].toDouble(0.0) : 0.0;
+
+        return anchor.id >= 0;
+    }
+
+    return false;
+}
+
+// ---- 状态序列化/反序列化 ----
+
+QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
+{
+    QJsonObject root;
+
+    root["format_version"]   = kV3Version;
+    root["coordinate_space"] = QStringLiteral("chart");
+    root["revision"]         = state.projectMeta().revision;
+
+    // file_uuid
+    QString fileUuid = state.projectMeta().filename;
+    if (fileUuid.isEmpty()) {
+        fileUuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    }
+    root["file_uuid"] = fileUuid;
+
+    root["updated_at"]            = QDateTime::currentMSecsSinceEpoch();
+    root["last_writer_instance"]  = QString();
+
+    // nodes 数组（对应 anchors）
+    QJsonArray nodesArray;
+    QMap<int, Anchor> anchorsMap = state.anchors();
+    for (auto it = anchorsMap.begin(); it != anchorsMap.end(); ++it) {
+        nodesArray.append(serializeAnchor(it.value()));
+    }
+    root["nodes"] = nodesArray;
+
+    // curves 数组（对应 links）
+    QJsonArray curvesArray;
+    QVector<Link> linksList = state.links();
+    for (const Link &link : linksList) {
+        QJsonObject curveObj;
+        curveObj["curve_id"] = link.fromAnchorId;  // 简化：用 fromAnchorId 作为 id
+        curveObj["curve_no"] = link.toAnchorId;
+        curveObj["node_ids"] = QJsonArray{link.fromAnchorId, link.toAnchorId};
+
+        QJsonObject densityObj;
+        int den = state.segmentDenominator(link.fromAnchorId, link.toAnchorId);
+        if (den > 0) {
+            densityObj["mode"]        = QStringLiteral("fixed");
+            densityObj["denominator"] = den;
+        } else {
+            densityObj["mode"] = QStringLiteral("follow");
+        }
+        curveObj["density"] = densityObj;
+
+        QString shape = state.segmentShape(link.fromAnchorId, link.toAnchorId);
+        curveObj["style_category"] = shape;
+
+        QJsonArray groupIds{1};
+        curveObj["group_ids"]               = groupIds;
+        curveObj["special_joystick_reserved"] = QJsonObject();
+        curveObj["reserved"]                = QJsonObject();
+
+        curvesArray.append(curveObj);
+    }
+    root["curves"] = curvesArray;
+
+    // 附加属性
+    root["node_groups"]  = QJsonArray();
+    root["curve_groups"] = QJsonArray();
+
+    QJsonObject styleObj;
+    styleObj["denominators"] = QJsonArray{4, 8, 12, 16};
+    styleObj["style_name"]   = QStringLiteral("balanced");
+    root["style"] = styleObj;
+
+    root["active_link_shape"]       = QString::fromLatin1(kShapeCurve);
+    root["note_curve_snap_enabled"] = false;
+
+    return root;
+}
+
+bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &state, QString *errorMsg)
+{
+    Q_UNUSED(errorMsg)
+
+    // 清空当前状态
+    state = NoteChainState();
+
+    // nodes → anchors
+    QJsonArray nodesArray = json.value("nodes").toArray();
+    for (const QJsonValue &nodeVal : nodesArray) {
+        QJsonObject nodeObj = nodeVal.toObject();
+        Anchor anchor;
+        if (deserializeAnchor(nodeObj, anchor, nullptr)) {
+            state.addAnchor(anchor);
+        }
+    }
+
+    // curves → links + segment 属性
+    QJsonArray curvesArray = json.value("curves").toArray();
+    for (const QJsonValue &curveVal : curvesArray) {
+        QJsonObject curveObj = curveVal.toObject();
+        QJsonArray nodeIds = curveObj.value("node_ids").toArray();
+        if (nodeIds.size() < 2)
+            continue;
+
+        int id0 = nodeIds[0].toInt(-1);
+        int id1 = nodeIds[1].toInt(-1);
+        if (id0 < 0 || id1 < 0 || id0 == id1)
+            continue;
+
+        // 添加链接
+        state.addLink(id0, id1);
+
+        // 密度
+        QJsonObject densityObj = curveObj.value("density").toObject();
+        QString densityMode = densityObj.value("mode").toString();
+        if (densityMode == QLatin1String("fixed")) {
+            int den = parseInt(densityObj.value("denominator"), kDefaultSegmentDenominator);
+            state.setSegmentDenominator(id0, id1, den);
+        }
+
+        // 形态
+        QString shape = curveObj.value("style_category").toString();
+        if (!shape.isEmpty()) {
+            state.setSegmentShape(id0, id1, shape);
+        }
+    }
+
+    // 元数据
+    if (json.contains("revision")) {
+        CurveProjectMeta meta;
+        meta.revision = parseInt(json.value("revision"), 0);
+        state.setProjectMeta(meta);
+    }
+
+    state.cleanupOrphanedLinksAndSelection();
+    return true;
+}
+
+// ---- 文件读写 ----
+
+bool NoteChainPersistence::saveToFile(const NoteChainState &state, const QString &filePath, QString *errorMsg)
+{
+    QString effectivePath = filePath;
+    if (effectivePath.isEmpty()) {
+        if (errorMsg) *errorMsg = QStringLiteral("empty file path");
+        return false;
+    }
+
+    // 确保目录存在
+    QFileInfo fi(effectivePath);
+    QDir dir = fi.absoluteDir();
+    if (!dir.exists()) {
+        if (!dir.mkpath(".")) {
+            if (errorMsg) *errorMsg = QStringLiteral("failed to create directory: %1").arg(dir.absolutePath());
+            return false;
+        }
+    }
+
+    QJsonObject payload = serialize(state);
+
+    // CAS 版本号递增
+    int diskRevision = 0;
+    if (fi.exists()) {
+        QFile readFile(effectivePath);
+        if (readFile.open(QIODevice::ReadOnly)) {
+            QJsonDocument diskDoc = QJsonDocument::fromJson(readFile.readAll());
+            readFile.close();
+            if (diskDoc.isObject()) {
+                diskRevision = parseInt(diskDoc.object().value("revision"), 0);
+            }
+        }
+    }
+    payload["revision"] = diskRevision + 1;
+    payload["updated_at"] = QDateTime::currentMSecsSinceEpoch();
+
+    // 原子写入（先写临时文件再替换）
+    QString tmpPath = effectivePath + QStringLiteral(".tmp.") + QString::number(QDateTime::currentMSecsSinceEpoch());
+    QFile tmpFile(tmpPath);
+    if (!tmpFile.open(QIODevice::WriteOnly)) {
+        if (errorMsg) *errorMsg = QStringLiteral("failed to open temp file for writing: %1").arg(tmpPath);
+        return false;
+    }
+
+    QJsonDocument doc(payload);
+    tmpFile.write(doc.toJson(QJsonDocument::Indented));
+    tmpFile.close();
+
+    // 如果目标已存在，先删除再重命名（QFile::rename 在 Windows 上不会覆盖）
+    if (fi.exists()) {
+        if (!QFile::remove(effectivePath)) {
+            QFile::remove(tmpPath);
+            if (errorMsg) *errorMsg = QStringLiteral("failed to replace existing file: %1").arg(effectivePath);
+            return false;
+        }
+    }
+
+    if (!QFile::rename(tmpPath, effectivePath)) {
+        QFile::remove(tmpPath);
+        if (errorMsg) *errorMsg = QStringLiteral("failed to rename temp file to: %1").arg(effectivePath);
+        return false;
+    }
+
+    return true;
+}
+
+bool NoteChainPersistence::loadFromFile(const QString &filePath, NoteChainState &state, QString *errorMsg)
+{
+    QFileInfo fi(filePath);
+    if (!fi.exists() || !fi.isFile()) {
+        if (errorMsg) *errorMsg = QStringLiteral("file not found: %1").arg(filePath);
+        return false;
+    }
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (errorMsg) *errorMsg = QStringLiteral("failed to open file: %1").arg(filePath);
+        return false;
+    }
+
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        if (errorMsg) *errorMsg = QStringLiteral("JSON parse error: %1").arg(parseError.errorString());
+        return false;
+    }
+
+    QJsonObject root = doc.object();
+
+    // 检测 V3 格式
+    int formatVersion = parseInt(root.value("format_version"), 0);
+    bool isV3 = (formatVersion >= kV3Version) ||
+                (root.contains("nodes") && root.contains("curves"));
+
+    if (!isV3) {
+        // V2 兼容：直接读取旧格式
+        return deserialize(root, state, errorMsg);
+    }
+
+    return deserialize(root, state, errorMsg);
+}
+
+// ---- 侧车文件路径推导 ----
+
+QString NoteChainPersistence::sidecarPathForChart(const QString &chartFilePath)
+{
+    QFileInfo fi(chartFilePath);
+    QString baseName = fi.completeBaseName();
+    QString sidecarName = baseName + QStringLiteral(".curve_tbd.json");
+    QString sidecarDir = fi.absolutePath() + QStringLiteral("/.mcce-plugin");
+    return sidecarDir + QStringLiteral("/") + sidecarName;
+}
+
+} // namespace NoteChain
