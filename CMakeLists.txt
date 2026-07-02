@@ -76,6 +76,7 @@ set(SOURCES
     src/editor/NoteChain/NoteChainState.cpp
     src/editor/NoteChain/NoteChainHistory.cpp
     src/editor/NoteChain/NoteChainPersistence.cpp
+    src/editor/NoteChain/NoteChainCurveSampler.cpp
 )
 
 qt_add_executable(${PROJECT_NAME}
