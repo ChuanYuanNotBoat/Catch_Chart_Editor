@@ -7,7 +7,8 @@
 namespace NoteChain {
 
 void NoteChainOverlay::render(QPainter *painter, const NoteChainState &state,
-                               double /*scrollBeat*/, double /*visibleBeatRange*/)
+                               double /*scrollBeat*/, double /*visibleBeatRange*/,
+                               const ProjectX &projX, const ProjectY &projY)
 {
     // 绘制曲线段
     QMap<int, Anchor> anchorMap = state.anchors();
@@ -19,31 +20,43 @@ void NoteChainOverlay::render(QPainter *painter, const NoteChainState &state,
         Anchor a0 = anchorMap[link.fromAnchorId];
         Anchor a1 = anchorMap[link.toAnchorId];
         QString shape = state.segmentShape(link.fromAnchorId, link.toAnchorId);
-        drawCurveSegment(painter, a0, a1, shape);
+        drawCurveSegment(painter, a0, a1, shape, projX, projY);
     }
 
     // 绘制锚点和控制柄
     for (auto it = anchorMap.begin(); it != anchorMap.end(); ++it) {
         const Anchor &anchor = it.value();
         bool selected = state.isSelected(anchor.id);
-        drawAnchor(painter, anchor, selected);
-        drawHandles(painter, anchor, selected);
+        drawAnchor(painter, anchor, selected, projX, projY);
+        drawHandles(painter, anchor, selected, projX, projY);
     }
 }
 
-void NoteChainOverlay::drawAnchor(QPainter *painter, const Anchor &anchor, bool selected)
+void NoteChainOverlay::drawAnchor(QPainter *painter, const Anchor &anchor, bool selected,
+                                   const ProjectX &projX, const ProjectY &projY)
 {
     QColor color = selected ? anchorSelectedColor() : anchorColor();
     painter->setPen(Qt::NoPen);
     painter->setBrush(color);
-    painter->drawEllipse(QPointF(anchor.x, anchor.y), kAnchorRadius, kAnchorRadius);
+    double cx = projX(anchor.laneX);
+    double cy = projY(anchor.beat);
+    painter->drawEllipse(QPointF(cx, cy), kAnchorRadius, kAnchorRadius);
 }
 
-void NoteChainOverlay::drawHandles(QPainter *painter, const Anchor &anchor, bool selected)
+void NoteChainOverlay::drawHandles(QPainter *painter, const Anchor &anchor, bool selected,
+                                    const ProjectX &projX, const ProjectY &projY)
 {
-    QPointF anchorPos(anchor.x, anchor.y);
-    QPointF inAbs  = anchor.handleInAbs();
-    QPointF outAbs = anchor.handleOutAbs();
+    double ax = projX(anchor.laneX);
+    double ay = projY(anchor.beat);
+    QPointF anchorPos(ax, ay);
+
+    double inLane = anchor.laneX + anchor.handleInDx;
+    double inBeat = anchor.beat + anchor.handleInDy;
+    QPointF inAbs(projX(inLane), projY(inBeat));
+
+    double outLane = anchor.laneX + anchor.handleOutDx;
+    double outBeat = anchor.beat + anchor.handleOutDy;
+    QPointF outAbs(projX(outLane), projY(outBeat));
 
     // 入控制柄
     if (anchor.hasHandleIn()) {
@@ -65,7 +78,8 @@ void NoteChainOverlay::drawHandles(QPainter *painter, const Anchor &anchor, bool
 }
 
 void NoteChainOverlay::drawCurveSegment(QPainter *painter, const Anchor &a0, const Anchor &a1,
-                                         const QString &shape)
+                                         const QString &shape,
+                                         const ProjectX &projX, const ProjectY &projY)
 {
     QVector<SampledPoint> pts = NoteChainCurveSampler::sampleSegment(a0, a1, shape);
 
@@ -78,20 +92,28 @@ void NoteChainOverlay::drawCurveSegment(QPainter *painter, const Anchor &a0, con
     painter->setPen(pen);
 
     for (int i = 0; i < pts.size() - 1; ++i) {
-        painter->drawLine(QPointF(pts[i].laneX, pts[i].beat),
-                          QPointF(pts[i+1].laneX, pts[i+1].beat));
+        double x1 = projX(pts[i].laneX);
+        double y1 = projY(pts[i].beat);
+        double x2 = projX(pts[i+1].laneX);
+        double y2 = projY(pts[i+1].beat);
+        painter->drawLine(QPointF(x1, y1), QPointF(x2, y2));
     }
 }
 
 void NoteChainOverlay::drawLinkDragPreview(QPainter *painter,
                                             const Anchor &fromAnchor,
-                                            double toX, double toY)
+                                            double toLaneX, double toBeat,
+                                            const ProjectX &projX, const ProjectY &projY)
 {
     QColor col = linkPreviewColor();
     QPen pen(col, 2.0, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-    painter->drawLine(QPointF(fromAnchor.x, fromAnchor.y), QPointF(toX, toY));
+    double fx = projX(fromAnchor.laneX);
+    double fy = projY(fromAnchor.beat);
+    double tx = projX(toLaneX);
+    double ty = projY(toBeat);
+    painter->drawLine(QPointF(fx, fy), QPointF(tx, ty));
 }
 
 } // namespace NoteChain

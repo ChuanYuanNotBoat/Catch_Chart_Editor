@@ -40,8 +40,12 @@ bool ChartCanvas_dispatchNoteChainMousePress(ChartCanvas *canvas, QMouseEvent *e
     bool shift = event->modifiers().testFlag(Qt::ShiftModifier);
     bool ctrl  = event->modifiers().testFlag(Qt::ControlModifier);
 
+    // 将 canvas 像素坐标转换为 chart 坐标
+    double laneX = canvas->chartCanvasXToLaneX(event->position().x());
+    double beat  = canvas->chartYToBeat(event->position().y());
+
     bool handled = NoteChain::bridgeHandleMousePress(
-        editor, event, event->position().x(), event->position().y(), shift, ctrl);
+        editor, event, laneX, beat, shift, ctrl);
 
     if (handled) {
         event->accept();
@@ -56,8 +60,11 @@ bool ChartCanvas_dispatchNoteChainMouseMove(ChartCanvas *canvas, QMouseEvent *ev
         return false;
 
     auto *editor = canvas->noteChainEditor();
+    double laneX = canvas->chartCanvasXToLaneX(event->position().x());
+    double beat  = canvas->chartYToBeat(event->position().y());
+
     bool handled = NoteChain::bridgeHandleMouseMove(
-        editor, event, event->position().x(), event->position().y());
+        editor, event, laneX, beat);
 
     if (handled)
         canvas->update();
@@ -70,8 +77,11 @@ bool ChartCanvas_dispatchNoteChainMouseRelease(ChartCanvas *canvas, QMouseEvent 
         return false;
 
     auto *editor = canvas->noteChainEditor();
+    double laneX = canvas->chartCanvasXToLaneX(event->position().x());
+    double beat  = canvas->chartYToBeat(event->position().y());
+
     bool handled = NoteChain::bridgeHandleMouseRelease(
-        editor, event, event->position().x(), event->position().y());
+        editor, event, laneX, beat);
 
     if (handled)
         canvas->update();
@@ -83,7 +93,18 @@ void ChartCanvas_drawNoteChainOverlay(ChartCanvas *canvas, QPainter *painter)
     if (!canvas || !canvas->isNoteChainModeActive() || !canvas->noteChainEditor())
         return;
 
+    // 构建 chart→canvas 投影函数
+    auto projX = [canvas](double laneX) -> double {
+        return canvas->chartLaneXToCanvasX(static_cast<int>(laneX));
+    };
+    auto projY = [canvas](double beat) -> double {
+        return canvas->chartBeatToY(beat);
+    };
+
     NoteChain::bridgeRenderOverlay(
         canvas->noteChainEditor(), painter,
-        painter->viewport(), 0, 0);
+        painter->viewport(),
+        canvas->scrollBeat(),
+        canvas->visibleBeatRange(),
+        projX, projY);
 }

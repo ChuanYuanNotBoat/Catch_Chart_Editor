@@ -97,6 +97,14 @@ public:
     bool isNoteChainModeActive() const { return m_noteChainModeActive; }
     NoteChain::NoteChainEditor *noteChainEditor() const { return m_noteChainEditor; }
 
+    // Coordinate conversion for NoteChain (made public for overlay/editor use)
+    double scrollBeat() const { return m_scrollBeat; }
+    double visibleBeatRange() const { return effectiveVisibleBeatRange(); }
+    double chartBeatToY(double beat) const { return beatToY(beat); }
+    double chartYToBeat(double y) const { return yToBeat(y); }
+    int chartCanvasXToLaneX(double canvasX) const { return canvasXToLaneX(canvasX); }
+    double chartLaneXToCanvasX(int laneX) const { return laneXToCanvasX(laneX); }
+
 public slots:
     void showGridSettings();
     void playbackPositionChanged(double timeMs);

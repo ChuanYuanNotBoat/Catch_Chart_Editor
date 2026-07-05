@@ -12,6 +12,17 @@ void NoteChainHistory::push(const NoteChainState &state)
     if (m_currentIndex < m_stack.size() - 1)
         m_stack.resize(m_currentIndex + 1);
 
+    // P1-5 fix: 跳过与栈顶相同状态的记录（拖拽中连续 move 不推重复历史）
+    if (m_currentIndex >= 0 && m_currentIndex < m_stack.size()) {
+        const NoteChainState &top = m_stack.at(m_currentIndex);
+        // 简单等价检测：比较 anchors 数量和 links 数量
+        if (top.anchorCount() == state.anchorCount() &&
+            top.links().size() == state.links().size() &&
+            top.selectedAnchorIds() == state.selectedAnchorIds()) {
+            return; // 跳过重复状态
+        }
+    }
+
     m_stack.append(state.clone());
 
     // 限制最大深度

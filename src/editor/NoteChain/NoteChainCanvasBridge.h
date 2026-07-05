@@ -49,11 +49,12 @@ inline bool bridgeHandleMouseRelease(NoteChainEditor *editor, QMouseEvent *event
 /// 绘制叠加层
 inline void bridgeRenderOverlay(NoteChainEditor *editor, QPainter *painter,
                                 const QRectF &rect, double scrollBeat,
-                                double visibleBeatRange)
+                                double visibleBeatRange,
+                                const ProjectX &projX, const ProjectY &projY)
 {
     if (!editor || !editor->isActive())
         return;
-    editor->renderOverlay(painter, rect, scrollBeat, visibleBeatRange);
+    editor->renderOverlay(painter, rect, scrollBeat, visibleBeatRange, projX, projY);
 }
 
 } // namespace NoteChain

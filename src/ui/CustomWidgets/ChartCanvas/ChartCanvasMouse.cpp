@@ -1108,8 +1108,10 @@ void ChartCanvas::mousePressEvent(QMouseEvent *event)
     if (m_noteChainModeActive && m_noteChainEditor) {
         bool shift = event->modifiers().testFlag(Qt::ShiftModifier);
         bool ctrl  = event->modifiers().testFlag(Qt::ControlModifier);
+        double laneX = canvasXToLaneX(event->position().x());
+        double beat = yToBeat(event->position().y());
         if (NoteChain::bridgeHandleMousePress(m_noteChainEditor, event,
-                event->position().x(), event->position().y(), shift, ctrl)) {
+                laneX, beat, shift, ctrl)) {
             event->accept();
             update();
             return;
@@ -1153,8 +1155,10 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
 {
     // NoteChain native: dispatch before plugin
     if (m_noteChainModeActive && m_noteChainEditor) {
+        double laneX = canvasXToLaneX(event->position().x());
+        double beat = yToBeat(event->position().y());
         if (NoteChain::bridgeHandleMouseMove(m_noteChainEditor, event,
-                event->position().x(), event->position().y())) {
+                laneX, beat)) {
             event->accept();
             update();
             return;
@@ -1258,8 +1262,10 @@ void ChartCanvas::mouseReleaseEvent(QMouseEvent *event)
 {
     // NoteChain native: dispatch before plugin
     if (m_noteChainModeActive && m_noteChainEditor) {
+        double laneX = canvasXToLaneX(event->position().x());
+        double beat = yToBeat(event->position().y());
         if (NoteChain::bridgeHandleMouseRelease(m_noteChainEditor, event,
-                event->position().x(), event->position().y())) {
+                laneX, beat)) {
             event->accept();
             update();
             return;

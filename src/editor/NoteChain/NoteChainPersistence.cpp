@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
+#include <QSaveFile>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -59,17 +60,17 @@ QJsonObject NoteChainPersistence::serializeAnchor(const Anchor &anchor)
 {
     QJsonObject obj;
     obj["id"] = anchor.id;
-    obj["lane_x"] = anchor.x;
-    obj["beat"] = tripletFromDouble(anchor.y);
+    obj["lane_x"] = anchor.laneX;
+    obj["beat"] = tripletFromDouble(anchor.beat);
 
     QJsonObject inObj;
-    inObj["lane_dx"] = anchor.hx_i;
-    inObj["beat_delta"] = tripletFromDouble(anchor.hy_i);
+    inObj["lane_dx"] = anchor.handleInDx;
+    inObj["beat_delta"] = tripletFromDouble(anchor.handleInDy);
     obj["in"] = inObj;
 
     QJsonObject outObj;
-    outObj["lane_dx"] = anchor.hx_o;
-    outObj["beat_delta"] = tripletFromDouble(anchor.hy_o);
+    outObj["lane_dx"] = anchor.handleOutDx;
+    outObj["beat_delta"] = tripletFromDouble(anchor.handleOutDy);
     obj["out"] = outObj;
 
     obj["smooth"] = true;
@@ -83,16 +84,16 @@ bool NoteChainPersistence::deserializeAnchor(const QJsonObject &json, Anchor &an
     // V3 格式：包含 lane_x
     if (json.contains("lane_x")) {
         anchor.id  = parseInt(json.value("id"), -1);
-        anchor.x   = json.value("lane_x").toDouble(0.0);
-        anchor.y   = doubleFromTriplet(json.value("beat"), 0.0);
+        anchor.laneX = json.value("lane_x").toDouble(0.0);
+        anchor.beat = doubleFromTriplet(json.value("beat"), 0.0);
 
         QJsonObject inRaw  = json.value("in").toObject();
         QJsonObject outRaw = json.value("out").toObject();
 
-        anchor.hx_i = inRaw.value("lane_dx").toDouble(0.0);
-        anchor.hy_i = doubleFromTriplet(inRaw.value("beat_delta"), 0.0);
-        anchor.hx_o = outRaw.value("lane_dx").toDouble(0.0);
-        anchor.hy_o = doubleFromTriplet(outRaw.value("beat_delta"), 0.0);
+        anchor.handleInDx = inRaw.value("lane_dx").toDouble(0.0);
+        anchor.handleInDy = doubleFromTriplet(inRaw.value("beat_delta"), 0.0);
+        anchor.handleOutDx = outRaw.value("lane_dx").toDouble(0.0);
+        anchor.handleOutDy = doubleFromTriplet(outRaw.value("beat_delta"), 0.0);
 
         return anchor.id >= 0;
     }
@@ -100,18 +101,18 @@ bool NoteChainPersistence::deserializeAnchor(const QJsonObject &json, Anchor &an
     // 旧格式兼容：包含 x/y（画布坐标）
     if (json.contains("x") && json.contains("y")) {
         anchor.id  = parseInt(json.value("id"), -1);
-        anchor.x   = json.value("x").toDouble(0.0);
-        anchor.y   = json.value("y").toDouble(0.0);
+        anchor.laneX = json.value("x").toDouble(0.0);
+        anchor.beat = json.value("y").toDouble(0.0);
 
         QJsonValue inVal  = json.value("in");
         QJsonValue outVal = json.value("out");
         QJsonArray inArr  = inVal.isArray() ? inVal.toArray() : QJsonArray{0.0, 0.0};
         QJsonArray outArr = outVal.isArray() ? outVal.toArray() : QJsonArray{0.0, 0.0};
 
-        anchor.hx_i = inArr.size() >= 1  ? inArr[0].toDouble(0.0)  : 0.0;
-        anchor.hy_i = inArr.size() >= 2  ? inArr[1].toDouble(0.0)  : 0.0;
-        anchor.hx_o = outArr.size() >= 1 ? outArr[0].toDouble(0.0) : 0.0;
-        anchor.hy_o = outArr.size() >= 2 ? outArr[1].toDouble(0.0) : 0.0;
+        anchor.handleInDx = inArr.size() >= 1  ? inArr[0].toDouble(0.0)  : 0.0;
+        anchor.handleInDy = inArr.size() >= 2  ? inArr[1].toDouble(0.0)  : 0.0;
+        anchor.handleOutDx = outArr.size() >= 1 ? outArr[0].toDouble(0.0) : 0.0;
+        anchor.handleOutDy = outArr.size() >= 2 ? outArr[1].toDouble(0.0) : 0.0;
 
         return anchor.id >= 0;
     }
@@ -197,8 +198,8 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
 {
     Q_UNUSED(errorMsg)
 
-    // 清空当前状态
-    state = NoteChainState();
+    // 先解析到临时 state，全部校验通过后再赋值，避免部分加载破坏现有数据 (P2-3 fix)
+    NoteChainState tmp;
 
     // nodes → anchors
     QJsonArray nodesArray = json.value("nodes").toArray();
@@ -206,7 +207,7 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
         QJsonObject nodeObj = nodeVal.toObject();
         Anchor anchor;
         if (deserializeAnchor(nodeObj, anchor, nullptr)) {
-            state.addAnchor(anchor);
+            tmp.addAnchor(anchor);
         }
     }
 
@@ -224,20 +225,20 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
             continue;
 
         // 添加链接
-        state.addLink(id0, id1);
+        tmp.addLink(id0, id1);
 
         // 密度
         QJsonObject densityObj = curveObj.value("density").toObject();
         QString densityMode = densityObj.value("mode").toString();
         if (densityMode == QLatin1String("fixed")) {
             int den = parseInt(densityObj.value("denominator"), kDefaultSegmentDenominator);
-            state.setSegmentDenominator(id0, id1, den);
+            tmp.setSegmentDenominator(id0, id1, den);
         }
 
         // 形态
         QString shape = curveObj.value("style_category").toString();
         if (!shape.isEmpty()) {
-            state.setSegmentShape(id0, id1, shape);
+            tmp.setSegmentShape(id0, id1, shape);
         }
     }
 
@@ -245,10 +246,12 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
     if (json.contains("revision")) {
         CurveProjectMeta meta;
         meta.revision = parseInt(json.value("revision"), 0);
-        state.setProjectMeta(meta);
+        tmp.setProjectMeta(meta);
     }
 
-    state.cleanupOrphanedLinksAndSelection();
+    // 校验通过后再赋值
+    tmp.cleanupOrphanedLinksAndSelection();
+    state = std::move(tmp);
     return true;
 }
 
@@ -286,33 +289,29 @@ bool NoteChainPersistence::saveToFile(const NoteChainState &state, const QString
             }
         }
     }
+    // CAS revision 冲突检测：比较内存 revision 与磁盘 revision
+    int memRevision = state.projectMeta().revision;
+    if (fi.exists() && memRevision != diskRevision) {
+        if (errorMsg) *errorMsg = QStringLiteral("revision conflict: file modified by another instance (disk=%1, mem=%2)")
+                                       .arg(diskRevision).arg(memRevision);
+        return false;
+    }
+
     payload["revision"] = diskRevision + 1;
     payload["updated_at"] = QDateTime::currentMSecsSinceEpoch();
 
-    // 原子写入（先写临时文件再替换）
-    QString tmpPath = effectivePath + QStringLiteral(".tmp.") + QString::number(QDateTime::currentMSecsSinceEpoch());
-    QFile tmpFile(tmpPath);
-    if (!tmpFile.open(QIODevice::WriteOnly)) {
-        if (errorMsg) *errorMsg = QStringLiteral("failed to open temp file for writing: %1").arg(tmpPath);
+    // 使用 QSaveFile 做原子写入，避免 remove+rename 失败导致数据丢失
+    QSaveFile saveFile(effectivePath);
+    if (!saveFile.open(QIODevice::WriteOnly)) {
+        if (errorMsg) *errorMsg = QStringLiteral("failed to open save file: %1").arg(saveFile.errorString());
         return false;
     }
 
     QJsonDocument doc(payload);
-    tmpFile.write(doc.toJson(QJsonDocument::Indented));
-    tmpFile.close();
+    saveFile.write(doc.toJson(QJsonDocument::Indented));
 
-    // 如果目标已存在，先删除再重命名（QFile::rename 在 Windows 上不会覆盖）
-    if (fi.exists()) {
-        if (!QFile::remove(effectivePath)) {
-            QFile::remove(tmpPath);
-            if (errorMsg) *errorMsg = QStringLiteral("failed to replace existing file: %1").arg(effectivePath);
-            return false;
-        }
-    }
-
-    if (!QFile::rename(tmpPath, effectivePath)) {
-        QFile::remove(tmpPath);
-        if (errorMsg) *errorMsg = QStringLiteral("failed to rename temp file to: %1").arg(effectivePath);
+    if (!saveFile.commit()) {
+        if (errorMsg) *errorMsg = QStringLiteral("failed to commit save file: %1").arg(saveFile.errorString());
         return false;
     }
 

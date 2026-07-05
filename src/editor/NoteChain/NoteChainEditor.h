@@ -7,10 +7,12 @@
 #include "NoteChainHistory.h"
 #include "NoteChainPersistence.h"
 #include "NoteChainCurveSampler.h"
+#include "NoteChainOverlay.h"
 
 #include <QObject>
 #include <QPainter>
 #include <QRectF>
+#include <QElapsedTimer>
 
 class QMouseEvent;
 
@@ -48,7 +50,8 @@ public:
 
     // ---- 渲染（从 ChartCanvas drawForeground 调用）----
     void renderOverlay(QPainter *painter, const QRectF &rect,
-                       double scrollBeat, double visibleBeatRange);
+                       double scrollBeat, double visibleBeatRange,
+                       const ProjectX &projX, const ProjectY &projY);
 
     // ---- 撤销/重做 ----
     bool canUndo() const;
@@ -95,6 +98,10 @@ private:
     int m_linkDragFromId = -1;
     // LinkDrag 预览线：当前鼠标在画布上的位置
     double m_linkDragCurrentX = 0, m_linkDragCurrentY = 0;
+
+    // P1-3 fix: 拖拽节流定时器
+    QElapsedTimer m_lastMoveTimer;
+    static constexpr int kMoveThrottleMs = 16;
 };
 
 } // namespace NoteChain

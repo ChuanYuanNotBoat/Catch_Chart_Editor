@@ -11,22 +11,23 @@ namespace NoteChain {
 
 // ---- 锚点数据结构 ----
 // 对应 Python: anchor["x"], anchor["y"], anchor["hx_i"], anchor["hy_i"], anchor["hx_o"], anchor["hy_o"]
+// 坐标体系：laneX/beat 为 chart 坐标系（谱面坐标），handleIn*/handleOut* 为相对偏移
 struct Anchor
 {
-    int id = -1;        // 锚点唯一 ID
-    double x = 0.0;     // 画布 X 坐标（节拍 beat）
-    double y = 0.0;     // 画布 Y 坐标
-    double hx_i = 0.0;  // 入控制柄 X 偏移（相对于锚点）
-    double hy_i = 0.0;  // 入控制柄 Y 偏移
-    double hx_o = 0.0;  // 出控制柄 X 偏移（相对于锚点）
-    double hy_o = 0.0;  // 出控制柄 Y 偏移
+    int id = -1;              // 锚点唯一 ID
+    double laneX = 0.0;       // chart lane 坐标
+    double beat = 0.0;        // chart beat 坐标
+    double handleInDx = 0.0;  // 入控制柄 lane 偏移（相对于锚点）
+    double handleInDy = 0.0;  // 入控制柄 beat 偏移
+    double handleOutDx = 0.0; // 出控制柄 lane 偏移（相对于锚点）
+    double handleOutDy = 0.0; // 出控制柄 beat 偏移
 
-    QPointF position() const { return QPointF(x, y); }
-    QPointF handleInAbs() const  { return QPointF(x + hx_i, y + hy_i); }
-    QPointF handleOutAbs() const { return QPointF(x + hx_o, y + hy_o); }
+    QPointF position() const { return QPointF(laneX, beat); }
+    QPointF handleInAbs() const  { return QPointF(laneX + handleInDx, beat + handleInDy); }
+    QPointF handleOutAbs() const { return QPointF(laneX + handleOutDx, beat + handleOutDy); }
 
-    bool hasHandleIn() const  { return hx_i != 0.0 || hy_i != 0.0; }
-    bool hasHandleOut() const { return hx_o != 0.0 || hy_o != 0.0; }
+    bool hasHandleIn() const  { return handleInDx != 0.0 || handleInDy != 0.0; }
+    bool hasHandleOut() const { return handleOutDx != 0.0 || handleOutDy != 0.0; }
 };
 
 // ---- 链接数据结构 ----

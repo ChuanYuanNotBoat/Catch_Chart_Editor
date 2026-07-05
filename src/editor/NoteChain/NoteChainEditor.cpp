@@ -29,8 +29,7 @@ void NoteChainEditor::setActive(bool active)
         m_dragAnchorId = -1;
         m_linkDragFromId = -1;
         m_state.clearSelection();
-        m_history.clear();
-        recordHistory();
+        // 不清空历史栈：用户切换工具不应丢失撤销记录（P0-4 fix）
     }
 }
 
@@ -66,7 +65,7 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMousePress(
                 isInHandle = false;
             }
 
-            double da = NoteChainCurveSampler::distance(canvasX, canvasY, a.x, a.y);
+            double da = NoteChainCurveSampler::distance(canvasX, canvasY, a.laneX, a.beat);
             if (da < bestDist) {
                 bestDist = da;
                 hitId = a.id;
@@ -75,7 +74,7 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMousePress(
 
         if (hitId >= 0 && bestDist < kHitTolerance) {
             double da = NoteChainCurveSampler::distance(canvasX, canvasY,
-                          anchorMap[hitId].x, anchorMap[hitId].y);
+                          anchorMap[hitId].laneX, anchorMap[hitId].beat);
             if (da < kHitTolerance * 0.8) {
                 if (shiftDown) {
                     m_dragMode = DragMode::LinkDrag;
@@ -106,8 +105,8 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMousePress(
         // 空白区域：创建新锚点
         Anchor newAnchor;
         newAnchor.id = m_state.nextAnchorId();
-        newAnchor.x = canvasX;
-        newAnchor.y = canvasY;
+        newAnchor.laneX = canvasX;
+        newAnchor.beat = canvasY;
         m_state.addAnchor(newAnchor);
 
         if (!ctrlDown)
@@ -129,6 +128,13 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMouseMove(
     if (!m_active || m_dragMode == DragMode::None)
         return MouseResult::NotHandled;
 
+    // P1-3 fix: 拖拽节流，每 16ms 最多触发一次状态变更 + repaint
+    if (m_dragMode != DragMode::LinkDrag &&
+        m_lastMoveTimer.isValid() && m_lastMoveTimer.elapsed() < kMoveThrottleMs) {
+        return MouseResult::Handled;
+    }
+    m_lastMoveTimer.restart();
+
     if (m_dragMode == DragMode::LinkDrag) {
         m_linkDragCurrentX = canvasX;
         m_linkDragCurrentY = canvasY;
@@ -138,8 +144,8 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMouseMove(
     if (m_dragMode == DragMode::Anchor && m_dragAnchorId >= 0) {
         Anchor a = m_state.anchor(m_dragAnchorId);
         if (a.id >= 0) {
-            a.x = canvasX;
-            a.y = canvasY;
+            a.laneX = canvasX;
+            a.beat = canvasY;
             m_state.setAnchor(m_dragAnchorId, a);
             return MouseResult::NeedsRepaint;
         }
@@ -148,8 +154,8 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMouseMove(
     if (m_dragMode == DragMode::HandleIn && m_dragAnchorId >= 0) {
         Anchor a = m_state.anchor(m_dragAnchorId);
         if (a.id >= 0) {
-            a.hx_i = canvasX - a.x;
-            a.hy_i = canvasY - a.y;
+            a.handleInDx = canvasX - a.laneX;
+            a.handleInDy = canvasY - a.beat;
             m_state.setAnchor(m_dragAnchorId, a);
             return MouseResult::NeedsRepaint;
         }
@@ -158,8 +164,8 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMouseMove(
     if (m_dragMode == DragMode::HandleOut && m_dragAnchorId >= 0) {
         Anchor a = m_state.anchor(m_dragAnchorId);
         if (a.id >= 0) {
-            a.hx_o = canvasX - a.x;
-            a.hy_o = canvasY - a.y;
+            a.handleOutDx = canvasX - a.laneX;
+            a.handleOutDy = canvasY - a.beat;
             m_state.setAnchor(m_dragAnchorId, a);
             return MouseResult::NeedsRepaint;
         }
@@ -177,12 +183,12 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMouseRelease(
         return MouseResult::NotHandled;
 
     if (m_dragMode == DragMode::LinkDrag && m_linkDragFromId >= 0) {
-        QMap<int, Anchor> anchorMap = m_state.anchors();
+        const QMap<int, Anchor> &anchorMap = m_state.anchors();
         double bestDist = kHitTolerance;
         int bestTargetId = -1;
         for (auto it = anchorMap.begin(); it != anchorMap.end(); ++it) {
             const Anchor &a = it.value();
-            double d = NoteChainCurveSampler::distance(canvasX, canvasY, a.x, a.y);
+            double d = NoteChainCurveSampler::distance(canvasX, canvasY, a.laneX, a.beat);
             if (d < bestDist && a.id != m_linkDragFromId) {
                 bestDist = d;
                 bestTargetId = a.id;
@@ -194,11 +200,16 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMouseRelease(
         }
     }
 
+    DragMode prevMode = m_dragMode;
+    MouseResult result = (prevMode != DragMode::None)
+                         ? MouseResult::NeedsRepaint
+                         : MouseResult::NotHandled;
+
     m_dragMode = DragMode::None;
     m_dragAnchorId = -1;
     m_linkDragFromId = -1;
 
-    return MouseResult::NeedsRepaint;
+    return result;
 }
 
 NoteChainEditor::MouseResult NoteChainEditor::handleMouseDoubleClick(
@@ -237,7 +248,8 @@ void NoteChainEditor::handleKeyEscape()
 }
 
 void NoteChainEditor::renderOverlay(QPainter *painter, const QRectF &rect,
-                                     double scrollBeat, double visibleBeatRange)
+                                     double scrollBeat, double visibleBeatRange,
+                                     const ProjectX &projX, const ProjectY &projY)
 {
     if (!m_active)
         return;
@@ -245,14 +257,14 @@ void NoteChainEditor::renderOverlay(QPainter *painter, const QRectF &rect,
     Q_UNUSED(rect)
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing);
-    NoteChainOverlay::render(painter, m_state, scrollBeat, visibleBeatRange);
+    NoteChainOverlay::render(painter, m_state, scrollBeat, visibleBeatRange, projX, projY);
 
-    // 绘制 LinkDrag 预览线
+    // 绘制 LinkDrag 预览线（当前鼠标位置已是 canvas 坐标）
     if (m_dragMode == DragMode::LinkDrag && m_linkDragFromId >= 0) {
         Anchor fromAnchor = m_state.anchor(m_linkDragFromId);
         if (fromAnchor.id >= 0) {
             NoteChainOverlay::drawLinkDragPreview(
-                painter, fromAnchor, m_linkDragCurrentX, m_linkDragCurrentY);
+                painter, fromAnchor, m_linkDragCurrentX, m_linkDragCurrentY, projX, projY);
         }
     }
 

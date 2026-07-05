@@ -81,8 +81,8 @@ QVector<SampledPoint> NoteChainCurveSampler::sampleSegment(const Anchor &a0, con
     int steps = qMax(1, samplesPerSegment);
 
     // p0 = a0.position, p3 = a1.position
-    QPointF p0(a0.x, a0.y);
-    QPointF p3(a1.x, a1.y);
+    QPointF p0(a0.laneX, a0.beat);
+    QPointF p3(a1.laneX, a1.beat);
 
     if (isPolyline) {
         // 折线：线性插值
@@ -118,21 +118,12 @@ QVector<SampledPoint> NoteChainCurveSampler::sampleCurve(const NoteChainState &s
     QMap<int, Anchor> anchorMap = state.anchors();
     QVector<Link> linksList = state.links();
 
-    // 按 idx 构建相邻关系
     struct SegInfo {
         int id0, id1;
         Anchor a0, a1;
         QString shape;
     };
     QVector<SegInfo> segments;
-
-    QMap<int, int> idToIdx; // anchorId → index in anchor map
-    {
-        int idx = 0;
-        for (auto it = anchorMap.begin(); it != anchorMap.end(); ++it, ++idx) {
-            idToIdx[it.key()] = idx;
-        }
-    }
 
     for (const Link &link : linksList) {
         if (!anchorMap.contains(link.fromAnchorId) || !anchorMap.contains(link.toAnchorId))
@@ -146,16 +137,13 @@ QVector<SampledPoint> NoteChainCurveSampler::sampleCurve(const NoteChainState &s
         segments.append(seg);
     }
 
-    // 按 anchor 索引排序
-    std::sort(segments.begin(), segments.end(), [&idToIdx](const SegInfo &s1, const SegInfo &s2) {
-        int i0 = qMin(idToIdx.value(s1.id0, 0), idToIdx.value(s1.id1, 0));
-        int i1 = qMin(idToIdx.value(s2.id0, 0), idToIdx.value(s2.id1, 0));
-        return i0 < i1;
+    // 按 beat 时间排序 (P2-4 fix)
+    std::sort(segments.begin(), segments.end(), [](const SegInfo &s1, const SegInfo &s2) {
+        return s1.a0.beat < s2.a0.beat;
     });
 
     for (const SegInfo &seg : segments) {
         QVector<SampledPoint> segPts = sampleSegment(seg.a0, seg.a1, seg.shape, samplesPerSegment);
-        // 跳过第一个点（已在上一条曲线段末尾覆盖），首段保留全部
         if (!allPts.isEmpty() && !segPts.isEmpty())
             segPts.removeFirst();
         allPts.append(segPts);
@@ -165,30 +153,66 @@ QVector<SampledPoint> NoteChainCurveSampler::sampleCurve(const NoteChainState &s
 }
 
 QVector<SampledPoint> NoteChainCurveSampler::generateNotesFromCurve(const NoteChainState &state,
-                                                                     int samplesPerSegment)
+                                                                     int /*samplesPerSegment*/)
 {
-    QVector<SampledPoint> raw = sampleCurve(state, samplesPerSegment);
-    if (raw.isEmpty())
+    QVector<SampledPoint> allPts;
+    QMap<int, Anchor> anchorMap = state.anchors();
+    QVector<Link> linksList = state.links();
+
+    for (const Link &link : linksList) {
+        if (!anchorMap.contains(link.fromAnchorId) || !anchorMap.contains(link.toAnchorId))
+            continue;
+
+        Anchor a0 = anchorMap[link.fromAnchorId];
+        Anchor a1 = anchorMap[link.toAnchorId];
+        QString shape = state.segmentShape(link.fromAnchorId, link.toAnchorId);
+        int density = state.segmentDenominator(link.fromAnchorId, link.toAnchorId);
+        if (density <= 0)
+            density = kDefaultSegmentDenominator;
+
+        // 按 segment density 在 beat 轴上以 1/den 步进插值 (P2-5 fix)
+        double beatRange = qAbs(a1.beat - a0.beat);
+        int steps = qMax(1, static_cast<int>(beatRange * density));
+
+        for (int j = 0; j <= steps; ++j) {
+            double t = static_cast<double>(j) / steps;
+            SampledPoint pt;
+            if (shape == QLatin1String(kShapePolyline)) {
+                pt.laneX = a0.laneX + (a1.laneX - a0.laneX) * t;
+                pt.beat = a0.beat + (a1.beat - a0.beat) * t;
+            } else {
+                QPointF p0(a0.laneX, a0.beat);
+                QPointF p1 = a0.handleOutAbs();
+                QPointF p2 = a1.handleInAbs();
+                QPointF p3(a1.laneX, a1.beat);
+                QPointF cp = cubicPoint(p0, p1, p2, p3, t);
+                pt.laneX = cp.x();
+                pt.beat = cp.y();
+            }
+            allPts.append(pt);
+        }
+    }
+
+    if (allPts.isEmpty())
         return {};
 
-    // 按 beat 时间排序
-    std::sort(raw.begin(), raw.end(), [](const SampledPoint &a, const SampledPoint &b) {
+    // 按 beat 排序
+    std::sort(allPts.begin(), allPts.end(), [](const SampledPoint &a, const SampledPoint &b) {
         if (qAbs(a.beat - b.beat) < 1e-6)
             return a.laneX < b.laneX;
         return a.beat < b.beat;
     });
 
-    // 去重（同一时间戳的合并 laneX）
+    // 去重
     QVector<SampledPoint> result;
     const double eps = 1e-6;
-    for (const SampledPoint &pt : raw) {
+    for (const SampledPoint &pt : allPts) {
         if (result.isEmpty()) {
             result.append(pt);
             continue;
         }
         SampledPoint &last = result.last();
         if (qAbs(pt.beat - last.beat) <= eps) {
-            // 合并：取平均值
             last.laneX = (last.laneX + pt.laneX) * 0.5;
         } else {
             result.append(pt);
