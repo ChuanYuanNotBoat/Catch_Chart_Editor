@@ -23,6 +23,12 @@ public:
     static QColor handleSelectedColor(){ return QColor(100, 160, 255); }
     static QColor curveColor()         { return QColor(255, 200, 100, 200); }
     static QColor polylineColor()      { return QColor(200, 200, 200, 180); }
+    static QColor linkPreviewColor()   { return QColor(255, 255, 100, 160); }
+
+    /// 绘制 Shift+拖拽创建链接时的预览线
+    static void drawLinkDragPreview(QPainter *painter,
+                                    const Anchor &fromAnchor,
+                                    double toX, double toY);
 
 private:
     static void drawAnchor(QPainter *painter, const Anchor &anchor, bool selected);

@@ -80,8 +80,9 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMousePress(
                 if (shiftDown) {
                     m_dragMode = DragMode::LinkDrag;
                     m_linkDragFromId = hitId;
-                    recordHistory();
-                    return MouseResult::NeedsRepaint;
+                    m_linkDragCurrentX = canvasX;
+                    m_linkDragCurrentY = canvasY;
+                    return MouseResult::Handled;
                 } else {
                     m_dragMode = DragMode::Anchor;
                     m_dragAnchorId = hitId;
@@ -128,8 +129,11 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMouseMove(
     if (!m_active || m_dragMode == DragMode::None)
         return MouseResult::NotHandled;
 
-    if (m_dragMode == DragMode::LinkDrag)
-        return MouseResult::NotHandled;
+    if (m_dragMode == DragMode::LinkDrag) {
+        m_linkDragCurrentX = canvasX;
+        m_linkDragCurrentY = canvasY;
+        return MouseResult::NeedsRepaint;
+    }
 
     if (m_dragMode == DragMode::Anchor && m_dragAnchorId >= 0) {
         Anchor a = m_state.anchor(m_dragAnchorId);
@@ -174,14 +178,19 @@ NoteChainEditor::MouseResult NoteChainEditor::handleMouseRelease(
 
     if (m_dragMode == DragMode::LinkDrag && m_linkDragFromId >= 0) {
         QMap<int, Anchor> anchorMap = m_state.anchors();
+        double bestDist = kHitTolerance;
+        int bestTargetId = -1;
         for (auto it = anchorMap.begin(); it != anchorMap.end(); ++it) {
             const Anchor &a = it.value();
             double d = NoteChainCurveSampler::distance(canvasX, canvasY, a.x, a.y);
-            if (d < kHitTolerance && a.id != m_linkDragFromId) {
-                m_state.addLink(m_linkDragFromId, a.id);
-                recordHistory();
-                break;
+            if (d < bestDist && a.id != m_linkDragFromId) {
+                bestDist = d;
+                bestTargetId = a.id;
             }
+        }
+        if (bestTargetId >= 0) {
+            m_state.addLink(m_linkDragFromId, bestTargetId);
+            recordHistory();
         }
     }
 
@@ -237,6 +246,16 @@ void NoteChainEditor::renderOverlay(QPainter *painter, const QRectF &rect,
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing);
     NoteChainOverlay::render(painter, m_state, scrollBeat, visibleBeatRange);
+
+    // 绘制 LinkDrag 预览线
+    if (m_dragMode == DragMode::LinkDrag && m_linkDragFromId >= 0) {
+        Anchor fromAnchor = m_state.anchor(m_linkDragFromId);
+        if (fromAnchor.id >= 0) {
+            NoteChainOverlay::drawLinkDragPreview(
+                painter, fromAnchor, m_linkDragCurrentX, m_linkDragCurrentY);
+        }
+    }
+
     painter->restore();
 }
 

@@ -74,7 +74,6 @@ public:
 
 private:
     void recordHistory();
-    void ensureOverlay();
 
     bool m_active = false;
 
@@ -83,25 +82,19 @@ private:
 
     QString m_currentSidecarPath;
 
-    // UI 组件（延迟初始化）
-    NoteChainOverlay *m_overlay = nullptr;
-
     // 拖拽状态
     enum class DragMode {
         None,
         Anchor,       // 拖拽锚点
         HandleIn,     // 拖拽入控制柄
         HandleOut,    // 拖拽出控制柄
-        BoxSelect,    // 框选
         LinkDrag,     // Shift+拖拽创建链接
     };
     DragMode m_dragMode = DragMode::None;
     int m_dragAnchorId = -1;
     int m_linkDragFromId = -1;
-    double m_boxStartX = 0, m_boxStartY = 0;
-
-    // 锚点放置模式
-    bool m_anchorPlaceMode = false;
+    // LinkDrag 预览线：当前鼠标在画布上的位置
+    double m_linkDragCurrentX = 0, m_linkDragCurrentY = 0;
 };
 
 } // namespace NoteChain

@@ -83,4 +83,15 @@ void NoteChainOverlay::drawCurveSegment(QPainter *painter, const Anchor &a0, con
     }
 }
 
+void NoteChainOverlay::drawLinkDragPreview(QPainter *painter,
+                                            const Anchor &fromAnchor,
+                                            double toX, double toY)
+{
+    QColor col = linkPreviewColor();
+    QPen pen(col, 2.0, Qt::DashLine);
+    painter->setPen(pen);
+    painter->setBrush(Qt::NoBrush);
+    painter->drawLine(QPointF(fromAnchor.x, fromAnchor.y), QPointF(toX, toY));
+}
+
 } // namespace NoteChain
