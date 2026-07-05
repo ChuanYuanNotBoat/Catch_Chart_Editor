@@ -665,7 +665,7 @@ bool ChartCanvas::dispatchPluginCanvasInput(const PluginInterface::CanvasInputEv
     if (!handled)
         return false;
 
-    if (!result.overlay.isEmpty())
+    if (!result.overlay.isEmpty() && result.overlay.size() != m_overlayCache.size())
     {
         m_eventOverlayCache = result.overlay;
         m_overlayCache = result.overlay;

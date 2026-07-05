@@ -642,7 +642,7 @@ void ChartCanvas::startOverlayQueryTimer()
     if (isPlaying)
         intervalMs = m_overlayPlaybackIntervalMs;
     else
-        intervalMs = kOverlayQueryIntervalMsToolMode;
+        intervalMs = kOverlayQueryIntervalMsIdle; // perf fix D: idle 800ms rather than 33ms
 
     m_overlayQueryTimer->start(intervalMs);
     m_overlayQueryScheduled = false;

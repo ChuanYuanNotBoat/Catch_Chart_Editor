@@ -74,7 +74,15 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     const auto &bpmList = currentChart->bpmList();
     const auto &notes = currentChart->notes();
 
-    drawBackground(painter);
+    // 仅在第脏或首次绘制时重建背景缓存 (perf fix A)
+    {
+        QSize sz = size();
+        if (m_backgroundCacheDirty || m_backgroundCache.size() != sz)
+            drawBackground(painter);
+        else if (!m_backgroundCache.isNull())
+            painter.drawPixmap(0, 0, m_backgroundCache);
+    }
+
     drawGrid(painter);
 
     double startBeat = m_scrollBeat;
