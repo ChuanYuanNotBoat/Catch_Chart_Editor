@@ -32,8 +32,13 @@ bool Logger::s_qtMessageFilterEnabled = false;
 QStringList Logger::s_qtMessageFilterCategories;
 QStringList Logger::s_qtMessageFilterPrefixes;
 
-HANDLE Logger::hConsole = nullptr;
-WORD Logger::defaultColor = 0;
+#ifdef _WIN32
+    HANDLE Logger::hConsole = nullptr;
+    WORD Logger::defaultColor = 0;
+#else
+    void* Logger::hConsole = nullptr;
+    unsigned short Logger::defaultColor = 0;
+#endif
 
 namespace
 {
@@ -177,10 +182,15 @@ void Logger::init(const QString &logsDir)
         }
     }
 
+#ifdef _WIN32
     Logger::hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    GetConsoleScreenBufferInfo(Logger::hConsole, &csbi);
-    Logger::defaultColor = csbi.wAttributes;
+    if (Logger::hConsole && Logger::hConsole != INVALID_HANDLE_VALUE)
+    {
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        if (GetConsoleScreenBufferInfo(Logger::hConsole, &csbi))
+            Logger::defaultColor = csbi.wAttributes;
+    }
+#endif
 
     m_previousHandler = qInstallMessageHandler(qtMessageHandler);
     s_initialized = true;
@@ -470,10 +480,18 @@ void Logger::logStructured(Level level,
 
 void Logger::setColor(Logger::ConsoleColor color) 
 {
-    SetConsoleTextAttribute(hConsole, static_cast<WORD>(color));
+#ifdef _WIN32
+    if (hConsole && hConsole != INVALID_HANDLE_VALUE)
+        SetConsoleTextAttribute(static_cast<HANDLE>(hConsole), static_cast<WORD>(color));
+#else
+    Q_UNUSED(color);
+#endif
 }
 
 void Logger::resetColor() 
 {
-    SetConsoleTextAttribute(hConsole, defaultColor);
+#ifdef _WIN32
+    if (hConsole && hConsole != INVALID_HANDLE_VALUE)
+        SetConsoleTextAttribute(static_cast<HANDLE>(hConsole), static_cast<WORD>(defaultColor));
+#endif
 }

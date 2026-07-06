@@ -1,7 +1,11 @@
 #pragma once
 
-#include <Windows.h>
-#include <iomanip>
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 #include <QString>
 #include <QMutex>
@@ -22,6 +26,7 @@ public:
         ERR
     };
 
+#ifdef _WIN32
     enum ConsoleColor 
     {
         WHITE = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
@@ -37,6 +42,21 @@ public:
         BLACK = 0,
         GRAY = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
     };
+#else
+    enum ConsoleColor
+    {
+        WHITE = 0,
+        GREEN = 0,
+        YELLOW = 0,
+        RED = 0,
+        DEFAULT = 0,
+        BLUE = 0,
+        CYAN = 0,
+        MAGENTA = 0,
+        BLACK = 0,
+        GRAY = 0,
+    };
+#endif
 
     // 日志文件最大大小：5MB
     static constexpr qint64 MAX_LOG_FILE_SIZE = 5 * 1024 * 1024;
