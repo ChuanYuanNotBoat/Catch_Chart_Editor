@@ -22,7 +22,7 @@ public:
         ERR
     };
 
-    enum class ConsoleColor 
+    enum ConsoleColor 
     {
         WHITE = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
         GREEN = FOREGROUND_GREEN | FOREGROUND_INTENSITY,
