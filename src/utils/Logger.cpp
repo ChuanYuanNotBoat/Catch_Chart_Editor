@@ -110,7 +110,7 @@ namespace
         switch (level)
         {
         case Logger::Level::DEBUG:
-            return { "DEBUG", Logger::ConsoleColor::WHITE };
+            return { "DEBUG", Logger::ConsoleColor::BLUE };
         case Logger::Level::INFO:
             return { "INFO", Logger::ConsoleColor::GREEN };
         case Logger::Level::WARN:
