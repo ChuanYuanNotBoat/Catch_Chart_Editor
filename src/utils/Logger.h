@@ -1,5 +1,8 @@
 #pragma once
 
+#include <Windows.h>
+#include <iomanip>
+
 #include <QString>
 #include <QMutex>
 #include <QFile>
@@ -13,11 +16,28 @@ class Logger
 public:
     enum Level
     {
-        Debug,
-        Info,
-        Warning,
-        Error
+        DEBUG,
+        INFO,
+        WARN,
+        ERR
     };
+
+    enum class ConsoleColor 
+    {
+        WHITE = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
+        GREEN = FOREGROUND_GREEN | FOREGROUND_INTENSITY,
+        YELLOW = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY,
+        RED = FOREGROUND_RED | FOREGROUND_INTENSITY,
+        DEFAULT = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
+
+        // 其他颜色
+        BLUE = FOREGROUND_BLUE | FOREGROUND_INTENSITY,
+        CYAN = FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY,
+        MAGENTA = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY,
+        BLACK = 0,
+        GRAY = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
+    };
+
     // 日志文件最大大小：5MB
     static constexpr qint64 MAX_LOG_FILE_SIZE = 5 * 1024 * 1024;
     /**
@@ -108,9 +128,19 @@ public:
      * @param context 上下文信息（自定义字段）
      */
     static void logStructured(Level level,
-                              const QString &message,
-                              const QString &module = "",
-                              const QMap<QString, QString> &context = QMap<QString, QString>());
+        const QString& message,
+        const QString& module = "",
+        const QMap<QString, QString>& context = QMap<QString, QString>());
+
+    /**
+	 * @brief 通过枚举预设设置控制台输出颜色
+    */
+    static void setColor(ConsoleColor color);
+
+    /**
+	 * @brief 重置控制台输出颜色为默认值
+    */
+    static void resetColor();
 
 private:
     static QFile m_file;
@@ -126,4 +156,9 @@ private:
     static bool s_qtMessageFilterEnabled;
     static QStringList s_qtMessageFilterCategories;
     static QStringList s_qtMessageFilterPrefixes;
+
+    // 控制台颜色支持成员
+    static HANDLE hConsole;
+    static WORD defaultColor;
+
 };
