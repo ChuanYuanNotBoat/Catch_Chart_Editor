@@ -1111,7 +1111,7 @@ namespace
         progressDialog.setValue(100);
 
         const qint64 elapsedMs = timer.elapsed();
-        Logger::logStructured(Logger::Info,
+        Logger::logStructured(Logger::INFO,
                               QString("Working copy completed in %1 ms").arg(elapsedMs),
                               "WorkingCopy",
                               QMap<QString, QString>{
@@ -1210,7 +1210,7 @@ namespace
         delete worker;
 
         const qint64 elapsedMs = timer.elapsed();
-        Logger::logStructured(Logger::Info,
+        Logger::logStructured(Logger::INFO,
                               QString("Working chart parsed in %1 ms").arg(elapsedMs),
                               "WorkingCopy",
                               QMap<QString, QString>{

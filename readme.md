@@ -41,10 +41,6 @@ A desktop chart editor for Malody Catch mode, developed to fill the feature gaps
   插件系统（实验性）
 - Curve sidecar V3 (`.mcce-plugin/*.curve_tbd.json`): nodes/curves/groups schema, CAS revision conflict guard, stable `curve_id` + unique `curve_no`.
   曲线 sidecar V3（`.mcce-plugin/*.curve_tbd.json`）：节点/曲线/分组结构、CAS 版本冲突保护、稳定 `curve_id` 与唯一 `curve_no`。
-- BPM auxiliary files (`.mcce-plugin/*.bpm_excludes.json`, `.mcce-plugin/*.song_bpm.json`): store BPM-related metadata for BPM measurement tools.
-  BPM 辅助文件（`.mcce-plugin/*.bpm_excludes.json`, `.mcce-plugin/*.song_bpm.json`）：存储 BPM 测量工具相关的 BPM 元数据。
-- ChartFileSystem registry: centralized file type management for MCZ packaging, replacing hardcoded whitelists.
-  ChartFileSystem 注册表：集中式文件类型管理，用于 MCZ 打包，替代硬编码白名单。
 
 ---
 

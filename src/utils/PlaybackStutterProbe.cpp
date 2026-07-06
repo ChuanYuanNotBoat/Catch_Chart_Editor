@@ -531,7 +531,7 @@ namespace
             context.insert("canvas_slow_pct", QString::number(metrics.canvasSlowPct, 'f', 1));
             context.insert("top", metrics.topList.join("; "));
             context.insert("counters", metrics.counters.join(", "));
-            Logger::logStructured(Logger::Debug, "PERF_PLAYBACK_WINDOW", "PlaybackStutterProbe", context);
+            Logger::logStructured(Logger::DEBUG, "PERF_PLAYBACK_WINDOW", "PlaybackStutterProbe", context);
         }
 
         resetWindow(s, tsMs);

@@ -1,5 +1,9 @@
 #include "Logger.h"
 
+#include <Windows.h>
+#include <iomanip>
+#include <utility>
+
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>
@@ -28,19 +32,27 @@ bool Logger::s_qtMessageFilterEnabled = false;
 QStringList Logger::s_qtMessageFilterCategories;
 QStringList Logger::s_qtMessageFilterPrefixes;
 
+#ifdef _WIN32
+    HANDLE Logger::hConsole = nullptr;
+    WORD Logger::defaultColor = 0;
+#else
+    void* Logger::hConsole = nullptr;
+    unsigned short Logger::defaultColor = 0;
+#endif
+
 namespace
 {
     QString levelPrefix(Logger::Level level)
     {
         switch (level)
         {
-        case Logger::Debug:
+        case Logger::DEBUG:
             return "[DEBUG] ";
-        case Logger::Info:
+        case Logger::INFO:
             return "[INFO] ";
-        case Logger::Warning:
+        case Logger::WARN:
             return "[WARN] ";
-        case Logger::Error:
+        case Logger::ERR:
         default:
             return "[ERROR] ";
         }
@@ -51,15 +63,15 @@ namespace
         switch (type)
         {
         case QtDebugMsg:
-            return Logger::Debug;
+            return Logger::DEBUG;
         case QtInfoMsg:
-            return Logger::Info;
+            return Logger::INFO;
         case QtWarningMsg:
-            return Logger::Warning;
+            return Logger::WARN;
         case QtCriticalMsg:
         case QtFatalMsg:
         default:
-            return Logger::Error;
+            return Logger::ERR;
         }
     }
 
@@ -92,6 +104,29 @@ namespace
 
         return false;
     }
+
+    /**
+     * @brief 获取日志级别对应的字符串和控制台颜色
+     * @param level 日志级别
+     * @return std::pair<std::string, ConsoleColor> 日志级别字符串, 对应的控制台颜色
+     */
+    std::pair<std::string, Logger::ConsoleColor> getLevelInfo(Logger::Level level)
+    {
+        switch (level)
+        {
+        case Logger::Level::DEBUG:
+            return { "DEBUG", Logger::ConsoleColor::BLUE };
+        case Logger::Level::INFO:
+            return { "INFO", Logger::ConsoleColor::GREEN };
+        case Logger::Level::WARN:
+            return { "WARN", Logger::ConsoleColor::YELLOW };
+        case Logger::Level::ERR:
+            return { "ERROR", Logger::ConsoleColor::RED };
+        default:
+            return { "-", Logger::ConsoleColor::DEFAULT };
+        }
+    }
+
 } // namespace
 
 void Logger::init(const QString &logsDir)
@@ -147,6 +182,16 @@ void Logger::init(const QString &logsDir)
         }
     }
 
+#ifdef _WIN32
+    Logger::hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (Logger::hConsole && Logger::hConsole != INVALID_HANDLE_VALUE)
+    {
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        if (GetConsoleScreenBufferInfo(Logger::hConsole, &csbi))
+            Logger::defaultColor = csbi.wAttributes;
+    }
+#endif
+
     m_previousHandler = qInstallMessageHandler(qtMessageHandler);
     s_initialized = true;
 
@@ -198,7 +243,7 @@ void Logger::log(Level level, const QString &message)
 {
     QMutexLocker locker(&m_mutex);
 
-    if (level == Debug && !s_verbose)
+    if (level == DEBUG && !s_verbose)
         return;
 
     if (!m_file.isOpen())
@@ -215,29 +260,39 @@ void Logger::log(Level level, const QString &message)
     m_stream << timestamp << " " << levelStr << message << Qt::endl;
     m_stream.flush();
 
-    std::cout << timestamp.toUtf8().constData() << " "
-              << levelStr.toUtf8().constData() << message.toUtf8().constData()
-              << std::endl;
+    //std::cout << timestamp.toUtf8().constData() << " "
+    //          << levelStr.toUtf8().constData() << message.toUtf8().constData()
+    //          << std::endl;
+
+    std::pair<std::string, ConsoleColor> p = getLevelInfo(level);
+
+    std::cout << "[" << timestamp.toUtf8().constData() << "]";
+
+    setColor(p.second);
+	std::cout << levelStr.toUtf8().constData();
+    resetColor();
+
+	std::cout << message.toUtf8().constData() << std::endl;
 }
 
 void Logger::debug(const QString &msg)
 {
-    log(Debug, msg);
+    log(DEBUG, msg);
 }
 
 void Logger::info(const QString &msg)
 {
-    log(Info, msg);
+    log(INFO, msg);
 }
 
 void Logger::warn(const QString &msg)
 {
-    log(Warning, msg);
+    log(WARN, msg);
 }
 
 void Logger::error(const QString &msg)
 {
-    log(Error, msg);
+    log(ERR, msg);
 }
 
 void Logger::qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
@@ -395,16 +450,16 @@ void Logger::logStructured(Level level,
     QString levelStr;
     switch (level)
     {
-    case Debug:
+    case DEBUG:
         levelStr = "DEBUG";
         break;
-    case Info:
+    case INFO:
         levelStr = "INFO";
         break;
-    case Warning:
+    case WARN:
         levelStr = "WARN";
         break;
-    case Error:
+    case ERR:
     default:
         levelStr = "ERROR";
         break;
@@ -421,4 +476,22 @@ void Logger::logStructured(Level level,
     const QJsonDocument doc(logEntry);
     m_jsonStream << doc.toJson(QJsonDocument::Compact) << "\n";
     m_jsonStream.flush();
+}
+
+void Logger::setColor(Logger::ConsoleColor color) 
+{
+#ifdef _WIN32
+    if (hConsole && hConsole != INVALID_HANDLE_VALUE)
+        SetConsoleTextAttribute(static_cast<HANDLE>(hConsole), static_cast<WORD>(color));
+#else
+    Q_UNUSED(color);
+#endif
+}
+
+void Logger::resetColor() 
+{
+#ifdef _WIN32
+    if (hConsole && hConsole != INVALID_HANDLE_VALUE)
+        SetConsoleTextAttribute(static_cast<HANDLE>(hConsole), static_cast<WORD>(defaultColor));
+#endif
 }
