@@ -21,8 +21,14 @@
     file/SkinIO.cpp
     file/ProjectIO.cpp
     file/PluginLoader.cpp
+    file/ChartFileSystem.cpp
     audio/AudioPlayer.cpp
     audio/NoteSoundPlayer.cpp
+    audio/BpmDetector.cpp
+    audio/autotiming/AutoTiming.cpp
+    audio/autotiming/dsp.cpp
+    audio/autotiming/fft.cpp
+    audio/autotiming/util.cpp
     controller/ChartController.cpp
     controller/SelectionController.cpp
     controller/PlaybackController.cpp
@@ -51,6 +57,13 @@
     ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp
     ui/dialogs/LogSettingsDialog.cpp
     ui/dialogs/PluginManagerDialog.cpp
+    ui/dialogs/BpmMeasureDialog.cpp
+    editor/NoteChain/NoteChainEditor.cpp
+    editor/NoteChain/NoteChainState.cpp
+    editor/NoteChain/NoteChainHistory.cpp
+    editor/NoteChain/NoteChainPersistence.cpp
+    editor/NoteChain/NoteChainCurveSampler.cpp
+    editor/NoteChain/NoteChainOverlay.cpp
 )
 
 qt_add_executable(CatchChartEditor

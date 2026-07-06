@@ -112,7 +112,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_pasteAnchorBeat(0.0),
       m_pasteRefBeat(0.0),
       m_pasteDragReferenceIndex(-1),
-      m_pasteBaseOriginalTimeMs(std::numeric_limits<double>::max()),
+    m_pasteBaseOriginalTimeMs((std::numeric_limits<double>::max)()),
       m_lastScrollSignalTimeMs(0),
       m_noteSoundPlayer(nullptr),
       m_nextPlayableNoteIndex(0),

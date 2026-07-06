@@ -36,6 +36,7 @@ if(BUILD_TESTING)
         src/controller/ChartController.cpp
         src/file/ChartIO.cpp
         src/file/ProjectIO.cpp
+        src/file/ChartFileSystem.cpp
     )
 
     target_include_directories(CatchChartEditorTests PRIVATE src)

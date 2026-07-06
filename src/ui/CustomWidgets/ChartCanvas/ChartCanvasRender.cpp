@@ -318,14 +318,14 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
     double baseOriginalTime = m_pasteBaseOriginalTimeMs;
     if (!usingCachedOriginalTimes)
     {
-        baseOriginalTime = std::numeric_limits<double>::max();
+        baseOriginalTime = (std::numeric_limits<double>::max)();
         for (double t : sourceOriginalTimes)
         {
             if (std::isfinite(t) && t < baseOriginalTime)
                 baseOriginalTime = t;
         }
     }
-    if (baseOriginalTime != std::numeric_limits<double>::max())
+    if (baseOriginalTime != (std::numeric_limits<double>::max)())
     {
         const QVector<MathUtils::BpmCacheEntry> &previewBpmCache = bpmTimeCache();
         auto previewBeatFromTimeMs = [&previewBpmCache, &bpmList, offset](double ms) -> double
