@@ -709,7 +709,15 @@ def _connect_selected_anchors(context):
     idx_map = _anchor_index_map()
     selected = [int(v) for v in STATE.get(
         "selected_anchor_ids", []) if int(v) in idx_map]
+    try:
+        print(f"[note_chain_assist] _connect_selected_anchors selected={selected}", file=sys.stderr)
+    except Exception:
+        pass
     if len(selected) < 2:
+        try:
+            print(f"[note_chain_assist] _connect_selected_anchors -> insufficient selected ({len(selected)})", file=sys.stderr)
+        except Exception:
+            pass
         return False
     selected.sort(key=lambda aid: idx_map.get(aid, 1 << 30))
     changed = False
@@ -719,6 +727,10 @@ def _connect_selected_anchors(context):
         _cleanup_links_and_selection()
         _invalidate_curve_cache()
         _record_history_state(context)
+    try:
+        print(f"[note_chain_assist] _connect_selected_anchors -> changed={changed}", file=sys.stderr)
+    except Exception:
+        pass
     return changed
 
 
@@ -732,21 +744,41 @@ def _disconnect_selected_segments(context):
         _cleanup_links_and_selection()
         _invalidate_curve_cache()
         _record_history_state(context)
+    try:
+        print(f"[note_chain_assist] _disconnect_selected_segments -> changed={changed}", file=sys.stderr)
+    except Exception:
+        pass
     return changed
 
 
 def _delete_selected_anchors(context):
     selected = set(int(v) for v in STATE.get("selected_anchor_ids", []))
+    try:
+        print(f"[note_chain_assist] _delete_selected_anchors selected={sorted(list(selected))}", file=sys.stderr)
+    except Exception:
+        pass
     if not selected:
+        try:
+            print("[note_chain_assist] _delete_selected_anchors -> no selection", file=sys.stderr)
+        except Exception:
+            pass
         return False
     anchors = STATE.get("anchors", [])
     kept = [a for a in anchors if int(a.get("id", 0)) not in selected]
     if len(kept) == len(anchors):
+        try:
+            print("[note_chain_assist] _delete_selected_anchors -> no anchors removed", file=sys.stderr)
+        except Exception:
+            pass
         return False
     STATE["anchors"] = kept
     _cleanup_links_and_selection()
     _invalidate_curve_cache()
     _record_history_state(context)
+    try:
+        print(f"[note_chain_assist] _delete_selected_anchors -> removed {len(anchors)-len(kept)} anchors", file=sys.stderr)
+    except Exception:
+        pass
     return True
 
 

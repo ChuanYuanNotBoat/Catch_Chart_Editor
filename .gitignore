@@ -105,3 +105,23 @@ docs/BRANCH_WORKFLOW.md
 docs/implementation_status.md
 docs/branch_context/_template.md
 docs/branch_context/feat-rain-length-drag.md
+
+
+# Cursor IDE 配置
+.cursor/
+
+# 临时开发文档 / 笔记
+AUTOTIMING_BINARY_MAPPING.md
+REVERSE_ENGINEERING_PROGRESS.md
+docs/EXCLUDE_BPM_TODO.md
+tmp_impl_plan.md
+render_style_source.txt
+
+# 本地构建 / 工具脚本（个人使用，不提交到仓库）
+retry_build.cmd
+tools/find_doubles.py
+tools/hex_test.py
+tools/inspect_adrp.py
+tools/resolve_adrp_targets.py
+tools/tmp_resolve_got.py
+build_test/*

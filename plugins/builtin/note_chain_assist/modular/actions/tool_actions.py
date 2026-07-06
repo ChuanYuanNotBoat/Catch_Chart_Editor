@@ -1,4 +1,7 @@
 ﻿
+import sys
+
+
 def list_tool_actions(callbacks):
     state = callbacks["state"]
     tr = callbacks["tr"]
@@ -228,6 +231,15 @@ def run_tool_action(payload, callbacks):
     context = (payload or {}).get("context", {}) or {}
     ensure_project_context(context)
 
+    # Debug: log incoming action and key context fields to stderr so host captures it
+    try:
+        ctx_keys = list(context.keys()) if isinstance(context, dict) else []
+        sel_anchors = context.get("selected_anchor_ids") if isinstance(context, dict) else None
+        sel_links = context.get("selected_links") if isinstance(context, dict) else None
+        print(f"[note_chain_assist] run_tool_action enter: action_id={action_id} ctx_keys={ctx_keys} selected_anchor_ids={sel_anchors} selected_links={sel_links}", file=sys.stderr)
+    except Exception:
+        pass
+
     if action_id == "reset_curve":
         reset_anchors(context)
         register_host_undo_action(context, action_id)
@@ -282,11 +294,19 @@ def run_tool_action(payload, callbacks):
         return True
     if action_id in ("connect_selected_nodes", "connect_selected_nodes_ctx"):
         changed = connect_selected_anchors(context)
+        try:
+            print(f"[note_chain_assist] connect_selected_nodes -> changed={changed}", file=sys.stderr)
+        except Exception:
+            pass
         if changed:
             register_host_undo_action(context, action_id)
         return changed
     if action_id == "disconnect_selected_segments":
         changed = disconnect_selected_segments(context)
+        try:
+            print(f"[note_chain_assist] disconnect_selected_segments -> changed={changed}", file=sys.stderr)
+        except Exception:
+            pass
         if changed:
             register_host_undo_action(context, action_id)
         return changed
@@ -294,6 +314,10 @@ def run_tool_action(payload, callbacks):
         changed_segments = disconnect_selected_segments(context)
         changed_anchors = delete_selected_anchors(context)
         changed = changed_segments or changed_anchors
+        try:
+            print(f"[note_chain_assist] disconnect_selected_segments_ctx -> segments={changed_segments} anchors={changed_anchors} combined={changed}", file=sys.stderr)
+        except Exception:
+            pass
         if changed:
             register_host_undo_action(context, action_id)
         return changed
