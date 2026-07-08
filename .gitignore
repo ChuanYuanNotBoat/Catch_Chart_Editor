@@ -125,3 +125,4 @@ tools/inspect_adrp.py
 tools/resolve_adrp_targets.py
 tools/tmp_resolve_got.py
 build_test/*
+docs/NOTE_CHAIN_ASSIST_CURVE_PLUGIN_AUDIT.md
