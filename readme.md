@@ -3,22 +3,24 @@
 A desktop chart editor for Malody Catch mode, developed to fill the feature gaps of the official charting tool.
 为 Malody Catch 模式开发的谱面编辑器，弥补官方制谱器功能的缺失。
 
-当前版本 / Current Version: **Beta v1.10.2**
+当前版本 / Current Version: **Beta v1.10.3**
 
-> ~~⚠️ Early Stage / 极早期阶段~~ *(那都是三四十个版本前的事了 / That was 30+ versions ago)*  
-> 🚧 **Current: Beta & Active Development / 当前状态：公测 & 积极开发中**  
-> The project is functional and largely stable, though you might still encounter occasional bugs or edge-case issues.  
-> 项目已具备可用性且大体稳定，只是偶尔仍可能遇到一些 bug 或边界情况问题。  
-> Use at your own risk — but honestly, it's way more solid than it sounds.  
-> 使用风险自负——但说实话，它比这句话听起来要稳得多。  
+> ~~⚠️ Early Stage / 极早期阶段~~ *(那都是三四十个版本前的事了 / That was 30+ versions ago)*
+> 🚧 **Current: Beta & Active Development / 当前状态：公测 & 积极开发中**
+> The project is functional and largely stable, though you might still encounter occasional bugs or edge-case issues.
+> 项目已具备可用性且大体稳定，只是偶尔仍可能遇到一些 bug 或边界情况问题。
+> Use at your own risk — but honestly, it's way more solid than it sounds.
+> 使用风险自负——但说实话，它比这句话听起来要稳得多。
 > Feedback and bug reports are always welcome / 欢迎随时反馈和提交 bug。
+
 ---
 
 ## 📥 下载
 
-点击下载最新版本：[CatchChartEditor Beta v1.10.2 安装包](https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor/releases/latest)
+点击下载最新版本：[CatchChartEditor Beta v1.10.3 安装包](https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor/releases/latest)
 
 文档导航：
+
 - 帮助文档：[docs/help.md](docs/help.md)
 - 版本信息：[docs/version.md](docs/version.md)
 - 测试说明：[TESTING.md](TESTING.md)
@@ -96,6 +98,7 @@ A desktop chart editor for Malody Catch mode, developed to fill the feature gaps
   - 插件系统升级为面板/叠加层/批量编辑三类扩展点，并完善进程插件协议。
 
 For full changelog / 完整更新历史：
+
 - [docs/history.md](docs/history.md)
 
 ---
@@ -204,5 +207,3 @@ This project is licensed under the GPL-3.0 License — see the [LICENSE](LICENSE
 
 - Runtime plugin directory is resolved as `<appDir>/plugins`.
 - 构建后会复制默认皮肤、插件与文档到可执行文件目录，便于开箱即用。
-
-
