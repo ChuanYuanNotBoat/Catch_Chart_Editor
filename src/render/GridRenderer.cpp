@@ -1,6 +1,5 @@
 #include "GridRenderer.h"
 #include "render/BeatDivisionColor.h"
-#include "utils/MathUtils.h"
 #include "utils/Logger.h"
 #include <QDebug>
 #include <QPainter>
@@ -45,8 +44,7 @@ namespace
 }
 
 void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions,
-                            double startTime, double endTime, double timeDivision,
-                            const QVector<MathUtils::BpmCacheEntry> &bpmCache,
+                            double startBeat, double endBeat, double timeDivision,
                             bool verticalFlip,
                             bool colorizeTimeDivisions,
                             const QString &colorPreset,
@@ -62,44 +60,16 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
             painter.drawLine(x, rect.top(), x, rect.bottom());
         }
 
-        if (bpmCache.isEmpty())
+        const double totalBeats = endBeat - startBeat;
+        if (totalBeats <= 0)
             return;
-
-        const double totalDuration = endTime - startTime;
-        if (totalDuration <= 0)
-            return;
-
-        auto findBeatFromTime = [&](double timeMs) -> double
-        {
-            if (bpmCache.isEmpty())
-                return 0.0;
-            int lo = 0, hi = bpmCache.size() - 1;
-            while (lo < hi)
-            {
-                const int mid = (lo + hi + 1) / 2;
-                if (bpmCache[mid].accumulatedMs <= timeMs)
-                    lo = mid;
-                else
-                    hi = mid - 1;
-            }
-            const auto &seg = bpmCache[lo];
-            const double beatOffset = (timeMs - seg.accumulatedMs) * (seg.bpm / 60000.0);
-            return seg.beatPos + beatOffset;
-        };
-
-        const double startBeatPos = findBeatFromTime(startTime);
-        const double endBeatPos = findBeatFromTime(endTime);
 
         int timeDivInt = static_cast<int>(timeDivision);
         if (timeDivInt <= 0)
             timeDivInt = 1;
 
-        const int startTick = static_cast<int>(std::ceil(startBeatPos * timeDivInt));
-        const int endTick = static_cast<int>(std::floor(endBeatPos * timeDivInt));
-
-        const double totalBeats = endBeatPos - startBeatPos;
-        if (totalBeats <= 0)
-            return;
+        const int startTick = static_cast<int>(std::ceil(startBeat * timeDivInt));
+        const int endTick = static_cast<int>(std::floor(endBeat * timeDivInt));
 
         const double pixelsPerBeat = rect.height() / totalBeats;
         const double minPixelStep = 5.0;
@@ -123,9 +93,9 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
 
             int y = 0;
             if (!verticalFlip)
-                y = rect.top() + static_cast<int>((beatFloat - startBeatPos) / totalBeats * rect.height());
+                y = rect.top() + static_cast<int>((beatFloat - startBeat) / totalBeats * rect.height());
             else
-                y = rect.bottom() - static_cast<int>((beatFloat - startBeatPos) / totalBeats * rect.height());
+                y = rect.bottom() - static_cast<int>((beatFloat - startBeat) / totalBeats * rect.height());
 
             if (skipDenseTicks && !isIntegerBeat)
                 continue;

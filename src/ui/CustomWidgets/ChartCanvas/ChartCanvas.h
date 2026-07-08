@@ -391,8 +391,8 @@ private slots:
 private:
     QPixmap m_gridCache;
     QRect m_gridCacheRect;
-    double m_gridCacheStartTime;
-    double m_gridCacheEndTime;
+    double m_gridCacheStartBeat;
+    double m_gridCacheEndBeat;
     int m_gridCacheDivision;
     int m_gridCacheTimeDivision;
     bool m_gridCacheVerticalFlip;
