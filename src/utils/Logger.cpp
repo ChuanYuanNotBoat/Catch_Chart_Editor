@@ -8,8 +8,10 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStandardPaths>
 
 #include <iostream>
 #ifdef Q_OS_WIN
@@ -144,13 +146,20 @@ void Logger::init(const QString &logsDir)
     s_logsDir = logsDir;
 
     const QString appDir = QCoreApplication::applicationDirPath();
-    const QString logDirPath = appDir + "/" + logsDir;
+    QString logDirPath = appDir + "/" + logsDir;
 
     QDir logDir(logDirPath);
     if (!logDir.exists() && !logDir.mkpath("."))
     {
-        std::cerr << "Failed to create log directory: " << logDirPath.toStdString() << std::endl;
-        return;
+        // 回退到用户 AppData 目录，解决安装到 Program Files 等受保护目录后无写入权限的问题
+        const QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        logDirPath = appDataPath + "/" + logsDir;
+        logDir.setPath(logDirPath);
+        if (!logDir.exists() && !logDir.mkpath("."))
+        {
+            std::cerr << "Failed to create log directory: " << logDirPath.toStdString() << std::endl;
+            return;
+        }
     }
 
     const QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
@@ -343,10 +352,11 @@ void Logger::rotateLogIfNeeded()
     m_stream << "Log rotated at " << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") << Qt::endl;
     m_stream << "======================================" << Qt::endl;
     m_stream.flush();
+
+    // 复用当前日志文件所在的目录（init() 中已确保可写），避免在 Program Files 下无写入权限
+    const QString logDirPath = QFileInfo(m_file).absolutePath();
     m_file.close();
 
-    const QString appDir = QCoreApplication::applicationDirPath();
-    const QString logDirPath = appDir + "/" + s_logsDir;
     const QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss-zzz");
     const QString newLogFilePath = logDirPath + "/CatchEditor_" + timestamp + ".log";
 
