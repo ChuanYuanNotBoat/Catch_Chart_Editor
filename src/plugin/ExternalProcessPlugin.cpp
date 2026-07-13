@@ -64,9 +64,9 @@ namespace
         if (method == "buildBatchEdit")
             return 8000;
         if (method == "listCanvasOverlays")
-            return 30;
+            return 80;
         if (method == "handleCanvasInput")
-            return 50;
+            return 150;
         if (method == "getPanelWorkspaceConfig")
             return 3000;
         return 5000;
@@ -542,6 +542,22 @@ bool ExternalProcessPlugin::requestJson(const QString &method, const QJsonObject
         }
     }
 
+    // Cooldown after process (re)start: skip the first request that triggered
+    // the cold-start to avoid overwhelming a not-yet-ready process.  This
+    // breaks the "timeout → restart → immediate timeout" storm.
+    {
+        constexpr qint64 kPostStartCooldownMs = 100;
+        const qint64 age = QDateTime::currentMSecsSinceEpoch() - m_processStartEpochMs;
+        if (age < kPostStartCooldownMs)
+        {
+            Logger::info(QString("Process plugin '%1' request '%2' deferred: process started %3 ms ago (cooldown).")
+                             .arg(m_manifest.pluginId)
+                             .arg(method)
+                             .arg(age));
+            return false;
+        }
+    }
+
     const QString requestId = QString::number(QDateTime::currentMSecsSinceEpoch());
     QJsonObject req{
         {"type", "request"},
@@ -880,6 +896,7 @@ bool ExternalProcessPlugin::ensureProcessRunning()
                          .arg(executable));
         return false;
     }
+    m_processStartEpochMs = QDateTime::currentMSecsSinceEpoch();
     if (m_needsReinitialize && !sendInitializeNotification())
     {
         forceRestartProcess("failed to send initialize after restart");

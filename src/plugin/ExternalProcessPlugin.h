@@ -86,5 +86,6 @@ private:
     mutable QList<CanvasOverlayItem> m_cachedCanvasOverlays;
     mutable bool m_canvasOverlaysCached = false;
     mutable bool m_pendingProcessRestart = false;
+    mutable qint64 m_processStartEpochMs = 0;
     void invalidateCanvasOverlayCache();
 };

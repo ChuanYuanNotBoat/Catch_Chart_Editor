@@ -32,12 +32,16 @@ def prepare_canvas_input(payload, callbacks):
 
 
 def build_canvas_response(consumed, cursor, status_text, request_undo_checkpoint, callbacks):
-    build_overlay = callbacks["build_overlay"]
     context = callbacks["context"]
     checkpoint_prefix = callbacks["checkpoint_prefix"]
+    # Perf: do NOT call build_overlay() in handleCanvasInput response.
+    # C++ host invalidates overlay cache after handleCanvasInput and re-fetches
+    # fresh overlay data via listCanvasOverlays on the next timer tick.  Building
+    # the full overlay inside every input event causes request timeouts (50ms
+    # budget) + process restart storms.
     return {
         "consumed": consumed,
-        "overlay": build_overlay(context),
+        "overlay": [],
         "cursor": cursor,
         "status_text": status_text,
         "preview_batch_edit": {"add": [], "remove": [], "move": []},
