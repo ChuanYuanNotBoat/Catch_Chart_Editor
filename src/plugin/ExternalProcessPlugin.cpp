@@ -479,9 +479,17 @@ bool ExternalProcessPlugin::handleCanvasInput(const QVariantMap &context,
     invalidateCanvasOverlayCache();
     if (obj.value("overlay").isArray())
     {
-        outResult->overlay = parseOverlayItems(obj.value("overlay").toArray());
-        m_cachedCanvasOverlays = outResult->overlay;
-        m_canvasOverlaysCached = true;
+        const QJsonArray arr = obj.value("overlay").toArray();
+        // Only update the cache when the plugin actually returned overlay
+        // data; an empty array means "no overlay in this response, fetch
+        // via listCanvasOverlays on the next timer tick".  Without this
+        // guard the empty response would overwrite valid cached overlays.
+        if (!arr.isEmpty())
+        {
+            outResult->overlay = parseOverlayItems(arr);
+            m_cachedCanvasOverlays = outResult->overlay;
+            m_canvasOverlaysCached = true;
+        }
     }
     if (obj.value("preview_batch_edit").isObject())
         parseBatchEditJson(obj.value("preview_batch_edit").toObject(), &outResult->previewEdit);
