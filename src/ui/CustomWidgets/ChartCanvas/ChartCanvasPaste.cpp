@@ -269,6 +269,9 @@ void ChartCanvas::beginDragPaste(const QPointF &startPos)
     m_pasteDragStartPos = startPos;
     m_pasteTimeOffsetRaw = m_pasteTimeOffset;
     m_pasteXOffsetRaw = m_pasteXOffset;
+
+    refreshPluginOverlayCacheForSnap();
+    m_pasteSnapReferenceActive = hasNoteSnapReferenceOverlays();
 }
 
 void ChartCanvas::updateDragPaste(const QPointF &currentPos)
@@ -295,6 +298,16 @@ void ChartCanvas::updateDragPaste(const QPointF &currentPos)
     m_pasteTimeOffset = snapPasteTimeOffset(m_pasteTimeOffsetRaw);
     m_pasteXOffset = m_pasteXOffsetRaw;
 
+    // Apply curve snap to the reference note (reuse move-selection logic).
+    if (m_pasteSnapReferenceActive && m_pasteDragReferenceIndex >= 0 &&
+        m_pasteDragReferenceIndex < m_pasteNotes.size()) {
+        const Note &refNote = m_pasteNotes[m_pasteDragReferenceIndex];
+        double refBeat = MathUtils::beatToFloat(refNote.beatNum, refNote.numerator, refNote.denominator) + m_pasteTimeOffset;
+        int snappedX = qBound(0, refNote.x + qRound(m_pasteXOffset), kLaneWidth);
+        if (curveSnapXForBeat(refBeat, snappedX, &snappedX))
+            m_pasteXOffset = static_cast<double>(snappedX - refNote.x);
+    }
+
     m_pasteDragStartPos = currentPos;
     update();
 }
@@ -302,6 +315,7 @@ void ChartCanvas::updateDragPaste(const QPointF &currentPos)
 void ChartCanvas::endDragPaste()
 {
     m_isDraggingPaste = false;
+    m_pasteSnapReferenceActive = false;
 }
 
 void ChartCanvas::confirmPaste()
@@ -403,6 +417,16 @@ void ChartCanvas::confirmPaste()
 
     double finalXShift = m_pasteXOffset;
 
+    // Align X via curve snap reference, same as move-selection logic.
+    if (m_pasteSnapReferenceActive && m_pasteDragReferenceIndex >= 0 &&
+        m_pasteDragReferenceIndex < m_pasteNotes.size()) {
+        const Note &refNote = m_pasteNotes[m_pasteDragReferenceIndex];
+        double refBeat = MathUtils::beatToFloat(refNote.beatNum, refNote.numerator, refNote.denominator) + m_pasteTimeOffset;
+        int snappedX = qBound(0, refNote.x + qRound(finalXShift), kLaneWidth);
+        if (curveSnapXForBeat(refBeat, snappedX, &snappedX))
+            finalXShift = static_cast<double>(snappedX - refNote.x);
+    }
+
     QVector<Note> newNotes;
     for (int i = 0; i < m_pasteNotes.size(); ++i)
     {
@@ -417,25 +441,16 @@ void ChartCanvas::confirmPaste()
         Note newNote = originalNote;
         newNote.id = Note::generateId();
 
-        int b = 0, n = 0, d = 1;
-        const int targetStartDen = Settings::instance().pasteUse288Division() ? 288 : qMax(1, originalNote.denominator);
-        const double originalBeatFloat = beatFromTimeMs(originalTime);
+        // Preserve original denominator, same as move-selection logic.
+        const double originalBeatFloat = MathUtils::beatToFloat(originalNote.beatNum, originalNote.numerator, originalNote.denominator);
         const double newBeatFloat = originalBeatFloat + snappedTotalBeatShift;
-        assignBeatWithDen(newBeatFloat, targetStartDen, b, n, d);
-        newNote.beatNum = b;
-        newNote.numerator = n;
-        newNote.denominator = d;
+        MathUtils::floatToBeat(newBeatFloat, newNote.beatNum, newNote.numerator, newNote.denominator);
 
         if (originalNote.type == NoteType::RAIN)
         {
-            int eb = 0, en = 0, ed = 1;
-            const int targetEndDen = Settings::instance().pasteUse288Division() ? 288 : qMax(1, originalNote.endDenominator);
             const double originalEndBeatFloat = MathUtils::beatToFloat(originalNote.endBeatNum, originalNote.endNumerator, originalNote.endDenominator);
             const double newEndBeatFloat = originalEndBeatFloat + snappedTotalBeatShift;
-            assignBeatWithDen(newEndBeatFloat, targetEndDen, eb, en, ed);
-            newNote.endBeatNum = eb;
-            newNote.endNumerator = en;
-            newNote.endDenominator = ed;
+            MathUtils::floatToBeat(newEndBeatFloat, newNote.endBeatNum, newNote.endNumerator, newNote.endDenominator);
         }
 
         newNote.x = originalNote.x + qRound(finalXShift);

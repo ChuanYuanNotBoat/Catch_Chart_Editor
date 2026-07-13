@@ -255,6 +255,7 @@ private:
     double m_pasteAnchorBeat;    // Reference beat locked when preview starts.
     double m_pasteRefBeat;
     int m_pasteDragReferenceIndex;
+    bool m_pasteSnapReferenceActive = false;
     void cancelPaste();
     void beginDragPaste(const QPointF &startPos);
     void updateDragPaste(const QPointF &currentPos);

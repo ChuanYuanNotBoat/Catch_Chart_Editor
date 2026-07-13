@@ -355,20 +355,6 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
         const double referenceBeat = m_pasteAnchorBeat;
         const double baseBeatShift = referenceBeat - baseOriginalBeat;
         const double totalBeatShift = snapPasteTimeOffset(baseBeatShift + m_pasteTimeOffset);
-        auto previewAssignBeatWithDen = [](double beatFloat, int targetDen, int &outBeatNum, int &outNum, int &outDen)
-        {
-            if (targetDen <= 0)
-                targetDen = 1;
-            const qint64 ticks = qRound64(beatFloat * targetDen);
-            outBeatNum = static_cast<int>(ticks / targetDen);
-            outNum = static_cast<int>(ticks % targetDen);
-            if (outNum < 0)
-            {
-                outNum += targetDen;
-                outBeatNum -= 1;
-            }
-            outDen = targetDen;
-        };
         for (int i = 0; i < m_pasteNotes.size(); ++i)
         {
             const Note &note = m_pasteNotes[i];
@@ -379,13 +365,9 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
             const double originalTime = sourceOriginalTimes[i];
             if (!std::isfinite(originalTime))
                 continue;
-            int previewBeatNum = 0, previewNum = 0, previewDen = 1;
-            const int targetPreviewDen = Settings::instance().pasteUse288Division() ? 288 : qMax(1, note.denominator);
             const double originalBeatFloat = previewBeatFromTimeMs(originalTime);
             const double previewBeatFloat = originalBeatFloat + totalBeatShift;
-            previewAssignBeatWithDen(previewBeatFloat, targetPreviewDen, previewBeatNum, previewNum, previewDen);
-            const double beat = MathUtils::beatToFloat(previewBeatNum, previewNum, previewDen);
-            const double y = baseY + sign * ((beat - m_scrollBeat) * invVisibleRange * canvasHeight);
+            const double y = baseY + sign * ((previewBeatFloat - m_scrollBeat) * invVisibleRange * canvasHeight);
             const int previewShiftedX = qBound(0, note.x + qRound(m_pasteXOffset), kLaneWidth);
             const double x = lmargin + (previewShiftedX / static_cast<double>(kLaneWidth)) * availableWidth;
             m_noteRenderer->drawNote(painter, note, QPointF(x, y), false, -1);
