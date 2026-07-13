@@ -146,30 +146,34 @@ void Logger::init(const QString &logsDir)
     s_logsDir = logsDir;
 
     const QString appDir = QCoreApplication::applicationDirPath();
-    QString logDirPath = appDir + "/" + logsDir;
-
-    QDir logDir(logDirPath);
-    if (!logDir.exists() && !logDir.mkpath("."))
-    {
-        // 回退到用户 AppData 目录，解决安装到 Program Files 等受保护目录后无写入权限的问题
-        const QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-        logDirPath = appDataPath + "/" + logsDir;
-        logDir.setPath(logDirPath);
-        if (!logDir.exists() && !logDir.mkpath("."))
-        {
-            std::cerr << "Failed to create log directory: " << logDirPath.toStdString() << std::endl;
-            return;
-        }
-    }
-
     const QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
-    const QString logFilePath = logDirPath + "/CatchEditor_" + timestamp + ".log";
+    const QString logFileName = "/CatchEditor_" + timestamp + ".log";
 
+    // 先尝试在 appDir 下创建日志文件（开发构建场景）
+    QString logDirPath = appDir + "/" + logsDir;
+    QDir logDir(logDirPath);
+    logDir.mkpath(".");  // 尝试创建目录，忽略返回值
+
+    QString logFilePath = logDirPath + logFileName;
     m_file.setFileName(logFilePath);
     if (!m_file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append))
     {
-        std::cerr << "Failed to open log file: " << logFilePath.toStdString() << std::endl;
-        return;
+        // 回退到用户 AppData 目录（解决安装到 Program Files 后无写入权限的问题）
+        const QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        if (!appDataPath.isEmpty())
+        {
+            logDirPath = appDataPath + "/" + logsDir;
+            logDir.setPath(logDirPath);
+            logDir.mkpath(".");
+            logFilePath = logDirPath + logFileName;
+            m_file.close();
+            m_file.setFileName(logFilePath);
+        }
+        if (!m_file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append))
+        {
+            std::cerr << "Failed to open log file: " << logFilePath.toStdString() << std::endl;
+            return;
+        }
     }
 
     m_stream.setDevice(&m_file);
@@ -255,24 +259,18 @@ void Logger::log(Level level, const QString &message)
     if (level == DEBUG && !s_verbose)
         return;
 
-    if (!m_file.isOpen())
-    {
-        qDebug() << message;
-        return;
-    }
-
-    rotateLogIfNeeded();
-
     const QString timestamp = QDateTime::currentDateTime().toString("hh:mm:ss.zzz");
     const QString levelStr = levelPrefix(level);
 
-    m_stream << timestamp << " " << levelStr << message << Qt::endl;
-    m_stream.flush();
+    // 文件写入（仅在日志文件已打开时执行）
+    if (m_file.isOpen())
+    {
+        rotateLogIfNeeded();
+        m_stream << timestamp << " " << levelStr << message << Qt::endl;
+        m_stream.flush();
+    }
 
-    //std::cout << timestamp.toUtf8().constData() << " "
-    //          << levelStr.toUtf8().constData() << message.toUtf8().constData()
-    //          << std::endl;
-
+    // 控制台输出（始终执行，即使日志文件未打开也保留等级标签和颜色）
     std::pair<std::string, ConsoleColor> p = getLevelInfo(level);
 
     std::cout << "[" << timestamp.toUtf8().constData() << "]";
