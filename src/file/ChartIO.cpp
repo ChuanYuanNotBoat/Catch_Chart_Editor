@@ -3,7 +3,9 @@
 #include "utils/Logger.h"
 #include "utils/DiagnosticCollector.h"
 #include "utils/PerformanceTimer.h"
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -299,7 +301,17 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
 
         meta.chartAuthor = metaObj.value("creator").toString();
         meta.difficulty = metaObj.value("version").toString();
-        meta.backgroundFile = metaObj.value("background").toString();
+        {
+            const QString bgValue = metaObj.value("background").toString();
+            meta.backgroundFile = bgValue;
+            // 如果只是文件名，相对于 .mc 目录解析为完整路径
+            if (!bgValue.isEmpty() && !QDir::isAbsolutePath(bgValue) && !bgValue.contains('/') && !bgValue.contains('\\'))
+            {
+                const QString fullPath = QDir(QFileInfo(filePath).absolutePath()).absoluteFilePath(bgValue);
+                if (QFileInfo::exists(fullPath))
+                    meta.backgroundFile = fullPath;
+            }
+        }
 
         // 读取 mode_ext.speed
         if (metaObj.contains("mode_ext") && metaObj["mode_ext"].isObject())
@@ -313,18 +325,28 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
         }
 
         // 音频文件：优先使用 meta.audio，否则从 note 数组中寻找 sound 字段
-        meta.audioFile = metaObj.value("audio").toString();
-        if (meta.audioFile.isEmpty() && root.contains("note") && root["note"].isArray())
         {
-            QJsonArray noteArray = root["note"].toArray();
-            for (const QJsonValue &noteVal : noteArray)
+            QString audioValue = metaObj.value("audio").toString();
+            if (audioValue.isEmpty() && root.contains("note") && root["note"].isArray())
             {
-                QJsonObject noteObj = noteVal.toObject();
-                if (noteObj.contains("sound") && noteObj["sound"].isString())
+                QJsonArray noteArray = root["note"].toArray();
+                for (const QJsonValue &noteVal : noteArray)
                 {
-                    meta.audioFile = noteObj["sound"].toString();
-                    break;
+                    QJsonObject noteObj = noteVal.toObject();
+                    if (noteObj.contains("sound") && noteObj["sound"].isString())
+                    {
+                        audioValue = noteObj["sound"].toString();
+                        break;
+                    }
                 }
+            }
+            meta.audioFile = audioValue;
+            // 如果只是文件名，相对于 .mc 目录解析为完整路径
+            if (!audioValue.isEmpty() && !QDir::isAbsolutePath(audioValue) && !audioValue.contains('/') && !audioValue.contains('\\'))
+            {
+                const QString fullPath = QDir(QFileInfo(filePath).absolutePath()).absoluteFilePath(audioValue);
+                if (QFileInfo::exists(fullPath))
+                    meta.audioFile = fullPath;
             }
         }
 
@@ -384,11 +406,28 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
 
     QJsonObject root;
 
+    // 辅助 lambda：处理资源文件路径，只保留文件名并复制到 .mc 目录
+    const QDir chartSaveDir(QFileInfo(filePath).absolutePath());
+    auto resolveResourcePath = [&chartSaveDir](const QString &value) -> QString {
+        if (value.isEmpty()) return value;
+        // 如果已经是纯文件名（不含路径分隔符），直接返回
+        if (!QDir::isAbsolutePath(value) && !value.contains('/') && !value.contains('\\'))
+            return value;
+        // 如果是路径，提取文件名
+        QString fileName = QFileInfo(value).fileName();
+        if (fileName.isEmpty()) return value;
+        // 如果目标目录没有这个文件，尝试复制
+        QString targetPath = chartSaveDir.filePath(fileName);
+        if (!QFileInfo::exists(targetPath) && QFileInfo::exists(value))
+            QFile::copy(value, targetPath);
+        return fileName;
+    };
+
     // 保存 meta（使用嵌套结构以匹配示例格式）
     QJsonObject metaObj;
     metaObj["$ver"] = 0;
     metaObj["creator"] = chart.meta().chartAuthor;
-    metaObj["background"] = chart.meta().backgroundFile;
+    metaObj["background"] = resolveResourcePath(chart.meta().backgroundFile);
     metaObj["version"] = chart.meta().difficulty;
     metaObj["id"] = 0;                                    // 暂未存储歌曲ID，用0代替
     metaObj["mode"] = 3;                                  // Catch模式
@@ -413,7 +452,7 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     // 如果 chart.meta() 中有这些值，可以选择性添加
     if (!chart.meta().audioFile.isEmpty())
     {
-        metaObj["audio"] = chart.meta().audioFile;
+        metaObj["audio"] = resolveResourcePath(chart.meta().audioFile);
     }
     if (chart.meta().previewTime != 0)
     {
