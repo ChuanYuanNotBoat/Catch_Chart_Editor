@@ -404,7 +404,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
             meta.title = songObj.value("title").toString();
             meta.titleOrg = songObj.value("titleorg").toString();
             meta.artist = songObj.value("artist").toString();
-            // artistOrg 可能不存在，留空
+            meta.artistOrg = songObj.value("artistorg").toString();
         }
         else
         {
@@ -455,8 +455,43 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
                 }
             }
             QString fullPath;
-            const QString audioFileName = resolveAndCollectResource(audioValue, QFileInfo(filePath).absolutePath(), fullPath);
-            meta.audioFile = audioFileName.isEmpty() ? audioValue : audioFileName;
+            QString audioFileName = resolveAndCollectResource(audioValue, QFileInfo(filePath).absolutePath(), fullPath);
+            if (audioFileName.isEmpty())
+                audioFileName = audioValue;
+
+            // Rename long audio filenames to timestamp-based names to avoid
+            // path length limits and Malody V issues with non-ASCII filenames.
+            const int kMaxAudioNameLen = 24;
+            if (!audioFileName.isEmpty() && audioFileName.length() > kMaxAudioNameLen)
+            {
+                const QFileInfo afi(audioFileName);
+                const QString suffix = afi.suffix();
+                const QString mcDir = QFileInfo(filePath).absolutePath();
+                const QString oldPath = QDir(mcDir).filePath(audioFileName);
+                const QString newName = QString::number(static_cast<uint>(QDateTime::currentSecsSinceEpoch())) + "." + suffix;
+                const QString newPath = QDir(mcDir).filePath(newName);
+                if (QFileInfo::exists(oldPath))
+                {
+                    if (QFile::rename(oldPath, newPath))
+                    {
+                        Logger::info(QString("ChartIO::load - Renamed long audio '%1' -> '%2'")
+                                         .arg(audioFileName, newName));
+                        audioFileName = newName;
+                    }
+                    else
+                    {
+                        Logger::warn(QString("ChartIO::load - Failed to rename '%1' to '%2'")
+                                         .arg(audioFileName, newName));
+                    }
+                }
+                else
+                {
+                    Logger::info(QString("ChartIO::load - Shortened audio reference '%1' -> '%2' (file not on disk)")
+                                     .arg(audioFileName, newName));
+                    audioFileName = newName;
+                }
+            }
+            meta.audioFile = audioFileName;
         }
 
         // 预览时间和偏移量
@@ -512,6 +547,16 @@ Chart ChartIO::createDefaultChart(const MetaData &meta)
     chart.meta() = meta;
     const double bpm = meta.firstBpm > 0.0 ? meta.firstBpm : 120.0;
     chart.addBpm(BpmEntry(0, 0, 1, bpm));
+
+    // Add a sound note referencing the audio file so that Malody V can
+    // locate the audio resource (Malody V resolves audio via note[type=1].sound,
+    // not via meta.audio).
+    if (!meta.audioFile.isEmpty())
+    {
+        const int offset = meta.offset;
+        chart.addNote(Note(0, 0, 1, meta.audioFile, 100, offset));
+    }
+
     chart.sortNotes();
     return chart;
 }
@@ -557,7 +602,10 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     songObj["title"] = chart.meta().title;
     songObj["artist"] = chart.meta().artist;
     songObj["id"] = 0; // 暂未存储歌曲ID
-    songObj["titleorg"] = chart.meta().titleOrg;
+    if (!chart.meta().titleOrg.isEmpty())
+        songObj["titleorg"] = chart.meta().titleOrg;
+    if (!chart.meta().artistOrg.isEmpty())
+        songObj["artistorg"] = chart.meta().artistOrg;
     metaObj["song"] = songObj;
 
     // mode_ext 子对象
@@ -660,6 +708,27 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
         }
         noteArray.append(obj);
     }
+
+    // Ensure a sound note referencing the audio file is always present.
+    // Malody V resolves audio via note[type=1].sound, not via meta.audio.
+    // This also upgrades legacy charts that only had meta.audio without a sound note.
+    if (soundNoteCount == 0 && !chart.meta().audioFile.isEmpty())
+    {
+        QJsonObject soundObj;
+        QJsonArray beatArr;
+        beatArr.append(0);
+        beatArr.append(0);
+        beatArr.append(1);
+        soundObj["beat"] = beatArr;
+        soundObj["type"] = 1;
+        soundObj["sound"] = resolveResourcePath(chart.meta().audioFile);
+        soundObj["vol"] = 100;
+        soundObj["offset"] = chart.meta().offset;
+        noteArray.insert(0, soundObj);
+        soundNoteCount = 1;
+        Logger::debug(QString("ChartIO::save - Injected sound note for audio: %1").arg(chart.meta().audioFile));
+    }
+
     root["note"] = noteArray;
     Logger::info(QString("ChartIO::save - Saved %1 normal notes, %2 rain notes, %3 sound notes").arg(normalNoteCount).arg(rainNoteCount).arg(soundNoteCount));
 
