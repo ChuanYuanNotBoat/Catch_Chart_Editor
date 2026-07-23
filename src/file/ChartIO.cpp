@@ -11,8 +11,124 @@
 #include <QJsonArray>
 #include <QDebug>
 #include <QDateTime>
+#include <QCryptographicHash>
+#include <QMessageBox>
+#include <QAbstractButton>
+#include <QPushButton>
 #include <algorithm>
 #include <cmath>
+
+namespace
+{
+    /// 计算文件前 64KB 的 SHA-256 哈希，用于快速比较文件内容
+    QString computeQuickHash(const QString &filePath)
+    {
+        QFile f(filePath);
+        if (!f.open(QIODevice::ReadOnly))
+            return QString();
+        const QByteArray chunk = f.read(65536);
+        f.close();
+        return QString::fromLatin1(
+            QCryptographicHash::hash(chunk, QCryptographicHash::Sha256).toHex());
+    }
+
+    /**
+     * 补丁：兼容旧版本错误保存的完整路径，提取文件名并尝试收集资源到 .mc 目录。
+     *
+     * @param rawValue  从 meta 中读取的原始值（可能是路径或纯文件名）
+     * @param mcDir     .mc 文件所在目录
+     * @param outFull   输出：解析后的完整路径（供编辑器内部使用）
+     * @return 纯文件名（供存储到 meta.backgroundFile / audioFile 的临时值）
+     */
+    QString resolveAndCollectResource(const QString &rawValue, const QString &mcDir, QString &outFull)
+    {
+        if (rawValue.isEmpty())
+        {
+            outFull.clear();
+            return rawValue;
+        }
+
+        // 步骤1：提取纯文件名（补丁兼容：旧版本可能写了完整路径）
+        QString fileName;
+        const bool hasPathSep = rawValue.contains('/') || rawValue.contains('\\');
+        if (hasPathSep)
+        {
+            fileName = QFileInfo(rawValue).fileName();
+            if (fileName.isEmpty())
+            {
+                // 无法提取文件名，保持原值
+                outFull = rawValue;
+                return rawValue;
+            }
+            Logger::info(QString("ChartIO::load - [PATCH] Extracted filename '%1' from path '%2'")
+                             .arg(fileName, rawValue));
+        }
+        else
+        {
+            fileName = rawValue;
+        }
+
+        const QString localCandidate = QDir(mcDir).absoluteFilePath(fileName);
+
+        // 步骤2：如果 .mc 同目录下已经存在同名文件
+        if (QFileInfo::exists(localCandidate))
+        {
+            // 如果原始值是路径且指向真实文件，比较哈希
+            if (hasPathSep && QFileInfo::exists(rawValue))
+            {
+                const QString localHash = computeQuickHash(localCandidate);
+                const QString sourceHash = computeQuickHash(rawValue);
+                if (!localHash.isEmpty() && !sourceHash.isEmpty() && localHash != sourceHash)
+                {
+                    // 哈希不同，弹窗询问
+                    const QString defaultRename = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + "_" + fileName;
+                    QMessageBox msgBox;
+                    msgBox.setIcon(QMessageBox::Warning);
+                    msgBox.setWindowTitle(QObject::tr("Resource Conflict"));
+                    msgBox.setText(QObject::tr("File '%1' already exists but content differs.\nDo you want to rename the imported file?").arg(fileName));
+                    msgBox.setInformativeText(QObject::tr("Default new name: %1").arg(defaultRename));
+                    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+                    msgBox.setDefaultButton(QMessageBox::Yes);
+                    msgBox.button(QMessageBox::Yes)->setText(QObject::tr("Rename Import"));
+                    msgBox.button(QMessageBox::No)->setText(QObject::tr("Use Existing"));
+
+                    if (msgBox.exec() == QMessageBox::Yes)
+                    {
+                        // 使用新名称复制
+                        const QString newPath = QDir(mcDir).absoluteFilePath(defaultRename);
+                        if (QFile::copy(rawValue, newPath))
+                        {
+                            Logger::info(QString("ChartIO::load - [PATCH] Copied to '%1'").arg(defaultRename));
+                            outFull = newPath;
+                            return defaultRename;
+                        }
+                    }
+                    // 否则使用已存在的本地文件
+                }
+            }
+            // 哈希相同、或原始值不是真实路径、或用户选择跳过 → 直接使用本地文件
+            outFull = localCandidate;
+            return fileName;
+        }
+
+        // 步骤3：.mc 目录下不存在，尝试从原始路径复制
+        if (hasPathSep && QFileInfo::exists(rawValue))
+        {
+            if (QFile::copy(rawValue, localCandidate))
+            {
+                Logger::info(QString("ChartIO::load - [PATCH] Collected '%1' from '%2'")
+                                 .arg(fileName, rawValue));
+                outFull = localCandidate;
+                return fileName;
+            }
+            Logger::warn(QString("ChartIO::load - [PATCH] Failed to copy '%1' to .mc directory").arg(rawValue));
+        }
+
+        // 步骤4：无法收集，使用原始值（fallback）
+        outFull = rawValue;
+        return fileName;
+    }
+}
 
 bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
 {
@@ -301,16 +417,13 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
 
         meta.chartAuthor = metaObj.value("creator").toString();
         meta.difficulty = metaObj.value("version").toString();
+
+        // 补丁：兼容旧版本错误保存的完整背景路径，提取文件名并尝试收集资源
         {
             const QString bgValue = metaObj.value("background").toString();
-            meta.backgroundFile = bgValue;
-            // 如果只是文件名，相对于 .mc 目录解析为完整路径
-            if (!bgValue.isEmpty() && !QDir::isAbsolutePath(bgValue) && !bgValue.contains('/') && !bgValue.contains('\\'))
-            {
-                const QString fullPath = QDir(QFileInfo(filePath).absolutePath()).absoluteFilePath(bgValue);
-                if (QFileInfo::exists(fullPath))
-                    meta.backgroundFile = fullPath;
-            }
+            QString fullPath;
+            resolveAndCollectResource(bgValue, QFileInfo(filePath).absolutePath(), fullPath);
+            meta.backgroundFile = fullPath.isEmpty() ? bgValue : fullPath;
         }
 
         // 读取 mode_ext.speed
@@ -325,6 +438,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
         }
 
         // 音频文件：优先使用 meta.audio，否则从 note 数组中寻找 sound 字段
+        // 补丁：兼容旧版本错误保存的完整音频路径，提取文件名并尝试收集资源
         {
             QString audioValue = metaObj.value("audio").toString();
             if (audioValue.isEmpty() && root.contains("note") && root["note"].isArray())
@@ -340,14 +454,9 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
                     }
                 }
             }
-            meta.audioFile = audioValue;
-            // 如果只是文件名，相对于 .mc 目录解析为完整路径
-            if (!audioValue.isEmpty() && !QDir::isAbsolutePath(audioValue) && !audioValue.contains('/') && !audioValue.contains('\\'))
-            {
-                const QString fullPath = QDir(QFileInfo(filePath).absolutePath()).absoluteFilePath(audioValue);
-                if (QFileInfo::exists(fullPath))
-                    meta.audioFile = fullPath;
-            }
+            QString fullPath;
+            resolveAndCollectResource(audioValue, QFileInfo(filePath).absolutePath(), fullPath);
+            meta.audioFile = fullPath.isEmpty() ? audioValue : fullPath;
         }
 
         // 预览时间和偏移量
@@ -406,7 +515,7 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
 
     QJsonObject root;
 
-    // 辅助 lambda：处理资源文件路径，只保留文件名并复制到 .mc 目录
+    // 补丁：辅助 lambda，将资源文件的完整路径转换为纯文件名并复制到 .mc 目录
     const QDir chartSaveDir(QFileInfo(filePath).absolutePath());
     auto resolveResourcePath = [&chartSaveDir](const QString &value) -> QString {
         if (value.isEmpty()) return value;

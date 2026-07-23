@@ -40,7 +40,7 @@ if(BUILD_TESTING)
     )
 
     target_include_directories(CatchChartEditorTests PRIVATE src)
-    target_link_libraries(CatchChartEditorTests Qt6::Core Qt6::Gui)
+    target_link_libraries(CatchChartEditorTests Qt6::Core Qt6::Gui Qt6::Widgets)
 
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
     if(WIN32)
