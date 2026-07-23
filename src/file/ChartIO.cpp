@@ -422,8 +422,8 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
         {
             const QString bgValue = metaObj.value("background").toString();
             QString fullPath;
-            resolveAndCollectResource(bgValue, QFileInfo(filePath).absolutePath(), fullPath);
-            meta.backgroundFile = fullPath.isEmpty() ? bgValue : fullPath;
+            const QString bgFileName = resolveAndCollectResource(bgValue, QFileInfo(filePath).absolutePath(), fullPath);
+            meta.backgroundFile = bgFileName.isEmpty() ? bgValue : bgFileName;
         }
 
         // 读取 mode_ext.speed
@@ -455,8 +455,8 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
                 }
             }
             QString fullPath;
-            resolveAndCollectResource(audioValue, QFileInfo(filePath).absolutePath(), fullPath);
-            meta.audioFile = fullPath.isEmpty() ? audioValue : fullPath;
+            const QString audioFileName = resolveAndCollectResource(audioValue, QFileInfo(filePath).absolutePath(), fullPath);
+            meta.audioFile = audioFileName.isEmpty() ? audioValue : audioFileName;
         }
 
         // 预览时间和偏移量
