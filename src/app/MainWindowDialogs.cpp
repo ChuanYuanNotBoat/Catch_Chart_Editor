@@ -52,6 +52,7 @@
 #include <QDialog>
 #include <QGroupBox>
 #include <QStandardPaths>
+#include <QTimer>
 
 namespace
 {
@@ -921,6 +922,66 @@ void MainWindow::openSessionSettings()
     sessionLayout->addRow(audioCorrectionCheck);
     sessionLayout->addRow(tr("Playback FPS Cap:"), fpsCapCombo);
     layout->addWidget(sessionGroup);
+
+    QGroupBox *viewGroup = new QGroupBox(tr("Grid Beat Number"), &dialog);
+    QVBoxLayout *viewGroupLayout = new QVBoxLayout(viewGroup);
+
+    QLabel *previewLabel = new QLabel(viewGroup);
+    previewLabel->setFixedHeight(60);
+    previewLabel->setMinimumWidth(200);
+    previewLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    previewLabel->setStyleSheet(QString("background-color: %1; border: 1px solid #555;")
+                                    .arg(Settings::instance().backgroundColor().name()));
+
+    QSpinBox *beatFontSizeSpin = new QSpinBox(viewGroup);
+    beatFontSizeSpin->setRange(6, 24);
+    beatFontSizeSpin->setValue(Settings::instance().beatNumberFontSize());
+    beatFontSizeSpin->setSuffix(tr(" pt"));
+    beatFontSizeSpin->setToolTip(tr("Font size for beat numbers on the left side of the grid"));
+
+    auto updatePreviewPixmap = [previewLabel, beatFontSizeSpin]()
+    {
+        const int w = previewLabel->width();
+        const int h = previewLabel->height();
+        if (w <= 0 || h <= 0)
+            return;
+        QPixmap pix(w, h);
+        pix.fill(Settings::instance().backgroundColor());
+        QPainter p(&pix);
+        const int midY = h / 2;
+        const QColor lineColor(180, 180, 180);
+        const QColor textColor(80, 80, 80);
+
+        QFont font;
+        font.setPointSize(beatFontSizeSpin->value());
+        QFontMetrics fm(font);
+        const QString sampleText = "221";
+        const int textW = fm.horizontalAdvance(sampleText);
+        const int padding = 2;
+
+        p.setPen(QPen(lineColor, 2));
+        p.drawLine(textW + padding, midY, w, midY);
+
+        p.setPen(textColor);
+        p.setFont(font);
+        const int textY = midY + fm.ascent() / 2;
+        p.drawText(0, textY, sampleText);
+        p.end();
+        previewLabel->setPixmap(pix);
+    };
+
+    QHBoxLayout *previewRow = new QHBoxLayout;
+    previewRow->addWidget(new QLabel(tr("Size:"), viewGroup));
+    previewRow->addWidget(beatFontSizeSpin);
+    previewRow->addStretch();
+    viewGroupLayout->addLayout(previewRow);
+    viewGroupLayout->addWidget(previewLabel);
+    layout->addWidget(viewGroup);
+
+    QObject::connect(beatFontSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                     [updatePreviewPixmap](int /*value*/) { updatePreviewPixmap(); });
+    // Delay preview init until after dialog layout
+    QTimer::singleShot(0, &dialog, [updatePreviewPixmap]() { updatePreviewPixmap(); });
     layout->addStretch();
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, &dialog);
@@ -931,11 +992,14 @@ void MainWindow::openSessionSettings()
         Settings::instance().setAudioCorrectionEnabled(audioCorrectionCheck->isChecked());
         const int fpsCap = fpsCapCombo->currentData().toInt();
         Settings::instance().setPlaybackFrameRateCap(fpsCap);
+        Settings::instance().setBeatNumberFontSize(beatFontSizeSpin->value());
         if (d->playbackController && d->playbackController->audioPlayer())
             d->playbackController->audioPlayer()->setAudioCorrectionEnabled(audioCorrectionCheck->isChecked());
         if (d->playbackController)
             d->playbackController->setFrameRateCap(fpsCap);
         setupAutoSaveTimer();
+        if (d->canvas)
+            d->canvas->update();
         statusBar()->showMessage(tr("Session settings updated"), 2000);
         dialog.accept(); });
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

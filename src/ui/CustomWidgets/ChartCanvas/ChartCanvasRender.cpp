@@ -598,6 +598,16 @@ void ChartCanvas::drawGrid(QPainter &painter)
         const bool colorEnabled = Settings::instance().timelineDivisionColorEnabled();
         const QString colorPreset = Settings::instance().timelineDivisionColorPreset();
         const QList<int> colorCustom = Settings::instance().timelineDivisionColorCustomDivisions();
+        const int beatNumberFontSize = Settings::instance().beatNumberFontSize();
+
+        // 计算节拍编号所需的左侧留白宽度
+        QFont tempFont;
+        tempFont.setPointSize(beatNumberFontSize);
+        QFontMetrics tempFm(tempFont);
+        // 为最大节拍号预留空间（假设最多 6 位数字）
+        const int maxBeatNumberWidth = tempFm.horizontalAdvance("999999");
+        const int beatNumberLeftMargin = beatNumberFontSize > 0 ? maxBeatNumberWidth + 4 : 0;
+
         const bool needRebuild =
             !m_gridCacheValid ||
             m_gridCacheRect.size() != rect.size() ||
@@ -609,6 +619,8 @@ void ChartCanvas::drawGrid(QPainter &painter)
             m_gridCacheColorPreset != colorPreset ||
             m_gridCacheColorCustomDivisions != colorCustom ||
             m_gridCachePadPx != cachePadPx ||
+            m_gridCacheBeatNumberFontSize != beatNumberFontSize ||
+            m_gridCacheBeatNumberLeftMargin != beatNumberLeftMargin ||
             std::abs(m_gridCacheStartBeat - cacheStartBeat) > 1e-6 ||
             std::abs(m_gridCacheEndBeat - cacheEndBeat) > 1e-6;
 
@@ -620,17 +632,21 @@ void ChartCanvas::drawGrid(QPainter &painter)
                 return;
             }
 
-            m_gridCache = QPixmap(cacheSize);
+            const QSize expandedCacheSize(cacheSize.width() + beatNumberLeftMargin, cacheSize.height());
+            m_gridCache = QPixmap(expandedCacheSize);
             m_gridCache.fill(Qt::transparent);
             QPainter cachePainter(&m_gridCache);
-            const QRect cacheRect(0, 0, cacheSize.width(), cacheSize.height());
+            // 缓存矩形在左侧预留 beatNumberLeftMargin 空间给节拍编号
+            const QRect cacheRect(beatNumberLeftMargin, 0, cacheSize.width(), cacheSize.height());
             m_gridRenderer->drawGrid(cachePainter, cacheRect, m_gridDivision,
                                      cacheStartBeat, cacheEndBeat,
                                      m_timeDivision,
                                      m_verticalFlip,
                                      colorEnabled,
                                      colorPreset,
-                                     colorCustom);
+                                     colorCustom,
+                                     beatNumberFontSize,
+                                     beatNumberLeftMargin);
             m_gridCacheRect = rect;
             m_gridCacheStartBeat = cacheStartBeat;
             m_gridCacheEndBeat = cacheEndBeat;
@@ -641,6 +657,8 @@ void ChartCanvas::drawGrid(QPainter &painter)
             m_gridCacheColorPreset = colorPreset;
             m_gridCacheColorCustomDivisions = colorCustom;
             m_gridCachePadPx = cachePadPx;
+            m_gridCacheBeatNumberFontSize = beatNumberFontSize;
+            m_gridCacheBeatNumberLeftMargin = beatNumberLeftMargin;
             m_gridCacheValid = true;
         }
 
@@ -651,8 +669,9 @@ void ChartCanvas::drawGrid(QPainter &painter)
                                         ? static_cast<double>(rect.top()) - m_gridCachePadPx + shiftPx
                                         : static_cast<double>(rect.top()) - m_gridCachePadPx - shiftPx;
             painter.save();
-            painter.setClipRect(rect);
-            painter.drawPixmap(QPointF(rect.left(), cacheTop), m_gridCache);
+            painter.setClipRect(QRect(rect.left() - beatNumberLeftMargin, rect.top(),
+                                      rect.width() + beatNumberLeftMargin, rect.height()));
+            painter.drawPixmap(QPointF(rect.left() - beatNumberLeftMargin, cacheTop), m_gridCache);
             painter.restore();
         }
     }

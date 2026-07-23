@@ -402,6 +402,8 @@ private:
     QList<int> m_gridCacheColorCustomDivisions;
     bool m_gridCacheValid;
     int m_gridCachePadPx;
+    int m_gridCacheBeatNumberFontSize;
+    int m_gridCacheBeatNumberLeftMargin;
     qint64 m_lastPlaybackFrameSeq;
     double m_lastPlaybackPredictedTimeMs;
     double m_lastPlaybackTargetTimeMs;

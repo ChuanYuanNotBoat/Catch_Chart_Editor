@@ -60,6 +60,9 @@ public:
     bool verticalFlip() const;
     void setVerticalFlip(bool flipped);
 
+    int beatNumberFontSize() const;
+    void setBeatNumberFontSize(int size);
+
     QKeySequence shortcut(const QString &action) const;
     void setShortcut(const QString &action, const QKeySequence &seq);
 

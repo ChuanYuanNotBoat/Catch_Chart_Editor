@@ -240,6 +240,16 @@ void Settings::setVerticalFlip(bool flipped)
     m_settings.setValue("view/verticalFlip", flipped);
 }
 
+int Settings::beatNumberFontSize() const
+{
+    return qBound(6, m_settings.value("view/beatNumberFontSize", 9).toInt(), 24);
+}
+
+void Settings::setBeatNumberFontSize(int size)
+{
+    m_settings.setValue("view/beatNumberFontSize", qBound(6, size, 24));
+}
+
 QKeySequence Settings::shortcut(const QString &action) const
 {
     return QKeySequence(m_settings.value("shortcut/" + action).toString());

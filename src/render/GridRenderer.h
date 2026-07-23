@@ -13,5 +13,7 @@ public:
                   bool verticalFlip = false,
                   bool colorizeTimeDivisions = false,
                   const QString &colorPreset = QString(),
-                  const QList<int> &customDivisions = QList<int>());
+                  const QList<int> &customDivisions = QList<int>(),
+                  int beatNumberFontSize = 9,
+                  int beatNumberLeftMargin = 0);
 };

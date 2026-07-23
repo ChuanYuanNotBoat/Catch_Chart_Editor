@@ -48,7 +48,9 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
                             bool verticalFlip,
                             bool colorizeTimeDivisions,
                             const QString &colorPreset,
-                            const QList<int> &customDivisions)
+                            const QList<int> &customDivisions,
+                            int beatNumberFontSize,
+                            int beatNumberLeftMargin)
 {
     try
     {
@@ -77,8 +79,9 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
         const bool skipDenseTicks = (beatsPerTick * pixelsPerBeat < minPixelStep);
 
         QFont font = painter.font();
-        font.setPointSize(8);
+        font.setPointSize(beatNumberFontSize);
         painter.setFont(font);
+        QFontMetrics fm(font);
 
         int lastDrawnY = -9999;
         const QSet<int> customSet = QSet<int>(customDivisions.begin(), customDivisions.end());
@@ -112,27 +115,25 @@ void GridRenderer::drawGrid(QPainter &painter, const QRect &rect, int xDivisions
                     linePen.setColor(BeatDivisionColor::noteColorForDivision(reducedDen, numerator));
             }
 
-            painter.setPen(linePen);
-            painter.drawLine(rect.left(), y, rect.right(), y);
-
             if (isIntegerBeat)
             {
                 const QString text = QString::number(beatNum);
+                const int textWidth = fm.horizontalAdvance(text);
+                const int padding = 2;
+
+                // 小节编号右对齐到全宽线左边缘
                 painter.setPen(Qt::darkGray);
-                int textY = y;
-                if (verticalFlip)
-                {
-                    textY = y + 12;
-                    if (textY > rect.bottom())
-                        textY = y - 12;
-                }
-                else
-                {
-                    textY = y - 2;
-                    if (textY < rect.top())
-                        textY = y + 12;
-                }
-                painter.drawText(rect.left() + 2, textY, text);
+                const int textX = rect.left() - textWidth - padding;
+                const int textY = y + fm.ascent() / 2;
+                painter.drawText(textX, textY, text);
+
+                painter.setPen(linePen);
+                painter.drawLine(rect.left(), y, rect.right(), y);
+            }
+            else
+            {
+                painter.setPen(linePen);
+                painter.drawLine(rect.left(), y, rect.right(), y);
             }
         }
     }
