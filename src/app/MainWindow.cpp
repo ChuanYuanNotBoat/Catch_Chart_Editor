@@ -2724,6 +2724,10 @@ void MainWindow::loadChartFile(const QString &filePath)
     d->lastLoadedAudioFile = loadedMeta.audioFile;
     d->lastLoadedBackgroundFile = loadedMeta.backgroundFile;
 
+    // Reset playback state and position when switching charts
+    d->playbackController->stop();
+    d->playbackController->audioPlayer()->setAdjustedPosition(0);
+
     d->canvas->update();
     d->isModified = false;
 
