@@ -1315,6 +1315,39 @@ MainWindow::MainWindow(ChartController *chartCtrl,
             d->selectionController->setNotes(&(d->chartController->chart()->notes()));
             d->selectionController->updateSelectionFromNotes();
         }
+
+        // Detect resource file changes (e.g. undo/redo on meta) and reload.
+        if (d->chartController && d->chartController->chart() && d->playbackController && d->playbackController->audioPlayer())
+        {
+            const MetaData &meta = d->chartController->chart()->meta();
+            const QString chartPath = d->workingChartPath.isEmpty()
+                                          ? (d->chartController->chartFilePath())
+                                          : d->workingChartPath;
+
+            if (meta.audioFile != d->lastLoadedAudioFile)
+            {
+                d->lastLoadedAudioFile = meta.audioFile;
+                if (!chartPath.isEmpty() && !meta.audioFile.isEmpty())
+                {
+                    const QString chartDir = QFileInfo(chartPath).absolutePath();
+                    const QString audioPath = QDir(chartDir).filePath(meta.audioFile);
+                    if (QFile::exists(audioPath))
+                    {
+                        d->playbackController->audioPlayer()->load(audioPath);
+                        updatePlaybackAvailability(d->playbackController->audioPlayer()->canPlay());
+                        Logger::info(QString("chartChanged - Reloaded audio after meta change: %1").arg(audioPath));
+                    }
+                }
+            }
+
+            if (meta.backgroundFile != d->lastLoadedBackgroundFile)
+            {
+                d->lastLoadedBackgroundFile = meta.backgroundFile;
+                if (d->canvas)
+                    d->canvas->refreshBackground();
+            }
+        }
+
         persistRecoveryState(); });
     connect(d->chartController, &ChartController::errorOccurred, this, [this](const QString &msg)
             {
@@ -2181,7 +2214,8 @@ void MainWindow::tryRecoverPreviousSession()
     updatePlaybackAvailability(false);
     if (d->chartController && d->chartController->chart())
     {
-        const QString audioFile = d->chartController->chart()->meta().audioFile;
+        const MetaData &recoveryMeta = d->chartController->chart()->meta();
+        const QString audioFile = recoveryMeta.audioFile;
         if (!audioFile.isEmpty())
         {
             const QString sourceDir = QFileInfo(state.sourcePath).absolutePath();
@@ -2196,6 +2230,8 @@ void MainWindow::tryRecoverPreviousSession()
                 statusBar()->showMessage(msg, 5000);
             }
         }
+        d->lastLoadedAudioFile = recoveryMeta.audioFile;
+        d->lastLoadedBackgroundFile = recoveryMeta.backgroundFile;
     }
 
     d->isModified = true;
@@ -2494,7 +2530,8 @@ void MainWindow::loadChartFile(const QString &filePath)
     }
 
     QString chartDir = QFileInfo(actualChartPath).absolutePath();
-    QString audioFile = d->chartController->chart()->meta().audioFile;
+    const MetaData &loadedMeta = d->chartController->chart()->meta();
+    QString audioFile = loadedMeta.audioFile;
     updatePlaybackAvailability(false);
     if (!audioFile.isEmpty())
     {
@@ -2510,6 +2547,10 @@ void MainWindow::loadChartFile(const QString &filePath)
             QMessageBox::warning(this, tr("Audio Load Error"), msg);
         }
     }
+
+    // Initialize resource cache for change detection.
+    d->lastLoadedAudioFile = loadedMeta.audioFile;
+    d->lastLoadedBackgroundFile = loadedMeta.backgroundFile;
 
     d->canvas->update();
     d->isModified = false;

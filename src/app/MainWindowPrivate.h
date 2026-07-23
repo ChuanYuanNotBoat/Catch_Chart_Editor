@@ -100,6 +100,10 @@ public:
     bool isModified = false;
     bool audioPlaybackReady = false;
 
+    // Cached resource paths for detecting changes after undo/redo/plugin edits.
+    QString lastLoadedAudioFile;
+    QString lastLoadedBackgroundFile;
+
     // Density bar scrub state: preview updates canvas only; commit seeks audio once.
     bool densitySeekGestureActive = false;
     double densityPendingSeekMs = std::numeric_limits<double>::quiet_NaN();
