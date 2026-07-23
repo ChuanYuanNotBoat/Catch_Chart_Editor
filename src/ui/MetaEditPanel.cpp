@@ -80,8 +80,9 @@ void MetaEditPanel::setupUi()
             return;
 
         const QString imported = importResourceToChartDirectory(fileName);
-        m_backgroundFileEdit->setText(imported.isEmpty() ? fileName : imported);
-        emit backgroundResourceChanged(); });
+        const QString finalName = imported.isEmpty() ? fileName : imported;
+        m_backgroundFileEdit->setText(finalName);
+        emit backgroundResourceChanged(finalName); });
 
     m_previewTimeSpin = new QSpinBox(this);
     m_previewTimeSpin->setRange(0, 999999);
@@ -330,6 +331,12 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
         return false;
 
     MetaData next = collectMetaFromUi();
+    const MetaData current = m_chartController->chart()->meta();
+
+    bool bgChanged = false;
+    bool audioChanged = false;
+
+    // Import background file to chart directory if absolute path.
     if (!next.backgroundFile.trimmed().isEmpty() && QDir::isAbsolutePath(next.backgroundFile))
     {
         const QString imported = importResourceToChartDirectory(next.backgroundFile);
@@ -342,10 +349,28 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
                 m_backgroundFileEdit->setText(imported);
                 m_isRefreshingUi = false;
             }
-            emit backgroundResourceChanged();
         }
     }
-    const MetaData current = m_chartController->chart()->meta();
+    if (next.backgroundFile != current.backgroundFile)
+        bgChanged = true;
+
+    // Import audio file to chart directory if absolute path.
+    if (!next.audioFile.trimmed().isEmpty() && QDir::isAbsolutePath(next.audioFile))
+    {
+        const QString imported = importResourceToChartDirectory(next.audioFile);
+        if (!imported.isEmpty())
+        {
+            next.audioFile = imported;
+            if (m_audioFileEdit->text() != imported)
+            {
+                m_isRefreshingUi = true;
+                m_audioFileEdit->setText(imported);
+                m_isRefreshingUi = false;
+            }
+        }
+    }
+    if (next.audioFile != current.audioFile)
+        audioChanged = true;
 
     if (!isSameMeta(current, next))
         m_chartController->setMetaData(next);
@@ -356,5 +381,13 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
     const QString path = m_chartController->chartFilePath();
     if (path.isEmpty())
         return false;
-    return m_chartController->saveChart(path);
+    const bool saved = m_chartController->saveChart(path);
+
+    // Emit resource change signals after save so MainWindow can reload.
+    if (bgChanged)
+        emit backgroundResourceChanged(next.backgroundFile);
+    if (audioChanged)
+        emit audioFileChanged(next.audioFile);
+
+    return saved;
 }

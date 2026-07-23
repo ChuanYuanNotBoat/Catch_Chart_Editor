@@ -22,7 +22,8 @@ public:
     void retranslateUi();
 
 signals:
-    void backgroundResourceChanged();
+    void backgroundResourceChanged(const QString &fileName);
+    void audioFileChanged(const QString &fileName);
 
 private slots:
     void refreshMeta();

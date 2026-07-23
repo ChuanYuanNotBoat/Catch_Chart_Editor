@@ -1942,7 +1942,42 @@ void MainWindow::createCentralArea()
     d->bpmPanel->setChartController(d->chartController);
     d->bpmPanel->setPlaybackController(d->playbackController);
     d->metaPanel->setChartController(d->chartController);
-    connect(d->metaPanel, &MetaEditPanel::backgroundResourceChanged, d->canvas, &ChartCanvas::refreshBackground);
+    connect(d->metaPanel, &MetaEditPanel::backgroundResourceChanged, this,
+            [this](const QString &fileName)
+            {
+                if (d->canvas)
+                    d->canvas->refreshBackground();
+                Q_UNUSED(fileName);
+            });
+
+    connect(d->metaPanel, &MetaEditPanel::audioFileChanged, this,
+            [this](const QString &fileName)
+            {
+                if (!d->playbackController || !d->playbackController->audioPlayer() || fileName.isEmpty())
+                    return;
+
+                const QString chartPath = d->workingChartPath.isEmpty()
+                                              ? (d->chartController ? d->chartController->chartFilePath() : QString())
+                                              : d->workingChartPath;
+                if (chartPath.isEmpty())
+                    return;
+
+                const QString chartDir = QFileInfo(chartPath).absolutePath();
+                const QString audioPath = QDir(chartDir).filePath(fileName);
+
+                if (!QFile::exists(audioPath))
+                {
+                    const QString msg = tr("Audio file not found: %1").arg(audioPath);
+                    statusBar()->showMessage(msg, 5000);
+                    Logger::warn("MetaEditPanel::audioFileChanged - " + msg);
+                    return;
+                }
+
+                d->playbackController->audioPlayer()->load(audioPath);
+                updatePlaybackAvailability(d->playbackController->audioPlayer()->canPlay());
+                statusBar()->showMessage(tr("Audio reloaded: %1").arg(fileName), 3000);
+                Logger::info(QString("MetaEditPanel::audioFileChanged - Reloaded audio: %1").arg(audioPath));
+            });
 
     // Connect NoteEditPanel signals.
     connect(d->notePanel, &NoteEditPanel::timeDivisionChanged, d->canvas, &ChartCanvas::setTimeDivision);
