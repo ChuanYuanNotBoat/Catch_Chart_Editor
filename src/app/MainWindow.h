@@ -46,6 +46,7 @@ protected:
     void dropEvent(QDropEvent *event) override;
 
 private slots:
+    void newChart();
     void openChart();
     void openFolder();
     void openImportedLibrary();

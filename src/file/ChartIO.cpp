@@ -506,6 +506,16 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
     return true;
 }
 
+Chart ChartIO::createDefaultChart(const MetaData &meta)
+{
+    Chart chart;
+    chart.meta() = meta;
+    const double bpm = meta.firstBpm > 0.0 ? meta.firstBpm : 120.0;
+    chart.addBpm(BpmEntry(0, 0, 1, bpm));
+    chart.sortNotes();
+    return chart;
+}
+
 bool ChartIO::save(const QString &filePath, const Chart &chart)
 {
     PerformanceTimer saveTimer("ChartIO::save", "chart_saving");

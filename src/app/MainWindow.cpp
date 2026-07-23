@@ -15,6 +15,7 @@
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "audio/AudioPlayer.h"
+#include "audio/BpmDetector.h"
 #include "utils/Settings.h"
 #include "utils/Translator.h"
 #include "utils/DiagnosticCollector.h"
@@ -1449,6 +1450,9 @@ void MainWindow::createMenus()
     }
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
+    QAction *newAction = fileMenu->addAction(tr("&New Chart..."), this, &MainWindow::newChart);
+    registerShortcutAction(newAction, "file.new_chart", QKeySequence::New);
+    fileMenu->addSeparator();
     QAction *openAction = fileMenu->addAction(tr("&Open Chart..."), this, &MainWindow::openChart);
     registerShortcutAction(openAction, "file.open_chart", QKeySequence::Open);
     QAction *openFolderAction = fileMenu->addAction(tr("Open &Folder..."), this, &MainWindow::openFolder);
@@ -2354,6 +2358,102 @@ bool MainWindow::confirmSaveIfModified(const QString &reasonText)
     if (PluginManager *pm = activePluginManager())
         pm->notifyChartSaved(savePath);
     return true;
+}
+
+// ==================== New chart ====================
+void MainWindow::newChart()
+{
+    Logger::info("New chart requested");
+
+    if (!confirmSaveIfModified(tr("Creating a new chart will replace the current one in editor.")))
+        return;
+
+    // Step 1: Select audio file.
+    const QString audioPath = QFileDialog::getOpenFileName(
+        this, tr("Select Audio File"), beatmapRootPath(),
+        tr("OGG Files (*.ogg);;All Files (*.*)"));
+    if (audioPath.isEmpty())
+    {
+        Logger::debug("New chart cancelled (no audio selected)");
+        return;
+    }
+
+    const QFileInfo audioInfo(audioPath);
+    const QString audioSuffix = audioInfo.suffix();                 // e.g. "ogg"
+    const QString audioStem = audioInfo.completeBaseName();         // e.g. "Astral Sky,非可逆リズム - ..."
+
+    // Step 2: Build time-stamped identifiers up front.
+    const uint timestamp = static_cast<uint>(QDateTime::currentSecsSinceEpoch());
+
+    // Step 3: Create song subdirectory — truncate stem to keep total path under MAX_PATH.
+    QString dirStem = sanitizeFileStem(audioStem);
+    const int kMaxDirNameLen = 50;
+    if (dirStem.length() > kMaxDirNameLen)
+        dirStem = dirStem.left(kMaxDirNameLen).trimmed();
+    const QString songDir = QDir(beatmapRootPath()).filePath(dirStem);
+    if (!QDir().mkpath(songDir))
+    {
+        QMessageBox::critical(this, tr("Error"), tr("Failed to create directory:\n%1").arg(songDir));
+        return;
+    }
+
+    // Step 4: Copy audio file using short time-stamped name (avoid long paths).
+    const QString targetAudioName = QString::number(timestamp) + "." + audioSuffix;
+    const QString targetAudioPath = QDir(songDir).filePath(targetAudioName);
+    if (!QFile::copy(audioPath, targetAudioPath))
+    {
+        QMessageBox::critical(this, tr("Error"),
+                              tr("Failed to copy audio file to:\n%1").arg(targetAudioPath));
+        return;
+    }
+
+    // Step 5: Build default MetaData (title = original audio stem).
+    MetaData meta;
+    meta.title = audioStem;
+    meta.artist.clear();
+    meta.chartAuthor.clear();
+    meta.difficulty = QStringLiteral("-New");
+    meta.audioFile = targetAudioName;
+    meta.speed = 5;
+    meta.firstBpm = 120.0;
+
+    // Step 6: Create default chart and save to time-stamped .mc.
+    Chart chart = ChartIO::createDefaultChart(meta);
+
+    const QString mcPath = QDir(songDir).filePath(QString::number(timestamp) + ".mc");
+
+    if (!ChartIO::save(mcPath, chart))
+    {
+        QMessageBox::critical(this, tr("Error"), tr("Failed to create chart file:\n%1").arg(mcPath));
+        return;
+    }
+
+    // Step 7: Auto-detect BPM and offset from the audio.
+    BpmDetector::DetectionResult detResult;
+    if (BpmDetector::detectFromFileDetailed(targetAudioPath, 0.0, 120000.0, detResult, nullptr) && detResult.bpm > 0.0)
+    {
+        chart.meta().firstBpm = detResult.bpm;
+        chart.meta().offset = static_cast<int>(qRound(detResult.estimatedOffsetMs));
+        chart.bpmList().clear();
+        chart.addBpm(BpmEntry(0, 0, 1, detResult.bpm));
+        ChartIO::save(mcPath, chart);
+
+        statusBar()->showMessage(
+            tr("BPM detected: %1, offset: %2 ms")
+                .arg(QString::number(detResult.bpm, 'f', 1))
+                .arg(chart.meta().offset),
+            5000);
+    }
+    else
+    {
+        statusBar()->showMessage(tr("Auto-timing skipped (detection failed). Default BPM=120."), 5000);
+    }
+
+    Logger::info(QString("New chart created: %1 (title=%2, bpm=%3)")
+                     .arg(mcPath, meta.title, QString::number(chart.meta().firstBpm, 'f', 1)));
+
+    // Step 8: Open the chart in editor.
+    loadChartFile(mcPath);
 }
 
 // ==================== Open chart file (.mc/.mcz) ====================

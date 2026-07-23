@@ -14,4 +14,9 @@ public:
      */
     static bool load(const QString &filePath, Chart &outChart, bool verbose = true);
     static bool save(const QString &filePath, const Chart &chart);
+
+    /**
+     * @brief 创建默认标准化空谱面（仅包含 meta 和默认 120 BPM time 条目，note/effect 为空）
+     */
+    static Chart createDefaultChart(const MetaData &meta);
 };
