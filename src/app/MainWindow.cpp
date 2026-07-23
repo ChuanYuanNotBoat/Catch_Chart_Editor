@@ -86,6 +86,7 @@
 #include <QNetworkReply>
 #include <QRegularExpression>
 #include <QStringConverter>
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QUuid>
@@ -301,6 +302,17 @@ namespace
         while (stem.endsWith(' ') || stem.endsWith('.'))
             stem.chop(1);
         return stem.trimmed();
+    }
+
+    QString computeFileQuickHash(const QString &filePath)
+    {
+        QFile f(filePath);
+        if (!f.open(QIODevice::ReadOnly))
+            return QString();
+        const QByteArray chunk = f.read(65536);
+        f.close();
+        return QString::fromLatin1(
+            QCryptographicHash::hash(chunk, QCryptographicHash::Sha256).toHex());
     }
 
     QList<HistoryPrefixGroup> groupHistorySectionsByPrefix(const QList<HistorySection> &sections)
@@ -2385,26 +2397,60 @@ void MainWindow::newChart()
     // Step 2: Build time-stamped identifiers up front.
     const uint timestamp = static_cast<uint>(QDateTime::currentSecsSinceEpoch());
 
-    // Step 3: Create song subdirectory — truncate stem to keep total path under MAX_PATH.
-    QString dirStem = sanitizeFileStem(audioStem);
-    const int kMaxDirNameLen = 50;
-    if (dirStem.length() > kMaxDirNameLen)
-        dirStem = dirStem.left(kMaxDirNameLen).trimmed();
-    const QString songDir = QDir(beatmapRootPath()).filePath(dirStem);
-    if (!QDir().mkpath(songDir))
+    // Step 2.5: Check if identical audio already exists in beatmap dirs (dedup).
+    const QString audioHash = computeFileQuickHash(audioPath);
+    QString songDir;
+    QString targetAudioName;
+    QString targetAudioPath;
+    bool reusedExisting = false;
+    if (!audioHash.isEmpty())
     {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to create directory:\n%1").arg(songDir));
-        return;
+        QDirIterator dirIt(beatmapRootPath(), QDir::Dirs | QDir::NoDotAndDotDot);
+        while (dirIt.hasNext())
+        {
+            dirIt.next();
+            QDirIterator oggIt(dirIt.filePath(), {"*.ogg"}, QDir::Files);
+            while (oggIt.hasNext())
+            {
+                oggIt.next();
+                if (computeFileQuickHash(oggIt.filePath()) == audioHash)
+                {
+                    songDir = dirIt.filePath();
+                    targetAudioName = QFileInfo(oggIt.filePath()).fileName();
+                    targetAudioPath = oggIt.filePath();
+                    reusedExisting = true;
+                    Logger::info(QString("New chart - reuse existing audio in: %1").arg(songDir));
+                    break;
+                }
+            }
+            if (reusedExisting)
+                break;
+        }
     }
 
-    // Step 4: Copy audio file using short time-stamped name (avoid long paths).
-    const QString targetAudioName = QString::number(timestamp) + "." + audioSuffix;
-    const QString targetAudioPath = QDir(songDir).filePath(targetAudioName);
-    if (!QFile::copy(audioPath, targetAudioPath))
+    if (!reusedExisting)
     {
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Failed to copy audio file to:\n%1").arg(targetAudioPath));
-        return;
+        // Step 3: Create new song subdirectory — truncate stem to keep total path under MAX_PATH.
+        QString dirStem = sanitizeFileStem(audioStem);
+        const int kMaxDirNameLen = 50;
+        if (dirStem.length() > kMaxDirNameLen)
+            dirStem = dirStem.left(kMaxDirNameLen).trimmed();
+        songDir = QDir(beatmapRootPath()).filePath(dirStem);
+        if (!QDir().mkpath(songDir))
+        {
+            QMessageBox::critical(this, tr("Error"), tr("Failed to create directory:\n%1").arg(songDir));
+            return;
+        }
+
+        // Step 4: Copy audio file using short time-stamped name (avoid long paths).
+        targetAudioName = QString::number(timestamp) + "." + audioSuffix;
+        targetAudioPath = QDir(songDir).filePath(targetAudioName);
+        if (!QFile::copy(audioPath, targetAudioPath))
+        {
+            QMessageBox::critical(this, tr("Error"),
+                                  tr("Failed to copy audio file to:\n%1").arg(targetAudioPath));
+            return;
+        }
     }
 
     // Step 5: Build default MetaData (title = original audio stem).
@@ -2428,9 +2474,35 @@ void MainWindow::newChart()
         return;
     }
 
-    // Step 7: Auto-detect BPM and offset from the audio.
+    // Step 7: Auto-detect BPM and offset from the audio with progress dialog.
+    QProgressDialog bpmProgress(tr("Measuring BPM, please wait..."), QString(), 0, 0, this);
+    bpmProgress.setWindowTitle(tr("Auto Timing"));
+    bpmProgress.setWindowModality(Qt::WindowModal);
+    bpmProgress.setCancelButton(nullptr);
+    bpmProgress.setMinimumDuration(0);
+    bpmProgress.show();
+
     BpmDetector::DetectionResult detResult;
-    if (BpmDetector::detectFromFileDetailed(targetAudioPath, 0.0, 120000.0, detResult, nullptr) && detResult.bpm > 0.0)
+    bool bpmOk = false;
+    std::atomic<bool> bpmDone{false};
+    QThread *bpmThread = QThread::create([&bpmDone, &bpmOk, &targetAudioPath, &detResult]()
+    {
+        bpmOk = BpmDetector::detectFromFileDetailed(targetAudioPath, 0.0, 120000.0, detResult, nullptr)
+                && detResult.bpm > 0.0;
+        bpmDone.store(true);
+    });
+    bpmThread->start();
+
+    while (!bpmDone.load())
+    {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+        QThread::msleep(20);
+    }
+    bpmThread->wait();
+    delete bpmThread;
+    bpmProgress.close();
+
+    if (bpmOk)
     {
         chart.meta().firstBpm = detResult.bpm;
         chart.meta().offset = static_cast<int>(qRound(detResult.estimatedOffsetMs));
