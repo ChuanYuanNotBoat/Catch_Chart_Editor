@@ -206,11 +206,9 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
     if (root.contains("note") && root["note"].isArray())
     {
         QJsonArray noteArray = root["note"].toArray();
-        std::string noteHash = CalcHash::computeHashFromJsonArray(noteArray).toHex().toStdString();
-
-        // hash test
-        Logger::info(QString("ChartIO::load - SHA256: %1").arg(noteHash));
-
+        
+        const QString noteHashHex = QString::fromLatin1(CalcHash::computeHashFromJsonArray(noteArray).toHex());
+        Logger::info(QStringLiteral("ChartIO::load - SHA256: %1").arg(noteHashHex));
 
         totalNoteCount = noteArray.size();
         Logger::debug(QString("ChartIO::load - Found 'note' array with %1 entries").arg(totalNoteCount));
