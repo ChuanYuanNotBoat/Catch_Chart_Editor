@@ -41,6 +41,7 @@
     plugin/PluginManager.cpp
     ui/CustomWidgets/RightPanel.cpp
     ui/CustomWidgets/RealtimePreviewWidget.cpp
+    ui/LongRangeSelector.cpp
     ui/NoteEditPanel.cpp
     ui/BPMTimePanel.cpp
     ui/MetaEditPanel.cpp

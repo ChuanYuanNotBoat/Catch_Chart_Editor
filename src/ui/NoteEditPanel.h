@@ -14,6 +14,8 @@ class QLabel;
 class QRadioButton;
 class QGroupBox;
 class QToolButton;
+class LongRangeSelector;
+class PlaybackController;
 
 class NoteEditPanel : public RightPanel
 {
@@ -41,6 +43,7 @@ public:
     explicit NoteEditPanel(QWidget *parent = nullptr);
     void setChartController(ChartController *controller) override;
     void setSelectionController(SelectionController *controller) override;
+    void setPlaybackController(PlaybackController *controller);
     void setPluginPlacementActions(const QList<PluginPlacementAction> &actions);
     void retranslateUi();
     void setMirrorAxisValue(int axisX);
@@ -101,6 +104,7 @@ private:
     QCheckBox *m_mirrorGuideCheck;
     QCheckBox *m_mirrorPreviewCheck;
     QPushButton *m_mirrorFlipButton;
+    LongRangeSelector *m_longRangeSelector;
     int m_currentMode;
     int m_gridDivision;
     bool m_pluginToolsExpanded;
