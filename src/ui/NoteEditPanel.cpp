@@ -1,6 +1,7 @@
 #include "NoteEditPanel.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
+#include "ui/LongRangeSelector.h"
 #include "utils/Logger.h"
 #include <QtGlobal>
 #include <QButtonGroup>
@@ -113,6 +114,10 @@ void NoteEditPanel::setupUi()
     connect(m_gridSettingsBtn, &QPushButton::clicked, this, &NoteEditPanel::onGridSettingsClicked);
     mainLayout->addWidget(m_gridSettingsBtn);
 
+    // 长范围选择器
+    m_longRangeSelector = new LongRangeSelector(this);
+    mainLayout->addWidget(m_longRangeSelector);
+
     m_mirrorGroup = new QGroupBox(tr("Mirror Flip"), this);
     QVBoxLayout *mirrorLayout = new QVBoxLayout(m_mirrorGroup);
     QHBoxLayout *axisLayout = new QHBoxLayout;
@@ -203,6 +208,8 @@ void NoteEditPanel::onTimeDivisionChanged(int index)
     if (division > 96)
         division = 96;
     qDebug() << "NoteEditPanel: Time division changed to" << division;
+    if (m_longRangeSelector)
+        m_longRangeSelector->setTimeDivision(division);
     emit timeDivisionChanged(division);
 }
 
@@ -214,11 +221,21 @@ void NoteEditPanel::onMirrorAxisSpinChanged(int value)
 void NoteEditPanel::setChartController(ChartController *controller)
 {
     m_chartController = controller;
+    if (m_longRangeSelector)
+        m_longRangeSelector->setChartController(controller);
 }
 
 void NoteEditPanel::setSelectionController(SelectionController *controller)
 {
     m_selectionController = controller;
+    if (m_longRangeSelector)
+        m_longRangeSelector->setSelectionController(controller);
+}
+
+void NoteEditPanel::setPlaybackController(PlaybackController *controller)
+{
+    if (m_longRangeSelector)
+        m_longRangeSelector->setPlaybackController(controller);
 }
 
 void NoteEditPanel::setModeFromHost(int mode)
@@ -336,4 +353,7 @@ void NoteEditPanel::retranslateUi()
         m_mirrorPreviewCheck->setText(tr("Show Preview"));
     if (m_mirrorFlipButton)
         m_mirrorFlipButton->setText(tr("Flip Selected"));
+
+    if (m_longRangeSelector)
+        m_longRangeSelector->retranslateUi();
 }

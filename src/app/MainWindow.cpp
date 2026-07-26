@@ -1988,6 +1988,7 @@ void MainWindow::createCentralArea()
 
     d->notePanel->setChartController(d->chartController);
     d->notePanel->setSelectionController(d->selectionController);
+    d->notePanel->setPlaybackController(d->playbackController);
     d->bpmPanel->setChartController(d->chartController);
     d->bpmPanel->setPlaybackController(d->playbackController);
     d->metaPanel->setChartController(d->chartController);

@@ -17,6 +17,7 @@
     utils/PerformanceTimer.cpp
     utils/PlaybackStutterProbe.cpp
     utils/DiagnosticCollector.cpp
+    utils/CalcHash.cpp
     file/ChartIO.cpp
     file/SkinIO.cpp
     file/ProjectIO.cpp
@@ -41,6 +42,7 @@
     plugin/PluginManager.cpp
     ui/CustomWidgets/RightPanel.cpp
     ui/CustomWidgets/RealtimePreviewWidget.cpp
+    ui/LongRangeSelector.cpp
     ui/NoteEditPanel.cpp
     ui/BPMTimePanel.cpp
     ui/MetaEditPanel.cpp

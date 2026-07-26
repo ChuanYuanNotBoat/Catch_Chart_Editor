@@ -106,6 +106,9 @@ docs/branch_context/feat-rain-length-drag.md
 # Cursor IDE 配置
 .cursor/
 
+# Reasonix IDE 配置
+.reasonix/
+
 # 临时开发文档 / 笔记
 AUTOTIMING_BINARY_MAPPING.md
 REVERSE_ENGINEERING_PROGRESS.md
