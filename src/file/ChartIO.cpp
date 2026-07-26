@@ -3,6 +3,7 @@
 #include "utils/Logger.h"
 #include "utils/DiagnosticCollector.h"
 #include "utils/PerformanceTimer.h"
+#include "utils/CalcHash.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -20,18 +21,6 @@
 
 namespace
 {
-    /// 计算文件前 64KB 的 SHA-256 哈希，用于快速比较文件内容
-    QString computeQuickHash(const QString &filePath)
-    {
-        QFile f(filePath);
-        if (!f.open(QIODevice::ReadOnly))
-            return QString();
-        const QByteArray chunk = f.read(65536);
-        f.close();
-        return QString::fromLatin1(
-            QCryptographicHash::hash(chunk, QCryptographicHash::Sha256).toHex());
-    }
-
     /**
      * 补丁：兼容旧版本错误保存的完整路径，提取文件名并尝试收集资源到 .mc 目录。
      *
@@ -76,8 +65,8 @@ namespace
             // 如果原始值是路径且指向真实文件，比较哈希
             if (hasPathSep && QFileInfo::exists(rawValue))
             {
-                const QString localHash = computeQuickHash(localCandidate);
-                const QString sourceHash = computeQuickHash(rawValue);
+                const QString localHash = CalcHash::computeQuickHash(localCandidate);
+                const QString sourceHash = CalcHash::computeQuickHash(rawValue);
                 if (!localHash.isEmpty() && !sourceHash.isEmpty() && localHash != sourceHash)
                 {
                     // 哈希不同，弹窗询问
@@ -217,6 +206,12 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
     if (root.contains("note") && root["note"].isArray())
     {
         QJsonArray noteArray = root["note"].toArray();
+        std::string noteHash = CalcHash::computeHashFromJsonArray(noteArray).toHex().toStdString();
+
+        // hash test
+        Logger::info(QString("ChartIO::load - SHA256: %1").arg(noteHash));
+
+
         totalNoteCount = noteArray.size();
         Logger::debug(QString("ChartIO::load - Found 'note' array with %1 entries").arg(totalNoteCount));
 

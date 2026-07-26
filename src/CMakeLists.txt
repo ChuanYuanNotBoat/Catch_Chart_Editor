@@ -17,6 +17,7 @@
     utils/PerformanceTimer.cpp
     utils/PlaybackStutterProbe.cpp
     utils/DiagnosticCollector.cpp
+    utils/CalcHash.cpp
     file/ChartIO.cpp
     file/SkinIO.cpp
     file/ProjectIO.cpp
