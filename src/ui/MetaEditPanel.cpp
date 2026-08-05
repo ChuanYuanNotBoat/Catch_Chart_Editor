@@ -1,4 +1,4 @@
-#include "MetaEditPanel.h"
+﻿#include "MetaEditPanel.h"
 #include "controller/ChartController.h"
 #include "model/MetaData.h"
 #include "utils/Logger.h"
@@ -163,7 +163,8 @@ void MetaEditPanel::onSaveClicked()
 {
     m_hasPendingMetaSave = false;
     m_autoSaveTimer->stop();
-    applyMetaAndPersist(true);
+    applyMetaAndPersist(false);
+    emit saveRequested();
 }
 
 void MetaEditPanel::onMetaFieldChanged()
@@ -179,7 +180,7 @@ void MetaEditPanel::flushPendingMetaSave()
     if (!m_hasPendingMetaSave)
         return;
     m_hasPendingMetaSave = false;
-    applyMetaAndPersist(true);
+    applyMetaAndPersist(false);
 }
 
 void MetaEditPanel::setChartController(ChartController *controller)

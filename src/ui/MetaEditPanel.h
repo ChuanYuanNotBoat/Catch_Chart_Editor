@@ -24,6 +24,8 @@ public:
 signals:
     void backgroundResourceChanged(const QString &fileName);
     void audioFileChanged(const QString &fileName);
+    void saveRequested();
+
 
 private slots:
     void refreshMeta();

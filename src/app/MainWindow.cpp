@@ -2031,6 +2031,8 @@ void MainWindow::createCentralArea()
                 Logger::info(QString("MetaEditPanel::audioFileChanged - Reloaded audio: %1").arg(audioPath));
             });
 
+    connect(d->metaPanel, &MetaEditPanel::saveRequested, this, &MainWindow::saveChart);
+
     // Connect NoteEditPanel signals.
     connect(d->notePanel, &NoteEditPanel::timeDivisionChanged, d->canvas, &ChartCanvas::setTimeDivision);
     connect(d->notePanel, &NoteEditPanel::gridDivisionChanged, d->canvas, &ChartCanvas::setGridDivision);
