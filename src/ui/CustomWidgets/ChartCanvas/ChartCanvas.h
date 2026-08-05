@@ -340,6 +340,8 @@ private:
     bool m_isDraggingRangeStart = false;
     bool m_isDraggingRangeEnd = false;
 
+    bool m_pendingMove = false;
+
     bool m_isMovingSelection;
     QPointF m_moveStartPos;
     double m_moveDeltaBeatRaw;

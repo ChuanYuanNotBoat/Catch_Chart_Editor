@@ -98,6 +98,8 @@ void ChartCanvas::cancelIntervalSelection()
 
 void ChartCanvas::cancelOperation()
 {
+    m_pendingMove = false;
+
     if (m_isPasting)
         cancelPaste();
     if (m_intervalState != IntervalNone)

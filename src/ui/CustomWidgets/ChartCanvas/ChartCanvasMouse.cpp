@@ -21,6 +21,8 @@
 #include <limits>
 #include <numeric>
 
+constexpr double kMoveDragThresholdPx = 5.0;
+
 namespace
 {
 double extractWheelDeltaY(const QWheelEvent *event)
@@ -1050,7 +1052,10 @@ bool ChartCanvas::handleHitNoteLeftClick(int hitIndex, Qt::KeyboardModifiers mod
     if (!m_selectionController->selectedIndices().contains(hitIndex))
         m_selectionController->addToSelection(hitIndex);
 
-    beginMoveSelection(pos, hitIndex);
+    // Defer move start until mouse drag exceeds threshold (to distinguish click vs drag)
+    m_pendingMove = true;
+    m_moveStartPos = pos;
+    m_dragReferenceIndex = hitIndex;
     return true;
 }
 
@@ -1256,6 +1261,16 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
             update(dirty);
         }
     }
+    else if (m_pendingMove)
+    {
+        QPointF delta = event->pos() - m_moveStartPos;
+        if (qAbs(delta.x()) > kMoveDragThresholdPx || qAbs(delta.y()) > kMoveDragThresholdPx)
+        {
+            m_pendingMove = false;
+            beginMoveSelection(m_moveStartPos, m_dragReferenceIndex);
+            updateMoveSelection(event->pos());
+        }
+    }
     else if (m_isMovingSelection)
     {
         updateMoveSelection(event->pos());
@@ -1283,6 +1298,12 @@ bool ChartCanvas::handleSelectionRelease()
 
 bool ChartCanvas::handleMoveSelectionRelease()
 {
+    if (m_pendingMove)
+    {
+        m_pendingMove = false;
+        return false;
+    }
+
     if (!m_isMovingSelection)
         return false;
     endMoveSelection();
