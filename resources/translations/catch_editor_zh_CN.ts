@@ -13,7 +13,7 @@
         <location filename="../../src/ui/BPMTimePanel.cpp" line="44"/>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="403"/>
         <source>e.g. 0:1/1</source>
-        <translation type="unfinished"></translation>
+        <translation>例如: 0:1/1</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="49"/>
@@ -37,135 +37,127 @@
         <location filename="../../src/ui/BPMTimePanel.cpp" line="66"/>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="401"/>
         <source>Measure BPM...</source>
-        <translation type="unfinished"></translation>
+        <translation>测量 BPM...</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="190"/>
         <source>%1 ms</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 毫秒</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="193"/>
         <source>Ready to measure.</source>
-        <translation type="unfinished"></translation>
+        <translation>准备测量。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="197"/>
         <source>Measuring audio...</source>
-        <translation type="unfinished"></translation>
+        <translation>正在测量音频...</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="205"/>
         <source>Measurement failed.</source>
-        <translation type="unfinished"></translation>
+        <translation>测量失败。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="206"/>
         <source>Measurement Failed</source>
-        <translation type="unfinished"></translation>
+        <translation>测量失败</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="207"/>
         <source>Failed to measure BPM from audio.</source>
-        <translation type="unfinished"></translation>
+        <translation>无法从音频中测量 BPM。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="237"/>
         <source>Mode: </source>
-        <translation type="unfinished"></translation>
+        <translation>模式: </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="238"/>
         <source>From Song Start</source>
-        <translation type="unfinished"></translation>
+        <translation>从歌曲开头</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="238"/>
         <source>From Current Time</source>
-        <translation type="unfinished"></translation>
+        <translation>从当前时间</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="239"/>
         <source>Estimated BPM: </source>
-        <translation type="unfinished"></translation>
+        <translation>估计 BPM: </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="240"/>
         <source>Uncertainty (segment stddev): </source>
-        <translation type="unfinished"></translation>
+        <translation>不确定度 (段标准差): </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
         <source>Estimated offset: </source>
-        <translation type="unfinished"></translation>
+        <translation>估计偏移: </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
         <source> ms</source>
-        <translation type="unfinished"></translation>
+        <translation> 毫秒</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="243"/>
         <source>Segments:</source>
-        <translation type="unfinished"></translation>
+        <translation>段:</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="251"/>
         <source>bpm=</source>
-        <translation type="unfinished"></translation>
+        <translation>bpm=</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="251"/>
         <source>, score=</source>
-        <translation type="unfinished"></translation>
+        <translation>, 得分=</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="253"/>
         <source>invalid</source>
-        <translation type="unfinished"></translation>
+        <translation>无效</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="257"/>
         <source>Measurement complete.</source>
-        <translation type="unfinished"></translation>
+        <translation>测量完成。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="286"/>
         <source>Write BPM</source>
-        <translation type="unfinished"></translation>
+        <translation>写入 BPM</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="288"/>
         <source>Write measured BPM %1 at chart start (0:0/1)?</source>
-        <translation type="unfinished"></translation>
+        <translation>是否将测量到的 BPM %1 写入谱面开头 (0:0/1)？</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="289"/>
         <source>Write measured BPM %1 at current time?</source>
-        <translation type="unfinished"></translation>
+        <translation>是否将测量到的 BPM %1 写入当前时间？</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="339"/>
         <source>Duration must be greater than 0.</source>
-        <translation type="unfinished"></translation>
+        <translation>持续时间必须大于 0。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="346"/>
         <source>No audio file is linked to this chart.</source>
-        <translation type="unfinished"></translation>
+        <translation>此谱面未关联音频文件。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="359"/>
         <source>Audio BPM detection failed.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Mirror Flip Selected (Center Line)</source>
-        <translation type="vanished">镜像翻转选中音符（中心线）</translation>
-    </message>
-    <message>
-        <source>Mirrored %1 note(s).</source>
-        <translation type="vanished">已镜像翻转 %1 个音符。</translation>
+        <translation>音频 BPM 检测失败。</translation>
     </message>
 </context>
 <context>
@@ -173,104 +165,104 @@
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="24"/>
         <source>Measure BPM</source>
-        <translation type="unfinished"></translation>
+        <translation>测量 BPM</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="31"/>
         <source>Current Time:</source>
-        <translation type="unfinished"></translation>
+        <translation>当前时间:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="32"/>
         <source>Not set</source>
-        <translation type="unfinished"></translation>
+        <translation>未设置</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="40"/>
         <source>Measure Duration (seconds):</source>
-        <translation type="unfinished"></translation>
+        <translation>测量时长 (秒):</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="52"/>
         <source>Measure Mode:</source>
-        <translation type="unfinished"></translation>
+        <translation>测量模式:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="54"/>
         <source>From Song Start</source>
-        <translation type="unfinished"></translation>
+        <translation>从歌曲开头</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="55"/>
         <source>From Current Time</source>
-        <translation type="unfinished"></translation>
+        <translation>从当前时间</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="64"/>
         <source>Measured BPM:</source>
-        <translation type="unfinished"></translation>
+        <translation>测量到的 BPM:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="67"/>
         <source>Click &apos;Measure&apos; to start</source>
-        <translation type="unfinished"></translation>
+        <translation>点击“测量”开始</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="71"/>
         <source>x2</source>
-        <translation type="unfinished"></translation>
+        <translation>x2</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="73"/>
         <source>x3</source>
-        <translation type="unfinished"></translation>
+        <translation>x3</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="75"/>
         <source>x4</source>
-        <translation type="unfinished"></translation>
+        <translation>x4</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="77"/>
         <source>x6</source>
-        <translation type="unfinished"></translation>
+        <translation>x6</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="79"/>
         <source>x8</source>
-        <translation type="unfinished"></translation>
+        <translation>x8</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="88"/>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="232"/>
         <source>Ready.</source>
-        <translation type="unfinished"></translation>
+        <translation>准备就绪。</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="99"/>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="202"/>
         <source>No segment data yet.</source>
-        <translation type="unfinished"></translation>
+        <translation>尚无段数据。</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="103"/>
         <source>Measure</source>
-        <translation type="unfinished"></translation>
+        <translation>测量</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="108"/>
         <source>BPM to Add:</source>
-        <translation type="unfinished"></translation>
+        <translation>要添加的 BPM:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="119"/>
         <source>Offset to Apply:</source>
-        <translation type="unfinished"></translation>
+        <translation>要应用的偏移:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="124"/>
         <source>Apply offset</source>
-        <translation type="unfinished"></translation>
+        <translation>应用偏移</translation>
     </message>
 </context>
 <context>
@@ -310,35 +302,35 @@
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="182"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="949"/>
         <source>Mirror Flip Notes</source>
-        <translation type="unfinished"></translation>
+        <translation>镜像翻转音符</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="681"/>
         <source>Plugin Curve Edit</source>
-        <translation type="unfinished"></translation>
+        <translation>插件曲线编辑</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="710"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="734"/>
         <source>Plugin Action</source>
-        <translation type="unfinished">插件动作</translation>
+        <translation>插件动作</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="712"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="741"/>
         <source>Plugin Action: %1</source>
-        <translation type="unfinished">插件动作: %1</translation>
+        <translation>插件动作: %1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="717"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="746"/>
         <source>Plugin batch action completed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>插件批量动作已完成: %1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="756"/>
         <source>Plugin action completed: %1</source>
-        <translation type="unfinished">插件动作已完成: %1</translation>
+        <translation>插件动作已完成: %1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1016"/>
@@ -362,9 +354,24 @@
         <translation>从参考时间播放</translation>
     </message>
     <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="844"/>
+        <source>Set Segment Density: Follow Editor</source>
+        <translation>设置段落密度: 跟随编辑器</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="845"/>
+        <source>Set Segment Density: 1/%1</source>
+        <translation>设置段落密度: 1/%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="848"/>
+        <source>No segment selected for density change.</source>
+        <translation>未选择要更改密度的段落。</translation>
+    </message>
+    <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="868"/>
         <source>Mixed</source>
-        <translation type="unfinished"></translation>
+        <translation>混合</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="926"/>
@@ -430,7 +437,7 @@
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="120"/>
         <source>Manual jerk mark recorded (F8).</source>
-        <translation type="unfinished"></translation>
+        <translation>已记录手动卡顿标记 (F8)。</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="554"/>
@@ -469,21 +476,6 @@
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="809"/>
         <source>Curve Placement Density</source>
         <translation>曲线放置密度</translation>
-    </message>
-    <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="844"/>
-        <source>Set Segment Density: Follow Editor</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="845"/>
-        <source>Set Segment Density: 1/%1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="848"/>
-        <source>No segment selected for density change.</source>
-        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="858"/>
@@ -526,7 +518,7 @@
         <location filename="../../src/ui/LeftPanel.cpp" line="38"/>
         <location filename="../../src/ui/LeftPanel.cpp" line="238"/>
         <source>x</source>
-        <translation type="unfinished"></translation>
+        <translation>x</translation>
     </message>
     <message>
         <location filename="../../src/ui/LeftPanel.cpp" line="51"/>
@@ -602,7 +594,7 @@
     <message>
         <location filename="../../src/ui/dialogs/LogSettingsDialog.cpp" line="54"/>
         <source>播放卡顿探针 - 窗口化FPS与抖动追踪</source>
-        <translation type="unfinished"></translation>
+        <translation>播放卡顿探针 - 窗口化 FPS 与抖动追踪</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/LogSettingsDialog.cpp" line="63"/>
@@ -693,19 +685,19 @@
         <location filename="../../src/ui/LongRangeSelector.cpp" line="92"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="183"/>
         <source>Range Select</source>
-        <translation type="unfinished"></translation>
+        <translation>范围选择</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="100"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="199"/>
         <source>Show Range</source>
-        <translation type="unfinished"></translation>
+        <translation>显示范围</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="107"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="188"/>
         <source>Start:</source>
-        <translation type="unfinished"></translation>
+        <translation>开始:</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="111"/>
@@ -713,19 +705,19 @@
         <location filename="../../src/ui/LongRangeSelector.cpp" line="193"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="195"/>
         <source>Now</source>
-        <translation type="unfinished"></translation>
+        <translation>现在</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="120"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="190"/>
         <source>End:</source>
-        <translation type="unfinished"></translation>
+        <translation>结束:</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="132"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="197"/>
         <source>Select</source>
-        <translation type="unfinished"></translation>
+        <translation>选择</translation>
     </message>
 </context>
 <context>
@@ -917,10 +909,6 @@
         <translation>快捷键设置...</translation>
     </message>
     <message>
-        <source>[Debug] Mobile UI Test Mode (Restart Required)</source>
-        <translation type="vanished">[调试] 移动端 UI 测试模式（需要重启）</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="1631"/>
         <location filename="../../src/app/MainWindow.cpp" line="3525"/>
         <source>Language</source>
@@ -990,12 +978,12 @@
         <location filename="../../src/app/MainWindow.cpp" line="1384"/>
         <location filename="../../src/app/MainWindow.cpp" line="2739"/>
         <source>Audio Load Error</source>
-        <translation type="unfinished"></translation>
+        <translation>音频加载错误</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1467"/>
         <source>&amp;New Chart...</source>
-        <translation type="unfinished"></translation>
+        <translation>新建谱面(&amp;N)...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1625"/>
@@ -1005,7 +993,7 @@
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1701"/>
         <source>&amp;Plugins</source>
-        <translation type="unfinished"></translation>
+        <translation>插件(&amp;P)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1741"/>
@@ -1080,9 +1068,16 @@
         <translation>快捷键已更新。</translation>
     </message>
     <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2022"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2265"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2737"/>
+        <source>Audio file not found: %1</source>
+        <translation>音频文件未找到: %1</translation>
+    </message>
+    <message>
         <location filename="../../src/app/MainWindow.cpp" line="2030"/>
         <source>Audio reloaded: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>音频已重新加载: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2094"/>
@@ -1114,49 +1109,51 @@
         <location filename="../../src/app/MainWindow.cpp" line="3463"/>
         <location filename="../../src/app/MainWindow.cpp" line="3471"/>
         <source>Plugins</source>
-        <translation type="unfinished"></translation>
+        <translation>插件</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2194"/>
         <source>Auto-saved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>已自动保存: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2220"/>
         <source>Recover Unsaved Session</source>
-        <translation type="unfinished"></translation>
+        <translation>恢复未保存的会话</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2221"/>
         <source>Detected that the previous session may not have exited normally.
 Unsaved edits were found in a recovery working copy.
 Do you want to recover them now?</source>
-        <translation type="unfinished"></translation>
+        <translation>检测到上一个会话可能未正常退出。
+在恢复工作副本中发现了未保存的编辑。
+是否立即恢复？</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2236"/>
         <source>Recovery Failed</source>
-        <translation type="unfinished"></translation>
+        <translation>恢复失败</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2236"/>
         <source>Failed to load the recovery working copy.</source>
-        <translation type="unfinished"></translation>
+        <translation>无法加载恢复工作副本。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2275"/>
         <source>Recovered unsaved session</source>
-        <translation type="unfinished"></translation>
+        <translation>已恢复未保存的会话</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2282"/>
         <source>Closing the application will end this editing session.</source>
-        <translation type="unfinished"></translation>
+        <translation>关闭应用程序将结束此编辑会话。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2327"/>
         <source>Importing MCZ: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在导入 MCZ: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2338"/>
@@ -1221,55 +1218,58 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2400"/>
         <source>Creating a new chart will replace the current one in editor.</source>
-        <translation type="unfinished"></translation>
+        <translation>新建谱面将替换编辑器中的当前谱面。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2405"/>
         <source>Select Audio File</source>
-        <translation type="unfinished"></translation>
+        <translation>选择音频文件</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2406"/>
         <source>OGG Files (*.ogg);;All Files (*.*)</source>
-        <translation type="unfinished"></translation>
+        <translation>OGG 文件 (*.ogg);;所有文件 (*.*)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2461"/>
         <source>Failed to create directory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>创建目录失败:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2471"/>
         <source>Failed to copy audio file to:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>复制音频文件到以下位置失败:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2493"/>
         <source>Failed to create chart file:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>创建谱面文件失败:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2498"/>
         <source>Measuring BPM, please wait...</source>
-        <translation type="unfinished"></translation>
+        <translation>正在测量 BPM，请稍候...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2499"/>
         <source>Auto Timing</source>
-        <translation type="unfinished"></translation>
+        <translation>自动对时</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2534"/>
         <source>BPM detected: %1, offset: %2 ms</source>
-        <translation type="unfinished"></translation>
+        <translation>检测到 BPM: %1，偏移: %2 毫秒</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2541"/>
         <source>Auto-timing skipped (detection failed). Default BPM=120.</source>
-        <translation type="unfinished"></translation>
+        <translation>跳过自动对时（检测失败）。默认 BPM=120。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2560"/>
@@ -1307,7 +1307,7 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2615"/>
         <source>Opening another chart will replace the current one in editor.</source>
-        <translation type="unfinished"></translation>
+        <translation>打开另一个谱面将替换编辑器中的当前谱面。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2636"/>
@@ -1360,13 +1360,6 @@ Do you want to save before continuing?</source>
         <translation>加载谱面失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2022"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2265"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2737"/>
-        <source>Audio file not found: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="2755"/>
         <source>Loaded: %1</source>
         <translation>已加载: %1</translation>
@@ -1379,22 +1372,22 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2796"/>
         <source>Select a chart (grouped by song):</source>
-        <translation type="unfinished"></translation>
+        <translation>选择谱面（按歌曲分组）:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2800"/>
         <source>Song / Folder / Chart</source>
-        <translation type="unfinished"></translation>
+        <translation>歌曲 / 文件夹 / 谱面</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2828"/>
         <source>(Root)</source>
-        <translation type="unfinished"></translation>
+        <translation>(根)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2893"/>
         <source>Please select a chart item, not a song or folder group.</source>
-        <translation type="unfinished"></translation>
+        <translation>请选择谱面项，而不是歌曲或文件夹组。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2907"/>
@@ -1444,10 +1437,6 @@ Do you want to save before continuing?</source>
         <location filename="../../src/app/MainWindow.cpp" line="2993"/>
         <source>No chart is currently open.</source>
         <translation>当前未打开任何谱面。</translation>
-    </message>
-    <message>
-        <source>Switching difficulty will replace the current chart in editor.</source>
-        <translation type="vanished">切换难度将替换编辑器中的当前谱面。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3001"/>
@@ -1598,46 +1587,6 @@ Do you want to save before continuing?</source>
         <translation>该分度已在常用规则中，请使用对应复选框。</translation>
     </message>
     <message>
-        <source>Restart Required</source>
-        <translation type="vanished">需要重启</translation>
-    </message>
-    <message>
-        <source>Mobile UI test mode was %1.</source>
-        <translation type="vanished">移动端 UI 测试模式已%1。</translation>
-    </message>
-    <message>
-        <source>enabled</source>
-        <translation type="vanished">启用</translation>
-    </message>
-    <message>
-        <source>disabled</source>
-        <translation type="vanished">禁用</translation>
-    </message>
-    <message>
-        <source>This debug option applies after restart. Restart now?</source>
-        <translation type="vanished">此调试选项在重启后生效。立即重启？</translation>
-    </message>
-    <message>
-        <source>Restart Now</source>
-        <translation type="vanished">立即重启</translation>
-    </message>
-    <message>
-        <source>Later</source>
-        <translation type="vanished">稍后</translation>
-    </message>
-    <message>
-        <source>Mobile UI test mode will apply after restart.</source>
-        <translation type="vanished">移动端 UI 测试模式将在重启后生效。</translation>
-    </message>
-    <message>
-        <source>Restart Failed</source>
-        <translation type="vanished">重启失败</translation>
-    </message>
-    <message>
-        <source>Unable to restart automatically. Please relaunch manually.</source>
-        <translation type="vanished">无法自动重启。请手动重新启动。</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="3525"/>
         <source>Failed to load language pack: %1</source>
         <translation>加载语言包失败: %1</translation>
@@ -1761,7 +1710,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3420"/>
         <source>Audio is not ready. Please reload a valid audio file.</source>
-        <translation type="unfinished"></translation>
+        <translation>音频未就绪。请重新加载有效的音频文件。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3660"/>
@@ -1800,7 +1749,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3692"/>
         <source>Version</source>
-        <translation type="unfinished">版本</translation>
+        <translation>版本</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3706"/>
@@ -1825,7 +1774,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3751"/>
         <source>Logs are generated in the application &apos;logs&apos; directory.</source>
-        <translation type="unfinished">日志生成在应用程序的 logs 目录中。</translation>
+        <translation>日志生成在应用程序的 logs 目录中。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3757"/>
@@ -1951,7 +1900,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="588"/>
         <source>Failed to sync working copy before plugin action.</source>
-        <translation type="unfinished"></translation>
+        <translation>插件动作前同步工作副本失败。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="730"/>
@@ -1977,7 +1926,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="768"/>
         <source>Plugin panels were closed after plugin reload.</source>
-        <translation type="unfinished"></translation>
+        <translation>插件重新加载后，插件面板已关闭。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="793"/>
@@ -1997,17 +1946,17 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="806"/>
         <source>Enable Qt Noise Filter</source>
-        <translation type="unfinished"></translation>
+        <translation>启用 Qt 噪音过滤器</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="810"/>
         <source>Qt Categories (comma-separated):</source>
-        <translation type="unfinished"></translation>
+        <translation>Qt 类别 (逗号分隔):</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="817"/>
         <source>Message Prefixes (comma-separated):</source>
-        <translation type="unfinished"></translation>
+        <translation>消息前缀 (逗号分隔):</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="825"/>
@@ -2028,22 +1977,22 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="926"/>
         <source>Grid Beat Number</source>
-        <translation type="unfinished"></translation>
+        <translation>网格节拍号</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="939"/>
         <source> pt</source>
-        <translation type="unfinished"></translation>
+        <translation> pt</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="940"/>
         <source>Font size for beat numbers on the left side of the grid</source>
-        <translation type="unfinished"></translation>
+        <translation>网格左侧节拍号的字体大小</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="974"/>
         <source>Size:</source>
-        <translation type="unfinished"></translation>
+        <translation>大小:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="1013"/>
@@ -2185,50 +2134,6 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>加载皮肤失败: %1</translation>
     </message>
     <message>
-        <source>Save</source>
-        <translation type="obsolete">保存</translation>
-    </message>
-    <message>
-        <source>Play</source>
-        <translation type="obsolete">播放</translation>
-    </message>
-    <message>
-        <source>Editor</source>
-        <translation type="vanished">编辑器</translation>
-    </message>
-    <message>
-        <source>Hide Left</source>
-        <translation type="vanished">隐藏左侧</translation>
-    </message>
-    <message>
-        <source>Show Left</source>
-        <translation type="vanished">显示左侧</translation>
-    </message>
-    <message>
-        <source>Hide Right</source>
-        <translation type="vanished">隐藏右侧</translation>
-    </message>
-    <message>
-        <source>Show Right</source>
-        <translation type="vanished">显示右侧</translation>
-    </message>
-    <message>
-        <source>Functions</source>
-        <translation type="vanished">功能</translation>
-    </message>
-    <message>
-        <source>Function Hub (Debug)</source>
-        <translation type="vanished">功能中心（调试）</translation>
-    </message>
-    <message>
-        <source>Search functions...</source>
-        <translation type="vanished">搜索功能...</translation>
-    </message>
-    <message>
-        <source>Run</source>
-        <translation type="vanished">运行</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="891"/>
         <source>Session Settings</source>
         <translation>会话设置</translation>
@@ -2324,22 +2229,6 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>导出 .mcz（纯净）</translation>
     </message>
     <message>
-        <source>Open Plugins Folder</source>
-        <translation type="vanished">打开插件文件夹</translation>
-    </message>
-    <message>
-        <source>Reload Selected Plugin</source>
-        <translation type="vanished">重新加载选中插件</translation>
-    </message>
-    <message>
-        <source>Reload Plugins</source>
-        <translation type="vanished">重新加载插件</translation>
-    </message>
-    <message>
-        <source>Note Placement Tools:</source>
-        <translation type="vanished">音符放置工具:</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="2104"/>
         <location filename="../../src/app/MainWindow.cpp" line="3473"/>
         <source>Launch Curve Tool</source>
@@ -2419,10 +2308,6 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindow.cpp" line="1620"/>
         <source>Session Settings...</source>
         <translation>会话设置...</translation>
-    </message>
-    <message>
-        <source>Toggle Right Panel</source>
-        <translation type="vanished">切换右侧栏</translation>
     </message>
 </context>
 <context>
@@ -2515,7 +2400,7 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="243"/>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="245"/>
         <source> ms</source>
-        <translation type="unfinished"></translation>
+        <translation> 毫秒</translation>
     </message>
     <message>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="90"/>
@@ -2620,19 +2505,19 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="45"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="335"/>
         <source>Del</source>
-        <translation type="unfinished"></translation>
+        <translation>Del</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="47"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="336"/>
         <source>Delete selected notes once</source>
-        <translation type="unfinished"></translation>
+        <translation>删除选中的音符（一次）</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="81"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="343"/>
         <source>Note Placement Tools:</source>
-        <translation type="unfinished">音符放置工具:</translation>
+        <translation>音符放置工具:</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="93"/>
@@ -2681,7 +2566,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="306"/>
         <source>Curve Plugin Options</source>
-        <translation></translation>
+        <translation>曲线插件选项</translation>
     </message>
 </context>
 <context>
@@ -2731,7 +2616,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="64"/>
         <source>Reload Selected Plugin</source>
-        <translation type="unfinished">重新加载选中插件</translation>
+        <translation>重新加载选中插件</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="65"/>
@@ -2875,7 +2760,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="121"/>
         <source>Plugin Action</source>
-        <translation type="unfinished">插件动作</translation>
+        <translation>插件动作</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="1302"/>
@@ -2885,22 +2770,22 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="141"/>
         <source>Ctrl</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="143"/>
         <source>Alt</source>
-        <translation type="unfinished"></translation>
+        <translation>Alt</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="145"/>
         <source>Shift</source>
-        <translation type="unfinished"></translation>
+        <translation>Shift</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="147"/>
         <source>Meta</source>
-        <translation type="unfinished">元数据</translation>
+        <translation>Meta</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="266"/>
@@ -2916,138 +2801,149 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindow.cpp" line="630"/>
         <source>Source directory does not exist:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>源目录不存在:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="637"/>
         <source>Failed to create working directory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>创建工作目录失败:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="675"/>
         <location filename="../../src/app/MainWindow.cpp" line="694"/>
         <location filename="../../src/app/MainWindow.cpp" line="1148"/>
         <source>Copy cancelled by user.</source>
-        <translation type="unfinished"></translation>
+        <translation>用户取消了复制。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="684"/>
         <source>Failed to create working subdirectory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>创建工作子目录失败:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="703"/>
         <source>Failed to prepare working file path:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>准备工作文件路径失败:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="713"/>
         <source>Failed to copy required file:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>复制所需文件失败:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="985"/>
         <location filename="../../src/app/MainWindow.cpp" line="1041"/>
         <source>Source chart path is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation>源谱面路径为空。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="993"/>
         <location filename="../../src/app/MainWindow.cpp" line="1049"/>
         <source>Failed to create working copy directory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>创建工作副本目录失败:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1001"/>
         <location filename="../../src/app/MainWindow.cpp" line="1057"/>
         <source>Source chart does not exist:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>源谱面不存在:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1016"/>
         <location filename="../../src/app/MainWindow.cpp" line="1084"/>
         <source>Working copy chart file is missing:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>工作副本谱面文件缺失:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1093"/>
         <source>Preparing working copy...</source>
-        <translation type="unfinished"></translation>
+        <translation>正在准备工作副本...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1094"/>
         <source>Cancel</source>
-        <translation type="unfinished">取消</translation>
+        <translation>取消</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1111"/>
         <source>Preparing working copy...
 %1/%2 files, %3/%4 MB</source>
-        <translation type="unfinished"></translation>
+        <translation>正在准备工作副本...
+%1/%2 个文件，%3/%4 MB</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1157"/>
         <source>Failed to create working copy.</source>
-        <translation type="unfinished"></translation>
+        <translation>创建工作副本失败。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1177"/>
         <source>Chart controller is not available.</source>
-        <translation type="unfinished"></translation>
+        <translation>谱面控制器不可用。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1195"/>
         <source>Failed to parse chart data:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>解析谱面数据失败:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1208"/>
         <source>Loading chart data...</source>
-        <translation type="unfinished"></translation>
+        <translation>正在加载谱面数据...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1242"/>
         <source>Failed to parse chart data.</source>
-        <translation type="unfinished"></translation>
+        <translation>解析谱面数据失败。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1250"/>
         <source>Failed to apply loaded chart.</source>
-        <translation type="unfinished"></translation>
+        <translation>应用已加载谱面失败。</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="76"/>
         <source>Resource Conflict</source>
-        <translation type="unfinished"></translation>
+        <translation>资源冲突</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="77"/>
         <source>File &apos;%1&apos; already exists but content differs.
 Do you want to rename the imported file?</source>
-        <translation type="unfinished"></translation>
+        <translation>文件 &apos;%1&apos; 已存在但内容不同。
+是否重命名导入的文件？</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="78"/>
         <source>Default new name: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>默认新名称: %1</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="81"/>
         <source>Rename Import</source>
-        <translation type="unfinished"></translation>
+        <translation>重命名导入</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="82"/>
         <source>Use Existing</source>
-        <translation type="unfinished"></translation>
+        <translation>使用现有</translation>
     </message>
 </context>
 <context>

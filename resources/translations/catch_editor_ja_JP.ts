@@ -13,7 +13,7 @@
         <location filename="../../src/ui/BPMTimePanel.cpp" line="44"/>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="403"/>
         <source>e.g. 0:1/1</source>
-        <translation type="unfinished"></translation>
+        <translation>例: 0:1/1</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="49"/>
@@ -37,127 +37,127 @@
         <location filename="../../src/ui/BPMTimePanel.cpp" line="66"/>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="401"/>
         <source>Measure BPM...</source>
-        <translation type="unfinished"></translation>
+        <translation>BPMを測定...</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="190"/>
         <source>%1 ms</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 ミリ秒</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="193"/>
         <source>Ready to measure.</source>
-        <translation type="unfinished"></translation>
+        <translation>測定準備完了。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="197"/>
         <source>Measuring audio...</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオを測定中...</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="205"/>
         <source>Measurement failed.</source>
-        <translation type="unfinished"></translation>
+        <translation>測定失敗。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="206"/>
         <source>Measurement Failed</source>
-        <translation type="unfinished"></translation>
+        <translation>測定失敗</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="207"/>
         <source>Failed to measure BPM from audio.</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオからのBPM測定に失敗しました。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="237"/>
         <source>Mode: </source>
-        <translation type="unfinished"></translation>
+        <translation>モード: </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="238"/>
         <source>From Song Start</source>
-        <translation type="unfinished"></translation>
+        <translation>曲の先頭から</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="238"/>
         <source>From Current Time</source>
-        <translation type="unfinished"></translation>
+        <translation>現在の時刻から</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="239"/>
         <source>Estimated BPM: </source>
-        <translation type="unfinished"></translation>
+        <translation>推定BPM: </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="240"/>
         <source>Uncertainty (segment stddev): </source>
-        <translation type="unfinished"></translation>
+        <translation>不確かさ (セグメント標準偏差): </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
         <source>Estimated offset: </source>
-        <translation type="unfinished"></translation>
+        <translation>推定オフセット: </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
         <source> ms</source>
-        <translation type="unfinished"></translation>
+        <translation> ミリ秒</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="243"/>
         <source>Segments:</source>
-        <translation type="unfinished"></translation>
+        <translation>セグメント:</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="251"/>
         <source>bpm=</source>
-        <translation type="unfinished"></translation>
+        <translation>bpm=</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="251"/>
         <source>, score=</source>
-        <translation type="unfinished"></translation>
+        <translation>, スコア=</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="253"/>
         <source>invalid</source>
-        <translation type="unfinished"></translation>
+        <translation>無効</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="257"/>
         <source>Measurement complete.</source>
-        <translation type="unfinished"></translation>
+        <translation>測定完了。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="286"/>
         <source>Write BPM</source>
-        <translation type="unfinished"></translation>
+        <translation>BPMを書き込む</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="288"/>
         <source>Write measured BPM %1 at chart start (0:0/1)?</source>
-        <translation type="unfinished"></translation>
+        <translation>測定BPM %1 をチャート開始 (0:0/1) に書き込みますか？</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="289"/>
         <source>Write measured BPM %1 at current time?</source>
-        <translation type="unfinished"></translation>
+        <translation>測定BPM %1 を現在の時刻に書き込みますか？</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="339"/>
         <source>Duration must be greater than 0.</source>
-        <translation type="unfinished"></translation>
+        <translation>時間は0より大きくなければなりません。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="346"/>
         <source>No audio file is linked to this chart.</source>
-        <translation type="unfinished"></translation>
+        <translation>このチャートにオーディオファイルがリンクされていません。</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="359"/>
         <source>Audio BPM detection failed.</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオBPM検出に失敗しました。</translation>
     </message>
 </context>
 <context>
@@ -165,104 +165,104 @@
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="24"/>
         <source>Measure BPM</source>
-        <translation type="unfinished"></translation>
+        <translation>BPMを測定</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="31"/>
         <source>Current Time:</source>
-        <translation type="unfinished"></translation>
+        <translation>現在時刻:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="32"/>
         <source>Not set</source>
-        <translation type="unfinished"></translation>
+        <translation>未設定</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="40"/>
         <source>Measure Duration (seconds):</source>
-        <translation type="unfinished"></translation>
+        <translation>測定時間 (秒):</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="52"/>
         <source>Measure Mode:</source>
-        <translation type="unfinished"></translation>
+        <translation>測定モード:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="54"/>
         <source>From Song Start</source>
-        <translation type="unfinished"></translation>
+        <translation>曲の先頭から</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="55"/>
         <source>From Current Time</source>
-        <translation type="unfinished"></translation>
+        <translation>現在の時刻から</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="64"/>
         <source>Measured BPM:</source>
-        <translation type="unfinished"></translation>
+        <translation>測定BPM:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="67"/>
         <source>Click &apos;Measure&apos; to start</source>
-        <translation type="unfinished"></translation>
+        <translation>「測定」をクリックして開始</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="71"/>
         <source>x2</source>
-        <translation type="unfinished"></translation>
+        <translation>x2</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="73"/>
         <source>x3</source>
-        <translation type="unfinished"></translation>
+        <translation>x3</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="75"/>
         <source>x4</source>
-        <translation type="unfinished"></translation>
+        <translation>x4</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="77"/>
         <source>x6</source>
-        <translation type="unfinished"></translation>
+        <translation>x6</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="79"/>
         <source>x8</source>
-        <translation type="unfinished"></translation>
+        <translation>x8</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="88"/>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="232"/>
         <source>Ready.</source>
-        <translation type="unfinished"></translation>
+        <translation>準備完了。</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="99"/>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="202"/>
         <source>No segment data yet.</source>
-        <translation type="unfinished"></translation>
+        <translation>セグメントデータがまだありません。</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="103"/>
         <source>Measure</source>
-        <translation type="unfinished"></translation>
+        <translation>測定</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="108"/>
         <source>BPM to Add:</source>
-        <translation type="unfinished"></translation>
+        <translation>追加するBPM:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="119"/>
         <source>Offset to Apply:</source>
-        <translation type="unfinished"></translation>
+        <translation>適用するオフセット:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="124"/>
         <source>Apply offset</source>
-        <translation type="unfinished"></translation>
+        <translation>オフセットを適用</translation>
     </message>
 </context>
 <context>
@@ -302,35 +302,35 @@
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="182"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="949"/>
         <source>Mirror Flip Notes</source>
-        <translation type="unfinished"></translation>
+        <translation>ノートを左右反転</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="681"/>
         <source>Plugin Curve Edit</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグインカーブ編集</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="710"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="734"/>
         <source>Plugin Action</source>
-        <translation type="unfinished">プラグインアクション</translation>
+        <translation>プラグインアクション</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="712"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="741"/>
         <source>Plugin Action: %1</source>
-        <translation type="unfinished">プラグインアクション: %1</translation>
+        <translation>プラグインアクション: %1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="717"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="746"/>
         <source>Plugin batch action completed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグインバッチアクションが完了しました: %1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="756"/>
         <source>Plugin action completed: %1</source>
-        <translation type="unfinished">プラグインアクションが完了しました: %1</translation>
+        <translation>プラグインアクションが完了しました: %1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1016"/>
@@ -356,22 +356,22 @@
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="844"/>
         <source>Set Segment Density: Follow Editor</source>
-        <translation type="unfinished"></translation>
+        <translation>セグメント密度を設定: エディタに追従</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="845"/>
         <source>Set Segment Density: 1/%1</source>
-        <translation type="unfinished"></translation>
+        <translation>セグメント密度を設定: 1/%1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="848"/>
         <source>No segment selected for density change.</source>
-        <translation type="unfinished"></translation>
+        <translation>密度変更のためにセグメントが選択されていません。</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="868"/>
         <source>Mixed</source>
-        <translation type="unfinished"></translation>
+        <translation>混合</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="926"/>
@@ -437,7 +437,7 @@
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="120"/>
         <source>Manual jerk mark recorded (F8).</source>
-        <translation type="unfinished"></translation>
+        <translation>手動のジャークマークが記録されました (F8)。</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="554"/>
@@ -475,17 +475,17 @@
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="809"/>
         <source>Curve Placement Density</source>
-        <translation>曲線配置密度</translation>
+        <translation>カーブ配置密度</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="858"/>
         <source>Curve density: follow editor</source>
-        <translation>曲線密度: エディタに追従</translation>
+        <translation>カーブ密度: エディタに追従</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="860"/>
         <source>Curve density set to 1/%1</source>
-        <translation>曲線密度を 1/%1 に設定</translation>
+        <translation>カーブ密度を 1/%1 に設定</translation>
     </message>
 </context>
 <context>
@@ -518,7 +518,7 @@
         <location filename="../../src/ui/LeftPanel.cpp" line="38"/>
         <location filename="../../src/ui/LeftPanel.cpp" line="238"/>
         <source>x</source>
-        <translation type="unfinished"></translation>
+        <translation>x</translation>
     </message>
     <message>
         <location filename="../../src/ui/LeftPanel.cpp" line="51"/>
@@ -594,7 +594,7 @@
     <message>
         <location filename="../../src/ui/dialogs/LogSettingsDialog.cpp" line="54"/>
         <source>播放卡顿探针 - 窗口化FPS与抖动追踪</source>
-        <translation type="unfinished"></translation>
+        <translation>再生ジャークプローブ - ウィンドウFPSとジッタートラッキング</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/LogSettingsDialog.cpp" line="63"/>
@@ -685,19 +685,19 @@
         <location filename="../../src/ui/LongRangeSelector.cpp" line="92"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="183"/>
         <source>Range Select</source>
-        <translation type="unfinished"></translation>
+        <translation>範囲選択</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="100"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="199"/>
         <source>Show Range</source>
-        <translation type="unfinished"></translation>
+        <translation>範囲を表示</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="107"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="188"/>
         <source>Start:</source>
-        <translation type="unfinished"></translation>
+        <translation>開始:</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="111"/>
@@ -705,19 +705,19 @@
         <location filename="../../src/ui/LongRangeSelector.cpp" line="193"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="195"/>
         <source>Now</source>
-        <translation type="unfinished"></translation>
+        <translation>現在</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="120"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="190"/>
         <source>End:</source>
-        <translation type="unfinished"></translation>
+        <translation>終了:</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="132"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="197"/>
         <source>Select</source>
-        <translation type="unfinished"></translation>
+        <translation>選択</translation>
     </message>
 </context>
 <context>
@@ -909,10 +909,6 @@
         <translation>キーボードショートカット...</translation>
     </message>
     <message>
-        <source>[Debug] Mobile UI Test Mode (Restart Required)</source>
-        <translation type="vanished">[デバッグ] モバイルUIテストモード（再起動が必要）</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="1631"/>
         <location filename="../../src/app/MainWindow.cpp" line="3525"/>
         <source>Language</source>
@@ -982,12 +978,12 @@
         <location filename="../../src/app/MainWindow.cpp" line="1384"/>
         <location filename="../../src/app/MainWindow.cpp" line="2739"/>
         <source>Audio Load Error</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオ読み込みエラー</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1467"/>
         <source>&amp;New Chart...</source>
-        <translation type="unfinished"></translation>
+        <translation>新規チャート(&amp;N)...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1625"/>
@@ -997,7 +993,7 @@
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1701"/>
         <source>&amp;Plugins</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグイン(&amp;P)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1741"/>
@@ -1076,12 +1072,12 @@
         <location filename="../../src/app/MainWindow.cpp" line="2265"/>
         <location filename="../../src/app/MainWindow.cpp" line="2737"/>
         <source>Audio file not found: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオファイルが見つかりません: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2030"/>
         <source>Audio reloaded: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオを再読み込みしました: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2094"/>
@@ -1113,49 +1109,51 @@
         <location filename="../../src/app/MainWindow.cpp" line="3463"/>
         <location filename="../../src/app/MainWindow.cpp" line="3471"/>
         <source>Plugins</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグイン</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2194"/>
         <source>Auto-saved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>自動保存しました: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2220"/>
         <source>Recover Unsaved Session</source>
-        <translation type="unfinished"></translation>
+        <translation>未保存セッションを復元</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2221"/>
         <source>Detected that the previous session may not have exited normally.
 Unsaved edits were found in a recovery working copy.
 Do you want to recover them now?</source>
-        <translation type="unfinished"></translation>
+        <translation>前回のセッションが正常に終了しなかった可能性があります。
+復元用作業コピーに未保存の編集が見つかりました。
+今すぐ復元しますか？</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2236"/>
         <source>Recovery Failed</source>
-        <translation type="unfinished"></translation>
+        <translation>復元に失敗</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2236"/>
         <source>Failed to load the recovery working copy.</source>
-        <translation type="unfinished"></translation>
+        <translation>復元用作業コピーの読み込みに失敗しました。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2275"/>
         <source>Recovered unsaved session</source>
-        <translation type="unfinished"></translation>
+        <translation>未保存セッションを復元しました</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2282"/>
         <source>Closing the application will end this editing session.</source>
-        <translation type="unfinished"></translation>
+        <translation>アプリケーションを閉じるとこの編集セッションは終了します。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2327"/>
         <source>Importing MCZ: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>MCZ をインポート中: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2338"/>
@@ -1220,55 +1218,58 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2400"/>
         <source>Creating a new chart will replace the current one in editor.</source>
-        <translation type="unfinished"></translation>
+        <translation>新しいチャートを作成すると、現在のチャートがエディタ内で置き換えられます。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2405"/>
         <source>Select Audio File</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオファイルを選択</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2406"/>
         <source>OGG Files (*.ogg);;All Files (*.*)</source>
-        <translation type="unfinished"></translation>
+        <translation>OGG ファイル (*.ogg);;すべてのファイル (*.*)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2461"/>
         <source>Failed to create directory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>ディレクトリの作成に失敗しました:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2471"/>
         <source>Failed to copy audio file to:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオファイルのコピーに失敗しました:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2493"/>
         <source>Failed to create chart file:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>チャートファイルの作成に失敗しました:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2498"/>
         <source>Measuring BPM, please wait...</source>
-        <translation type="unfinished"></translation>
+        <translation>BPMを測定中、お待ちください...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2499"/>
         <source>Auto Timing</source>
-        <translation type="unfinished"></translation>
+        <translation>自動タイミング</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2534"/>
         <source>BPM detected: %1, offset: %2 ms</source>
-        <translation type="unfinished"></translation>
+        <translation>BPM検出: %1、オフセット: %2 ms</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2541"/>
         <source>Auto-timing skipped (detection failed). Default BPM=120.</source>
-        <translation type="unfinished"></translation>
+        <translation>自動タイミングをスキップしました (検出失敗)。デフォルトBPM=120。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2560"/>
@@ -1306,7 +1307,7 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2615"/>
         <source>Opening another chart will replace the current one in editor.</source>
-        <translation type="unfinished"></translation>
+        <translation>別のチャートを開くと、現在のチャートがエディタ内で置き換えられます。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2636"/>
@@ -1371,22 +1372,22 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2796"/>
         <source>Select a chart (grouped by song):</source>
-        <translation type="unfinished"></translation>
+        <translation>チャートを選択 (曲ごとにグループ化):</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2800"/>
         <source>Song / Folder / Chart</source>
-        <translation type="unfinished"></translation>
+        <translation>曲 / フォルダ / チャート</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2828"/>
         <source>(Root)</source>
-        <translation type="unfinished"></translation>
+        <translation>(ルート)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2893"/>
         <source>Please select a chart item, not a song or folder group.</source>
-        <translation type="unfinished"></translation>
+        <translation>曲またはフォルダグループではなく、チャート項目を選択してください。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2907"/>
@@ -1436,10 +1437,6 @@ Do you want to save before continuing?</source>
         <location filename="../../src/app/MainWindow.cpp" line="2993"/>
         <source>No chart is currently open.</source>
         <translation>現在開いているチャートはありません。</translation>
-    </message>
-    <message>
-        <source>Switching difficulty will replace the current chart in editor.</source>
-        <translation type="vanished">難易度を切り替えると、エディタ内の現在のチャートが置き換えられます。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3001"/>
@@ -1590,46 +1587,6 @@ Do you want to save before continuing?</source>
         <translation>この分割は既に共通ルールに含まれています。対応するチェックボックスを使用してください。</translation>
     </message>
     <message>
-        <source>Restart Required</source>
-        <translation type="vanished">再起動が必要です</translation>
-    </message>
-    <message>
-        <source>Mobile UI test mode was %1.</source>
-        <translation type="vanished">モバイルUIテストモードが%1されました。</translation>
-    </message>
-    <message>
-        <source>enabled</source>
-        <translation type="vanished">有効</translation>
-    </message>
-    <message>
-        <source>disabled</source>
-        <translation type="vanished">無効</translation>
-    </message>
-    <message>
-        <source>This debug option applies after restart. Restart now?</source>
-        <translation type="vanished">このデバッグオプションは再起動後に適用されます。今すぐ再起動しますか？</translation>
-    </message>
-    <message>
-        <source>Restart Now</source>
-        <translation type="vanished">今すぐ再起動</translation>
-    </message>
-    <message>
-        <source>Later</source>
-        <translation type="vanished">後で</translation>
-    </message>
-    <message>
-        <source>Mobile UI test mode will apply after restart.</source>
-        <translation type="vanished">モバイルUIテストモードは再起動後に適用されます。</translation>
-    </message>
-    <message>
-        <source>Restart Failed</source>
-        <translation type="vanished">再起動に失敗しました</translation>
-    </message>
-    <message>
-        <source>Unable to restart automatically. Please relaunch manually.</source>
-        <translation type="vanished">自動再起動できません。手動で再起動してください。</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="3525"/>
         <source>Failed to load language pack: %1</source>
         <translation>言語パックの読み込みに失敗しました: %1</translation>
@@ -1753,7 +1710,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3420"/>
         <source>Audio is not ready. Please reload a valid audio file.</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオの準備ができていません。有効なオーディオファイルを再読み込みしてください。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3660"/>
@@ -1792,7 +1749,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3692"/>
         <source>Version</source>
-        <translation type="unfinished">バージョン</translation>
+        <translation>バージョン</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3706"/>
@@ -1817,7 +1774,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3751"/>
         <source>Logs are generated in the application &apos;logs&apos; directory.</source>
-        <translation type="unfinished">ログはアプリケーションの logs ディレクトリに生成されます。</translation>
+        <translation>ログはアプリケーションの logs ディレクトリに生成されます。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3757"/>
@@ -1943,7 +1900,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="588"/>
         <source>Failed to sync working copy before plugin action.</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグインアクション前に作業コピーの同期に失敗しました。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="730"/>
@@ -1969,7 +1926,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="768"/>
         <source>Plugin panels were closed after plugin reload.</source>
-        <translation type="unfinished"></translation>
+        <translation>プラグイン再読み込み後、プラグインパネルは閉じられました。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="793"/>
@@ -1989,17 +1946,17 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="806"/>
         <source>Enable Qt Noise Filter</source>
-        <translation type="unfinished"></translation>
+        <translation>Qt ノイズフィルタを有効にする</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="810"/>
         <source>Qt Categories (comma-separated):</source>
-        <translation type="unfinished"></translation>
+        <translation>Qt カテゴリ (カンマ区切り):</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="817"/>
         <source>Message Prefixes (comma-separated):</source>
-        <translation type="unfinished"></translation>
+        <translation>メッセージプレフィックス (カンマ区切り):</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="825"/>
@@ -2020,22 +1977,22 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="926"/>
         <source>Grid Beat Number</source>
-        <translation type="unfinished"></translation>
+        <translation>グリッド拍番号</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="939"/>
         <source> pt</source>
-        <translation type="unfinished"></translation>
+        <translation> pt</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="940"/>
         <source>Font size for beat numbers on the left side of the grid</source>
-        <translation type="unfinished"></translation>
+        <translation>グリッド左側の拍番号のフォントサイズ</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="974"/>
         <source>Size:</source>
-        <translation type="unfinished"></translation>
+        <translation>サイズ:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="1013"/>
@@ -2177,58 +2134,6 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>スキンの読み込みに失敗しました: %1</translation>
     </message>
     <message>
-        <source>Open</source>
-        <translation type="vanished">開く</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="obsolete">保存</translation>
-    </message>
-    <message>
-        <source>Play</source>
-        <translation type="obsolete">再生</translation>
-    </message>
-    <message>
-        <source>Editor</source>
-        <translation type="vanished">エディタ</translation>
-    </message>
-    <message>
-        <source>Hide Left</source>
-        <translation type="vanished">左を隠す</translation>
-    </message>
-    <message>
-        <source>Show Left</source>
-        <translation type="vanished">左を表示</translation>
-    </message>
-    <message>
-        <source>Hide Right</source>
-        <translation type="vanished">右を隠す</translation>
-    </message>
-    <message>
-        <source>Show Right</source>
-        <translation type="vanished">右を表示</translation>
-    </message>
-    <message>
-        <source>Functions</source>
-        <translation type="vanished">機能</translation>
-    </message>
-    <message>
-        <source>Function Hub (Debug)</source>
-        <translation type="vanished">機能ハブ（デバッグ）</translation>
-    </message>
-    <message>
-        <source>Search functions...</source>
-        <translation type="vanished">機能を検索...</translation>
-    </message>
-    <message>
-        <source>Currently unavailable</source>
-        <translation type="vanished">現在利用できません</translation>
-    </message>
-    <message>
-        <source>Run</source>
-        <translation type="vanished">実行</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="891"/>
         <source>Session Settings</source>
         <translation>セッション設定</translation>
@@ -2324,26 +2229,6 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>.mcz をエクスポート（純粋）</translation>
     </message>
     <message>
-        <source>Open Plugins Folder</source>
-        <translation type="vanished">プラグインフォルダを開く</translation>
-    </message>
-    <message>
-        <source>Reload Selected Plugin</source>
-        <translation type="vanished">選択したプラグインを再読み込み</translation>
-    </message>
-    <message>
-        <source>Reload Plugins</source>
-        <translation type="vanished">プラグインを再読み込み</translation>
-    </message>
-    <message>
-        <source>Note Placement Tools:</source>
-        <translation type="vanished">ノート配置ツール:</translation>
-    </message>
-    <message>
-        <source>Curve Plugin Options</source>
-        <translation type="vanished">カーブプラグインオプション</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="2104"/>
         <location filename="../../src/app/MainWindow.cpp" line="3473"/>
         <source>Launch Curve Tool</source>
@@ -2423,10 +2308,6 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindow.cpp" line="1620"/>
         <source>Session Settings...</source>
         <translation>セッション設定...</translation>
-    </message>
-    <message>
-        <source>Toggle Right Panel</source>
-        <translation type="vanished">右側パネルを切り替え</translation>
     </message>
 </context>
 <context>
@@ -2519,7 +2400,7 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="243"/>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="245"/>
         <source> ms</source>
-        <translation type="unfinished"></translation>
+        <translation> ミリ秒</translation>
     </message>
     <message>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="90"/>
@@ -2612,7 +2493,7 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="43"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="339"/>
         <source>Select Mode</source>
-        <translation type="unfinished"></translation>
+        <translation>選択モード</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="44"/>
@@ -2624,19 +2505,19 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="45"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="335"/>
         <source>Del</source>
-        <translation type="unfinished"></translation>
+        <translation>Del</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="47"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="336"/>
         <source>Delete selected notes once</source>
-        <translation type="unfinished"></translation>
+        <translation>選択ノートを一度削除</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="81"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="343"/>
         <source>Note Placement Tools:</source>
-        <translation type="unfinished">ノート配置ツール:</translation>
+        <translation>ノート配置ツール:</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="93"/>
@@ -2685,7 +2566,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="306"/>
         <source>Curve Plugin Options</source>
-        <translation type="unfinished">カーブプラグインオプション</translation>
+        <translation>カーブプラグインオプション</translation>
     </message>
 </context>
 <context>
@@ -2735,7 +2616,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="64"/>
         <source>Reload Selected Plugin</source>
-        <translation type="unfinished">選択したプラグインを再読み込み</translation>
+        <translation>選択したプラグインを再読み込み</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="65"/>
@@ -2879,7 +2760,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="121"/>
         <source>Plugin Action</source>
-        <translation type="unfinished">プラグインアクション</translation>
+        <translation>プラグインアクション</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="1302"/>
@@ -2889,22 +2770,22 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="141"/>
         <source>Ctrl</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="143"/>
         <source>Alt</source>
-        <translation type="unfinished"></translation>
+        <translation>Alt</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="145"/>
         <source>Shift</source>
-        <translation type="unfinished"></translation>
+        <translation>Shift</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="147"/>
         <source>Meta</source>
-        <translation type="unfinished">メタ</translation>
+        <translation>メタ</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="266"/>
@@ -2920,138 +2801,149 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindow.cpp" line="630"/>
         <source>Source directory does not exist:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>ソースディレクトリが存在しません:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="637"/>
         <source>Failed to create working directory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>作業ディレクトリの作成に失敗しました:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="675"/>
         <location filename="../../src/app/MainWindow.cpp" line="694"/>
         <location filename="../../src/app/MainWindow.cpp" line="1148"/>
         <source>Copy cancelled by user.</source>
-        <translation type="unfinished"></translation>
+        <translation>ユーザーによってコピーがキャンセルされました。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="684"/>
         <source>Failed to create working subdirectory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>作業サブディレクトリの作成に失敗しました:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="703"/>
         <source>Failed to prepare working file path:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>作業ファイルパスの準備に失敗しました:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="713"/>
         <source>Failed to copy required file:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>必要なファイルのコピーに失敗しました:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="985"/>
         <location filename="../../src/app/MainWindow.cpp" line="1041"/>
         <source>Source chart path is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation>ソースチャートのパスが空です。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="993"/>
         <location filename="../../src/app/MainWindow.cpp" line="1049"/>
         <source>Failed to create working copy directory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>作業コピーディレクトリの作成に失敗しました:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1001"/>
         <location filename="../../src/app/MainWindow.cpp" line="1057"/>
         <source>Source chart does not exist:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>ソースチャートが存在しません:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1016"/>
         <location filename="../../src/app/MainWindow.cpp" line="1084"/>
         <source>Working copy chart file is missing:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>作業コピーのチャートファイルがありません:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1093"/>
         <source>Preparing working copy...</source>
-        <translation type="unfinished"></translation>
+        <translation>作業コピーを準備中...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1094"/>
         <source>Cancel</source>
-        <translation type="unfinished">キャンセル</translation>
+        <translation>キャンセル</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1111"/>
         <source>Preparing working copy...
 %1/%2 files, %3/%4 MB</source>
-        <translation type="unfinished"></translation>
+        <translation>作業コピーを準備中...
+%1/%2 ファイル、%3/%4 MB</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1157"/>
         <source>Failed to create working copy.</source>
-        <translation type="unfinished"></translation>
+        <translation>作業コピーの作成に失敗しました。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1177"/>
         <source>Chart controller is not available.</source>
-        <translation type="unfinished"></translation>
+        <translation>チャートコントローラーが利用できません。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1195"/>
         <source>Failed to parse chart data:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>チャートデータの解析に失敗しました:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1208"/>
         <source>Loading chart data...</source>
-        <translation type="unfinished"></translation>
+        <translation>チャートデータを読み込み中...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1242"/>
         <source>Failed to parse chart data.</source>
-        <translation type="unfinished"></translation>
+        <translation>チャートデータの解析に失敗しました。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1250"/>
         <source>Failed to apply loaded chart.</source>
-        <translation type="unfinished"></translation>
+        <translation>読み込んだチャートの適用に失敗しました。</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="76"/>
         <source>Resource Conflict</source>
-        <translation type="unfinished"></translation>
+        <translation>リソース競合</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="77"/>
         <source>File &apos;%1&apos; already exists but content differs.
 Do you want to rename the imported file?</source>
-        <translation type="unfinished"></translation>
+        <translation>ファイル &apos;%1&apos; は既に存在しますが、内容が異なります。
+インポートファイルの名前を変更しますか？</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="78"/>
         <source>Default new name: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>デフォルトの新名称: %1</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="81"/>
         <source>Rename Import</source>
-        <translation type="unfinished"></translation>
+        <translation>インポートの名前を変更</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="82"/>
         <source>Use Existing</source>
-        <translation type="unfinished"></translation>
+        <translation>既存を使用</translation>
     </message>
 </context>
 <context>

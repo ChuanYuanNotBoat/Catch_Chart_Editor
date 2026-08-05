@@ -13,7 +13,7 @@
         <location filename="../../src/ui/BPMTimePanel.cpp" line="44"/>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="403"/>
         <source>e.g. 0:1/1</source>
-        <translation type="unfinished"></translation>
+        <translation>e.g. 0:1/1</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="49"/>
@@ -37,127 +37,127 @@
         <location filename="../../src/ui/BPMTimePanel.cpp" line="66"/>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="401"/>
         <source>Measure BPM...</source>
-        <translation type="unfinished"></translation>
+        <translation>Measure BPM...</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="190"/>
         <source>%1 ms</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 ms</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="193"/>
         <source>Ready to measure.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ready to measure.</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="197"/>
         <source>Measuring audio...</source>
-        <translation type="unfinished"></translation>
+        <translation>Measuring audio...</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="205"/>
         <source>Measurement failed.</source>
-        <translation type="unfinished"></translation>
+        <translation>Measurement failed.</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="206"/>
         <source>Measurement Failed</source>
-        <translation type="unfinished"></translation>
+        <translation>Measurement Failed</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="207"/>
         <source>Failed to measure BPM from audio.</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to measure BPM from audio.</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="237"/>
         <source>Mode: </source>
-        <translation type="unfinished"></translation>
+        <translation>Mode: </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="238"/>
         <source>From Song Start</source>
-        <translation type="unfinished"></translation>
+        <translation>From Song Start</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="238"/>
         <source>From Current Time</source>
-        <translation type="unfinished"></translation>
+        <translation>From Current Time</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="239"/>
         <source>Estimated BPM: </source>
-        <translation type="unfinished"></translation>
+        <translation>Estimated BPM: </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="240"/>
         <source>Uncertainty (segment stddev): </source>
-        <translation type="unfinished"></translation>
+        <translation>Uncertainty (segment stddev): </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
         <source>Estimated offset: </source>
-        <translation type="unfinished"></translation>
+        <translation>Estimated offset: </translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
         <source> ms</source>
-        <translation type="unfinished"></translation>
+        <translation> ms</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="243"/>
         <source>Segments:</source>
-        <translation type="unfinished"></translation>
+        <translation>Segments:</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="251"/>
         <source>bpm=</source>
-        <translation type="unfinished"></translation>
+        <translation>bpm=</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="251"/>
         <source>, score=</source>
-        <translation type="unfinished"></translation>
+        <translation>, score=</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="253"/>
         <source>invalid</source>
-        <translation type="unfinished"></translation>
+        <translation>invalid</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="257"/>
         <source>Measurement complete.</source>
-        <translation type="unfinished"></translation>
+        <translation>Measurement complete.</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="286"/>
         <source>Write BPM</source>
-        <translation type="unfinished"></translation>
+        <translation>Write BPM</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="288"/>
         <source>Write measured BPM %1 at chart start (0:0/1)?</source>
-        <translation type="unfinished"></translation>
+        <translation>Write measured BPM %1 at chart start (0:0/1)?</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="289"/>
         <source>Write measured BPM %1 at current time?</source>
-        <translation type="unfinished"></translation>
+        <translation>Write measured BPM %1 at current time?</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="339"/>
         <source>Duration must be greater than 0.</source>
-        <translation type="unfinished"></translation>
+        <translation>Duration must be greater than 0.</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="346"/>
         <source>No audio file is linked to this chart.</source>
-        <translation type="unfinished"></translation>
+        <translation>No audio file is linked to this chart.</translation>
     </message>
     <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="359"/>
         <source>Audio BPM detection failed.</source>
-        <translation type="unfinished"></translation>
+        <translation>Audio BPM detection failed.</translation>
     </message>
 </context>
 <context>
@@ -165,104 +165,104 @@
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="24"/>
         <source>Measure BPM</source>
-        <translation type="unfinished"></translation>
+        <translation>Measure BPM</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="31"/>
         <source>Current Time:</source>
-        <translation type="unfinished"></translation>
+        <translation>Current Time:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="32"/>
         <source>Not set</source>
-        <translation type="unfinished"></translation>
+        <translation>Not set</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="40"/>
         <source>Measure Duration (seconds):</source>
-        <translation type="unfinished"></translation>
+        <translation>Measure Duration (seconds):</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="52"/>
         <source>Measure Mode:</source>
-        <translation type="unfinished"></translation>
+        <translation>Measure Mode:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="54"/>
         <source>From Song Start</source>
-        <translation type="unfinished"></translation>
+        <translation>From Song Start</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="55"/>
         <source>From Current Time</source>
-        <translation type="unfinished"></translation>
+        <translation>From Current Time</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="64"/>
         <source>Measured BPM:</source>
-        <translation type="unfinished"></translation>
+        <translation>Measured BPM:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="67"/>
         <source>Click &apos;Measure&apos; to start</source>
-        <translation type="unfinished"></translation>
+        <translation>Click &apos;Measure&apos; to start</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="71"/>
         <source>x2</source>
-        <translation type="unfinished"></translation>
+        <translation>x2</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="73"/>
         <source>x3</source>
-        <translation type="unfinished"></translation>
+        <translation>x3</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="75"/>
         <source>x4</source>
-        <translation type="unfinished"></translation>
+        <translation>x4</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="77"/>
         <source>x6</source>
-        <translation type="unfinished"></translation>
+        <translation>x6</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="79"/>
         <source>x8</source>
-        <translation type="unfinished"></translation>
+        <translation>x8</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="88"/>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="232"/>
         <source>Ready.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ready.</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="99"/>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="202"/>
         <source>No segment data yet.</source>
-        <translation type="unfinished"></translation>
+        <translation>No segment data yet.</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="103"/>
         <source>Measure</source>
-        <translation type="unfinished"></translation>
+        <translation>Measure</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="108"/>
         <source>BPM to Add:</source>
-        <translation type="unfinished"></translation>
+        <translation>BPM to Add:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="119"/>
         <source>Offset to Apply:</source>
-        <translation type="unfinished"></translation>
+        <translation>Offset to Apply:</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="124"/>
         <source>Apply offset</source>
-        <translation type="unfinished"></translation>
+        <translation>Apply offset</translation>
     </message>
 </context>
 <context>
@@ -292,35 +292,35 @@
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="182"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="949"/>
         <source>Mirror Flip Notes</source>
-        <translation type="unfinished"></translation>
+        <translation>Mirror Flip Notes</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="681"/>
         <source>Plugin Curve Edit</source>
-        <translation type="unfinished"></translation>
+        <translation>Plugin Curve Edit</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="710"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="734"/>
         <source>Plugin Action</source>
-        <translation type="unfinished">Plugin Action</translation>
+        <translation>Plugin Action</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="712"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="741"/>
         <source>Plugin Action: %1</source>
-        <translation type="unfinished">Plugin Action: %1</translation>
+        <translation>Plugin Action: %1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="717"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="746"/>
         <source>Plugin batch action completed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Plugin batch action completed: %1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="756"/>
         <source>Plugin action completed: %1</source>
-        <translation type="unfinished">Plugin action completed: %1</translation>
+        <translation>Plugin action completed: %1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1016"/>
@@ -346,37 +346,37 @@
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="809"/>
         <source>Curve Placement Density</source>
-        <translation type="unfinished"></translation>
+        <translation>Curve Placement Density</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="844"/>
         <source>Set Segment Density: Follow Editor</source>
-        <translation type="unfinished"></translation>
+        <translation>Set Segment Density: Follow Editor</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="845"/>
         <source>Set Segment Density: 1/%1</source>
-        <translation type="unfinished"></translation>
+        <translation>Set Segment Density: 1/%1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="848"/>
         <source>No segment selected for density change.</source>
-        <translation type="unfinished"></translation>
+        <translation>No segment selected for density change.</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="858"/>
         <source>Curve density: follow editor</source>
-        <translation type="unfinished"></translation>
+        <translation>Curve density: follow editor</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="860"/>
         <source>Curve density set to 1/%1</source>
-        <translation type="unfinished"></translation>
+        <translation>Curve density set to 1/%1</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="868"/>
         <source>Mixed</source>
-        <translation type="unfinished"></translation>
+        <translation>Mixed</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="926"/>
@@ -452,7 +452,7 @@
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="120"/>
         <source>Manual jerk mark recorded (F8).</source>
-        <translation type="unfinished"></translation>
+        <translation>Manual jerk mark recorded (F8).</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="138"/>
@@ -460,7 +460,7 @@
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="806"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="914"/>
         <source>Commit Curve -&gt; Notes</source>
-        <translation type="unfinished"></translation>
+        <translation>Commit Curve -&gt; Notes</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="554"/>
@@ -518,7 +518,7 @@
         <location filename="../../src/ui/LeftPanel.cpp" line="38"/>
         <location filename="../../src/ui/LeftPanel.cpp" line="238"/>
         <source>x</source>
-        <translation type="unfinished"></translation>
+        <translation>x</translation>
     </message>
     <message>
         <location filename="../../src/ui/LeftPanel.cpp" line="51"/>
@@ -594,7 +594,7 @@
     <message>
         <location filename="../../src/ui/dialogs/LogSettingsDialog.cpp" line="54"/>
         <source>播放卡顿探针 - 窗口化FPS与抖动追踪</source>
-        <translation type="unfinished"></translation>
+        <translation>Playback Jerk Probe - Windowed FPS and jitter tracking</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/LogSettingsDialog.cpp" line="63"/>
@@ -685,19 +685,19 @@
         <location filename="../../src/ui/LongRangeSelector.cpp" line="92"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="183"/>
         <source>Range Select</source>
-        <translation type="unfinished"></translation>
+        <translation>Range Select</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="100"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="199"/>
         <source>Show Range</source>
-        <translation type="unfinished"></translation>
+        <translation>Show Range</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="107"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="188"/>
         <source>Start:</source>
-        <translation type="unfinished"></translation>
+        <translation>Start:</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="111"/>
@@ -705,19 +705,19 @@
         <location filename="../../src/ui/LongRangeSelector.cpp" line="193"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="195"/>
         <source>Now</source>
-        <translation type="unfinished"></translation>
+        <translation>Now</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="120"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="190"/>
         <source>End:</source>
-        <translation type="unfinished"></translation>
+        <translation>End:</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="132"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="197"/>
         <source>Select</source>
-        <translation type="unfinished"></translation>
+        <translation>Select</translation>
     </message>
 </context>
 <context>
@@ -909,10 +909,6 @@
         <translation>Keyboard Shortcuts...</translation>
     </message>
     <message>
-        <source>[Debug] Mobile UI Test Mode (Restart Required)</source>
-        <translation type="vanished">[Debug] Mobile UI Test Mode (Restart Required)</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="1631"/>
         <location filename="../../src/app/MainWindow.cpp" line="3525"/>
         <source>Language</source>
@@ -982,12 +978,12 @@
         <location filename="../../src/app/MainWindow.cpp" line="1384"/>
         <location filename="../../src/app/MainWindow.cpp" line="2739"/>
         <source>Audio Load Error</source>
-        <translation type="unfinished"></translation>
+        <translation>Audio Load Error</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1467"/>
         <source>&amp;New Chart...</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;New Chart...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1625"/>
@@ -997,7 +993,7 @@
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1701"/>
         <source>&amp;Plugins</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Plugins</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1741"/>
@@ -1076,12 +1072,12 @@
         <location filename="../../src/app/MainWindow.cpp" line="2265"/>
         <location filename="../../src/app/MainWindow.cpp" line="2737"/>
         <source>Audio file not found: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Audio file not found: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2030"/>
         <source>Audio reloaded: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Audio reloaded: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2094"/>
@@ -1113,55 +1109,51 @@
         <location filename="../../src/app/MainWindow.cpp" line="3463"/>
         <location filename="../../src/app/MainWindow.cpp" line="3471"/>
         <source>Plugins</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2104"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3473"/>
-        <source>Launch Curve Tool</source>
-        <translation type="unfinished"></translation>
+        <translation>Plugins</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2194"/>
         <source>Auto-saved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Auto-saved: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2220"/>
         <source>Recover Unsaved Session</source>
-        <translation type="unfinished"></translation>
+        <translation>Recover Unsaved Session</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2221"/>
         <source>Detected that the previous session may not have exited normally.
 Unsaved edits were found in a recovery working copy.
 Do you want to recover them now?</source>
-        <translation type="unfinished"></translation>
+        <translation>Detected that the previous session may not have exited normally.
+Unsaved edits were found in a recovery working copy.
+Do you want to recover them now?</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2236"/>
         <source>Recovery Failed</source>
-        <translation type="unfinished"></translation>
+        <translation>Recovery Failed</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2236"/>
         <source>Failed to load the recovery working copy.</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to load the recovery working copy.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2275"/>
         <source>Recovered unsaved session</source>
-        <translation type="unfinished"></translation>
+        <translation>Recovered unsaved session</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2282"/>
         <source>Closing the application will end this editing session.</source>
-        <translation type="unfinished"></translation>
+        <translation>Closing the application will end this editing session.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2327"/>
         <source>Importing MCZ: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Importing MCZ: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2338"/>
@@ -1226,55 +1218,58 @@ Do you want to save before continuing?</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2400"/>
         <source>Creating a new chart will replace the current one in editor.</source>
-        <translation type="unfinished"></translation>
+        <translation>Creating a new chart will replace the current one in editor.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2405"/>
         <source>Select Audio File</source>
-        <translation type="unfinished"></translation>
+        <translation>Select Audio File</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2406"/>
         <source>OGG Files (*.ogg);;All Files (*.*)</source>
-        <translation type="unfinished"></translation>
+        <translation>OGG Files (*.ogg);;All Files (*.*)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2461"/>
         <source>Failed to create directory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to create directory:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2471"/>
         <source>Failed to copy audio file to:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to copy audio file to:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2493"/>
         <source>Failed to create chart file:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to create chart file:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2498"/>
         <source>Measuring BPM, please wait...</source>
-        <translation type="unfinished"></translation>
+        <translation>Measuring BPM, please wait...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2499"/>
         <source>Auto Timing</source>
-        <translation type="unfinished"></translation>
+        <translation>Auto Timing</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2534"/>
         <source>BPM detected: %1, offset: %2 ms</source>
-        <translation type="unfinished"></translation>
+        <translation>BPM detected: %1, offset: %2 ms</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2541"/>
         <source>Auto-timing skipped (detection failed). Default BPM=120.</source>
-        <translation type="unfinished"></translation>
+        <translation>Auto-timing skipped (detection failed). Default BPM=120.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2560"/>
@@ -1312,7 +1307,7 @@ Do you want to save before continuing?</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2615"/>
         <source>Opening another chart will replace the current one in editor.</source>
-        <translation type="unfinished"></translation>
+        <translation>Opening another chart will replace the current one in editor.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2636"/>
@@ -1377,22 +1372,22 @@ Do you want to save before continuing?</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2796"/>
         <source>Select a chart (grouped by song):</source>
-        <translation type="unfinished"></translation>
+        <translation>Select a chart (grouped by song):</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2800"/>
         <source>Song / Folder / Chart</source>
-        <translation type="unfinished"></translation>
+        <translation>Song / Folder / Chart</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2828"/>
         <source>(Root)</source>
-        <translation type="unfinished"></translation>
+        <translation>(Root)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2893"/>
         <source>Please select a chart item, not a song or folder group.</source>
-        <translation type="unfinished"></translation>
+        <translation>Please select a chart item, not a song or folder group.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2907"/>
@@ -1442,10 +1437,6 @@ Do you want to save before continuing?</translation>
         <location filename="../../src/app/MainWindow.cpp" line="2993"/>
         <source>No chart is currently open.</source>
         <translation>No chart is currently open.</translation>
-    </message>
-    <message>
-        <source>Switching difficulty will replace the current chart in editor.</source>
-        <translation type="vanished">Switching difficulty will replace the current chart in editor.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3001"/>
@@ -1596,46 +1587,6 @@ Do you want to save before continuing?</translation>
         <translation>This division is already in common rules. Please use its checkbox.</translation>
     </message>
     <message>
-        <source>Restart Required</source>
-        <translation type="vanished">Restart Required</translation>
-    </message>
-    <message>
-        <source>Mobile UI test mode was %1.</source>
-        <translation type="vanished">Mobile UI test mode was %1.</translation>
-    </message>
-    <message>
-        <source>enabled</source>
-        <translation type="vanished">enabled</translation>
-    </message>
-    <message>
-        <source>disabled</source>
-        <translation type="vanished">disabled</translation>
-    </message>
-    <message>
-        <source>This debug option applies after restart. Restart now?</source>
-        <translation type="vanished">This debug option applies after restart. Restart now?</translation>
-    </message>
-    <message>
-        <source>Restart Now</source>
-        <translation type="vanished">Restart Now</translation>
-    </message>
-    <message>
-        <source>Later</source>
-        <translation type="vanished">Later</translation>
-    </message>
-    <message>
-        <source>Mobile UI test mode will apply after restart.</source>
-        <translation type="vanished">Mobile UI test mode will apply after restart.</translation>
-    </message>
-    <message>
-        <source>Restart Failed</source>
-        <translation type="vanished">Restart Failed</translation>
-    </message>
-    <message>
-        <source>Unable to restart automatically. Please relaunch manually.</source>
-        <translation type="vanished">Unable to restart automatically. Please relaunch manually.</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="3525"/>
         <source>Failed to load language pack: %1</source>
         <translation>Failed to load language pack: %1</translation>
@@ -1759,7 +1710,7 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3420"/>
         <source>Audio is not ready. Please reload a valid audio file.</source>
-        <translation type="unfinished"></translation>
+        <translation>Audio is not ready. Please reload a valid audio file.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3660"/>
@@ -1798,7 +1749,7 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3692"/>
         <source>Version</source>
-        <translation type="unfinished">Version</translation>
+        <translation>Version</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3706"/>
@@ -1823,7 +1774,7 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3751"/>
         <source>Logs are generated in the application &apos;logs&apos; directory.</source>
-        <translation type="unfinished">Logs are generated in the application &apos;logs&apos; directory.</translation>
+        <translation>Logs are generated in the application &apos;logs&apos; directory.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3757"/>
@@ -1949,22 +1900,22 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="486"/>
         <source>No plugin supports canvas interaction.</source>
-        <translation type="unfinished"></translation>
+        <translation>No plugin supports canvas interaction.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="510"/>
         <source>Plugin enhanced tool mode ON</source>
-        <translation type="unfinished"></translation>
+        <translation>Plugin enhanced tool mode ON</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="511"/>
         <source>Plugin enhanced tool mode OFF</source>
-        <translation type="unfinished"></translation>
+        <translation>Plugin enhanced tool mode OFF</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="588"/>
         <source>Failed to sync working copy before plugin action.</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to sync working copy before plugin action.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="730"/>
@@ -1990,7 +1941,7 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="768"/>
         <source>Plugin panels were closed after plugin reload.</source>
-        <translation type="unfinished"></translation>
+        <translation>Plugin panels were closed after plugin reload.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="793"/>
@@ -2010,17 +1961,17 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="806"/>
         <source>Enable Qt Noise Filter</source>
-        <translation type="unfinished"></translation>
+        <translation>Enable Qt Noise Filter</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="810"/>
         <source>Qt Categories (comma-separated):</source>
-        <translation type="unfinished"></translation>
+        <translation>Qt Categories (comma-separated):</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="817"/>
         <source>Message Prefixes (comma-separated):</source>
-        <translation type="unfinished"></translation>
+        <translation>Message Prefixes (comma-separated):</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="825"/>
@@ -2041,22 +1992,22 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="926"/>
         <source>Grid Beat Number</source>
-        <translation type="unfinished"></translation>
+        <translation>Grid Beat Number</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="939"/>
         <source> pt</source>
-        <translation type="unfinished"></translation>
+        <translation> pt</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="940"/>
         <source>Font size for beat numbers on the left side of the grid</source>
-        <translation type="unfinished"></translation>
+        <translation>Font size for beat numbers on the left side of the grid</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="974"/>
         <source>Size:</source>
-        <translation type="unfinished"></translation>
+        <translation>Size:</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="1013"/>
@@ -2198,62 +2149,6 @@ Open the **History** tab for collapsible long update notes.</translation>
         <translation>Failed to load skin: %1</translation>
     </message>
     <message>
-        <source>Open</source>
-        <translation type="vanished">Open</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Save</translation>
-    </message>
-    <message>
-        <source>Play</source>
-        <translation type="vanished">Play</translation>
-    </message>
-    <message>
-        <source>Editor</source>
-        <translation type="vanished">Editor</translation>
-    </message>
-    <message>
-        <source>Hide Left</source>
-        <translation type="vanished">Hide Left</translation>
-    </message>
-    <message>
-        <source>Show Left</source>
-        <translation type="vanished">Show Left</translation>
-    </message>
-    <message>
-        <source>Hide Right</source>
-        <translation type="vanished">Hide Right</translation>
-    </message>
-    <message>
-        <source>Show Right</source>
-        <translation type="vanished">Show Right</translation>
-    </message>
-    <message>
-        <source>Functions</source>
-        <translation type="vanished">Functions</translation>
-    </message>
-    <message>
-        <source>Function Hub (Debug)</source>
-        <translation type="vanished">Function Hub (Debug)</translation>
-    </message>
-    <message>
-        <source>This is a debug-only function list. Double-click an item to run it.</source>
-        <translation type="vanished">This is a debug-only function list. Double-click an item to run it.</translation>
-    </message>
-    <message>
-        <source>Search functions...</source>
-        <translation type="vanished">Search functions...</translation>
-    </message>
-    <message>
-        <source>Currently unavailable</source>
-        <translation type="vanished">Currently unavailable</translation>
-    </message>
-    <message>
-        <source>Run</source>
-        <translation type="vanished">Run</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="891"/>
         <source>Session Settings</source>
         <translation>Session Settings</translation>
@@ -2349,24 +2244,10 @@ Open the **History** tab for collapsible long update notes.</translation>
         <translation>Export .mcz (Pure)</translation>
     </message>
     <message>
-        <source>Open Plugins Folder</source>
-        <translation type="vanished">Open Plugins Folder</translation>
-    </message>
-    <message>
-        <source>Reload Selected Plugin</source>
-        <translation type="vanished">Reload Selected Plugin</translation>
-    </message>
-    <message>
-        <source>Reload Plugins</source>
-        <translation type="vanished">Reload Plugins</translation>
-    </message>
-    <message>
-        <source>Note Placement Tools:</source>
-        <translation type="vanished">Note Placement Tools:</translation>
-    </message>
-    <message>
-        <source>Curve Plugin Options</source>
-        <translation type="vanished">Curve Plugin Options</translation>
+        <location filename="../../src/app/MainWindow.cpp" line="2104"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3473"/>
+        <source>Launch Curve Tool</source>
+        <translation>Launch Curve Tool</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1651"/>
@@ -2427,10 +2308,6 @@ Open the **History** tab for collapsible long update notes.</translation>
         <location filename="../../src/app/MainWindow.cpp" line="1620"/>
         <source>Session Settings...</source>
         <translation>Session Settings...</translation>
-    </message>
-    <message>
-        <source>Toggle Right Panel</source>
-        <translation type="vanished">Toggle Right Panel</translation>
     </message>
 </context>
 <context>
@@ -2523,7 +2400,7 @@ Open the **History** tab for collapsible long update notes.</translation>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="243"/>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="245"/>
         <source> ms</source>
-        <translation type="unfinished"></translation>
+        <translation> ms</translation>
     </message>
     <message>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="90"/>
@@ -2598,19 +2475,19 @@ Open the **History** tab for collapsible long update notes.</translation>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="45"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="335"/>
         <source>Del</source>
-        <translation type="unfinished"></translation>
+        <translation>Del</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="47"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="336"/>
         <source>Delete selected notes once</source>
-        <translation type="unfinished"></translation>
+        <translation>Delete selected notes once</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="81"/>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="343"/>
         <source>Note Placement Tools:</source>
-        <translation type="unfinished">Note Placement Tools:</translation>
+        <translation>Note Placement Tools:</translation>
     </message>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="93"/>
@@ -2689,7 +2566,7 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="306"/>
         <source>Curve Plugin Options</source>
-        <translation type="unfinished">Curve Plugin Options</translation>
+        <translation>Curve Plugin Options</translation>
     </message>
 </context>
 <context>
@@ -2739,7 +2616,7 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="64"/>
         <source>Reload Selected Plugin</source>
-        <translation type="unfinished">Reload Selected Plugin</translation>
+        <translation>Reload Selected Plugin</translation>
     </message>
     <message>
         <location filename="../../src/ui/dialogs/PluginManagerDialog.cpp" line="65"/>
@@ -2883,7 +2760,7 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="121"/>
         <source>Plugin Action</source>
-        <translation type="unfinished">Plugin Action</translation>
+        <translation>Plugin Action</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="1302"/>
@@ -2893,22 +2770,22 @@ Open the **History** tab for collapsible long update notes.</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="141"/>
         <source>Ctrl</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="143"/>
         <source>Alt</source>
-        <translation type="unfinished"></translation>
+        <translation>Alt</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="145"/>
         <source>Shift</source>
-        <translation type="unfinished"></translation>
+        <translation>Shift</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="147"/>
         <source>Meta</source>
-        <translation type="unfinished">Meta</translation>
+        <translation>Meta</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="266"/>
@@ -2924,138 +2801,149 @@ Open the **History** tab for collapsible long update notes.</translation>
         <location filename="../../src/app/MainWindow.cpp" line="630"/>
         <source>Source directory does not exist:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Source directory does not exist:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="637"/>
         <source>Failed to create working directory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to create working directory:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="675"/>
         <location filename="../../src/app/MainWindow.cpp" line="694"/>
         <location filename="../../src/app/MainWindow.cpp" line="1148"/>
         <source>Copy cancelled by user.</source>
-        <translation type="unfinished"></translation>
+        <translation>Copy cancelled by user.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="684"/>
         <source>Failed to create working subdirectory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to create working subdirectory:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="703"/>
         <source>Failed to prepare working file path:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to prepare working file path:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="713"/>
         <source>Failed to copy required file:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to copy required file:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="985"/>
         <location filename="../../src/app/MainWindow.cpp" line="1041"/>
         <source>Source chart path is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation>Source chart path is empty.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="993"/>
         <location filename="../../src/app/MainWindow.cpp" line="1049"/>
         <source>Failed to create working copy directory:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to create working copy directory:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1001"/>
         <location filename="../../src/app/MainWindow.cpp" line="1057"/>
         <source>Source chart does not exist:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Source chart does not exist:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1016"/>
         <location filename="../../src/app/MainWindow.cpp" line="1084"/>
         <source>Working copy chart file is missing:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Working copy chart file is missing:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1093"/>
         <source>Preparing working copy...</source>
-        <translation type="unfinished"></translation>
+        <translation>Preparing working copy...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1094"/>
         <source>Cancel</source>
-        <translation type="unfinished">Cancel</translation>
+        <translation>Cancel</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1111"/>
         <source>Preparing working copy...
 %1/%2 files, %3/%4 MB</source>
-        <translation type="unfinished"></translation>
+        <translation>Preparing working copy...
+%1/%2 files, %3/%4 MB</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1157"/>
         <source>Failed to create working copy.</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to create working copy.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1177"/>
         <source>Chart controller is not available.</source>
-        <translation type="unfinished"></translation>
+        <translation>Chart controller is not available.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1195"/>
         <source>Failed to parse chart data:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to parse chart data:
+%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1208"/>
         <source>Loading chart data...</source>
-        <translation type="unfinished"></translation>
+        <translation>Loading chart data...</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1242"/>
         <source>Failed to parse chart data.</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to parse chart data.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1250"/>
         <source>Failed to apply loaded chart.</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to apply loaded chart.</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="76"/>
         <source>Resource Conflict</source>
-        <translation type="unfinished"></translation>
+        <translation>Resource Conflict</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="77"/>
         <source>File &apos;%1&apos; already exists but content differs.
 Do you want to rename the imported file?</source>
-        <translation type="unfinished"></translation>
+        <translation>File &apos;%1&apos; already exists but content differs.
+Do you want to rename the imported file?</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="78"/>
         <source>Default new name: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Default new name: %1</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="81"/>
         <source>Rename Import</source>
-        <translation type="unfinished"></translation>
+        <translation>Rename Import</translation>
     </message>
     <message>
         <location filename="../../src/file/ChartIO.cpp" line="82"/>
         <source>Use Existing</source>
-        <translation type="unfinished"></translation>
+        <translation>Use Existing</translation>
     </message>
 </context>
 <context>
