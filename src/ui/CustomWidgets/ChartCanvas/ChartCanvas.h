@@ -105,6 +105,11 @@ public:
     int chartCanvasXToLaneX(double canvasX) const { return canvasXToLaneX(canvasX); }
     double chartLaneXToCanvasX(int laneX) const { return laneXToCanvasX(laneX); }
 
+    // Range overlay control (from LongRangeSelector)
+    void setRangeOverlay(double startBeat, double endBeat);
+    void clearRangeOverlay();
+    void setRangeOverlayVisible(bool visible);
+
 public slots:
     void showGridSettings();
     void playbackPositionChanged(double timeMs);
@@ -116,6 +121,9 @@ signals:
     void timeScaleChanged(double scale);
     void mirrorAxisChanged(int axisX);
     void statusMessage(const QString &msg); // Status bar message hook.
+    void rangeStartChanged(double beat);
+    void rangeEndChanged(double beat);
+    void rangeDragFinished(double startBeat, double endBeat);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -172,6 +180,10 @@ private:
     int hitTestNote(const QPointF &pos) const;
     QRectF getRainNoteRect(const Note &note) const;
     void updateBackgroundCache();
+    int hitTestRangeHandle(const QPointF &pos) const;
+    double snapBeatToTimeDivision(double beat) const;
+    void drawRangeOverlay(QPainter &painter, int lmargin, int rmargin, int canvasHeight);
+    void drawRangeSelectionHighlight(QPainter &painter, int lmargin, int availableWidth, int canvasHeight);
 
     void beginMoveSelection(const QPointF &startPos, int referenceIndex = -1);
     void updateMoveSelection(const QPointF &currentPos);
@@ -195,6 +207,8 @@ private:
     bool handleMoveSelectionRelease();
     bool handlePasteDragRelease();
     bool handleMirrorGuideRelease();
+    bool handleRangeHandleRelease();
+
     bool handleGenericDragRelease();
     int clampMirrorAxisX(int axisX) const;
     int canvasXToLaneX(double canvasX) const;
@@ -315,6 +329,16 @@ private:
     QVector<double> m_pasteOriginalTimesMs;
     double m_pasteBaseOriginalTimeMs;
     QPointF m_pasteOffset;
+
+    // Range overlay state
+    bool m_rangeOverlayVisible = true;
+    double m_rangeStartBeat = -1;
+    double m_rangeEndBeat = -1;
+    bool m_rangeOverlayValid = false;
+
+    // Range handle dragging
+    bool m_isDraggingRangeStart = false;
+    bool m_isDraggingRangeEnd = false;
 
     bool m_isMovingSelection;
     QPointF m_moveStartPos;

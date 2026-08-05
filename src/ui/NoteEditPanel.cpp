@@ -1,4 +1,4 @@
-#include "NoteEditPanel.h"
+﻿#include "NoteEditPanel.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
 #include "ui/LongRangeSelector.h"
@@ -146,8 +146,15 @@ void NoteEditPanel::setupUi()
     connect(m_mirrorPreviewCheck, &QCheckBox::toggled, this, &NoteEditPanel::mirrorPreviewVisibilityChanged);
     connect(m_mirrorFlipButton, &QPushButton::clicked, this, &NoteEditPanel::mirrorFlipRequested);
 
+    // 转发 LongRangeSelector 信号
+    connect(m_longRangeSelector, &LongRangeSelector::rangeChanged,
+            this, &NoteEditPanel::rangeChanged);
+    connect(m_longRangeSelector, &LongRangeSelector::rangeVisibilityChanged,
+            this, &NoteEditPanel::rangeVisibilityChanged);
+
     mainLayout->addStretch();
 }
+
 
 void NoteEditPanel::setMode(int mode)
 {

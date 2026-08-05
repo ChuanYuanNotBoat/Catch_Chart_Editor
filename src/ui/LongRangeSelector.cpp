@@ -1,4 +1,4 @@
-#include "LongRangeSelector.h"
+﻿#include "LongRangeSelector.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
@@ -80,6 +80,11 @@ LongRangeSelector::LongRangeSelector(QWidget *parent)
     m_undoMergeTimer->setSingleShot(true);
     m_undoMergeTimer->setInterval(500);
     connect(m_undoMergeTimer, &QTimer::timeout, this, &LongRangeSelector::onUndoMergeTimeout);
+
+    m_rangeChangeDebounceTimer = new QTimer(this);
+    m_rangeChangeDebounceTimer->setSingleShot(true);
+    m_rangeChangeDebounceTimer->setInterval(50);
+    connect(m_rangeChangeDebounceTimer, &QTimer::timeout, this, &LongRangeSelector::onRangeChangeDebounce);
 }
 
 void LongRangeSelector::setupUi()
@@ -90,6 +95,12 @@ void LongRangeSelector::setupUi()
     outerLayout->addWidget(group);
 
     QVBoxLayout *layout = new QVBoxLayout(group);
+
+    // Show Range 复选框
+    m_showOverlayCheck = new QCheckBox(tr("Show Range"), group);
+    m_showOverlayCheck->setChecked(true);
+    connect(m_showOverlayCheck, &QCheckBox::toggled, this, &LongRangeSelector::onShowOverlayToggled);
+    layout->addWidget(m_showOverlayCheck);
 
     // 起始 beat 行
     QHBoxLayout *startRow = new QHBoxLayout;
@@ -129,6 +140,12 @@ void LongRangeSelector::setupUi()
     connect(m_selectBtn, &QPushButton::clicked, this, &LongRangeSelector::onSelectClicked);
 
     // 安装事件过滤器以捕获滚轮事件
+
+    // 失焦/回车时触发自动交换
+    connect(m_startEdit, &QLineEdit::editingFinished, this, &LongRangeSelector::autoSwapIfNeeded);
+    connect(m_endEdit, &QLineEdit::editingFinished, this, &LongRangeSelector::autoSwapIfNeeded);
+
+
     m_startEdit->installEventFilter(this);
     m_endEdit->installEventFilter(this);
 
@@ -164,11 +181,10 @@ void LongRangeSelector::retranslateUi()
     // 通过查找子控件重新设置文本
     if (auto *g = findChild<QGroupBox *>())
         g->setTitle(tr("Range Select"));
-    // 遍历 label 重新设置
     const auto labels = findChildren<QLabel *>();
     for (auto *l : labels)
     {
-        if (l->text().startsWith("Start") || l->text().startsWith("Start") || l->text() == "Start:")
+        if (l->text().startsWith("Start") || l->text() == "Start:")
             l->setText(tr("Start:"));
         else if (l->text().startsWith("End") || l->text() == "End:")
             l->setText(tr("End:"));
@@ -179,6 +195,74 @@ void LongRangeSelector::retranslateUi()
         m_endNowBtn->setText(tr("Now"));
     if (m_selectBtn)
         m_selectBtn->setText(tr("Select"));
+    if (m_showOverlayCheck)
+        m_showOverlayCheck->setText(tr("Show Range"));
+}
+
+// --- 范围覆盖层控制 ---
+
+void LongRangeSelector::setRangeVisible(bool visible)
+{
+    if (m_rangeVisible == visible)
+        return;
+    m_rangeVisible = visible;
+    if (m_showOverlayCheck)
+    {
+        m_showOverlayCheck->blockSignals(true);
+        m_showOverlayCheck->setChecked(visible);
+        m_showOverlayCheck->blockSignals(false);
+    }
+    emit rangeVisibilityChanged(visible);
+}
+
+double LongRangeSelector::currentStartBeat() const
+{
+    auto parsed = parseBeat(m_startEdit->text());
+    if (parsed.has_value() && isValidBeat(*parsed))
+        return beatToDouble(*parsed);
+    return 0;
+}
+
+double LongRangeSelector::currentEndBeat() const
+{
+    auto parsed = parseBeat(m_endEdit->text());
+    if (parsed.has_value() && isValidBeat(*parsed))
+        return beatToDouble(*parsed);
+    return 0;
+}
+
+bool LongRangeSelector::hasValidRange() const
+{
+    auto startParsed = parseBeat(m_startEdit->text());
+    auto endParsed = parseBeat(m_endEdit->text());
+    return startParsed.has_value() && isValidBeat(*startParsed)
+        && endParsed.has_value() && isValidBeat(*endParsed);
+}
+
+void LongRangeSelector::setStartBeat(double beat)
+{
+    double snapped = std::floor(beat * m_timeDivision) / m_timeDivision;
+    int beatNum = static_cast<int>(snapped);
+
+    int num = static_cast<int>(std::round((snapped - beatNum) * m_timeDivision));
+    if (num < 0) { num += m_timeDivision; beatNum -= 1; }
+    if (num >= m_timeDivision) { num -= m_timeDivision; beatNum += 1; }
+
+    saveUndoState(m_startEdit);
+    m_startEdit->setText(formatBeat(beatNum, num, m_timeDivision));
+}
+
+void LongRangeSelector::setEndBeat(double beat)
+{
+    double snapped = std::floor(beat * m_timeDivision) / m_timeDivision;
+    int beatNum = static_cast<int>(snapped);
+
+    int num = static_cast<int>(std::round((snapped - beatNum) * m_timeDivision));
+    if (num < 0) { num += m_timeDivision; beatNum -= 1; }
+    if (num >= m_timeDivision) { num -= m_timeDivision; beatNum += 1; }
+
+    saveUndoState(m_endEdit);
+    m_endEdit->setText(formatBeat(beatNum, num, m_timeDivision));
 }
 
 // --- 验证 ---
@@ -187,12 +271,14 @@ void LongRangeSelector::onStartTextChanged(const QString &text)
 {
     Q_UNUSED(text);
     updateValidationState();
+    m_rangeChangeDebounceTimer->start();
 }
 
 void LongRangeSelector::onEndTextChanged(const QString &text)
 {
     Q_UNUSED(text);
     updateValidationState();
+    m_rangeChangeDebounceTimer->start();
 }
 
 void LongRangeSelector::updateValidationState()
@@ -210,6 +296,42 @@ void LongRangeSelector::updateValidationState()
     m_endEdit->setStyleSheet(endValid ? validStyle : invalidStyle);
 
     m_selectBtn->setEnabled(startValid && endValid);
+}
+
+void LongRangeSelector::onRangeChangeDebounce()
+{
+    notifyCanvasRangeIfValid();
+}
+
+void LongRangeSelector::notifyCanvasRangeIfValid()
+{
+    if (!hasValidRange())
+        return;
+
+    double start = currentStartBeat();
+    double end = currentEndBeat();
+
+    if (qFuzzyCompare(start, m_lastEmittedStartBeat) && qFuzzyCompare(end, m_lastEmittedEndBeat))
+        return;
+
+    m_lastEmittedStartBeat = start;
+    m_lastEmittedEndBeat = end;
+
+    // 确保 start ≤ end
+    if (start > end)
+        std::swap(start, end);
+
+    emit rangeChanged(start, end);
+}
+
+// --- 显示/隐藏复选框 ---
+
+void LongRangeSelector::onShowOverlayToggled(bool checked)
+{
+    m_rangeVisible = checked;
+    emit rangeVisibilityChanged(checked);
+    if (checked)
+        notifyCanvasRangeIfValid();
 }
 
 // --- 自动交换 ---
@@ -273,11 +395,8 @@ void LongRangeSelector::fillCurrentTime(QLineEdit *edit)
     double floatBeat = beatToDouble(outBeatNum, outNumerator, outDenominator);
     double snapped = std::floor(floatBeat * m_timeDivision) / m_timeDivision;
 
-    // 转换回分数形式
-    int snappedBeatNum, snappedNumerator, snappedDenominator;
-    MathUtils::floatToBeat(snapped, snappedBeatNum, snappedNumerator, snappedDenominator, m_timeDivision);
-
-    // 强制使用当前分度作为分母
+    // 直接取整得到分子分母，强制使用当前分度
+    int snappedBeatNum = static_cast<int>(snapped);
     int num = static_cast<int>(std::round((snapped - snappedBeatNum) * m_timeDivision));
     if (num < 0)
     {

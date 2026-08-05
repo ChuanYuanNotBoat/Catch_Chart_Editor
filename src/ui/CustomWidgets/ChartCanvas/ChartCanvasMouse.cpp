@@ -1119,6 +1119,28 @@ void ChartCanvas::mousePressEvent(QMouseEvent *event)
     }
 
 
+    // Range handle drag detection
+    if (m_rangeOverlayValid && m_rangeOverlayVisible && event->button() == Qt::LeftButton)
+    {
+        int handle = hitTestRangeHandle(event->position());
+        if (handle == 1)
+        {
+            m_isDraggingRangeStart = true;
+            setCursor(Qt::SizeVerCursor);
+            event->accept();
+            return;
+        }
+        if (handle == 2)
+        {
+            m_isDraggingRangeEnd = true;
+            setCursor(Qt::SizeVerCursor);
+            event->accept();
+            return;
+        }
+    }
+
+
+
     PluginInterface::CanvasInputEvent pluginEvent;
     pluginEvent.type = "mouse_down";
     pluginEvent.x = event->position().x();
@@ -1165,6 +1187,40 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
         }
     }
 
+    // Range handle drag (before throttle to ensure responsive dragging)
+    if (m_isDraggingRangeStart || m_isDraggingRangeEnd)
+    {
+        double rawBeat = yToBeat(event->position().y());
+        double snapped = snapBeatToTimeDivision(rawBeat);
+
+        if (m_isDraggingRangeStart)
+        {
+            if (snapped <= m_rangeEndBeat)
+            {
+                if (!qFuzzyCompare(m_rangeStartBeat, snapped))
+                {
+                    m_rangeStartBeat = snapped;
+                    emit rangeStartChanged(snapped);
+                    update();
+                }
+            }
+        }
+        else if (m_isDraggingRangeEnd)
+        {
+            if (snapped >= m_rangeStartBeat)
+            {
+                if (!qFuzzyCompare(m_rangeEndBeat, snapped))
+                {
+                    m_rangeEndBeat = snapped;
+                    emit rangeEndChanged(snapped);
+                    update();
+                }
+            }
+        }
+        event->accept();
+        return;
+    }
+
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     if (nowMs - m_lastPluginMouseMoveDispatchMs < kPluginMouseMoveMinIntervalMs)
         return;
@@ -1177,6 +1233,7 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
     pluginEvent.button = static_cast<int>(Qt::NoButton);
     pluginEvent.buttons = static_cast<int>(event->buttons());
     fillPluginEventModifiers(&pluginEvent, event->modifiers());
+
     pluginEvent.timestampMs = nowMs;
     bool consumed = false;
     if (dispatchPluginCanvasInput(pluginEvent, &consumed) && consumed)
@@ -1240,6 +1297,22 @@ bool ChartCanvas::handlePasteDragRelease()
     return true;
 }
 
+
+bool ChartCanvas::handleRangeHandleRelease()
+{
+    if (!m_isDraggingRangeStart && !m_isDraggingRangeEnd)
+        return false;
+
+    double startBeat = m_rangeStartBeat;
+    double endBeat = m_rangeEndBeat;
+    m_isDraggingRangeStart = false;
+    m_isDraggingRangeEnd = false;
+    setCursor(Qt::ArrowCursor);
+    emit rangeDragFinished(startBeat, endBeat);
+    return true;
+}
+
+
 bool ChartCanvas::handleMirrorGuideRelease()
 {
     if (!m_isDraggingMirrorGuide)
@@ -1286,6 +1359,9 @@ void ChartCanvas::mouseReleaseEvent(QMouseEvent *event)
         event->accept();
         return;
     }
+
+    if (handleRangeHandleRelease())
+        return;
 
     if (handleMirrorGuideRelease())
         return;

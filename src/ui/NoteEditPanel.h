@@ -50,6 +50,9 @@ public:
     void setModeFromHost(int mode);
     int currentMode() const { return m_currentMode; }
 
+
+    LongRangeSelector *longRangeSelector() const { return m_longRangeSelector; }
+
 signals:
     void modeChanged(int mode);
     void timeDivisionChanged(int division);
@@ -60,6 +63,9 @@ signals:
     void mirrorAxisChanged(int axisX);
     void mirrorGuideVisibilityChanged(bool visible);
     void mirrorPreviewVisibilityChanged(bool visible);
+    void rangeChanged(double startBeat, double endBeat);
+    void rangeVisibilityChanged(bool visible);
+
     void mirrorFlipRequested();
     void pluginPlacementActionTriggered(const QString &pluginId, const QString &actionId);
 

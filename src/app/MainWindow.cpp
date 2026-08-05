@@ -8,6 +8,8 @@
 #include "ui/DensityCurve.h"
 #include "ui/NoteEditPanel.h"
 #include "ui/BPMTimePanel.h"
+#include "ui/LongRangeSelector.h"
+
 #include "ui/MetaEditPanel.h"
 #include "ui/LeftPanel.h"
 #include "ui/dialogs/LogSettingsDialog.h"
@@ -2064,6 +2066,21 @@ void MainWindow::createCentralArea()
     connect(d->notePanel, &NoteEditPanel::mirrorFlipRequested, d->canvas, &ChartCanvas::flipSelectedNotes);
     connect(d->notePanel, &NoteEditPanel::pluginPlacementActionTriggered, this, &MainWindow::triggerPluginQuickAction);
     connect(d->canvas, &ChartCanvas::mirrorAxisChanged, d->notePanel, &NoteEditPanel::setMirrorAxisValue);
+
+
+    // Connect LongRangeSelector range overlay signals to ChartCanvas.
+    connect(d->notePanel, &NoteEditPanel::rangeChanged,
+            d->canvas, &ChartCanvas::setRangeOverlay);
+    connect(d->notePanel, &NoteEditPanel::rangeVisibilityChanged,
+            d->canvas, &ChartCanvas::setRangeOverlayVisible);
+
+    // Feedback from canvas range drag back to LongRangeSelector input boxes.
+    connect(d->canvas, &ChartCanvas::rangeDragFinished,
+            d->notePanel->longRangeSelector(), [this](double startBeat, double endBeat)
+            {
+                d->notePanel->longRangeSelector()->setStartBeat(startBeat);
+                d->notePanel->longRangeSelector()->setEndBeat(endBeat);
+            });
 
     d->splitter = new QSplitter(Qt::Horizontal, this);
     d->splitter->addWidget(d->leftPanel);

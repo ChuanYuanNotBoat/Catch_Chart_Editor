@@ -224,6 +224,13 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     if (m_mirrorGuideVisible)
         drawMirrorGuide(painter, canvasHeight, lmargin, availableWidth);
 
+    // 范围选择覆盖层
+    if (m_rangeOverlayValid && m_rangeOverlayVisible)
+    {
+        drawRangeSelectionHighlight(painter, lmargin, availableWidth, canvasHeight);
+        drawRangeOverlay(painter, lmargin, rmargin, canvasHeight);
+    }
+
     double baselineY = canvasHeight * kReferenceLineRatio;
     painter.setPen(QPen(QColor(0, 0, 255), 3));
     painter.drawLine(lmargin, baselineY, canvasWidth - rmargin, baselineY);
@@ -838,3 +845,163 @@ int ChartCanvas::hitTestNote(const QPointF &pos) const
 
 
 
+// --- 范围选择覆盖层 ---
+
+void ChartCanvas::setRangeOverlay(double startBeat, double endBeat)
+{
+    m_rangeStartBeat = startBeat;
+    m_rangeEndBeat = endBeat;
+    m_rangeOverlayValid = true;
+    update();
+}
+
+void ChartCanvas::clearRangeOverlay()
+{
+    m_rangeOverlayValid = false;
+    update();
+}
+
+void ChartCanvas::setRangeOverlayVisible(bool visible)
+{
+    m_rangeOverlayVisible = visible;
+    update();
+}
+
+double ChartCanvas::snapBeatToTimeDivision(double beat) const
+{
+    if (m_timeDivision <= 0) return beat;
+    return std::round(beat * m_timeDivision) / m_timeDivision;
+}
+
+int ChartCanvas::hitTestRangeHandle(const QPointF &pos) const
+{
+    if (!m_rangeOverlayValid || !m_rangeOverlayVisible)
+        return 0;
+
+    double startY = beatToY(m_rangeStartBeat);
+    double endY = beatToY(m_rangeEndBeat);
+
+    constexpr double kHandleHitRadius = 12.0;
+    int lmargin = const_cast<ChartCanvas *>(this)->leftMargin();
+
+    if (std::abs(pos.y() - startY) <= kHandleHitRadius && pos.x() >= lmargin - 4 && pos.x() <= lmargin + 28)
+        return 1;
+
+    if (std::abs(pos.y() - endY) <= kHandleHitRadius && pos.x() >= lmargin - 4 && pos.x() <= lmargin + 28)
+        return 2;
+
+    return 0;
+}
+
+void ChartCanvas::drawRangeOverlay(QPainter &painter, int lmargin, int rmargin, int canvasHeight)
+{
+    Q_UNUSED(rmargin);
+    Q_UNUSED(canvasHeight);
+
+    if (!m_rangeOverlayValid)
+        return;
+
+    double startY = beatToY(m_rangeStartBeat);
+    double endY = beatToY(m_rangeEndBeat);
+
+    QColor lineColor(68, 136, 170, 204);
+    QPen linePen(lineColor, 4);
+    linePen.setCapStyle(Qt::RoundCap);
+    painter.setPen(linePen);
+
+    int canvasWidth = width();
+    int drawnWidth = canvasWidth - lmargin - rmargin;
+
+    painter.drawLine(lmargin, static_cast<int>(startY), lmargin + drawnWidth, static_cast<int>(startY));
+    painter.drawLine(lmargin, static_cast<int>(endY), lmargin + drawnWidth, static_cast<int>(endY));
+
+    painter.setBrush(lineColor);
+    painter.setPen(Qt::NoPen);
+
+    constexpr double kHandleWidth = 20.0;
+    constexpr double kHandleHalfHeight = 6.0;
+    QRectF startHandle(lmargin, startY - kHandleHalfHeight, kHandleWidth, kHandleHalfHeight * 2);
+    QRectF endHandle(lmargin, endY - kHandleHalfHeight, kHandleWidth, kHandleHalfHeight * 2);
+    painter.drawRect(startHandle);
+    painter.drawRect(endHandle);
+}
+
+void ChartCanvas::drawRangeSelectionHighlight(QPainter &painter, int lmargin, int availableWidth, int canvasHeight)
+{
+    if (!chart() || !m_selectionController)
+        return;
+
+    double visibleStart = m_scrollBeat;
+    double visibleEnd = visibleStart + effectiveVisibleBeatRange();
+
+    QSet<int> selectedSet = m_selectionController->selectedIndices();
+    const QVector<Note> &notes = chart()->notes();
+
+    QColor highlightColor(68, 136, 170, 153);
+
+    painter.save();
+    double invVisibleRange = 1.0 / effectiveVisibleBeatRange();
+    double baseY = m_verticalFlip ? canvasHeight : 0;
+    double sign = m_verticalFlip ? -1.0 : 1.0;
+
+    for (int i = 0; i < notes.size(); ++i)
+    {
+        const Note &note = notes[i];
+        if (note.type == NoteType::SOUND)
+            continue;
+        if (selectedSet.contains(i))
+            continue;
+
+        double noteStart = note.getStartBeat();
+
+        bool inRange = false;
+        if (note.isRain)
+        {
+            double noteEnd = note.getEndBeat();
+            inRange = (noteStart >= m_rangeStartBeat && noteEnd <= m_rangeEndBeat);
+        }
+        else
+        {
+            inRange = (noteStart >= m_rangeStartBeat && noteStart <= m_rangeEndBeat);
+        }
+
+        if (!inRange)
+            continue;
+
+        if (note.isRain)
+        {
+            double noteEnd = note.getEndBeat();
+            if (noteEnd <= visibleStart || noteStart >= visibleEnd)
+                continue;
+        }
+        else
+        {
+            if (noteStart < visibleStart - 0.5 || noteStart > visibleEnd + 0.5)
+                continue;
+        }
+
+        double y = baseY + sign * ((noteStart - m_scrollBeat) * invVisibleRange * canvasHeight);
+
+        if (note.isRain)
+        {
+            double noteEnd = note.getEndBeat();
+            double visEnd = qMin(noteEnd, visibleEnd);
+            double yEnd = baseY + sign * ((visEnd - m_scrollBeat) * invVisibleRange * canvasHeight);
+            double rectTop = qMin(y, yEnd);
+            double rectHeight = qAbs(yEnd - y);
+            if (rectHeight <= 0)
+                continue;
+            QRectF rainRect(lmargin, rectTop, availableWidth, rectHeight);
+            painter.fillRect(rainRect, highlightColor);
+        }
+        else
+        {
+            double x = lmargin + (note.x / 512.0) * availableWidth;
+            int noteSize = m_noteRenderer ? m_noteRenderer->getNoteSize() : 24;
+            QRectF noteRect(x - noteSize / 2.0, y - noteSize / 2.0, noteSize, noteSize);
+            painter.fillRect(noteRect, highlightColor);
+        }
+    }
+
+    painter.restore();
+}

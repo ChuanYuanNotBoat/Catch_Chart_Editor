@@ -33,6 +33,7 @@ if(BUILD_TESTING)
         src/utils/Logger.cpp
         src/utils/PerformanceTimer.cpp
         src/utils/DiagnosticCollector.cpp
+        src/utils/CalcHash.cpp
         src/controller/ChartController.cpp
         src/file/ChartIO.cpp
         src/file/ProjectIO.cpp
