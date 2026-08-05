@@ -366,14 +366,14 @@ void BPMTimePanel::setChartController(ChartController *controller)
 {
     if (m_chartController)
     {
-        disconnect(m_chartController, &ChartController::chartChanged, this, &BPMTimePanel::refreshBpmList);
+        disconnect(m_chartController, &ChartController::bpmListChanged, this, &BPMTimePanel::refreshBpmList);
     }
 
     m_chartController = controller;
     if (!m_chartController)
         return;
 
-    connect(m_chartController, &ChartController::chartChanged, this, &BPMTimePanel::refreshBpmList, Qt::UniqueConnection);
+    connect(m_chartController, &ChartController::bpmListChanged, this, &BPMTimePanel::refreshBpmList, Qt::UniqueConnection);
     refreshBpmList();
 }
 

@@ -399,6 +399,8 @@ private:
 
     QPixmap m_backgroundCache;
     bool m_backgroundCacheDirty;
+    QString m_lastKnownBackgroundFile; // Track bg file to avoid useless background regen on note edits
+
 
     QElapsedTimer m_fpsTimer;
     QElapsedTimer m_playbackVisualClock;

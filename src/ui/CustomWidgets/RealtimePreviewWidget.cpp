@@ -58,7 +58,7 @@ void RealtimePreviewWidget::setChartController(ChartController *controller)
     invalidateHyperCache();
     if (m_chartController)
     {
-        connect(m_chartController, &ChartController::chartChanged, this, [this]() {
+        connect(m_chartController, &ChartController::notesChanged, this, [this]() {
             invalidateNoteCache();
             invalidateHyperCache();
             scheduleUpdate();

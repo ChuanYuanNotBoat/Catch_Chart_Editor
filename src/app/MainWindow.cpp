@@ -1322,6 +1322,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
             {
         d->isModified = true;
         d->canvas->update();
+        persistRecoveryState();
         if (d->undoAction)
             d->undoAction->setEnabled(true);
         if (d->redoAction)
@@ -1362,8 +1363,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
                     d->canvas->refreshBackground();
             }
         }
-
-        persistRecoveryState(); });
+    });
     connect(d->chartController, &ChartController::errorOccurred, this, [this](const QString &msg)
             {
         statusBar()->showMessage(msg, 3000);

@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QTemporaryDir>
 #include <QtGlobal>
+#include <QSignalSpy>
 #include <algorithm>
 #include <cstdio>
 
@@ -1478,6 +1479,315 @@ namespace
         return !controller.saveChart(invalidPath);
     }
 
+
+    // ---- ChartController signal tests ----
+
+    bool testChartControllerSignalAddNoteEmitsNotesChangedAndChartChanged()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+
+        controller.addNote(makeNormalNote(1, 0, 1, 64, "sig-add"));
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 1 &&
+               bpmSpy.count() == 0 &&
+               metaSpy.count() == 0;
+    }
+
+
+    bool testChartControllerSignalRemoveNoteEmitsNotesChangedAndChartChanged()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        const Note note = makeNormalNote(1, 0, 1, 64, "sig-remove");
+        seed.addNote(note);
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+
+        controller.removeNote(note);
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 1 &&
+               bpmSpy.count() == 0 &&
+               metaSpy.count() == 0;
+    }
+
+    bool testChartControllerSignalMoveNoteEmitsNotesChangedAndChartChanged()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        const Note original = makeNormalNote(1, 0, 1, 64, "sig-move");
+        seed.addNote(original);
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+
+        Note moved = original;
+        moved.beatNum = 2;
+        controller.moveNote(original, moved);
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 1 &&
+               bpmSpy.count() == 0 &&
+               metaSpy.count() == 0;
+    }
+
+
+    bool testChartControllerSignalAddBpmEmitsBpmListChangedAndChartChanged()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.bpmList().clear();
+        seed.addBpm(BpmEntry(0, 0, 1, 120.0));
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+
+        controller.addBpm(BpmEntry(4, 0, 1, 180.0));
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 0 &&
+               bpmSpy.count() == 1 &&
+               metaSpy.count() == 0;
+    }
+
+    bool testChartControllerSignalRemoveBpmEmitsBpmListChangedAndChartChanged()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.bpmList().clear();
+        seed.addBpm(BpmEntry(0, 0, 1, 120.0));
+        seed.addBpm(BpmEntry(4, 0, 1, 150.0));
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+
+        controller.removeBpm(1);
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 0 &&
+               bpmSpy.count() == 1 &&
+               metaSpy.count() == 0;
+    }
+
+    bool testChartControllerSignalUpdateBpmEmitsBpmListChangedAndChartChanged()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.bpmList().clear();
+        seed.addBpm(BpmEntry(0, 0, 1, 120.0));
+        seed.addBpm(BpmEntry(4, 0, 1, 150.0));
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+
+        controller.updateBpm(1, BpmEntry(4, 0, 1, 200.0));
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 0 &&
+               bpmSpy.count() == 1 &&
+               metaSpy.count() == 0;
+    }
+
+
+    bool testChartControllerSignalSetMetaEmitsMetaChangedAndChartChanged()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+
+        MetaData meta;
+        meta.title = "Signal Test";
+        meta.artist = "Test Artist";
+        controller.setMetaData(meta);
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 0 &&
+               bpmSpy.count() == 0 &&
+               metaSpy.count() == 1;
+    }
+
+    bool testChartControllerSignalLoadChartFromDataEmitsAllSignals()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        seed.addNote(makeNormalNote(1, 0, 1, 64, "load-test"));
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+        QSignalSpy loadedSpy(&controller, &ChartController::chartLoaded);
+
+        controller.loadChartFromData("test.mc", seed);
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 1 &&
+               bpmSpy.count() == 1 &&
+               metaSpy.count() == 1 &&
+               loadedSpy.count() == 1;
+    }
+
+    bool testChartControllerSignalUndoRedoEmitsCorrectSignals()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        seed.addNote(makeNormalNote(1, 0, 1, 64, "undo-test"));
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        controller.addNote(makeNormalNote(2, 0, 1, 128, "added"));
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+
+        controller.undo();
+        if (chartSpy.count() != 1 || notesSpy.count() != 1 ||
+            bpmSpy.count() != 0 || metaSpy.count() != 0)
+            return false;
+
+        chartSpy.clear();
+        notesSpy.clear();
+
+        controller.redo();
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 1 &&
+               bpmSpy.count() == 0 &&
+               metaSpy.count() == 0;
+    }
+
+
+    bool testChartControllerSignalExternalMutationEmitsAllSubdividedSignals()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        seed.addNote(makeNormalNote(1, 0, 1, 64, "ext-test"));
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        Chart mutated = seed;
+        mutated.addNote(makeNormalNote(3, 0, 1, 256, "ext-add"));
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+        QSignalSpy metaSpy(&controller, &ChartController::metaDataChanged);
+
+        controller.applyExternalChartMutation("external test", mutated);
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 1 &&
+               bpmSpy.count() == 1 &&
+               metaSpy.count() == 1;
+    }
+
+    bool testChartControllerSignalAddNotesEmitsOnce()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+
+        Note noteA = makeNormalNote(1, 0, 1, 64, "batch-a");
+        Note noteB = makeNormalNote(2, 0, 1, 128, "batch-b");
+        controller.addNotes(QVector<Note>{noteA, noteB});
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 1;
+    }
+
+    bool testChartControllerSignalRemoveNotesEmitsOnce()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        Note noteA = makeNormalNote(1, 0, 1, 64, "batch-a");
+        Note noteB = makeNormalNote(2, 0, 1, 128, "batch-b");
+        seed.addNote(noteA);
+        seed.addNote(noteB);
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+
+        controller.removeNotes(QVector<Note>{noteA, noteB});
+
+        return chartSpy.count() == 1 &&
+               notesSpy.count() == 1;
+    }
+
+    bool testChartControllerSignalNoOpDoesNotEmit()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        seed.addNote(makeNormalNote(1, 0, 1, 64, "noop-test"));
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        QSignalSpy chartSpy(&controller, &ChartController::chartChanged);
+        QSignalSpy notesSpy(&controller, &ChartController::notesChanged);
+        QSignalSpy bpmSpy(&controller, &ChartController::bpmListChanged);
+
+        // Empty batch commands should NOT emit any signals.
+        controller.addNotes(QVector<Note>{});
+        controller.removeNotes(QVector<Note>{});
+        controller.moveNotes(QList<QPair<Note, Note>>{});
+
+        return chartSpy.count() == 0 &&
+               notesSpy.count() == 0 &&
+               bpmSpy.count() == 0;
+    }
+
     bool testNoteIsXValidForSoundIgnoresRange()
     {
         Note sound(1, 0, 1, "hit.wav", 50, 0);
@@ -1902,6 +2212,19 @@ int main(int argc, char **argv)
         {"ChartController loadChartFromData sets path", &testChartControllerLoadChartFromDataSetsPath},
         {"ChartController loadChart missing file keeps state", &testChartControllerLoadChartMissingFileKeepsState},
         {"ChartController saveChart invalid path fails", &testChartControllerSaveChartInvalidPathFails},
+        {"ChartController signal addNote emits notesChanged+chartChanged", &testChartControllerSignalAddNoteEmitsNotesChangedAndChartChanged},
+        {"ChartController signal removeNote emits notesChanged+chartChanged", &testChartControllerSignalRemoveNoteEmitsNotesChangedAndChartChanged},
+        {"ChartController signal moveNote emits notesChanged+chartChanged", &testChartControllerSignalMoveNoteEmitsNotesChangedAndChartChanged},
+        {"ChartController signal addBpm emits bpmListChanged+chartChanged", &testChartControllerSignalAddBpmEmitsBpmListChangedAndChartChanged},
+        {"ChartController signal removeBpm emits bpmListChanged+chartChanged", &testChartControllerSignalRemoveBpmEmitsBpmListChangedAndChartChanged},
+        {"ChartController signal updateBpm emits bpmListChanged+chartChanged", &testChartControllerSignalUpdateBpmEmitsBpmListChangedAndChartChanged},
+        {"ChartController signal setMeta emits metaDataChanged+chartChanged", &testChartControllerSignalSetMetaEmitsMetaChangedAndChartChanged},
+        {"ChartController signal loadChartFromData emits all 5 signals", &testChartControllerSignalLoadChartFromDataEmitsAllSignals},
+        {"ChartController signal undo+redo emits correct signals", &testChartControllerSignalUndoRedoEmitsCorrectSignals},
+        {"ChartController signal externalMutation emits all subdivided signals", &testChartControllerSignalExternalMutationEmitsAllSubdividedSignals},
+        {"ChartController signal addNotes batch emits once", &testChartControllerSignalAddNotesEmitsOnce},
+        {"ChartController signal removeNotes batch emits once", &testChartControllerSignalRemoveNotesEmitsOnce},
+        {"ChartController signal no-op does not emit", &testChartControllerSignalNoOpDoesNotEmit},
         {"ChartController invalid BPM index no-op", &testChartControllerInvalidBpmIndexNoOp},
         {"Chart remove by content when id missing", &testChartRemoveByContentWhenIdMissing},
         {"Chart sort notes keeps sound after normal on same beat", &testChartSortNotesSoundAfterNormalAtSameBeat},

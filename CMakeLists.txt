@@ -7,7 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Multimedia LinguistTools)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Multimedia LinguistTools Test)
 
 if(COMMAND qt_standard_project_setup)
     qt_standard_project_setup()
@@ -41,7 +41,7 @@ if(BUILD_TESTING)
     )
 
     target_include_directories(CatchChartEditorTests PRIVATE src)
-    target_link_libraries(CatchChartEditorTests Qt6::Core Qt6::Gui Qt6::Widgets)
+    target_link_libraries(CatchChartEditorTests Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test)
 
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
     if(WIN32)

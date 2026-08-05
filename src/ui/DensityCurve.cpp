@@ -33,13 +33,16 @@ void DensityCurve::setChartController(ChartController *controller)
 {
     if (m_chartController)
     {
-        disconnect(m_chartController, &ChartController::chartChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::notesChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::bpmListChanged, this, nullptr);
         disconnect(m_chartController, &ChartController::chartLoaded, this, nullptr);
     }
     m_chartController = controller;
     m_chart = (m_chartController ? m_chartController->chart() : nullptr);
     if (m_chartController)
     {
+        connect(m_chartController, &ChartController::notesChanged, this, &DensityCurve::refreshFromChart, Qt::UniqueConnection);
+        connect(m_chartController, &ChartController::bpmListChanged, this, &DensityCurve::refreshFromChart, Qt::UniqueConnection);
         connect(m_chartController, &ChartController::chartChanged, this, &DensityCurve::refreshFromChart, Qt::UniqueConnection);
         connect(m_chartController, &ChartController::chartLoaded, this, &DensityCurve::refreshFromChart, Qt::UniqueConnection);
     }

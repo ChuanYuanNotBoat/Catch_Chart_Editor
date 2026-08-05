@@ -1,4 +1,4 @@
-// src/controller/ChartController.h
+﻿// src/controller/ChartController.h
 #pragma once
 
 #include <QObject>
@@ -60,8 +60,10 @@ public:
 signals:
     void chartChanged(); // 任何数据变化
     void chartLoaded();  // 加载新谱面
+    void notesChanged();   // 音符增删改
+    void bpmListChanged(); // BPM 列表变化
+    void metaDataChanged(); // 元数据变化
     void errorOccurred(const QString &msg);
-
 private:
     class ChartCommand;
     class AddNoteCommand;

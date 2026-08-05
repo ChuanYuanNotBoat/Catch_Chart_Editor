@@ -396,16 +396,52 @@ void ChartCanvas::setChartController(ChartController *controller)
     if (m_chartController)
     {
         disconnect(m_chartController, &ChartController::chartChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::notesChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::metaDataChanged, this, nullptr);
     }
     m_chartController = controller;
     if (controller)
     {
         connect(controller, &ChartController::chartChanged, this, [this]()
                 {
-            invalidateChartCaches(true);
+            // Only dirty background cache when the background file path actually changed.
+            // Note/BPM edits should not trigger expensive background regeneration.
+            bool bgChanged = false;
+            if (m_chartController && m_chartController->chart()) {
+                const QString &currentBg = m_chartController->chart()->meta().backgroundFile;
+                if (currentBg != m_lastKnownBackgroundFile) {
+                    bgChanged = true;
+                    m_lastKnownBackgroundFile = currentBg;
+                }
+            }
+            invalidateChartCaches(bgChanged);
             update(); });
+        // Note changes: invalidate caches but skip background check (handled separately via metaDataChanged)
+        connect(controller, &ChartController::notesChanged, this, [this]() {
+            invalidateChartCaches(false);
+            update();
+        });
+
+        // Meta changes: check for background file changes only
+        connect(controller, &ChartController::metaDataChanged, this, [this]() {
+            bool bgChanged = false;
+            if (m_chartController && m_chartController->chart()) {
+                const QString &currentBg = m_chartController->chart()->meta().backgroundFile;
+                if (currentBg != m_lastKnownBackgroundFile) {
+                    bgChanged = true;
+                    m_lastKnownBackgroundFile = currentBg;
+                }
+            }
+            if (bgChanged)
+                invalidateChartCaches(true);
+            update();
+        });
         m_hyperfruitDetector->setCS(3.2);
         m_noteRenderer->setHyperfruitDetector(m_hyperfruitDetector);
+
+        // Initialize background file tracking so note edits don't trigger unnecessary bg regen
+        if (controller->chart())
+            m_lastKnownBackgroundFile = controller->chart()->meta().backgroundFile;
     }
     invalidateChartCaches(true);
     update();

@@ -1,4 +1,4 @@
-#include "ChartController.h"
+﻿#include "ChartController.h"
 #include "file/ChartIO.h"
 #include "utils/Logger.h"
 #include "utils/PerformanceTimer.h"
@@ -247,11 +247,13 @@ public:
     {
         m_controller->m_chart.removeNote(m_note);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.addNote(m_note);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
 
 private:
@@ -269,12 +271,14 @@ public:
         for (const Note &note : m_notes)
             m_controller->m_chart.removeNote(note);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
     void redo() override
     {
         for (const Note &note : m_notes)
             m_controller->m_chart.addNote(note);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
 
 private:
@@ -290,11 +294,13 @@ public:
     {
         m_controller->m_chart.addNote(m_note);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.removeNote(m_note);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
 
 private:
@@ -312,12 +318,14 @@ public:
         for (const Note &note : m_notes)
             m_controller->m_chart.addNote(note);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
     void redo() override
     {
         for (const Note &note : m_notes)
             m_controller->m_chart.removeNote(note);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
 
 private:
@@ -335,12 +343,14 @@ public:
         m_controller->m_chart.removeNote(m_new);
         m_controller->m_chart.addNote(m_original);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.removeNote(m_original);
         m_controller->m_chart.addNote(m_new);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
 
 private:
@@ -360,6 +370,7 @@ public:
         for (const auto &change : m_changes)
             m_controller->m_chart.addNote(change.first);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
     void redo() override
     {
@@ -368,6 +379,7 @@ public:
         for (const auto &change : m_changes)
             m_controller->m_chart.addNote(change.second);
         m_controller->chartChanged();
+        m_controller->notesChanged();
     }
 
 private:
@@ -383,11 +395,13 @@ public:
     {
         removeBpmByValue(m_controller->m_chart, m_bpm, m_controller->m_chart.bpmList().size() - 1);
         m_controller->chartChanged();
+        m_controller->bpmListChanged();
     }
     void redo() override
     {
         m_controller->m_chart.addBpm(m_bpm);
         m_controller->chartChanged();
+        m_controller->bpmListChanged();
     }
 
 private:
@@ -404,11 +418,13 @@ public:
     {
         m_controller->m_chart.addBpm(m_bpm);
         m_controller->chartChanged();
+        m_controller->bpmListChanged();
     }
     void redo() override
     {
         removeBpmByValue(m_controller->m_chart, m_bpm, m_index);
         m_controller->chartChanged();
+        m_controller->bpmListChanged();
     }
 
 private:
@@ -426,11 +442,13 @@ public:
     {
         replaceBpmByValue(m_controller->m_chart, m_new, m_old, m_index);
         m_controller->chartChanged();
+        m_controller->bpmListChanged();
     }
     void redo() override
     {
         replaceBpmByValue(m_controller->m_chart, m_old, m_new, m_index);
         m_controller->chartChanged();
+        m_controller->bpmListChanged();
     }
 
 private:
@@ -448,11 +466,13 @@ public:
     {
         m_controller->m_chart.meta() = m_old;
         m_controller->chartChanged();
+        m_controller->metaDataChanged();
     }
     void redo() override
     {
         m_controller->m_chart.meta() = m_new;
         m_controller->chartChanged();
+        m_controller->metaDataChanged();
     }
 
 private:
@@ -480,6 +500,9 @@ public:
         if (!m_chartPath.isEmpty())
             ChartIO::save(m_chartPath, m_controller->m_chart);
         m_controller->chartChanged();
+        m_controller->notesChanged();
+        m_controller->bpmListChanged();
+        m_controller->metaDataChanged();
     }
 
     void redo() override
@@ -488,6 +511,9 @@ public:
         if (!m_chartPath.isEmpty())
             ChartIO::save(m_chartPath, m_controller->m_chart);
         m_controller->chartChanged();
+        m_controller->notesChanged();
+        m_controller->bpmListChanged();
+        m_controller->metaDataChanged();
     }
 
 private:
@@ -692,6 +718,9 @@ bool ChartController::loadChartFromData(const QString &path, Chart loadedChart)
         Logger::debug("ChartController::loadChartFromData: Undo stack cleared");
 
         emit chartChanged();
+        emit notesChanged();
+        emit bpmListChanged();
+        emit metaDataChanged();
         emit chartLoaded();
         Logger::info("ChartController::loadChartFromData: Signals emitted");
 
