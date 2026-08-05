@@ -36,6 +36,11 @@
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <QLineEdit>
+#include <QTextEdit>
+#include <QPlainTextEdit>
+#include <QComboBox>
+
 
 namespace
 {
@@ -140,7 +145,9 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_overlayQueryScheduled(false),
       m_overlayQueryInCanvasInput(false),
       m_lastPluginMouseMoveDispatchMs(0),
-      m_overlayQueryIntervalMsIdle(0)
+      m_overlayQueryIntervalMsIdle(0),
+      m_selectionAnchorIndex(-1),
+      m_selectionExtentIndex(-1)
 {
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
@@ -164,6 +171,10 @@ ChartCanvas::ChartCanvas(QWidget *parent)
     m_pluginOverlayToggles.insert("sample_points", true);
     m_pluginOverlayToggles.insert("labels", true);
 
+
+    // Install application-wide event filter to redirect arrow keys from GUI widgets to canvas
+    QCoreApplication::instance()->installEventFilter(this);
+
     connect(m_overlayQueryTimer, &QTimer::timeout, this, &ChartCanvas::onOverlayQueryTimerFire);
 }
 
@@ -174,6 +185,43 @@ ChartCanvas::~ChartCanvas()
     delete m_hyperfruitDetector;
     delete m_backgroundRenderer;
 }
+
+bool ChartCanvas::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::KeyPress)
+    {
+        QKeyEvent *ke = static_cast<QKeyEvent *>(event);
+        const int key = ke->key();
+        if ((key == Qt::Key_Left || key == Qt::Key_Right ||
+             key == Qt::Key_Up   || key == Qt::Key_Down) &&
+            !ke->isAutoRepeat())
+        {
+            // Only redirect when focus is on a non-input GUI widget
+            // (buttons, radio buttons, etc.) that shouldn't consume arrow keys.
+            QWidget *focusWidget = QApplication::focusWidget();
+            if (focusWidget && focusWidget != this && !isAncestorOf(focusWidget))
+            {
+                // Don't steal arrow keys when a popup is active (e.g. combo box dropdown)
+                if (QApplication::activePopupWidget())
+                    return QWidget::eventFilter(watched, event);
+
+                // Don't steal arrow keys from text input widgets that need them
+                if (!qobject_cast<QLineEdit *>(focusWidget) &&
+                    !qobject_cast<QTextEdit *>(focusWidget) &&
+                    !qobject_cast<QPlainTextEdit *>(focusWidget) &&
+                    !qobject_cast<QAbstractSpinBox *>(focusWidget) &&
+                    !qobject_cast<QComboBox *>(focusWidget))
+                {
+                    setFocus();
+                    keyPressEvent(ke);
+                    return true;
+                }
+            }
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
 
 const Chart *ChartCanvas::chart() const
 {

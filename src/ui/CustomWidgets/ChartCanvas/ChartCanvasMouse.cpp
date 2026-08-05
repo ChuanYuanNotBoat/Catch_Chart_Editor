@@ -1109,6 +1109,8 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
 
 void ChartCanvas::mousePressEvent(QMouseEvent *event)
 {
+    setFocus();
+
     // NoteChain native: dispatch before plugin
     if (m_noteChainModeActive && m_noteChainEditor) {
         bool shift = event->modifiers().testFlag(Qt::ShiftModifier);

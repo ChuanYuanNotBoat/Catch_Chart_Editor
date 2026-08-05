@@ -136,6 +136,8 @@ protected:
     void timerEvent(QTimerEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 
 private:
     static constexpr int kLaneWidth = 512;
@@ -257,6 +259,10 @@ private:
 
     void startIntervalSelection();
     void completeIntervalSelection();
+
+    // Auto-scroll helper for arrow-key note navigation
+    void autoScrollToNote(const Note &note);
+
     void cancelIntervalSelection();
 
     // Paste preview drag state
@@ -314,6 +320,9 @@ private:
     bool m_isSelecting;
     QPointF m_selectionStart;
     QPointF m_selectionEnd;
+    int m_selectionAnchorIndex = -1; // Range selection anchor (text-editor style shift+arrow)
+    int m_selectionExtentIndex = -1; // Moveable end of the range selection
+
     bool m_isDragging;
     QPointF m_dragStart;
     QSet<int> m_draggedNotes;

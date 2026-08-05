@@ -13,6 +13,8 @@
 #include <QCoreApplication>
 #include <algorithm>
 #include <cmath>
+#include <limits>
+
 
 namespace
 {
@@ -240,6 +242,175 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
             m_selectionController->clearSelection();
         }
     }
+
+    // ---- Arrow key navigation ----
+
+    // ↑ / ↓ : scroll by one time division (snapped)
+    // Shift + ↑ / ↓ : scroll by one beat (snapped)
+    if (event->key() == Qt::Key_Up || event->key() == Qt::Key_Down)
+    {
+        const bool shiftHeld = event->modifiers().testFlag(Qt::ShiftModifier);
+        double step = shiftHeld ? 1.0 : (m_timeDivision > 0 ? 1.0 / m_timeDivision : 1.0);
+
+        if (event->key() == Qt::Key_Down)
+            step = -step;
+
+        double newScrollBeat = m_scrollBeat + step;
+        newScrollBeat = snapBeatToTimeDivision(newScrollBeat);
+        if (newScrollBeat < 0.0)
+            newScrollBeat = 0.0;
+
+        if (qAbs(newScrollBeat - m_scrollBeat) >= 1e-6)
+        {
+            if (m_playbackController
+                && m_playbackController->state() == PlaybackController::Playing)
+            {
+                m_playbackController->pause();
+            }
+
+            m_scrollBeat = newScrollBeat;
+            m_autoScrollEnabled = false;
+            update();
+            emit scrollPositionChanged(m_scrollBeat);
+            syncCurrentPlayTimeToReferenceLine();
+        }
+        event->accept();
+        return;
+    }
+
+    // ← / → : select previous / next note (single select)
+    // Shift + ← / → : range selection (text-editor style, anchor + movable extent)
+    if (event->key() == Qt::Key_Left || event->key() == Qt::Key_Right)
+    {
+        if (!m_selectionController || !chart())
+        {
+            event->accept();
+            return;
+        }
+
+        const auto &notes = chart()->notes();
+        if (notes.isEmpty())
+        {
+            event->accept();
+            return;
+        }
+
+        const bool shiftHeld = event->modifiers().testFlag(Qt::ShiftModifier);
+        const QSet<int> currentSelection = m_selectionController->selectedIndices();
+
+        if (currentSelection.isEmpty())
+        {
+            // Nothing selected yet: find the note closest to the reference line beat.
+            const double baselineRatio = kReferenceLineRatio;
+            const double refBeat = m_verticalFlip
+                ? m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange()
+                : m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
+
+            int closestIndex = -1;
+            double closestDist = std::numeric_limits<double>::max();
+            int closestX = kLaneWidth + 1;
+
+            for (int i = 0; i < notes.size(); ++i)
+            {
+                const double noteBeat = MathUtils::beatToFloat(
+                    notes[i].beatNum, notes[i].numerator, notes[i].denominator);
+                const double dist = qAbs(noteBeat - refBeat);
+
+                if (dist < closestDist - 1e-9
+                    || (qAbs(dist - closestDist) < 1e-9 && notes[i].x < closestX))
+                {
+                    closestDist = dist;
+                    closestIndex = i;
+                    closestX = notes[i].x;
+                }
+            }
+
+            if (closestIndex >= 0)
+            {
+                m_selectionController->select(closestIndex);
+                m_selectionAnchorIndex = closestIndex;
+                m_selectionExtentIndex = closestIndex;
+                autoScrollToNote(notes[closestIndex]);
+            }
+            event->accept();
+            return;
+        }
+
+        // --- Existing selection ---
+        if (!shiftHeld)
+        {
+            // No shift: single-select next / previous note, reset anchor & extent
+            QList<int> sorted = currentSelection.values();
+            std::sort(sorted.begin(), sorted.end());
+            const int minSel = sorted.first();
+            const int maxSel = sorted.last();
+
+            int targetIndex = -1;
+            if (event->key() == Qt::Key_Right)
+            {
+                if (maxSel + 1 < notes.size())
+                    targetIndex = maxSel + 1;
+            }
+            else // Qt::Key_Left
+            {
+                if (minSel - 1 >= 0)
+                    targetIndex = minSel - 1;
+            }
+
+            if (targetIndex >= 0 && targetIndex < notes.size())
+            {
+                m_selectionController->select(targetIndex);
+                m_selectionAnchorIndex = targetIndex;
+                m_selectionExtentIndex = targetIndex;
+                autoScrollToNote(notes[targetIndex]);
+            }
+        }
+        else
+        {
+            // Shift held: text-editor style range selection
+            // Anchor stays fixed, extent moves with the arrow.
+            if (m_selectionExtentIndex < 0 ||
+                m_selectionAnchorIndex < 0 ||
+                m_selectionExtentIndex >= notes.size())
+            {
+                // Stale state – reset to current selection bounds
+                QList<int> sorted = currentSelection.values();
+                std::sort(sorted.begin(), sorted.end());
+                m_selectionAnchorIndex = sorted.first();
+                m_selectionExtentIndex = sorted.last();
+            }
+
+            const int delta = (event->key() == Qt::Key_Right) ? 1 : -1;
+            const int newExtent = m_selectionExtentIndex + delta;
+
+            if (newExtent >= 0 && newExtent < notes.size())
+            {
+                m_selectionExtentIndex = newExtent;
+
+                // Compute the range [low, high] from anchor to extent (inclusive)
+                const int low = qMin(m_selectionAnchorIndex, m_selectionExtentIndex);
+                const int high = qMax(m_selectionAnchorIndex, m_selectionExtentIndex);
+
+                QSet<int> newSelection;
+                for (int i = low; i <= high; ++i)
+                    newSelection.insert(i);
+
+                m_selectionController->select(newSelection);
+                autoScrollToNote(notes[newExtent]);
+
+                // Play note sound for the newly added end
+                if (m_noteSoundPlayer && m_noteSoundPlayer->isEnabled())
+                {
+                    m_noteSoundPlayer->playHitSound();
+                }
+            }
+            // else: already at edge, no-op
+        }
+
+        event->accept();
+        return;
+    }
+
     QWidget::keyPressEvent(event);
 }
 
@@ -258,6 +429,35 @@ void ChartCanvas::keyReleaseEvent(QKeyEvent *event)
     }
 
     QWidget::keyReleaseEvent(event);
+}
+
+
+void ChartCanvas::autoScrollToNote(const Note &note)
+{
+    const double noteBeat = MathUtils::beatToFloat(
+        note.beatNum, note.numerator, note.denominator);
+    const double visibleRange = effectiveVisibleBeatRange();
+    const double margin = visibleRange * 0.1;
+
+    bool scrolled = false;
+    if (noteBeat < m_scrollBeat + margin)
+    {
+        m_scrollBeat = noteBeat - margin;
+        scrolled = true;
+    }
+    else if (noteBeat > m_scrollBeat + visibleRange - margin)
+    {
+        m_scrollBeat = noteBeat - visibleRange + margin;
+        scrolled = true;
+    }
+    if (m_scrollBeat < 0.0)
+        m_scrollBeat = 0.0;
+
+    if (scrolled)
+    {
+        update();
+        emit scrollPositionChanged(m_scrollBeat);
+    }
 }
 
 int ChartCanvas::leftMargin() const
