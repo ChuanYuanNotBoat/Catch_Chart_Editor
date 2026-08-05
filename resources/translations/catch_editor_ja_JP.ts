@@ -98,8 +98,8 @@
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="437"/>
-        <source>Minimal Irregular (Red)</source>
-        <translation>最小不規則分母 (赤)</translation>
+        <source>Minimal Irregular (Blue)</source>
+        <translation>最小不規則分母 (青)</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="475"/>

@@ -30,7 +30,7 @@ namespace BeatDivisionColor
         case 288:
             return QColor(0, 0, 255); // nobody will use it :O
         default:
-            return QColor(255, 0, 0);
+            return QColor(0, 0, 255);
         }
     }
 }

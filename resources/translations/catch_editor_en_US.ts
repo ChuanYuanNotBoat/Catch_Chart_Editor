@@ -98,8 +98,8 @@
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="437"/>
-        <source>Minimal Irregular (Red)</source>
-        <translation>Minimal Irregular (Red)</translation>
+        <source>Minimal Irregular (Blue)</source>
+        <translation>Minimal Irregular (Blue)</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="475"/>

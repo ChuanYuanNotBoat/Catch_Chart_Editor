@@ -69,6 +69,8 @@ void NoteRenderer::drawNote(QPainter &painter, const Note &note, const QPointF &
             noteType = 4;
         else if (note.denominator == 288)
             noteType = 5;
+        else
+            noteType = 5;
     }
     else
     {

@@ -152,8 +152,8 @@
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="724"/>
-        <source>Minimal Irregular (Red)</source>
-        <translation>最小不规则分母 (红色)</translation>
+        <source>Minimal Irregular (Blue)</source>
+        <translation>最小不规则分母 (蓝色)</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="762"/>

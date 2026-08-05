@@ -722,7 +722,7 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
         }
     }
 
-    QAction *minimalIrregularAction = colorMenu->addAction(tr("Minimal Irregular (Red)"));
+    QAction *minimalIrregularAction = colorMenu->addAction(tr("Minimal Irregular (Blue)"));
     connect(minimalIrregularAction, &QAction::triggered, this, [this, targetIndices]()
             {
         if (!chart())
