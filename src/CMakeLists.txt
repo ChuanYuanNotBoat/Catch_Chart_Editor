@@ -98,6 +98,15 @@ qt6_add_translations(CatchChartEditor
     TS_FILES ${TRANSLATION_TS_FILES}
 )
 
+# ---- Auto-update translation source files ----
+# Run: cmake --build . --target CatchChartEditor_lupdate
+# This scans source code for tr() calls and updates .ts files.
+qt_add_lupdate(CatchChartEditor
+    TS_FILES ${TRANSLATION_TS_FILES}
+    SOURCES ${SOURCES}
+)
+
+
 # ---- windeployqt ----
 set(_default_enable_windeployqt ON)
 if(DEFINED ENV{CI} AND "$ENV{CI}" STREQUAL "true")
