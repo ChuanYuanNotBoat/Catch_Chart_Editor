@@ -59,7 +59,9 @@ void NoteRenderer::drawNote(QPainter &painter, const Note &note, const QPointF &
     int noteType = 0;
     if (note.type != NoteType::RAIN)
     {
-        if (note.denominator == 2)
+        if (note.denominator == 1)
+            noteType = 0; // 1/1 whole note uses the dedicated 1/1 skin (red in color mode)
+        else if (note.denominator == 2)
             noteType = 1;
         else if (note.denominator == 4)
             noteType = 2;
