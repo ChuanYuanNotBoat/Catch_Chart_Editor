@@ -21,6 +21,7 @@
 9. [外部进程插件协议](#9-外部进程插件协议)
 10. [ChartFileSystem 文件注册表](#10-chartfilesystem-文件注册表)
 11. [关键文件路径速查](#11-关键文件路径速查)
+12. [附录 A：Malody 引擎 MCZ 解析机制](#12-附录-amalody-引擎-mcz-解析机制)
 
 ---
 
@@ -287,6 +288,123 @@ class Chart {
 2. **长音频名重命名**：> 24 字符的音频文件名自动重命名为时间戳名
 3. **资源冲突检测**：同目录同名但内容不同的资源，弹窗询问
 4. **SHA256 校验**：加载 note 数组时记录 SHA256 哈希
+
+### 2.5 Malody 引擎对 `.mc` 的解析（ParserMC）
+
+以 Malody V 引擎源码 `ParserMC.cs` / `ParserMC.JsonDef.cs` 为基准，下列为 Malody 引擎完整识别的 `.mc` JSON 字段。编辑器**仅使用其中 Catch 模式需要的子集**，其余字段在保存时**不覆写也不删除**（round-trip safe）。
+
+#### 引擎完整 JSON 模型
+
+```
+ParserMC.ChartData           // ← JSON root
+├── meta: MetaData
+│   ├── $ver: int             // JSON key "$ver"，内部为 mcVersion
+│   ├── creator: string       // 谱面作者
+│   ├── background: string    // 背景文件名
+│   ├── cover: string         // [引擎独有] 封面图路径
+│   ├── version: string       // ★ 难度名
+│   ├── skin: string          // [引擎独有] 皮肤名（忽略）
+│   ├── bga: string           // [引擎独有] BGA 文件名（忽略）
+│   ├── video: string         // [引擎独有] 视频文件名（忽略）
+│   ├── tags: string          // [引擎独有] 标签（忽略）
+│   ├── free: int             // [引擎独有] 免费标记（忽略）
+│   ├── preview: int          // 预览时间 ms
+│   ├── mode: int             // 模式 0=Key/3=Catch/4=Pad/5=Taiko/6=Ring/7=Slide/8=Live/9=Cube
+│   ├── aimode: string        // [引擎独有] AI 模式（忽略）
+│   ├── song: MetaSongData
+│   │   ├── id: int           // 歌曲 ID
+│   │   ├── title: string     // 标题
+│   │   ├── artist: string    // 艺术家
+│   │   ├── titleorg: string  // 原语言标题
+│   │   ├── artistorg: string // 原语言艺术家
+│   │   ├── file: string      // [引擎独有] 音频文件名（旧字段，已废弃）
+│   │   └── bpm: float        // [引擎独有] BPM（旧字段，已废弃）
+│   └── mode_ext: MetaExtraData
+│       ├── column: int       // [引擎独有] Key 模式列数（Catch 不使用）
+│       ├── bar_begin: int    // [引擎独有] 4K SP bar_begin（Catch 不使用）
+│       ├── speed: int        // 下落速度
+│       ├── skin: string      // [引擎独有] mode_ext 皮肤（忽略）
+│       └── bga: string       // [引擎独有] mode_ext BGA（忽略）
+├── time[]: TimeData
+│   ├── beat: Fraction        // [整数拍, 分子, 分母]
+│   └── bpm: float            // BPM 值
+├── effect[]: EffectData      // [引擎独有] 特效数组（编辑器不处理）
+│   ├── beat: Fraction
+│   ├── endbeat: Fraction
+│   └── tuples: (...)
+├── note[]: NoteData          // 音符数组（多模式共用）
+│   ├── beat: Fraction
+│   ├── endbeat: Fraction     // (Rain/长按)
+│   ├── type: int             // 0=Normal, 1=Sound, 3=Rain, etc.
+│   ├── x: short              // Catch/Slide 横坐标
+│   ├── sound: string         // Sound note 音频
+│   ├── vol: short            // 音量 (0-100)
+│   ├── offset: int           // 偏移 ms
+│   ├── index: ushort         // [引擎独有] Pad 起始位置
+│   ├── endindex: ushort      // [引擎独有] Pad 结束位置
+│   ├── w: short              // [引擎独有] Slide 宽度
+│   ├── dir: int              // [引擎独有] Live 方向
+│   ├── enddir: int           // [引擎独有] Live 结束方向
+│   ├── seg: NoteSlideSegData[] // [引擎独有] Slide 段
+│   └── group: ushort         // [引擎独有] 采样分组
+├── noteref[]: NoteData       // [引擎独有] 引用音符（编辑器不处理）
+└── extra: ExtraData
+    ├── delays: Dict<string,int>    // [引擎独有] 采样延迟表
+    └── custom: Dict<string,string> // [引擎独有] 自定义键值对
+```
+
+#### 编辑器 vs 引擎字段使用对比
+
+| 类别 | 字段 | 编辑器使用 | 引擎使用 | 说明 |
+|------|------|:---:|:---:|------|
+| **meta** | `$ver` | ✅ | ✅ | 编辑器写入 0；引擎做版本兼容检查 |
+| | `creator` | ✅ | ✅ | |
+| | `background` | ✅ | ✅ | 仅文件名 |
+| | `cover` | — | ✅ | 引擎额外识别，编辑器逐字保留 |
+| | `version` | ✅ | ✅ | ★ 难度名 |
+| | `skin` | — | ✅ | |
+| | `bga` / `video` | — | ✅ | |
+| | `tags` / `free` | — | ✅ | |
+| | `preview` | ✅ (条件) | ✅ | |
+| | `mode` | ✅ (写死 3) | ✅ | Catch = 3 |
+| | `aimode` | — | ✅ | |
+| **meta.song** | `id` / `title` / `artist` | ✅ | ✅ | |
+| | `titleorg` / `artistorg` | ✅ (条件) | ✅ | |
+| | `file` / `bpm` | — | ✅ | 旧字段，引擎兼容读取 |
+| **meta.mode_ext** | `speed` | ✅ | ✅ | |
+| | `column` / `bar_begin` | — | ✅ | Catch 模式不使用 |
+| | `skin` / `bga` | — | ✅ | |
+| **root** | `time[]` | ✅ | ✅ | BPM 变化点 |
+| | `note[]` | ✅ | ✅ | 音符（仅 Normal/Sound/Rain） |
+| | `effect[]` | — | ✅ | 特效（scroll speed / kiai 等） |
+| | `noteref[]` | — | ✅ | 引用音符 |
+| | `extra` | ✅ (test block) | ✅ | 编辑器只写 `extra.test` |
+| | `extra.custom` | — | ✅ | 引擎自定义键值对 |
+| | `extra.delays` | — | ✅ | 采样延迟 |
+
+#### 解析流程（引擎）
+
+```
+ChartParser.CreateFromFilePath(filePath)
+  ↓ 扩展名 .mc → dictExtFormat → FileFormat.MC
+  ↓ new ParserMC()
+  ↓ parser.Parse(metaOnly)
+    ├── OnParseMeta(): 反序列化 JSON → ChartData
+    │   ├── FillChartMeta(): 把 meta 映射到 MaChart.Meta
+    │   │   ├── mode → ChartMode (MCKey/MCCatch/MCPad/...)
+    │   │   ├── mode_ext.speed → UserSpeed
+    │   │   └── 版本检查: mcVersion > Current → notSupportVersion
+    │   └── meta.song.file / meta.audio → MainAudio
+    └── OnParseDiff():
+        ├── 遍历 note[] → CreateNote() → NoteType (Normal/Hold/Rain/Slide/...)
+        ├── 处理 noteref[]（引用音符）
+        ├── 处理 effect[]（特效指令）
+        ├── 处理 extra.delays / extra.custom
+        ├── UpdateOffsetFromBeat(): Beat → 毫秒转换
+        └── 音频兼容: 唯一 sample 非 .ogg → 仅提示不阻断
+```
+
+> **关键兼容约定**：编辑器读写 `.mc` 时，引擎侧字段（`cover`/`skin`/`bga`/`video`/`tags`/`free`/`effect[]`/`noteref[]`/`extra.custom`/`extra.delays`）**逐字保留不修改**，确保 round-trip 后引擎读取不丢失数据。
 
 ## 3. .mcz 打包格式
 
@@ -869,6 +987,32 @@ src/
 
 ```
 
+### 11.1b Malody 引擎源码（格式相关）
+
+```
+malody/Assets/Malody/Scripts/
+├── Helper/
+│   ├── FileUtil.cs               # IsPackFile / IsChartFile / IsIgnorePath
+│   └── ZipUtil.cs                # UnzipFileWithName / ZipFolderNative
+├── Framework/Chart/
+│   ├── ChartUtil.cs              # DetectChartFormat / MCMode 转换
+│   ├── Manager/
+│   │   ├── ChartManager.cs       # ImportPack / ExportSong / Scan
+│   │   ├── Song.cs               # ScanFiles / RebuildShowList
+│   │   ├── Song.File.cs          # CollectChartFile / BuildChartsFromFile
+│   │   └── Song.Meta.cs          # 元数据 DB 读写
+│   ├── ChartData/
+│   │   └── Chart.Define.cs       # FileFormat / FileMode / MCMode 枚举
+│   └── Parser/
+│       ├── ChartParser.cs         # 抽象解析器基类
+│       ├── ChartParser.Factory.cs # CreateFromFilePath / dictExtFormat
+│       ├── ParserMC.cs            # .mc 解析实现
+│       ├── ParserMC.JsonDef.cs    # .mc JSON class 定义
+│       └── ParserMC.JsonConverter.cs # Effect JSON 转换器
+└── Utils/
+    └── BundleChart.cs             # 内置捆绑谱面识别
+```
+
 ### 11.2 数据文件位置
 
 | 文件/目录 | 位置 | 说明 |
@@ -884,50 +1028,223 @@ src/
 | `preview.json` | `{skinDir}/preview.json` | 皮肤元数据 |
 | `skin_config.json` | `{skinDir}/skin_config.json` | 皮肤校准配置 |
 
-### 11.3 .mc JSON 结构速查
+### 11.3 .mc JSON 结构速查（编者字段 + [引擎独有]）
 
 ```
-
 root
-├── meta                    // 元数据对象
-│   ├── $ver: 0             // 版本标记
-│   ├── creator             // 谱面作者
-│   ├── background          // 背景文件名
-│   ├── version             // ★ 难度名
-│   ├── id: 0               // 歌曲 ID
-│   ├── mode: 3             // Catch 模式
-│   ├── time: (timestamp)   // Unix 时间戳
+├── meta                           // 元数据对象
+│   ├── $ver: 0                    // 版本标记
+│   ├── creator                    // 谱面作者
+│   ├── background                 // 背景文件名
+│   ├── cover                      // [引擎] 封面图
+│   ├── version                    // ★ 难度名
+│   ├── skin                       // [引擎] 皮肤名
+│   ├── bga                        // [引擎] BGA 文件
+│   ├── video                      // [引擎] 视频文件
+│   ├── tags                       // [引擎] 标签
+│   ├── free: 0                    // [引擎] 免费标记
+│   ├── id: 0                      // 歌曲 ID
+│   ├── mode: 3                    // Catch 模式
+│   ├── time: (timestamp)          // Unix 时间戳
+│   ├── aimode                     // [引擎] AI 模式
 │   ├── song
-│   │   ├── title           // 标题
-│   │   ├── artist          // 艺术家
+│   │   ├── title                  // 标题
+│   │   ├── artist                 // 艺术家
 │   │   ├── id: 0
-│   │   ├── titleorg        // [条件] 原语言标题
-│   │   └── artistorg       // [条件] 原语言艺术家
-│   ├── mode_ext
-│   │   └── speed           // 下落速度
-│   ├── audio               // [条件] 音频文件名
-│   ├── preview             // [条件] 预览时间 ms
-│   ├── offset              // [条件] 全局偏移 ms
-│   └── bpm                 // [条件] 第一 BPM
-├── time[]                  // BPM 数组
+│   │   ├── titleorg               // [条件] 原语言标题
+│   │   ├── artistorg              // [条件] 原语言艺术家
+│   │   ├── file                   // [引擎] 音频名（旧）
+│   │   └── bpm                    // [引擎] BPM（旧）
+│   └── mode_ext
+│       ├── speed                  // 下落速度
+│       ├── column                 // [引擎] Key 列数
+│       ├── bar_begin              // [引擎] bar_begin
+│       ├── skin                   // [引擎] 皮肤
+│       └── bga                    // [引擎] BGA
+├── time[]                         // BPM 数组
 │   ├── beat: [beat, num, den]
 │   └── bpm: 120.0
-├── note[]                  // 音符数组
+├── effect[]                       // [引擎] 特效数组
+├── note[]                         // 音符数组
 │   ├── Normal: {beat, x, type:0}
 │   ├── Sound:  {beat, type:1, sound, vol, offset}
 │   └── Rain:   {beat, type:3, x, endbeat}
-└── extra                   // 编辑器配置
-    └── test
-        ├── divide: 4
-        ├── speed: 100
-        ├── save/lock/edit_mode: 0
+├── noteref[]                      // [引擎] 引用音符
+└── extra                          // 编辑器配置 + [引擎] 扩展
+    ├── test
+    │   ├── divide: 4
+    │   ├── speed: 100
+    │   └── save/lock/edit_mode: 0
+    ├── delays                     // [引擎] 采样延迟表
+    └── custom                     // [引擎] 自定义键值对
 
 ```
 
 ---
 
 > **附录**：完整 JSON Schema 定义、跨格式映射表、版本兼容矩阵等，待后续补充。
+
 ---
+
+## 12. 附录 A：Malody 引擎 MCZ 解析机制
+
+> 依据源码：`malody/Assets/Malody/Scripts/Framework/Chart/`、`Helper/FileUtil.cs`、`Helper/ZipUtil.cs`
+
+### 12.1 文件识别
+
+`FileUtil.IsPackFile()` 通过扩展名判定打包文件：
+
+```csharp
+// FileUtil.cs:17-24
+return ext is ".zip" or ".osz" or ".mcz" or ".mcb" or ".qp" or ".svc";
+```
+
+`.mcz` 在 Malody 引擎中被统一视作 **ZIP 压缩包**。谱面文件通过 `FileUtil.IsChartFile()` 识别（`.mc`、`.osu`、`.sm`、`.bms`、`.tja`、`.qua`、`.vsc` 等），非谱面文件（`.jpg`、`.png`、`.mp3`、`.ogg`、`.wav`、`.ini`）被显式排除。
+
+### 12.2 导入流程（ImportPack）
+
+```
+用户选择 .mcz → ChartManager.ImportPack(path, keepZip)
+  ├── FileUtil.IsPackFile() 验证
+  ├── Path.GetExtension() 判断类型
+  │   ├── ".mcb" → ZipUtil.UnzipFile(path, ChartInternal, true)  // 批量导入
+  │   └── ".mcz" → ZipUtil.UnzipFileWithName(path, ChartInternal)
+  │       └── 解压到 {ChartInternal}/{zipfilename}/
+  │           └── SharpZipLib (ZipInputStream), UTF-8 编码
+  ├── .mcb → ScanBundle()（遍历子目录每首曲目）
+  └── .mcz → ReloadSong(newPath)（扫描单曲目录）
+```
+
+**关键源码**：`ChartManager.cs:295-330`
+
+### 12.3 谱面扫描（Song.ScanFiles）
+
+解压后，`Song.ScanFiles()` 递归扫描歌曲目录：
+
+```
+CollectChartFile(songPath, ref chartFiles)
+  ├── 遍历子目录（跳过 __macosx / . 前缀）
+  ├── 遍历文件
+  │   ├── FileUtil.IsNotChartFile() → 跳过 (.jpg/.png/.mp3/.ogg/.wav/.ini)
+  │   ├── FileUtil.IsChartFile() → 收集 (.mc/.osu/.sm/.bms/.tja/.qua/.vsc)
+  │   └── ChartUtil.DetectChartFormat() → 尝试 JSON 格式识别
+  └── 对每个谱面文件:
+      ├── DB 中存在记录 → 从 DB 创建壳（跳过解析）
+      └── DB 中不存在 → ChartParser 解析 + 存入 DB
+```
+
+**关键源码**：`Song.File.cs:24-114`
+
+### 12.4 格式解析（ChartParser Factory）
+
+```csharp
+// ChartParser.Factory.cs:22-31
+dictExtFormat = {
+    [".mc"]  → FileFormat.MC   → ParserMC,
+    [".osu"] → FileFormat.OSU  → ParserOSU,
+    [".tja"] → FileFormat.TJA  → ParserTJA,
+    [".bms"] → FileFormat.BMS  → ParserBMS,
+    // ...
+};
+```
+
+`.mc` 文件由 `ParserMC` 处理（详见 [2.5 节](#25-malody-引擎对-mc-的解析parsermc)），解析后填充 `MaChart` 对象（含 `timeList`、`noteList`、`effectList`、`sampleList`）。
+
+### 12.5 多难度支持
+
+同一歌曲目录下可以存在**多个 `.mc` 文件**，每个文件代表一个难度：
+
+| 文件 | 对应难度 |
+|------|----------|
+| `song.mc` | Lv.1 (默认) |
+| `song_hard.mc` | Lv.2 Hard |
+| `song_expert.mc` | Lv.3 Expert |
+
+引擎通过 `meta.version` 字段读取难度名。`MaChart.IsMultiDiffFormat` 判定是否为多难格式（如 OSU 文件内含多难），但 `.mc` 是单文件单难度。
+
+### 12.6 Catch 模式标识
+
+```
+mode: 3  →  MCMode.Catch = 3        (Chart.Define.cs:44)
+         →  FileMode.MCCatch = 0x80  (Chart.Define.cs:22)
+```
+
+以下是完整的 Malody 模式枚举：
+
+| mode 值 | 模式 | FileMode |
+|:-------:|------|----------|
+| 0 | Key (下落式) | `MCKey = 0x40` |
+| 3 | **Catch** | `MCCatch = 0x80` |
+| 4 | Pad | `MCPad = 0x100` |
+| 5 | Taiko | `MCTaiko = 0x200` |
+| 6 | Ring | `MCRing = 0x800` |
+| 7 | Slide | `MCSlide = 0x1000` |
+| 8 | Live | `MCLive = 0x4000` |
+| 9 | Cube | `MCCube = 0x8000` |
+
+### 12.7 导出流程（ExportSong）
+
+```csharp
+// ChartManager.cs:332-346
+ExportSong(Song song, string folder)
+  ├── 创建目标文件夹
+  ├── 安全文件名: ReplaceSafeFileName(title)
+  └── ZipUtil.ZipFolderNative(song.Path, "{folder}/{title}.mcz")
+      └── ICSharpCode.SharpZipLib, 压缩级别 5
+      └── 打包 song 目录下所有文件（排除 ignore 路径）
+```
+
+引擎使用 C++ Native 方法 `_ZipFolderNative` 进行打包以优化性能。
+
+### 12.8 MCB 捆绑包（.mcb）
+
+`.mcb` 是 Malody 的批量谱面捆绑格式，与 `.mcz` 不同：
+
+| 特性 | .mcz | .mcb |
+|------|:----:|:----:|
+| 内容 | 单个歌曲 | 多个歌曲 |
+| 解压方式 | `UnzipFileWithName` | `UnzipFile(overrides=true)` |
+| 扫描方式 | `ReloadSong(单路径)` | `ScanBundle(全目录)` |
+| ZIP 结构 | `{name}/` 下直接是歌曲文件 | 根目录下每个子目录是一个歌曲 |
+
+### 12.9 编辑器 vs 引擎差异总结
+
+| 维度 | Catch Editor | Malody 引擎 |
+|------|-------------|-------------|
+| **ZIP 库** | PowerShell `Expand-Archive` (Win) / `unzip` (Unix) | `ICSharpCode.SharpZipLib` (C#) |
+| **文件白名单** | `ChartFileSystem` 注册表（可动态注册） | 硬编码扩展名列表 |
+| **Sidecar** | `.mcce-plugin/` 隐藏目录（V3 曲线数据等） | ❌ 不认识，会被打包进 .mcz |
+| **DB 缓存** | 无（直接文件系统） | `UnqDB` 键值存储（song/chart meta） |
+| **Multi-diff** | 单 .mc = 单难度 | 同目录多个 .mc = 多个难度 |
+| **Effect** | 不支持 | 支持 `effect[]` 数组（ScrollSpeed 等） |
+| **noteref** | 不支持 | 支持引用音符 |
+| **打包** | PowerShell `ZipArchive` + `/` 分隔符 | Native `_ZipFolderNative` |
+| **扩展名** | 仅 `.mcz` | `.mcz` / `.mcb` / `.osz` / `.qp` / `.svc` |
+
+### 12.10 引擎关键源码路径
+
+```
+malody/Assets/Malody/Scripts/
+├── Helper/
+│   ├── FileUtil.cs               // IsPackFile / IsChartFile / IsIgnorePath
+│   └── ZipUtil.cs                // UnzipFileWithName / ZipFolderNative
+├── Framework/Chart/
+│   ├── ChartUtil.cs              // DetectChartFormat / MCMode 转换
+│   ├── Manager/
+│   │   ├── ChartManager.cs       // ImportPack / ExportSong / Scan
+│   │   ├── Song.cs               // ScanFiles / RebuildShowList
+│   │   ├── Song.File.cs          // CollectChartFile / BuildChartsFromFile
+│   │   └── Song.Meta.cs          // 元数据 DB 读写
+│   ├── ChartData/
+│   │   └── Chart.Define.cs       // FileFormat / FileMode / MCMode 枚举
+│   └── Parser/
+│       ├── ChartParser.cs         // 抽象解析器基类
+│       ├── ChartParser.Factory.cs // CreateFromFilePath / dictExtFormat
+│       ├── ParserMC.cs            // .mc 解析实现
+│       ├── ParserMC.JsonDef.cs    // .mc JSON class 定义
+│       └── ParserMC.JsonConverter.cs // Effect JSON 转换器
+└── Utils/
+    └── BundleChart.cs             // 内置捆绑谱面识别
 
 
 ---
