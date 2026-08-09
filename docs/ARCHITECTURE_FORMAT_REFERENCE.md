@@ -22,6 +22,7 @@
 10. [ChartFileSystem 文件注册表](#10-chartfilesystem-文件注册表)
 11. [关键文件路径速查](#11-关键文件路径速查)
 12. [附录 A：Malody 引擎 MCZ 解析机制](#12-附录-amalody-引擎-mcz-解析机制)
+13. [附录 B：osu! Catch the Beat 谱面解析](#13-附录-bosu-catch-the-beat-谱面解析)
 
 ---
 
@@ -1249,4 +1250,279 @@ malody/Assets/Malody/Scripts/
 
 ---
 
+## 13. 附录 B：osu! Catch the Beat 谱面解析
 
+> 依据源码：`osu.Game.Rulesets.Catch/`、`osu.Game/Beatmaps/Formats/`、`osu.Game/Rulesets/Objects/Legacy/`
+
+### 13.1 `.osu` 文件格式
+
+`.osu` 是 INI 风格的分段文本文件，由 `LegacyDecoder` 解析（行式读取，跳过空白行和 `//` 注释）。
+
+#### Section 枚举
+
+```csharp
+enum Section {
+    General,        // 基本信息: AudioFilename, Mode, PreviewTime, etc.
+    Editor,         // 编辑器书签/网格间距
+    Metadata,       // 歌曲元数据: Title, Artist, Creator, Version, etc.
+    Difficulty,     // CS, HP, OD, AR, SliderMultiplier, SliderTickRate
+    Events,         // 背景/视频/break 时间
+    TimingPoints,   // Timing (BPM) + Sample/Kiai 控制点
+    Colours,        // 连击颜色 (Combo1~8)
+    HitObjects,     // 物量（每行一个）
+    CatchTheBeat,   // [CTB 独有] 手动定位偏移
+    Mania,          // [Mania 独有] 键盘数
+}
+```
+
+**CTB 判定**：`General` 中 `Mode: 2`。
+
+#### TimingPoints 格式
+
+```
+time,beatLength,meter,sampleSet,sampleIndex,volume,uninherited,effects
+```
+
+- `uninherited=1`（红线）：重置 BPM，`beatLength` 为拍长（ms）
+- `uninherited=0`（绿线）：继承 BPM，`beatLength` 为速度倍率（负百分比）
+
+### 13.2 HitObject 行格式
+
+```
+x,y,time,type,hitSound,extras...
+```
+
+#### 字段
+
+| 列 | 名称 | 说明 |
+|:--:|------|------|
+| 0 | `x` | X 坐标 (0~512) |
+| 1 | `y` | Y 坐标 (0~384，CTB 不参与判定) |
+| 2 | `time` | 起始时间（毫秒） |
+| 3 | `type` | 类型 bitmask |
+| 4 | `hitSound` | 打击音效 (0=Normal/2=Whistle/4=Finish/8=Clap) |
+| 5+ | `extras` | 依赖 type 的额外字段 |
+
+#### type bitmask（`LegacyHitObjectType`）
+
+```
+Circle    = 1       (0b00000001)
+Slider    = 2       (0b00000010)
+NewCombo  = 4       (0b00000100)
+Spinner   = 8       (0b00001000)
+ComboOffset = 7<<4  (0b01110000)
+Hold      = 128     (0b10000000)
+```
+
+type=`Circle|NewCombo=5` → 新 combo 圆圈。`ComboOffset>>4` 得跳过数。
+
+#### extras（按 type）
+
+**Circle** (`type & 1`): `extras = sampleBank:addBank:customIndex:volume:filename`
+
+**Slider** (`type & 2`):
+```
+curvePoints,repeatCount,length,nodeSounds,nodeAdditions,extras
+```
+- `curvePoints`: e.g. `"B|200:200|250:250|P|300:0"`
+- `repeatCount`: ≥1 (stable 的重复数=实际段数+1)
+- `length`: 像素长度
+- `nodeSounds`: 每节点音效 `|` 分隔
+- `nodeAdditions`: 每节点 sampleBank `|` 分隔
+
+**Spinner** (`type & 8`): `extras = endTime`
+
+#### Slider path 类型
+
+| 字符 | 类型 | 说明 |
+|:---:|------|------|
+| `C` | Catmull | 默认曲线 |
+| `B` | Bezier | `B` 后接度数（如 `B3`） |
+| `L` | Linear | 直线段 |
+| `P` | Perfect Curve | 完美圆弧（3 点） |
+
+### 13.3 CTB 物量转换（CatchBeatmapConverter）
+
+`CatchBeatmapConverter` 将 osu! 通用 `HitObject` 转换为 CTB 专用 `CatchHitObject`：
+
+| osu! 输入 | CTB 输出 | 关键映射 |
+|-----------|----------|----------|
+| `IHasPathWithRepeats` (Slider) | `JuiceStream` | Path/RepeatCount/NodeSamples; TickDistanceMultiplier(v<8) |
+| `IHasDuration` (Spinner) | `BananaShower` | Duration/Samples |
+| 其他 (Circle) | `Fruit` | X=IHasXPosition.X; LegacyConvertedY=IHasYPosition.Y |
+
+**常量**：`DEFAULT_LEGACY_CONVERT_Y = 192`
+
+### 13.4 CTB 物量类型层级
+
+```
+CatchHitObject (abstract)
+├── PalpableCatchHitObject (abstract)   ← 可被 catcher 接住
+│   ├── Fruit               (circle → fruit)
+│   ├── Droplet             (slider tick)
+│   │   └── TinyDroplet     (slider 段内插值)
+│   └── Banana              (BananaShower 中随机生成)
+└── [容器]
+    ├── JuiceStream          (slider 整体)
+    └── BananaShower         (spinner 整体)
+```
+
+#### CatchHitObject 关键属性
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `OriginalX` | float | beatmap 原始 X [0, 512] |
+| `XOffset` | float | 随机偏移（Processor 计算） |
+| `EffectiveX` | float | `Clamp(OriginalX+XOffset, 0, 512)` — 游戏实际 X |
+| `LegacyConvertedY` | float | 保留原 Y（CTB 不使用） |
+| `Scale` | float | 缩放（由 CircleSize 计算） |
+| `IndexInBeatmap` | int | 物量序号 |
+| `NewCombo` | bool | 是否新 combo |
+| `ComboOffset` | int | combo 跳过数 |
+
+#### JuiceStream 专有属性
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `Path` | SliderPath | 路径控制点 |
+| `RepeatCount` | int | 重复次数 |
+| `SliderVelocityMultiplier` | double | sv 倍率 [0.1, 10] |
+| `Velocity` | double | 像素/ms |
+| `TickDistance` | double | `scoringDistance / SliderTickRate * TickDistanceMultiplier` |
+| `EndX` | float | 末点 X |
+
+#### PalpableCatchHitObject
+
+| 属性 | 说明 |
+|------|------|
+| `HyperDash` | 是否超冲 |
+| `HyperDashTarget` | 超冲目标物量 |
+| `DistanceToHyperDash` | 距超冲阈值差值 |
+
+### 13.5 坐标系统与尺寸
+
+| 常量 | 值 | 来源 |
+|------|:--:|------|
+| `CatchPlayfield.WIDTH` | **512** | CatchPlayfield.cs |
+| `CatchPlayfield.HEIGHT` | 384 | (CTB 不使用 Y) |
+| `CatchPlayfield.CENTER_X` | 256 | — |
+| `Catcher.BASE_SIZE` | **106.75** | Catcher 宽度 (1x) |
+| `Catcher.ALLOWED_CATCH_RANGE` | 0.8 | 有效接住比例 |
+| `Catcher.BASE_WALK_SPEED` | 0.5 | 步行 (px/ms) |
+| `Catcher.BASE_DASH_SPEED` | 1.0 | 冲刺 (px/ms) |
+| `CatchHitObject.OBJECT_RADIUS` | 64 | 水果半径 |
+
+**与 Malody 对比**：Playfield 宽度同为 512，X ∈ [0, 512] 完全对齐。
+
+### 13.6 HyperDash 机制
+
+遍历可接物量（`Fruit` + `Droplet`，不含 `TinyDroplet`）：
+
+```
+halfCatcherWidth = CatcherWidth(difficulty) / 2 / ALLOWED_CATCH_RANGE
+
+for i in 0..len-1:
+    cur = palpable[i]; nxt = palpable[i+1]
+    direction = nxt.EffectiveX > cur.EffectiveX ? 1 : -1
+    timeToNext = (int)nxt.StartTime - (int)cur.StartTime - (1000/60/4)
+    distanceToNext = |nxt.X - cur.X| - 余量
+    distanceToHyper = timeToNext * BASE_DASH_SPEED - distanceToNext
+    if distanceToHyper < 0:
+        cur.HyperDashTarget = nxt   // 激活超冲
+```
+
+### 13.7 固定随机数与随机逻辑
+
+#### RNG 种子
+
+```csharp
+// CatchBeatmapProcessor.cs:16
+public const int RNG_SEED = 1337;
+var rng = new LegacyRandom(RNG_SEED);  // 确定性伪随机
+```
+
+#### BananaShower — Banana 位置
+
+```csharp
+foreach (var banana in bananaShower.NestedHitObjects.OfType<Banana>()) {
+    banana.XOffset = (float)(rng.NextDouble() * CatchPlayfield.WIDTH);  // [0, 512)
+    rng.Next();  // osu!stable 消费: 香蕉类型
+    rng.Next();  // osu!stable 消费: 香蕉旋转
+    rng.Next();  // osu!stable 消费: 香蕉颜色
+}
+```
+
+每个 banana 消费 **4 次** RNG。顺序：XOffset → 类型 → 旋转 → 颜色。
+
+#### HardRock 偏移（`applyHardRockOffset`）
+
+- 时间差 > 1000ms → 不偏移
+- X 相同 → `rng.NextBool()` 方向 + `rng.Next(0, maxOffset)` 量 (上限 20)
+- X 不同 → `|diff| < timeDiff/3` 时反向微调
+
+> **关键**：固定 seed `1337` + 确定性 `LegacyRandom` → 同一谱面每次 Banana 分布和 HardRock 偏移完全相同。对导出验证至关重要。
+
+### 13.8 导入/导出流程
+
+#### 导入
+
+```
+用户选择 .osz → ZipUtil.UnzipFileWithName() → Song.ScanFiles()
+  → CollectChartFile() 收集 .osu
+  → ChartParser.CreateFromFilePath() → FileFormat.OSU → ParserOsu
+```
+
+`.osu` 解析链路：
+```
+LegacyBeatmapDecoder.ParseStreamInto()
+  ├── 读取 "osu file format v{VER}" 头 (LATEST_VERSION=14)
+  ├── 逐行 Section 分发:
+  │   ├── General  → AudioFilename, Mode, PreviewTime
+  │   ├── Metadata → Title, Artist, Creator, Version (难度名)
+  │   ├── Difficulty → CS, HP, OD, AR
+  │   ├── TimingPoints → TimingControlPoint, DifficultyControlPoint
+  │   ├── HitObjects → ConvertHitObjectParser.Parse(line)
+  │   │   ├── Circle → ConvertHitObject(circle)
+  │   │   ├── Slider → convertPathString() + 节点采样
+  │   │   └── Spinner → ConvertHitObject(spinner, duration)
+  │   └── Colours → CustomComboColours
+  ├── hitObjects.OrderBy(h => h.StartTime)
+  └── applyDefaults + applySamples → Beatmap<HitObject>
+```
+
+#### 导出
+
+```
+ChartManager.ExportSong(song, folder)
+  └── ZipUtil.ZipFolderNative(song.Path, "{folder}/{title}.zip")
+```
+
+### 13.9 关键源码路径
+
+```
+osu.Game.Rulesets.Catch/
+├── Beatmaps/
+│   ├── CatchBeatmap.cs              // GetPalpableObjects()
+│   ├── CatchBeatmapConverter.cs     // osu!HitObject → CatchHitObject
+│   └── CatchBeatmapProcessor.cs     // HyperDash / RNG(1337) / XOffset
+├── Objects/
+│   ├── CatchHitObject.cs            // 基类 (X/Y/Scale/Index)
+│   ├── PalpableCatchHitObject.cs    // HyperDash/DistanceToHyperDash
+│   ├── Fruit.cs / Droplet.cs / TinyDroplet.cs / Banana.cs
+│   ├── JuiceStream.cs               // Path/RepeatCount/Velocity/TickDistance
+│   └── BananaShower.cs              // Duration + Banana 生成
+├── UI/
+│   ├── CatchPlayfield.cs            // WIDTH=512, HEIGHT=384
+│   ├── Catcher.cs                   // BASE_SIZE=106.75, ALLOWED_CATCH_RANGE=0.8
+│   └── CatcherArea.cs
+
+osu.Game/
+├── Beatmaps/Formats/
+│   ├── LegacyDecoder.cs             // Section 枚举 + 行解析
+│   ├── LegacyBeatmapDecoder.cs      // Beatmap 解码 (LATEST_VERSION=14)
+│   └── LegacyBeatmapEncoder.cs      // 编码回 .osu
+├── Beatmaps/Legacy/
+│   └── LegacyHitObjectType.cs       // Circle=1/Slider=2/NewCombo=4/Spinner=8
+└── Rulesets/Objects/Legacy/
+    └── ConvertHitObjectParser.cs    // HitObject 文本行解析 + path/curve
+```
