@@ -13,7 +13,12 @@ NoteChainEditor::NoteChainEditor(QObject *parent) : QObject(parent) {}
 void NoteChainEditor::setActive(bool active) {
     if (m_active == active) return;
     m_active = active;
-    if (!active) {
+    if (active) {
+        m_state.setCurveVisible(true);
+    } else {
+        // auto-save on deactivate
+        if (!m_sidecarPath.isEmpty() && m_state.projectDirty())
+            NoteChainPersistence::saveToFile(m_state, m_sidecarPath);
         m_state.drag() = DragState{};
         m_state.linkDrag() = LinkDrag{};
         m_state.boxSelect() = BoxSelect{};
@@ -151,6 +156,21 @@ QString NoteChainEditor::hoverCursorHint(double cx, double cy) const {
 // ====== Mouse events ======
 bool NoteChainEditor::handleMousePress(double cx, double cy, int button, bool shift, bool ctrl) {
     if (!m_active || button != Const::kLeftButton) return false;
+    // note_curve_snap: passthrough left-button events to host for note selection
+    if (m_state.noteCurveSnapEnabled()) return false;
+
+    // P0-3: snap chart point from host context
+    auto snapPoint = [this](double lx, double bt) -> QPointF {
+        QVariantMap ctx = m_state.lastContext();
+        bool gridSnap = ctx.value("grid_snap", false).toBool();
+        int gridDiv = qMax(1, ctx.value("grid_division", 8).toInt());
+        int timeDiv = qMax(1, ctx.value("time_division", 1).toInt());
+        lx = ncClamp(lx, 0.0, Const::kLaneWidth);
+        if (gridSnap && gridDiv > 0) lx = qRound((lx / Const::kLaneWidth) * gridDiv) * (Const::kLaneWidth / gridDiv);
+        bt = qMax(0.0, bt);
+        bt = qRound(bt * timeDiv) / static_cast<double>(timeDiv);
+        return {lx, bt};
+    };
     qint64 now = QDateTime::currentMSecsSinceEpoch();
     auto hHit = findHandleHit(cx, cy);
     int aHit = m_state.selectionEnabled("anchors") ? findAnchorHit(cx, cy) : -1;
@@ -171,7 +191,8 @@ bool NoteChainEditor::handleMousePress(double cx, double cy, int button, bool sh
     if (!m_state.anchorPlacementEnabled()) return true;
     // P1-1: bounds check - don't place anchors outside editable lane
     if (cx < 0.0 || cx > Const::kLaneWidth || cy < 0.0) { m_state.clearAnchorSelection(); m_state.clearLinkSelection(); m_state.setPendingConnectAnchorId(-1); return true; }
-    int sc = m_state.selectedAnchorIds().size(); int idx = m_state.appendAnchor(cx, cy); int nid = m_state.anchorAt(idx).id;
+    QPointF sp = snapPoint(cx, cy);
+    int sc = m_state.selectedAnchorIds().size(); int idx = m_state.appendAnchor(sp.x(), sp.y()); int nid = m_state.anchorAt(idx).id;
     if (sc == 1 && nid > 0) { int prev = *m_state.selectedAnchorIds().begin(); m_state.addLink(prev, nid); m_state.setSingleSelectedAnchor(nid); } else { m_state.clearAnchorSelection(); }
     m_state.setPendingConnectAnchorId(-1); m_state.cleanupLinksAndSelection(); m_state.drag() = {"anchor", idx}; markDirty(); return true;
 }
@@ -191,7 +212,14 @@ bool NoteChainEditor::handleMouseMove(double cx, double cy, int buttons) {
     m_lastMoveTimer.start();
     if (drag.mode.isEmpty() || drag.index < 0 || drag.index >= m_state.anchors().size()) return false;
     auto &a = m_state.anchorAt(drag.index);
-    if (drag.mode == "anchor") { a.laneX = ncClamp(cx, 0.0, Const::kLaneWidth); a.beat = qMax(0.0, cy); m_state.enforceAnchorAndConnectedHandleConstraints(drag.index); }
+    if (drag.mode == "anchor") {
+        QVariantMap ctx = m_state.lastContext();
+        int timeDiv = qMax(1, ctx.value("time_division", 1).toInt());
+        a.laneX = ncClamp(cx, 0.0, Const::kLaneWidth);
+        a.beat = qMax(0.0, cy);
+        a.beat = qRound(a.beat * timeDiv) / static_cast<double>(timeDiv); // snap beat only
+        m_state.enforceAnchorAndConnectedHandleConstraints(drag.index);
+    }
     else if (drag.mode == "in") { m_state.setAnchorInAbsChart(drag.index, cx, cy, a.smooth); m_state.enforceHandleTimeConstraints(drag.index); }
     else if (drag.mode == "out") { m_state.setAnchorOutAbsChart(drag.index, cx, cy, a.smooth); m_state.enforceHandleTimeConstraints(drag.index); }
     m_state.invalidateCurveCache(); markDirty(); return true;
@@ -244,6 +272,8 @@ bool NoteChainEditor::commitCurveToNotes() {
     std::sort(toAdd.begin(), toAdd.end(), [](const Note &a, const Note &b) { double ba = a.getStartBeat(), bb = b.getStartBeat(); if (qAbs(ba - bb) < 1e-9) return a.x < b.x; return ba < bb; });
     QVector<Note> deduped; for (const auto &n : toAdd) { if (deduped.isEmpty()) { deduped.append(n); continue; } auto &last = deduped.last(); if (last.beatNum == n.beatNum && last.numerator == n.numerator && last.denominator == n.denominator && last.x == n.x) continue; deduped.append(n); }
     m_chartCtrl->addNotes(deduped);
+    // auto-save sidecar after commit
+    if (!m_sidecarPath.isEmpty()) NoteChainPersistence::saveToFile(m_state, m_sidecarPath);
     emit requestHostUndoCheckpoint(QStringLiteral("Commit Curve -> Notes"));
     return true;
 }
@@ -276,10 +306,10 @@ void NoteChainEditor::render(QPainter *painter, const QRectF &viewport,
     for (const auto &seg : segs) {
         if (qMax(seg.a0.beat, seg.a1.beat) < visLo || qMin(seg.a0.beat, seg.a1.beat) > visHi) continue;
         LinkKey key = makeLinkKey(seg.id0, seg.id1); bool sel = m_state.isLinkSelected(key);
-        QColor col = (seg.shape == QStringLiteral("polyline")) ? QColor(200,200,200,180) : QColor(255,200,100,200);
+        QColor col = (seg.shape == QStringLiteral("polyline")) ? QColor(200,200,200,180) : QColor(51,204,255,200);
         if (sel) col = QColor(255,214,107);
         auto pts = sampleSegment(seg.a0, seg.a1, seg.shape, 24);
-        QPen pen(col, sel ? 3.0 : 2.0); painter->setPen(pen);
+        QPen pen(col, (seg.shape == QStringLiteral("polyline") && !sel) ? 1.5 : (sel ? 3.0 : 2.0)); painter->setPen(pen);
         for (int j = 0; j < pts.size() - 1; ++j) {
             painter->drawLine(QPointF(proj.lx2x(pts[j].laneX), proj.b2y(pts[j].beat)),
                               QPointF(proj.lx2x(pts[j+1].laneX), proj.b2y(pts[j+1].beat)));
@@ -300,11 +330,20 @@ void NoteChainEditor::render(QPainter *painter, const QRectF &viewport,
         bool isDrag = (m_state.drag().index == i && !m_state.drag().mode.isEmpty());
         double ax = proj.lx2x(a.laneX), ay = proj.b2y(a.beat);
         if (tg.handles) {
-            if (a.hasInHandle()) { QPointF inP(proj.lx2x(a.laneX+a.inDx), proj.b2y(a.beat+a.inDy)); painter->setPen(QPen(sel?QColor(100,160,255):QColor(180,140,60),1)); painter->drawLine(QPointF(ax,ay),inP); painter->setBrush(sel?QColor(100,160,255):QColor(180,140,60)); painter->setPen(Qt::NoPen); painter->drawEllipse(inP,Const::kHandleDrawRadius,Const::kHandleDrawRadius); }
-            if (a.hasOutHandle()) { QPointF outP(proj.lx2x(a.laneX+a.outDx), proj.b2y(a.beat+a.outDy)); painter->setPen(QPen(sel?QColor(100,160,255):QColor(180,140,60),1)); painter->drawLine(QPointF(ax,ay),outP); painter->setBrush(sel?QColor(100,160,255):QColor(180,140,60)); painter->setPen(Qt::NoPen); painter->drawEllipse(outP,Const::kHandleDrawRadius,Const::kHandleDrawRadius); }
+            { QPointF inP(proj.lx2x(a.laneX+a.inDx), proj.b2y(a.beat+a.inDy)); painter->setPen(QPen(sel?QColor(100,160,255):QColor(180,140,60),1)); painter->drawLine(QPointF(ax,ay),inP); painter->setBrush(sel?QColor(100,160,255):QColor(180,140,60)); painter->setPen(Qt::NoPen); painter->drawEllipse(inP,Const::kHandleDrawRadius,Const::kHandleDrawRadius); }
+            { QPointF outP(proj.lx2x(a.laneX+a.outDx), proj.b2y(a.beat+a.outDy)); painter->setPen(QPen(sel?QColor(100,160,255):QColor(180,140,60),1)); painter->drawLine(QPointF(ax,ay),outP); painter->setBrush(sel?QColor(100,160,255):QColor(180,140,60)); painter->setPen(Qt::NoPen); painter->drawEllipse(outP,Const::kHandleDrawRadius,Const::kHandleDrawRadius); }
         }
-        if (tg.controlPoints) { QColor ac = isDrag?QColor(0,119,255):(sel?QColor(60,200,255):QColor(255,180,60)); painter->setBrush(ac); painter->setPen(Qt::NoPen); painter->drawEllipse(QPointF(ax,ay),Const::kAnchorDrawRadius,Const::kAnchorDrawRadius); }
-        if (tg.labels) { painter->setPen(QColor(255,255,255)); QFont f=painter->font(); f.setPixelSize(10); painter->setFont(f); painter->drawText(QPointF(ax+12,ay-4),QString("A%1(%2)").arg(i).arg(a.smooth?"S":"C")); }
+        if (tg.controlPoints) {
+            // Outer ring (semi-transparent, larger)
+            QColor ao = isDrag ? QColor(0,119,255,170) : (sel ? QColor(255,155,47,170) : QColor(0,163,255,170));
+            painter->setBrush(ao); painter->setPen(Qt::NoPen);
+            painter->drawEllipse(QPointF(ax,ay), Const::kAnchorDrawRadius + 1.5, Const::kAnchorDrawRadius + 1.5);
+            // Core
+            QColor ac = isDrag ? QColor(0,119,255) : (sel ? QColor(255,155,47) : QColor(0,163,255));
+            painter->setBrush(ac); painter->setPen(Qt::NoPen);
+            painter->drawEllipse(QPointF(ax,ay), Const::kAnchorDrawRadius, Const::kAnchorDrawRadius);
+        }
+        if (tg.labels) { painter->setPen(QColor(255,255,255)); QFont f=painter->font(); f.setPixelSize(12); painter->setFont(f); painter->drawText(QPointF(ax+12,ay-4),QString("A%1(%2)").arg(i).arg(a.smooth?"S":"C")); }
     }
     // box select
     if (m_state.boxSelect().active) { double x0=qMin(m_state.boxSelect().startX,m_state.boxSelect().endX),y0=qMin(m_state.boxSelect().startY,m_state.boxSelect().endY),x1=qMax(m_state.boxSelect().startX,m_state.boxSelect().endX),y1=qMax(m_state.boxSelect().startY,m_state.boxSelect().endY); painter->setPen(QPen(QColor(255,204,102),1.5,Qt::DashLine)); painter->setBrush(QColor(255,204,102,40)); painter->drawRect(QRectF(proj.lx2x(x0),proj.b2y(y0),proj.lx2x(x1)-proj.lx2x(x0),proj.b2y(y1)-proj.b2y(y0))); }

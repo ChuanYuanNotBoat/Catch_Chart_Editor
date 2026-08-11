@@ -20,7 +20,7 @@ void NoteChainState::setAnchorOutAbsChart(int idx,double lx,double bt,bool mir){
 
 QMap<int,int> NoteChainState::anchorIndexMap()const{QMap<int,int>m;for(int i=0;i<m_anchors.size();++i)m[m_anchors[i].id]=i;return m;}
 
-void NoteChainState::addLink(int f,int t){if(f==t||anchorIndexById(f)<0||anchorIndexById(t)<0)return;if(hasLink(f,t))return;m_links.append({f,t});m_cacheValid=false;}
+void NoteChainState::addLink(int f,int t){if(f==t||anchorIndexById(f)<0||anchorIndexById(t)<0)return;if(hasLink(f,t))return;m_links.append({f,t});setSegmentDen(f,t,Const::kDefaultSegmentDen);setSegmentShape(f,t,m_activeShape);m_cacheValid=false;}
 
 void NoteChainState::removeLink(int f,int t){removeLinkInternal(f,t);}
 
@@ -56,7 +56,7 @@ void NoteChainState::clearLinkSelection(){m_selLinkKeys.clear();}
 void NoteChainState::toggleLinkSelection(LinkKey k){if(m_selLinkKeys.contains(k))m_selLinkKeys.remove(k);else m_selLinkKeys.insert(k);}
 bool NoteChainState::isLinkSelected(LinkKey k)const{return m_selLinkKeys.contains(k);}
 
-bool NoteChainState::selectionEnabled(const QString&k)const{if(k==QStringLiteral("anchors"))return m_selTargets.anchors;if(k==QStringLiteral("segments"))return m_selTargets.segments;if(k==QStringLiteral("notes"))return m_selTargets.notes;return false;}
+bool NoteChainState::selectionEnabled(const QString&k)const{if(k==QStringLiteral("anchors"))return m_noteSnap?false:m_selTargets.anchors;if(k==QStringLiteral("segments"))return m_noteSnap?false:m_selTargets.segments;if(k==QStringLiteral("notes"))return m_selTargets.notes;return false;}
 void NoteChainState::setSelectionEnabled(const QString&k,bool v){if(k==QStringLiteral("anchors"))m_selTargets.anchors=v;else if(k==QStringLiteral("segments")){m_selTargets.segments=v;if(!v)m_selLinkKeys.clear();}else if(k==QStringLiteral("notes"))m_selTargets.notes=v;}
 
 void NoteChainState::enforceHandleTimeConstraints(int idx){if(idx<0||idx>=m_anchors.size())return;auto&a=m_anchors[idx];for(auto&l:m_links){if(l.to==a.id){int pi=anchorIndexById(l.from);if(pi>=0){double mb=m_anchors[pi].beat;if(a.beat+a.inDy<mb)a.inDy=mb-a.beat;}}if(l.from==a.id){int ni=anchorIndexById(l.to);if(ni>=0){double mx=m_anchors[ni].beat;if(a.beat+a.outDy>mx)a.outDy=mx-a.beat;}}}}

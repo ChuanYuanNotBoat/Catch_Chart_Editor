@@ -78,6 +78,7 @@ void NoteEditPanel::setupUi()
                 refreshPluginToolsUi(); });
     mainLayout->addWidget(m_pluginToolsToggleBtn);
 
+    // Plugin placement placeholder (for external plugins via plugin system)
     m_pluginToolsLabel = new QLabel(tr("Note Placement Tools:"), this);
     m_pluginToolsContainer = new QWidget(this);
     m_pluginToolsLayout = new QVBoxLayout(m_pluginToolsContainer);
@@ -88,6 +89,54 @@ void NoteEditPanel::setupUi()
     m_pluginToolsContainer->setVisible(false);
     mainLayout->addWidget(m_pluginToolsLabel);
     mainLayout->addWidget(m_pluginToolsContainer);
+
+    // NoteChain native controls (replaces plugin tooling for anchor/curve editing)
+    m_ncPlaceholder = new QWidget(this);
+    QVBoxLayout *ncLayout = new QVBoxLayout(m_ncPlaceholder);
+    ncLayout->setContentsMargins(0, 4, 0, 0);
+    ncLayout->setSpacing(6);
+    m_ncAnchorPlaceCheck = new QCheckBox(tr("Anchor Placement"), m_ncPlaceholder);
+    m_ncAnchorPlaceCheck->setChecked(false);
+    connect(m_ncAnchorPlaceCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainAnchorPlaceToggled);
+    ncLayout->addWidget(m_ncAnchorPlaceCheck);
+    m_ncCurveVisibleCheck = new QCheckBox(tr("Show Curve"), m_ncPlaceholder);
+    m_ncCurveVisibleCheck->setChecked(true);
+    connect(m_ncCurveVisibleCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainCurveVisibleToggled);
+    ncLayout->addWidget(m_ncCurveVisibleCheck);
+    m_ncPolylineModeCheck = new QCheckBox(tr("Polyline Mode"), m_ncPlaceholder);
+    m_ncPolylineModeCheck->setChecked(false);
+    connect(m_ncPolylineModeCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainPolylineModeToggled);
+    ncLayout->addWidget(m_ncPolylineModeCheck);
+    m_ncNoteCurveSnapCheck = new QCheckBox(tr("Snap Notes to Curve"), m_ncPlaceholder);
+    m_ncNoteCurveSnapCheck->setChecked(false);
+    connect(m_ncNoteCurveSnapCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainNoteCurveSnapToggled);
+    ncLayout->addWidget(m_ncNoteCurveSnapCheck);
+    m_ncSelectAnchorsCheck = new QCheckBox(tr("Select: Anchors"), m_ncPlaceholder);
+    m_ncSelectAnchorsCheck->setChecked(true);
+    connect(m_ncSelectAnchorsCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainSelectAnchorsToggled);
+    ncLayout->addWidget(m_ncSelectAnchorsCheck);
+    m_ncSelectSegmentsCheck = new QCheckBox(tr("Select: Segments"), m_ncPlaceholder);
+    m_ncSelectSegmentsCheck->setChecked(true);
+    connect(m_ncSelectSegmentsCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainSelectSegmentsToggled);
+    ncLayout->addWidget(m_ncSelectSegmentsCheck);
+    m_ncCommitBtn = new QPushButton(tr("Commit Curve → Notes"), m_ncPlaceholder);
+    connect(m_ncCommitBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainCommitRequested);
+    ncLayout->addWidget(m_ncCommitBtn);
+    m_ncConnectBtn = new QPushButton(tr("Connect Selected"), m_ncPlaceholder);
+    connect(m_ncConnectBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainConnectRequested);
+    ncLayout->addWidget(m_ncConnectBtn);
+    m_ncDisconnectBtn = new QPushButton(tr("Delete Selected"), m_ncPlaceholder);
+    connect(m_ncDisconnectBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainDisconnectRequested);
+    ncLayout->addWidget(m_ncDisconnectBtn);
+    m_ncDeleteBtn = new QPushButton(tr("Delete Selected"), m_ncPlaceholder);
+    m_ncDeleteBtn->hide(); // replaced by Disconnect above
+    connect(m_ncDeleteBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainDeleteRequested);
+    ncLayout->addWidget(m_ncDeleteBtn);
+    m_ncResetBtn = new QPushButton(tr("Reset Curve"), m_ncPlaceholder);
+    connect(m_ncResetBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainResetRequested);
+    ncLayout->addWidget(m_ncResetBtn);
+    m_ncPlaceholder->setVisible(false);
+    mainLayout->addWidget(m_ncPlaceholder);
 
     // Copy button.
     m_copyButton = new QPushButton(tr("Copy"), this);
@@ -255,6 +304,22 @@ void NoteEditPanel::setModeFromHost(int mode)
     m_currentMode = mode;
 }
 
+void NoteEditPanel::setNoteChainControlsVisible(bool visible)
+{
+    m_noteChainControlsVisible = visible;
+    if (m_ncPlaceholder) m_ncPlaceholder->setVisible(visible);
+}
+
+void NoteEditPanel::syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline, bool noteSnap, bool selAnchors, bool selSegments)
+{
+    if (m_ncAnchorPlaceCheck) m_ncAnchorPlaceCheck->setChecked(anchorPlace);
+    if (m_ncCurveVisibleCheck) m_ncCurveVisibleCheck->setChecked(curveVisible);
+    if (m_ncPolylineModeCheck) m_ncPolylineModeCheck->setChecked(polyline);
+    if (m_ncNoteCurveSnapCheck) m_ncNoteCurveSnapCheck->setChecked(noteSnap);
+    if (m_ncSelectAnchorsCheck) m_ncSelectAnchorsCheck->setChecked(selAnchors);
+    if (m_ncSelectSegmentsCheck) m_ncSelectSegmentsCheck->setChecked(selSegments);
+}
+
 void NoteEditPanel::setPluginPlacementActions(const QList<PluginPlacementAction> &actions)
 {
     if (!m_pluginToolsLayout)
@@ -360,6 +425,29 @@ void NoteEditPanel::retranslateUi()
         m_mirrorPreviewCheck->setText(tr("Show Preview"));
     if (m_mirrorFlipButton)
         m_mirrorFlipButton->setText(tr("Flip Selected"));
+
+    if (m_ncAnchorPlaceCheck)
+        m_ncAnchorPlaceCheck->setText(tr("Anchor Placement"));
+    if (m_ncCurveVisibleCheck)
+        m_ncCurveVisibleCheck->setText(tr("Show Curve"));
+    if (m_ncPolylineModeCheck)
+        m_ncPolylineModeCheck->setText(tr("Polyline Mode"));
+    if (m_ncNoteCurveSnapCheck)
+        m_ncNoteCurveSnapCheck->setText(tr("Snap Notes to Curve"));
+    if (m_ncSelectAnchorsCheck)
+        m_ncSelectAnchorsCheck->setText(tr("Select: Anchors"));
+    if (m_ncSelectSegmentsCheck)
+        m_ncSelectSegmentsCheck->setText(tr("Select: Segments"));
+    if (m_ncCommitBtn)
+        m_ncCommitBtn->setText(tr("Commit Curve → Notes"));
+    if (m_ncConnectBtn)
+        m_ncConnectBtn->setText(tr("Connect Selected"));
+    if (m_ncDisconnectBtn)
+        m_ncDisconnectBtn->setText(tr("Delete Selected"));
+    if (m_ncDeleteBtn)
+        m_ncDeleteBtn->setText(tr("Delete Selected"));
+    if (m_ncResetBtn)
+        m_ncResetBtn->setText(tr("Reset Curve"));
 
     if (m_longRangeSelector)
         m_longRangeSelector->retranslateUi();

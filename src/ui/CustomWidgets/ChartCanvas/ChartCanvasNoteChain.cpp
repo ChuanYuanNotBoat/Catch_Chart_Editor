@@ -82,7 +82,7 @@ void ChartCanvas_drawNoteChainOverlay(ChartCanvas *c, QPainter *painter) {
     if (!c || !c->isNoteChainModeActive() || !c->noteChainEditor()) return;
     NoteChain::CanvasProjection proj;
     proj.lmargin = 64; proj.rmargin = 64;
-    proj.available = c->width() - proj.lmargin - proj.rmargin;
+    proj.available = qMax(1.0, static_cast<double>(c->width()) - proj.lmargin - proj.rmargin);
     proj.laneW = 512.0; proj.ch = static_cast<double>(c->height());
     proj.scrollB = c->scrollBeat(); proj.visRange = c->visibleBeatRange();
     proj.flip = c->isVerticalFlip();

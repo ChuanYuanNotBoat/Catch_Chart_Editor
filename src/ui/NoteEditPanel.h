@@ -49,6 +49,8 @@ public:
     void setMirrorAxisValue(int axisX);
     void setModeFromHost(int mode);
     int currentMode() const { return m_currentMode; }
+    void setNoteChainControlsVisible(bool visible);
+    void syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline, bool noteSnap, bool selAnchors, bool selSegments);
 
 
     LongRangeSelector *longRangeSelector() const { return m_longRangeSelector; }
@@ -68,6 +70,18 @@ signals:
 
     void mirrorFlipRequested();
     void pluginPlacementActionTriggered(const QString &pluginId, const QString &actionId);
+    // NoteChain native controls
+    void noteChainAnchorPlaceToggled(bool on);
+    void noteChainCurveVisibleToggled(bool on);
+    void noteChainPolylineModeToggled(bool on);
+    void noteChainCommitRequested();
+    void noteChainDeleteRequested();
+    void noteChainNoteCurveSnapToggled(bool on);
+    void noteChainSelectAnchorsToggled(bool on);
+    void noteChainSelectSegmentsToggled(bool on);
+    void noteChainConnectRequested();
+    void noteChainDisconnectRequested();
+    void noteChainResetRequested();
 
 private slots:
     void onNoteModeClicked();
@@ -114,4 +128,19 @@ private:
     int m_currentMode;
     int m_gridDivision;
     bool m_pluginToolsExpanded;
+
+    // NoteChain native controls
+    QCheckBox *m_ncAnchorPlaceCheck = nullptr;
+    QCheckBox *m_ncCurveVisibleCheck = nullptr;
+    QCheckBox *m_ncPolylineModeCheck = nullptr;
+    QCheckBox *m_ncNoteCurveSnapCheck = nullptr;
+    QCheckBox *m_ncSelectAnchorsCheck = nullptr;
+    QCheckBox *m_ncSelectSegmentsCheck = nullptr;
+    QPushButton *m_ncCommitBtn = nullptr;
+    QPushButton *m_ncDeleteBtn = nullptr;
+    QPushButton *m_ncConnectBtn = nullptr;
+    QPushButton *m_ncDisconnectBtn = nullptr;
+    QPushButton *m_ncResetBtn = nullptr;
+    QWidget *m_ncPlaceholder = nullptr;
+    bool m_noteChainControlsVisible = false;
 };

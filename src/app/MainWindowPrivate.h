@@ -74,6 +74,7 @@ public:
     QAction *notePanelAction = nullptr;
     QAction *bpmPanelAction = nullptr;
     QAction *metaPanelAction = nullptr;
+    QAction *curvePanelAction = nullptr;
     QAction *checkUpdatesAction = nullptr;
     QAction *helpDocAction = nullptr;
     QAction *aboutAction = nullptr;

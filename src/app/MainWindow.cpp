@@ -1710,6 +1710,18 @@ void MainWindow::createMenus()
     d->pluginToolModeAction->setEnabled(true);
     connect(d->pluginToolModeAction, &QAction::toggled, this, [this](bool checked) {
         if (d->canvas) d->canvas->setNoteChainModeActive(checked);
+        if (d->notePanel) {
+            d->notePanel->setNoteChainControlsVisible(checked);
+            if (checked && d->canvas && d->canvas->noteChainEditor()) {
+                auto *ed = d->canvas->noteChainEditor();
+                d->notePanel->syncNoteChainControlsFromEditor(ed->state().anchorPlacementEnabled(),
+                    ed->state().curveVisible(),
+                    ed->state().activeLinkShape() == "polyline",
+                    ed->state().noteCurveSnapEnabled(),
+                    ed->state().selectionEnabled("anchors"),
+                    ed->state().selectionEnabled("segments"));
+            }
+        }
         if (d->pluginToolModeToolbarAction) { const QSignalBlocker b(d->pluginToolModeToolbarAction); d->pluginToolModeToolbarAction->setChecked(checked); }
     });
 
@@ -2070,6 +2082,29 @@ void MainWindow::createCentralArea()
     connect(d->notePanel, &NoteEditPanel::mirrorPreviewVisibilityChanged, d->canvas, &ChartCanvas::setMirrorPreviewVisible);
     connect(d->notePanel, &NoteEditPanel::mirrorFlipRequested, d->canvas, &ChartCanvas::flipSelectedNotes);
     connect(d->notePanel, &NoteEditPanel::pluginPlacementActionTriggered, this, &MainWindow::triggerPluginQuickAction);
+    // NoteChain native controls
+    connect(d->notePanel, &NoteEditPanel::noteChainAnchorPlaceToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleAnchorPlacement(); });
+    connect(d->notePanel, &NoteEditPanel::noteChainCurveVisibleToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleCurveVisible(); });
+    connect(d->notePanel, &NoteEditPanel::noteChainPolylineModeToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->togglePolylineMode(); });
+    connect(d->notePanel, &NoteEditPanel::noteChainNoteCurveSnapToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleNoteCurveSnap(); });
+    connect(d->notePanel, &NoteEditPanel::noteChainSelectAnchorsToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleSelectAnchors(); });
+    connect(d->notePanel, &NoteEditPanel::noteChainSelectSegmentsToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleSelectSegments(); });
+    connect(d->notePanel, &NoteEditPanel::noteChainCommitRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->commitCurveToNotes(); d->canvas->update(); } });
+    connect(d->notePanel, &NoteEditPanel::noteChainConnectRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->connectSelectedAnchors(); d->canvas->update(); } });
+    connect(d->notePanel, &NoteEditPanel::noteChainDisconnectRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->disconnectSelectedSegments(); d->canvas->update(); } });
+    connect(d->notePanel, &NoteEditPanel::noteChainDeleteRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->deleteSelected(); d->canvas->update(); } });
+    connect(d->notePanel, &NoteEditPanel::noteChainResetRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->resetCurve(); d->canvas->update(); } });
     connect(d->canvas, &ChartCanvas::mirrorAxisChanged, d->notePanel, &NoteEditPanel::setMirrorAxisValue);
 
 
@@ -2101,17 +2136,29 @@ void MainWindow::createCentralArea()
                                                   { showEditorPanel(d->bpmPanel); });
     d->metaPanelAction = d->mainToolBar->addAction(tr("Meta"), [this]()
                                                    { showEditorPanel(d->metaPanel); });
+    d->curvePanelAction = d->mainToolBar->addAction(tr("Curve"));
+    d->curvePanelAction->setCheckable(true);
+    d->curvePanelAction->setEnabled(true);
+    connect(d->curvePanelAction, &QAction::toggled, this, [this](bool checked) {
+        if (d->canvas) d->canvas->setNoteChainModeActive(checked);
+        if (d->notePanel) {
+            d->notePanel->setNoteChainControlsVisible(checked);
+            // Sync checkbox states from editor
+            if (checked && d->canvas && d->canvas->noteChainEditor()) {
+                auto *ed = d->canvas->noteChainEditor();
+                d->notePanel->syncNoteChainControlsFromEditor(ed->state().anchorPlacementEnabled(),
+                    ed->state().curveVisible(),
+                    ed->state().activeLinkShape() == "polyline",
+                    ed->state().noteCurveSnapEnabled(),
+                    ed->state().selectionEnabled("anchors"),
+                    ed->state().selectionEnabled("segments"));
+            }
+        }
+        if (d->pluginToolModeAction) { const QSignalBlocker b(d->pluginToolModeAction); d->pluginToolModeAction->setChecked(checked); }
+    });
     addToolBarBreak(Qt::TopToolBarArea);
     d->pluginToolBar = addToolBar(tr("Plugins"));
     d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
-    d->pluginToolModeToolbarAction = d->pluginToolBar->addAction(tr("Launch Curve Tool"));
-    d->pluginToolModeToolbarAction->setCheckable(true);
-    d->pluginToolModeToolbarAction->setEnabled(false);
-    connect(d->pluginToolModeToolbarAction, &QAction::toggled, this, [this](bool checked) {
-        if (d->canvas) d->canvas->setNoteChainModeActive(checked);
-        if (d->pluginToolModeAction) { const QSignalBlocker b(d->pluginToolModeAction); d->pluginToolModeAction->setChecked(checked); }
-        d->pluginToolModeToolbarAction->setEnabled(true);  // always enable for native mode
-    });
     showEditorPanel(d->notePanel);
     applySidebarTheme();
 
@@ -3474,6 +3521,8 @@ void MainWindow::retranslateUi()
         d->bpmPanelAction->setText(tr("BPM"));
     if (d->metaPanelAction)
         d->metaPanelAction->setText(tr("Meta"));
+    if (d->curvePanelAction)
+        d->curvePanelAction->setText(tr("Curve"));
     if (d->pluginManagerToolbarAction)
         d->pluginManagerToolbarAction->setText(tr("Plugins"));
     if (d->pluginToolModeToolbarAction)
