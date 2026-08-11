@@ -1,107 +1,101 @@
 #pragma once
-
-// NoteChainEditor.h — 顶层协调器
-// 管理 NoteChain 全部子系统的生命周期，对外提供简洁接口
-
+// NoteChainEditor.h - main editor orchestrator (based on Python input_handler.py + note_chain_assist.py)
 #include "NoteChainState.h"
-#include "NoteChainHistory.h"
-#include "NoteChainPersistence.h"
-#include "NoteChainCurveSampler.h"
-#include "NoteChainOverlay.h"
-
 #include <QObject>
 #include <QPainter>
-#include <QRectF>
 #include <QElapsedTimer>
 
 class QMouseEvent;
+class ChartController;
 
 namespace NoteChain {
 
-class NoteChainOverlay;
-
-class NoteChainEditor : public QObject
-{
+class NoteChainEditor : public QObject {
     Q_OBJECT
-
 public:
     explicit NoteChainEditor(QObject *parent = nullptr);
-    ~NoteChainEditor();
 
-    // ---- 模式控制 ----
     void setActive(bool active);
     bool isActive() const { return m_active; }
 
-    // ---- 鼠标交互（从 ChartCanvas 调用）----
-    enum class MouseResult {
-        NotHandled,
-        Handled,
-        NeedsRepaint
-    };
-    MouseResult handleMousePress(QMouseEvent *event, double canvasX, double canvasY,
-                                 bool shiftDown, bool ctrlDown);
-    MouseResult handleMouseMove(QMouseEvent *event, double canvasX, double canvasY);
-    MouseResult handleMouseRelease(QMouseEvent *event, double canvasX, double canvasY);
-    MouseResult handleMouseDoubleClick(QMouseEvent *event, double canvasX, double canvasY);
+    void setChartController(ChartController *ctrl) { m_chartCtrl = ctrl; }
 
-    // ---- 键盘 ----
-    void handleKeyDelete();
-    void handleKeyEscape();
+    // ---- Mouse events (called from ChartCanvas) ----
+    // canvasX/Y are in chart-space (laneX, beat). shiftDown/ctrlDown from Qt modifiers.
+    bool handleMousePress(double chartX, double chartY, int button, bool shift, bool ctrl);
+    bool handleMouseMove(double chartX, double chartY, int buttons);
+    bool handleMouseRelease(double chartX, double chartY, int button);
 
-    // ---- 渲染（从 ChartCanvas drawForeground 调用）----
-    void renderOverlay(QPainter *painter, const QRectF &rect,
-                       double scrollBeat, double visibleBeatRange,
-                       const ProjectX &projX, const ProjectY &projY);
+    // ---- Cursor hint (called after mouseMove to update canvas cursor) ----
+    QString hoverCursorHint(double chartX, double chartY) const;
 
-    // ---- 撤销/重做 ----
+    // ---- Keyboard ----
+    bool handleKeyDown(int key, bool shift, bool ctrl);
+
+    // ---- Render (direct QPainter, no overlay serialization) ----
+    void render(QPainter *painter, const QRectF &viewport,
+                double scrollBeat, double visibleBeatRange,
+                const CanvasProjection &proj);
+
+    // ---- Actions (tool_actions.py) ----
+    bool commitCurveToNotes();
+    void toggleAnchorPlacement();
+    void toggleCurveVisible();
+    void togglePolylineMode();
+    void toggleNoteCurveSnap();
+    void toggleSelectAnchors();
+    void toggleSelectSegments();
+    void toggleSelectNotes();
+    void connectSelectedAnchors();
+    void disconnectSelectedSegments();
+    void deleteSelected();
+    void resetCurve();
+
+    // ---- Persistence ----
+    bool loadProject(const QString &path);
+    bool saveProject(const QString &path = QString());
+    QString currentSidecarPath() const { return m_sidecarPath; }
+
+    // ---- Undo/Redo ----
     bool canUndo() const;
     bool canRedo() const;
     void undo();
     void redo();
 
-    // ---- 持久化 ----
-    bool loadProject(const QString &sidecarPath);
-    bool saveProject(const QString &sidecarPath = QString());
-
-    // ---- 批量提交（生成 Note）----
-    QVector<SampledPoint> generateNotes() const;
-
-    // ---- 状态访问 ----
+    // ---- State access ----
     NoteChainState &state() { return m_state; }
     const NoteChainState &state() const { return m_state; }
-    NoteChainHistory &history() { return m_history; }
 
-    // ---- 面板数据 ----
-    int selectedAnchorId() const;
-    QVector<int> allAnchorIds() const;
+    // ---- Context sync (from host) ----
+    void setHostContext(const QVariantMap &ctx);
+
+signals:
+    void needsRepaint();
+    void statusMessage(const QString &msg);
+    void requestHostUndoCheckpoint(const QString &label);
 
 private:
-    void recordHistory();
-
     bool m_active = false;
-
     NoteChainState m_state;
-    NoteChainHistory m_history;
+    ChartController *m_chartCtrl = nullptr;
+    QString m_sidecarPath;
 
-    QString m_currentSidecarPath;
+    // History
+    QVector<StateSnapshot> m_history;
+    int m_historyIdx = -1;
 
-    // 拖拽状态
-    enum class DragMode {
-        None,
-        Anchor,       // 拖拽锚点
-        HandleIn,     // 拖拽入控制柄
-        HandleOut,    // 拖拽出控制柄
-        LinkDrag,     // Shift+拖拽创建链接
-    };
-    DragMode m_dragMode = DragMode::None;
-    int m_dragAnchorId = -1;
-    int m_linkDragFromId = -1;
-    // LinkDrag 预览线：当前鼠标在画布上的位置
-    double m_linkDragCurrentX = 0, m_linkDragCurrentY = 0;
-
-    // P1-3 fix: 拖拽节流定时器
+    // Drag throttling
     QElapsedTimer m_lastMoveTimer;
     static constexpr int kMoveThrottleMs = 16;
+
+    // Internal helpers
+    void recordHistory();
+    void markDirty();
+    int findAnchorHit(double chartX, double chartY) const;
+    QPair<QString,int> findHandleHit(double chartX, double chartY) const;
+    QPair<int,int> findSegmentHit(double chartX, double chartY) const; // returns (id0,id1) or (-1,-1)
+    void syncAnchorPlacementWithHostMode();
+    void syncAnchorSelectionFromHostNotes();
 };
 
 } // namespace NoteChain

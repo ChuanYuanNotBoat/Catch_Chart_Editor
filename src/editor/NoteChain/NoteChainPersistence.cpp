@@ -17,16 +17,10 @@ namespace NoteChain {
 
 // ---- 序列化工具函数 ----
 
-static QJsonArray tripletFromDouble(double value, int den = 288)
-{
-    // Malody triplet 格式：[value, 0, 0, den]
-    // 简化处理：存储 double 到 triplet 格式（后续阶段完善）
-    Q_UNUSED(den)
+static QJsonArray beatToTriplet(double beat) {
+    QVector<int> tri = floatBeatToTriplet(beat, Const::kSerializeDen);
     QJsonArray arr;
-    arr.append(value);
-    arr.append(0);
-    arr.append(0);
-    arr.append(288);
+    arr.append(tri[0]); arr.append(tri[1]); arr.append(tri[2]);
     return arr;
 }
 
@@ -61,19 +55,19 @@ QJsonObject NoteChainPersistence::serializeAnchor(const Anchor &anchor)
     QJsonObject obj;
     obj["id"] = anchor.id;
     obj["lane_x"] = anchor.laneX;
-    obj["beat"] = tripletFromDouble(anchor.beat);
+    obj["beat"] = beatToTriplet(anchor.beat);
 
     QJsonObject inObj;
-    inObj["lane_dx"] = anchor.handleInDx;
-    inObj["beat_delta"] = tripletFromDouble(anchor.handleInDy);
+    inObj["lane_dx"] = anchor.inDx;
+    inObj["beat_delta"] = beatToTriplet(anchor.inDy);
     obj["in"] = inObj;
 
     QJsonObject outObj;
-    outObj["lane_dx"] = anchor.handleOutDx;
-    outObj["beat_delta"] = tripletFromDouble(anchor.handleOutDy);
+    outObj["lane_dx"] = anchor.outDx;
+    outObj["beat_delta"] = beatToTriplet(anchor.outDy);
     obj["out"] = outObj;
 
-    obj["smooth"] = true;
+    obj["smooth"] = anchor.smooth;
     return obj;
 }
 
@@ -90,10 +84,10 @@ bool NoteChainPersistence::deserializeAnchor(const QJsonObject &json, Anchor &an
         QJsonObject inRaw  = json.value("in").toObject();
         QJsonObject outRaw = json.value("out").toObject();
 
-        anchor.handleInDx = inRaw.value("lane_dx").toDouble(0.0);
-        anchor.handleInDy = doubleFromTriplet(inRaw.value("beat_delta"), 0.0);
-        anchor.handleOutDx = outRaw.value("lane_dx").toDouble(0.0);
-        anchor.handleOutDy = doubleFromTriplet(outRaw.value("beat_delta"), 0.0);
+        anchor.inDx = inRaw.value("lane_dx").toDouble(0.0);
+        anchor.inDy = doubleFromTriplet(inRaw.value("beat_delta"), 0.0);
+        anchor.outDx = outRaw.value("lane_dx").toDouble(0.0);
+        anchor.outDy = doubleFromTriplet(outRaw.value("beat_delta"), 0.0);
 
         return anchor.id >= 0;
     }
@@ -109,10 +103,10 @@ bool NoteChainPersistence::deserializeAnchor(const QJsonObject &json, Anchor &an
         QJsonArray inArr  = inVal.isArray() ? inVal.toArray() : QJsonArray{0.0, 0.0};
         QJsonArray outArr = outVal.isArray() ? outVal.toArray() : QJsonArray{0.0, 0.0};
 
-        anchor.handleInDx = inArr.size() >= 1  ? inArr[0].toDouble(0.0)  : 0.0;
-        anchor.handleInDy = inArr.size() >= 2  ? inArr[1].toDouble(0.0)  : 0.0;
-        anchor.handleOutDx = outArr.size() >= 1 ? outArr[0].toDouble(0.0) : 0.0;
-        anchor.handleOutDy = outArr.size() >= 2 ? outArr[1].toDouble(0.0) : 0.0;
+        anchor.inDx = inArr.size() >= 1  ? inArr[0].toDouble(0.0)  : 0.0;
+        anchor.inDy = inArr.size() >= 2  ? inArr[1].toDouble(0.0)  : 0.0;
+        anchor.outDx = outArr.size() >= 1 ? outArr[0].toDouble(0.0) : 0.0;
+        anchor.outDy = outArr.size() >= 2 ? outArr[1].toDouble(0.0) : 0.0;
 
         return anchor.id >= 0;
     }
@@ -126,12 +120,12 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
 {
     QJsonObject root;
 
-    root["format_version"]   = kV3Version;
+    root["format_version"]   = 3;
     root["coordinate_space"] = QStringLiteral("chart");
-    root["revision"]         = state.projectMeta().revision;
+    root["revision"]         = state.projectRevision();
 
     // file_uuid
-    QString fileUuid = state.projectMeta().filename;
+    QString fileUuid = state.projectFileUuid();
     if (fileUuid.isEmpty()) {
         fileUuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
     }
@@ -142,23 +136,23 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
 
     // nodes 数组（对应 anchors）
     QJsonArray nodesArray;
-    QMap<int, Anchor> anchorsMap = state.anchors();
-    for (auto it = anchorsMap.begin(); it != anchorsMap.end(); ++it) {
-        nodesArray.append(serializeAnchor(it.value()));
+    const QVector<Anchor> &anchorsVec = state.anchors();
+    for (const Anchor &a : anchorsVec) {
+        nodesArray.append(serializeAnchor(a));
     }
     root["nodes"] = nodesArray;
 
     // curves 数组（对应 links）
     QJsonArray curvesArray;
-    QVector<Link> linksList = state.links();
+    const QVector<Link> &linksList = state.linksAll();
     for (const Link &link : linksList) {
         QJsonObject curveObj;
-        curveObj["curve_id"] = link.fromAnchorId;  // 简化：用 fromAnchorId 作为 id
-        curveObj["curve_no"] = link.toAnchorId;
-        curveObj["node_ids"] = QJsonArray{link.fromAnchorId, link.toAnchorId};
+        curveObj["curve_id"] = link.from;
+        curveObj["curve_no"] = link.to;
+        curveObj["node_ids"] = QJsonArray{link.from, link.to};
 
         QJsonObject densityObj;
-        int den = state.segmentDenominator(link.fromAnchorId, link.toAnchorId);
+        int den = state.segmentDen(link.from, link.to);
         if (den > 0) {
             densityObj["mode"]        = QStringLiteral("fixed");
             densityObj["denominator"] = den;
@@ -167,7 +161,7 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
         }
         curveObj["density"] = densityObj;
 
-        QString shape = state.segmentShape(link.fromAnchorId, link.toAnchorId);
+        QString shape = state.segmentShape(link.from, link.to);
         curveObj["style_category"] = shape;
 
         QJsonArray groupIds{1};
@@ -188,7 +182,7 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
     styleObj["style_name"]   = QStringLiteral("balanced");
     root["style"] = styleObj;
 
-    root["active_link_shape"]       = QString::fromLatin1(kShapeCurve);
+    root["active_link_shape"]       = QString::fromLatin1(Const::kShapeCurve);
     root["note_curve_snap_enabled"] = false;
 
     return root;
@@ -207,7 +201,11 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
         QJsonObject nodeObj = nodeVal.toObject();
         Anchor anchor;
         if (deserializeAnchor(nodeObj, anchor, nullptr)) {
-            tmp.addAnchor(anchor);
+            int idx = tmp.appendAnchor(anchor.laneX, anchor.beat);
+            Anchor &added = tmp.anchorAt(idx);
+            added.inDx = anchor.inDx; added.inDy = anchor.inDy;
+            added.outDx = anchor.outDx; added.outDy = anchor.outDy;
+            added.smooth = anchor.smooth; added.id = anchor.id;
         }
     }
 
@@ -231,8 +229,8 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
         QJsonObject densityObj = curveObj.value("density").toObject();
         QString densityMode = densityObj.value("mode").toString();
         if (densityMode == QLatin1String("fixed")) {
-            int den = parseInt(densityObj.value("denominator"), kDefaultSegmentDenominator);
-            tmp.setSegmentDenominator(id0, id1, den);
+            int den = parseInt(densityObj.value("denominator"), Const::kDefaultSegmentDen);
+            tmp.setSegmentDen(id0, id1, den);
         }
 
         // 形态
@@ -244,13 +242,11 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
 
     // 元数据
     if (json.contains("revision")) {
-        CurveProjectMeta meta;
-        meta.revision = parseInt(json.value("revision"), 0);
-        tmp.setProjectMeta(meta);
+        tmp.setProjectRevision(parseInt(json.value("revision"), 0));
     }
 
     // 校验通过后再赋值
-    tmp.cleanupOrphanedLinksAndSelection();
+    tmp.cleanupLinksAndSelection();
     state = std::move(tmp);
     return true;
 }
@@ -290,7 +286,7 @@ bool NoteChainPersistence::saveToFile(const NoteChainState &state, const QString
         }
     }
     // CAS revision 冲突检测：比较内存 revision 与磁盘 revision
-    int memRevision = state.projectMeta().revision;
+    int memRevision = state.projectRevision();
     if (fi.exists() && memRevision != diskRevision) {
         if (errorMsg) *errorMsg = QStringLiteral("revision conflict: file modified by another instance (disk=%1, mem=%2)")
                                        .arg(diskRevision).arg(memRevision);
@@ -346,7 +342,7 @@ bool NoteChainPersistence::loadFromFile(const QString &filePath, NoteChainState 
 
     // 检测 V3 格式
     int formatVersion = parseInt(root.value("format_version"), 0);
-    bool isV3 = (formatVersion >= kV3Version) ||
+    bool isV3 = (formatVersion >= 3) ||
                 (root.contains("nodes") && root.contains("curves"));
 
     if (!isV3) {

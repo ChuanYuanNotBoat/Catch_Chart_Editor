@@ -12,7 +12,6 @@
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
 #include "editor/NoteChain/NoteChainEditor.h"
-#include "editor/NoteChain/NoteChainCanvasBridge.h"
 
 class ChartController;
 class SelectionController;
@@ -453,3 +452,10 @@ private:
     qint64 m_lastPlaybackVisualAdvanceNs;
     int m_overlayPlaybackIntervalMs;
 };
+
+// NoteChain native integration free functions (declared in ChartCanvasNoteChain.cpp)
+class QMouseEvent;
+bool ChartCanvas_dispatchNoteChainMousePress(ChartCanvas *c, QMouseEvent *event);
+bool ChartCanvas_dispatchNoteChainMouseMove(ChartCanvas *c, QMouseEvent *event);
+bool ChartCanvas_dispatchNoteChainMouseRelease(ChartCanvas *c, QMouseEvent *event);
+void ChartCanvas_drawNoteChainOverlay(ChartCanvas *c, QPainter *painter);

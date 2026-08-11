@@ -1705,10 +1705,13 @@ void MainWindow::createMenus()
     connect(d->pluginToolsMenu, &QMenu::aboutToShow, this, &MainWindow::populatePluginToolsMenu);
     d->pluginPanelsMenu = d->pluginsMenu->addMenu(tr("Plugin &Panels"));
     connect(d->pluginPanelsMenu, &QMenu::aboutToShow, this, &MainWindow::populatePluginPanelsMenu);
-    d->pluginToolModeAction = d->pluginsMenu->addAction(tr("Plugin Enhanced Tool Mode"));
+    d->pluginToolModeAction = d->pluginsMenu->addAction(tr("Curve Edit Tool"));
     d->pluginToolModeAction->setCheckable(true);
-    d->pluginToolModeAction->setEnabled(false);
-    connect(d->pluginToolModeAction, &QAction::toggled, this, &MainWindow::togglePluginEnhancedToolMode);
+    d->pluginToolModeAction->setEnabled(true);
+    connect(d->pluginToolModeAction, &QAction::toggled, this, [this](bool checked) {
+        if (d->canvas) d->canvas->setNoteChainModeActive(checked);
+        if (d->pluginToolModeToolbarAction) { const QSignalBlocker b(d->pluginToolModeToolbarAction); d->pluginToolModeToolbarAction->setChecked(checked); }
+    });
 
     QMenu *overlayMenu = d->pluginsMenu->addMenu(tr("Plugin Overlay Elements"));
     auto addOverlayToggle = [this, overlayMenu](const QString &key, const QString &label, bool defaultValue)
@@ -2104,7 +2107,11 @@ void MainWindow::createCentralArea()
     d->pluginToolModeToolbarAction = d->pluginToolBar->addAction(tr("Launch Curve Tool"));
     d->pluginToolModeToolbarAction->setCheckable(true);
     d->pluginToolModeToolbarAction->setEnabled(false);
-    connect(d->pluginToolModeToolbarAction, &QAction::toggled, this, &MainWindow::togglePluginEnhancedToolMode);
+    connect(d->pluginToolModeToolbarAction, &QAction::toggled, this, [this](bool checked) {
+        if (d->canvas) d->canvas->setNoteChainModeActive(checked);
+        if (d->pluginToolModeAction) { const QSignalBlocker b(d->pluginToolModeAction); d->pluginToolModeAction->setChecked(checked); }
+        d->pluginToolModeToolbarAction->setEnabled(true);  // always enable for native mode
+    });
     showEditorPanel(d->notePanel);
     applySidebarTheme();
 

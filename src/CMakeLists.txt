@@ -57,15 +57,13 @@
     ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp
+    ui/CustomWidgets/ChartCanvas/ChartCanvasNoteChain.cpp
     ui/dialogs/LogSettingsDialog.cpp
     ui/dialogs/PluginManagerDialog.cpp
     ui/dialogs/BpmMeasureDialog.cpp
     editor/NoteChain/NoteChainEditor.cpp
     editor/NoteChain/NoteChainState.cpp
-    editor/NoteChain/NoteChainHistory.cpp
     editor/NoteChain/NoteChainPersistence.cpp
-    editor/NoteChain/NoteChainCurveSampler.cpp
-    editor/NoteChain/NoteChainOverlay.cpp
 )
 
 qt_add_executable(CatchChartEditor

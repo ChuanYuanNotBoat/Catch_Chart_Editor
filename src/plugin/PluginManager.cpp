@@ -64,14 +64,9 @@ namespace
 
         // Keep deterministic ordering for same tier.
         return false;
-    }
-
-    bool isLegacyNativeNoteChainPluginId(const QString &pluginId)
-    {
-        const QString id = pluginId.trimmed().toLower();
-        return id == "tool.note_chain_assist.cpp" || id == "tool.note_chain_assist";
-    }
 }
+
+} // anonymous namespace
 
 PluginManager::PluginManager(QObject *parent) : QObject(parent)
 {
@@ -99,14 +94,15 @@ void PluginManager::loadPlugins(const QString &pluginsDir, QWidget *parent)
         // Resolve same-display-name conflicts first: keep one canonical plugin
         // per display name and prefer builtin.* variants.
         QHash<QString, int> winnerByDisplayName;
-        bool hasBuiltinNoteChainAssist = false;
         for (int i = 0; i < loaded.size(); ++i)
         {
             PluginInterface *p = loaded[i];
             if (!p)
                 continue;
-            if (p->pluginId().trimmed().compare("builtin.note_chain_assist", Qt::CaseInsensitive) == 0)
-                hasBuiltinNoteChainAssist = true;
+            if (p->pluginId().trimmed().compare("builtin.note_chain_assist", Qt::CaseInsensitive) == 0) {
+                Logger::info(QString("Plugin '%1' skipped: replaced by native C++ NoteChain module.").arg(p->pluginId()));
+                continue;
+            }
             const QString key = normalizedPluginDisplayName(p, locale);
             if (key.isEmpty())
                 continue;
@@ -127,13 +123,6 @@ void PluginManager::loadPlugins(const QString &pluginsDir, QWidget *parent)
                 continue;
             }
 
-            if (hasBuiltinNoteChainAssist && isLegacyNativeNoteChainPluginId(p->pluginId()))
-            {
-                Logger::info(QString("Plugin '%1' skipped: replaced by builtin.note_chain_assist.")
-                                 .arg(p->pluginId()));
-                rejected.append(p);
-                continue;
-            }
 
             const QString displayKey = normalizedPluginDisplayName(p, locale);
             const int displayWinnerIndex = winnerByDisplayName.value(displayKey, -1);
@@ -216,7 +205,7 @@ void PluginManager::loadPlugins(const QString &pluginsDir, QWidget *parent)
 
         // Kick off async initialization in the next event-loop iteration so
         // the UI stays responsive.
-        QTimer::singleShot(0, this, [this]() { initializePendingPlugins(); });
+        QTimer::singleShot(0, [this]() { initializePendingPlugins(); });
     }
     catch (const std::exception &e)
     {

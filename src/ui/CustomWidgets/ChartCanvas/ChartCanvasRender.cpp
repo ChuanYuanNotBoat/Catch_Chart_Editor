@@ -13,7 +13,6 @@
 #include "utils/DiagnosticCollector.h"
 #include "utils/Logger.h"
 #include "model/Chart.h"
-#include "editor/NoteChain/NoteChainCanvasBridge.h"
 #include <QPainter>
 #include <QPen>
 #include <QDir>
@@ -254,18 +253,8 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     drawPluginOverlays(painter, lmargin, rmargin);
 
-    // NoteChain native: render overlay
-    if (m_noteChainModeActive && m_noteChainEditor) {
-        auto projX = [this](double laneX) -> double {
-            return laneXToCanvasX(static_cast<int>(laneX));
-        };
-        auto projY = [this](double beat) -> double {
-            return beatToY(beat);
-        };
-        NoteChain::bridgeRenderOverlay(m_noteChainEditor, &painter, painter.viewport(),
-                                       m_scrollBeat, effectiveVisibleBeatRange(),
-                                       projX, projY);
-    }
+    // NoteChain native: direct QPainter render (zero overlay serialization)
+    ChartCanvas_drawNoteChainOverlay(this, &painter);
 
     painter.setPen(Qt::white);
     painter.setBrush(QColor(0, 0, 0, 128));

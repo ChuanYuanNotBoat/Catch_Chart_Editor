@@ -133,6 +133,32 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
         return;
     }
 
+    // NoteChain native: keyboard shortcuts
+    if (m_noteChainModeActive && m_noteChainEditor) {
+        if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+            m_noteChainEditor->commitCurveToNotes();
+            event->accept(); return;
+        }
+        if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
+            m_noteChainEditor->deleteSelected();
+            event->accept(); return;
+        }
+        if (event->key() == Qt::Key_Escape) {
+            m_noteChainEditor->handleKeyDown(Qt::Key_Escape, false, false);
+            event->accept(); return;
+        }
+        if (event->key() == Qt::Key_A && !event->modifiers().testFlag(Qt::ControlModifier)) {
+            m_noteChainEditor->toggleAnchorPlacement();
+            event->accept(); return;
+        }
+        if (event->matches(QKeySequence::Undo)) {
+            m_noteChainEditor->undo(); event->accept(); return;
+        }
+        if (event->matches(QKeySequence::Redo)) {
+            m_noteChainEditor->redo(); event->accept(); return;
+        }
+    }
+
     if (m_pluginToolModeActive && event->key() == Qt::Key_Return)
     {
         if (triggerPluginBatchAction("commit_curve_to_notes", tr("Commit Curve -> Notes")))
