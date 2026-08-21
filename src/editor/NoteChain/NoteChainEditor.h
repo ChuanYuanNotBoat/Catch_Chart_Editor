@@ -46,10 +46,21 @@ public:
     void toggleSelectAnchors();
     void toggleSelectSegments();
     void toggleSelectNotes();
+    void setAnchorPlacementEnabled(bool on);
+    void setCurveVisible(bool on);
+    void setPolylineMode(bool on);
+    void setNoteCurveSnapEnabled(bool on);
+    void setSelectAnchorsEnabled(bool on);
+    void setSelectSegmentsEnabled(bool on);
     void connectSelectedAnchors();
     void disconnectSelectedSegments();
     void deleteSelected();
     void resetCurve();
+    bool selectSegmentAt(double chartX, double chartY, bool append);
+    bool hasSelectedSegments() const;
+    int selectedSegmentDensity() const; // -2=no target, -1=mixed, 0=follow, >0=fixed
+    bool setSelectedSegmentDensity(int denominator);
+    bool toggleSelectedSegmentShape();
 
     // ---- Persistence ----
     bool loadProject(const QString &path);

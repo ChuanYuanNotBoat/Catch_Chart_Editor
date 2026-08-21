@@ -10,7 +10,7 @@ class NoteChainPersistence {
 public:
     static QJsonObject serialize(const NoteChainState &state);
     static bool deserialize(const QJsonObject &json, NoteChainState &state, QString *errorMsg = nullptr);
-    static bool saveToFile(const NoteChainState &state, const QString &path, QString *errorMsg = nullptr);
+    static bool saveToFile(NoteChainState &state, const QString &path, QString *errorMsg = nullptr);
     static bool loadFromFile(const QString &path, NoteChainState &state, QString *errorMsg = nullptr);
     static QString sidecarPathForChart(const QString &chartPath);
 

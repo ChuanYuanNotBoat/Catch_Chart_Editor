@@ -12,15 +12,35 @@
 #include <QJsonValue>
 #include <QUuid>
 #include <QDateTime>
+#include <cmath>
+#include <numeric>
 
 namespace NoteChain {
 
 // ---- 序列化工具函数 ----
 
 static QJsonArray beatToTriplet(double beat) {
-    QVector<int> tri = floatBeatToTriplet(beat, Const::kSerializeDen);
+    const int den = Const::kSerializeDen;
+    int beatNum = static_cast<int>(std::floor(beat + 1e-9));
+    double frac = beat - beatNum;
+    int num = static_cast<int>(qRound(frac * den));
+    if (num >= den) {
+        beatNum += num / den;
+        num %= den;
+    }
+    if (num < 0) {
+        const int borrow = static_cast<int>(std::ceil(std::abs(num) / static_cast<double>(den)));
+        beatNum -= borrow;
+        num += borrow * den;
+    }
+    int outDen = den;
+    const int g = std::gcd(num < 0 ? -num : num, den);
+    if (g > 0) {
+        num /= g;
+        outDen /= g;
+    }
     QJsonArray arr;
-    arr.append(tri[0]); arr.append(tri[1]); arr.append(tri[2]);
+    arr.append(beatNum); arr.append(num); arr.append(outDen);
     return arr;
 }
 
@@ -28,6 +48,11 @@ static double doubleFromTriplet(const QJsonValue &val, double fallback = 0.0)
 {
     if (val.isArray()) {
         QJsonArray arr = val.toArray();
+        if (arr.size() >= 3) {
+            const int den = arr[2].toInt(0);
+            if (den != 0)
+                return arr[0].toDouble(0.0) + arr[1].toDouble(0.0) / static_cast<double>(den);
+        }
         if (arr.size() >= 1)
             return arr[0].toDouble(fallback);
     } else if (val.isDouble()) {
@@ -53,20 +78,28 @@ static int parseInt(const QJsonValue &val, int fallback = 0)
 QJsonObject NoteChainPersistence::serializeAnchor(const Anchor &anchor)
 {
     QJsonObject obj;
-    obj["id"] = anchor.id;
+    obj["node_id"] = anchor.id;
     obj["lane_x"] = anchor.laneX;
     obj["beat"] = beatToTriplet(anchor.beat);
 
     QJsonObject inObj;
     inObj["lane_dx"] = anchor.inDx;
     inObj["beat_delta"] = beatToTriplet(anchor.inDy);
-    obj["in"] = inObj;
-
     QJsonObject outObj;
     outObj["lane_dx"] = anchor.outDx;
     outObj["beat_delta"] = beatToTriplet(anchor.outDy);
-    obj["out"] = outObj;
+    QJsonObject joystickObj;
+    joystickObj["lane_dx"] = anchor.outDx;
+    joystickObj["beat_delta"] = beatToTriplet(anchor.outDy);
+    obj["joystick"] = joystickObj;
 
+    QJsonObject compatObj;
+    compatObj["in"] = inObj;
+    compatObj["out"] = outObj;
+    obj["compat_handles"] = compatObj;
+
+    obj["group_ids"] = QJsonArray{1};
+    obj["reserved"] = QJsonObject();
     obj["smooth"] = anchor.smooth;
     return obj;
 }
@@ -77,12 +110,26 @@ bool NoteChainPersistence::deserializeAnchor(const QJsonObject &json, Anchor &an
 
     // V3 格式：包含 lane_x
     if (json.contains("lane_x")) {
-        anchor.id  = parseInt(json.value("id"), -1);
+        anchor.id  = parseInt(json.value("node_id"), parseInt(json.value("id"), -1));
         anchor.laneX = json.value("lane_x").toDouble(0.0);
         anchor.beat = doubleFromTriplet(json.value("beat"), 0.0);
 
-        QJsonObject inRaw  = json.value("in").toObject();
-        QJsonObject outRaw = json.value("out").toObject();
+        QJsonObject compatRaw = json.value("compat_handles").toObject();
+        QJsonObject inRaw  = compatRaw.value("in").toObject();
+        QJsonObject outRaw = compatRaw.value("out").toObject();
+        if (inRaw.isEmpty() && outRaw.isEmpty()) {
+            inRaw = json.value("in").toObject();
+            outRaw = json.value("out").toObject();
+        }
+        if (inRaw.isEmpty() && outRaw.isEmpty()) {
+            QJsonObject joystickRaw = json.value("joystick").toObject();
+            const double joyDx = joystickRaw.value("lane_dx").toDouble(0.0);
+            const double joyDy = doubleFromTriplet(joystickRaw.value("beat_delta"), 0.0);
+            inRaw["lane_dx"] = -joyDx;
+            inRaw["beat_delta"] = beatToTriplet(-joyDy);
+            outRaw["lane_dx"] = joyDx;
+            outRaw["beat_delta"] = beatToTriplet(joyDy);
+        }
 
         anchor.inDx = inRaw.value("lane_dx").toDouble(0.0);
         anchor.inDy = doubleFromTriplet(inRaw.value("beat_delta"), 0.0);
@@ -147,13 +194,15 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
     const QVector<Link> &linksList = state.linksAll();
     for (const Link &link : linksList) {
         QJsonObject curveObj;
-        curveObj["curve_id"] = link.from;
-        curveObj["curve_no"] = link.to;
+        curveObj["curve_id"] = 0;
+        curveObj["curve_no"] = 0;
         curveObj["node_ids"] = QJsonArray{link.from, link.to};
 
         QJsonObject densityObj;
         int den = state.segmentDen(link.from, link.to);
-        if (den > 0) {
+        if (state.segmentDensityMode(link.from, link.to) == 0) {
+            densityObj["mode"] = QStringLiteral("follow");
+        } else if (den > 0) {
             densityObj["mode"]        = QStringLiteral("fixed");
             densityObj["denominator"] = den;
         } else {
@@ -174,16 +223,28 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
     root["curves"] = curvesArray;
 
     // 附加属性
-    root["node_groups"]  = QJsonArray();
-    root["curve_groups"] = QJsonArray();
+    QJsonObject baseNodeGroup;
+    baseNodeGroup["group_id"] = 1;
+    baseNodeGroup["group_name"] = QStringLiteral("base");
+    baseNodeGroup["reserved"] = QJsonObject();
+    QJsonObject baseCurveGroup = baseNodeGroup;
+    root["node_groups"]  = QJsonArray{baseNodeGroup};
+    root["curve_groups"] = QJsonArray{baseCurveGroup};
 
     QJsonObject styleObj;
-    styleObj["denominators"] = QJsonArray{4, 8, 12, 16};
-    styleObj["style_name"]   = QStringLiteral("balanced");
+    QJsonArray dens;
+    QVector<int> styleDenominators = state.style().denominators;
+    if (styleDenominators.isEmpty())
+        styleDenominators = {4, 8, 12, 16};
+    for (int d : styleDenominators)
+        if (d > 0)
+            dens.append(d);
+    styleObj["denominators"] = dens.isEmpty() ? QJsonArray{4, 8, 12, 16} : dens;
+    styleObj["style_name"]   = state.style().name.isEmpty() ? QStringLiteral("balanced") : state.style().name;
     root["style"] = styleObj;
 
-    root["active_link_shape"]       = QString::fromLatin1(Const::kShapeCurve);
-    root["note_curve_snap_enabled"] = false;
+    root["active_link_shape"]       = state.activeLinkShape();
+    root["note_curve_snap_enabled"] = state.noteCurveSnapEnabled();
 
     return root;
 }
@@ -196,6 +257,7 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
     NoteChainState tmp;
 
     // nodes → anchors
+    int maxAnchorId = 0;
     QJsonArray nodesArray = json.value("nodes").toArray();
     for (const QJsonValue &nodeVal : nodesArray) {
         QJsonObject nodeObj = nodeVal.toObject();
@@ -206,8 +268,10 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
             added.inDx = anchor.inDx; added.inDy = anchor.inDy;
             added.outDx = anchor.outDx; added.outDy = anchor.outDy;
             added.smooth = anchor.smooth; added.id = anchor.id;
+            maxAnchorId = qMax(maxAnchorId, anchor.id);
         }
     }
+    tmp.setNextAnchorId(maxAnchorId + 1);
 
     // curves → links + segment 属性
     QJsonArray curvesArray = json.value("curves").toArray();
@@ -231,6 +295,8 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
         if (densityMode == QLatin1String("fixed")) {
             int den = parseInt(densityObj.value("denominator"), Const::kDefaultSegmentDen);
             tmp.setSegmentDen(id0, id1, den);
+        } else if (densityMode == QLatin1String("follow")) {
+            tmp.setDensityMode(id0, id1, 0);
         }
 
         // 形态
@@ -244,6 +310,24 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
     if (json.contains("revision")) {
         tmp.setProjectRevision(parseInt(json.value("revision"), 0));
     }
+    tmp.setProjectFileUuid(json.value("file_uuid").toString());
+    tmp.setLastWriterInstance(json.value("last_writer_instance").toString());
+    QJsonObject styleObj = json.value("style").toObject();
+    if (!styleObj.isEmpty()) {
+        StylePreset style;
+        style.name = styleObj.value("style_name").toString(QStringLiteral("loaded"));
+        for (const QJsonValue &value : styleObj.value("denominators").toArray()) {
+            const int den = parseInt(value, 0);
+            if (den > 0)
+                style.denominators.append(den);
+        }
+        if (style.denominators.isEmpty())
+            style.denominators = {4, 8, 12, 16};
+        tmp.setStyle(style);
+    }
+    tmp.setActiveLinkShape(json.value("active_link_shape").toString(QStringLiteral("curve")));
+    tmp.setNoteCurveSnapEnabled(json.value("note_curve_snap_enabled").toBool(false));
+    tmp.setProjectDirty(false);
 
     // 校验通过后再赋值
     tmp.cleanupLinksAndSelection();

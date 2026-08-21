@@ -3,7 +3,12 @@
 #include <algorithm>
 namespace NoteChain {
 
-NoteChainState::NoteChainState(){}
+NoteChainState::NoteChainState()
+{
+    m_activeShape = QStringLiteral("curve");
+    m_style.name = QStringLiteral("balanced");
+    m_style.denominators = {4, 8, 12, 16};
+}
 
 int NoteChainState::appendAnchor(double lx,double bt){Anchor a;a.id=m_nextAnchorId++;a.laneX=ncClamp(lx,0.0,Const::kLaneWidth);a.beat=qMax(0.0,bt);m_anchors.append(a);m_cacheValid=false;return m_anchors.size()-1;}
 
@@ -33,6 +38,8 @@ void NoteChainState::removeLinkInternal(int f,int t){LinkKey k=makeLinkKey(f,t);
 void NoteChainState::setSegmentDen(int f,int t,int d){LinkKey k=makeLinkKey(f,t);m_segDen[k]=qMax(1,d);m_densMode[k]=d;}
 
 int NoteChainState::segmentDen(int f,int t)const{return m_segDen.value(makeLinkKey(f,t),Const::kDefaultSegmentDen);}
+
+int NoteChainState::segmentDensityMode(int f,int t)const{return m_densMode.value(makeLinkKey(f,t),Const::kDefaultSegmentDen);}
 
 void NoteChainState::setSegmentShape(int f,int t,const QString&s){QString ns=ncNormalizeShape(s);LinkKey k=makeLinkKey(f,t);if(ns==QStringLiteral("curve"))m_segShape.remove(k);else m_segShape[k]=ns;m_cacheValid=false;}
 
@@ -64,7 +71,7 @@ void NoteChainState::enforceAnchorAndConnectedHandleConstraints(int idx){enforce
 
 void NoteChainState::cleanupLinksAndSelection(){QVector<LinkKey> dead;QSet<int> vids;for(auto&a:m_anchors)vids.insert(a.id);for(auto&l:m_links)if(!vids.contains(l.from)||!vids.contains(l.to))dead.append(l.key());for(auto&k:dead){m_segDen.remove(k);m_segShape.remove(k);m_densMode.remove(k);}m_links.erase(std::remove_if(m_links.begin(),m_links.end(),[&](Link&l){return dead.contains(l.key());}),m_links.end());QSet<int> vs;for(int id:m_selAnchorIds)if(vids.contains(id))vs.insert(id);m_selAnchorIds=vs;}
 
-StateSnapshot NoteChainState::captureSnapshot()const{StateSnapshot s;s.anchors=m_anchors;s.links=m_links;s.segmentDenominators=m_segDen;s.segmentShapes=m_segShape;s.densityModes=m_densMode;s.selectedAnchorIds=m_selAnchorIds;s.selectedLinkKeys=m_selLinkKeys;s.style=m_style;s.nextAnchorId=m_nextAnchorId;return s;}
-void NoteChainState::restoreSnapshot(const StateSnapshot&snap){m_anchors=snap.anchors;m_links=snap.links;m_segDen=snap.segmentDenominators;m_segShape=snap.segmentShapes;m_densMode=snap.densityModes;m_selAnchorIds=snap.selectedAnchorIds;m_selLinkKeys=snap.selectedLinkKeys;m_style=snap.style;m_nextAnchorId=snap.nextAnchorId;m_drag=DragState{};m_linkDrag=LinkDrag{};m_boxSelect=BoxSelect{};m_pendingConnect=-1;m_shiftDown=false;m_cacheValid=false;m_selTargets=SelectionTargets{};}
+StateSnapshot NoteChainState::captureSnapshot()const{StateSnapshot s;s.anchors=m_anchors;s.links=m_links;s.segmentDenominators=m_segDen;s.segmentShapes=m_segShape;s.densityModes=m_densMode;s.selectedAnchorIds=m_selAnchorIds;s.selectedLinkKeys=m_selLinkKeys;s.style=m_style;s.nextAnchorId=m_nextAnchorId;s.selectionTargets=m_selTargets;s.curveVisible=m_curveVisible;s.anchorPlacementEnabled=m_anchorPlaceEnabled;s.noteCurveSnapEnabled=m_noteSnap;s.activeLinkShape=m_activeShape;return s;}
+void NoteChainState::restoreSnapshot(const StateSnapshot&snap){m_anchors=snap.anchors;m_links=snap.links;m_segDen=snap.segmentDenominators;m_segShape=snap.segmentShapes;m_densMode=snap.densityModes;m_selAnchorIds=snap.selectedAnchorIds;m_selLinkKeys=snap.selectedLinkKeys;m_style=snap.style;m_nextAnchorId=snap.nextAnchorId;m_selTargets=snap.selectionTargets;m_curveVisible=snap.curveVisible;m_anchorPlaceEnabled=snap.anchorPlacementEnabled;m_noteSnap=snap.noteCurveSnapEnabled;m_activeShape=ncNormalizeShape(snap.activeLinkShape);m_drag=DragState{};m_linkDrag=LinkDrag{};m_boxSelect=BoxSelect{};m_pendingConnect=-1;m_shiftDown=false;m_cacheValid=false;}
 
 } // namespace NoteChain

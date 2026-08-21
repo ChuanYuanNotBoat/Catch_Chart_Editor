@@ -7,6 +7,7 @@
 #include <QtMath>
 #include <QPointF>
 #include <QVariantMap>
+#include <numeric>
 
 namespace NoteChain {
 

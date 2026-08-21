@@ -32,6 +32,7 @@ public:
     // 段密度/形态 (curve_model.py)
     void setSegmentDen(int fromId, int toId, int den);
     int  segmentDen(int fromId, int toId) const;
+    int  segmentDensityMode(int fromId, int toId) const;
     void setSegmentShape(int fromId, int toId, const QString &shape);
     QString segmentShape(int fromId, int toId) const;
     void setDensityMode(int fromId, int toId, int mode);
@@ -73,6 +74,8 @@ public:
 
     // Style / pending connect / 双击 / shift
     StylePreset& style() { return m_style; }
+    const StylePreset& style() const { return m_style; }
+    void setStyle(const StylePreset &style) { m_style = style; }
     int pendingConnectAnchorId() const { return m_pendingConnect; }
     void setPendingConnectAnchorId(int id) { m_pendingConnect = id; }
     int lastClickAnchor() const { return m_lastClickIdx; }
@@ -96,6 +99,7 @@ public:
     void setProjectDirty(bool v) { m_projDirty = v; }
     bool suppressPersistOnce() const { return m_suppressPersist; }
     void setSuppressPersistOnce(bool v) { m_suppressPersist = v; }
+    void setNextAnchorId(int id) { m_nextAnchorId = qMax(1, id); }
 
     // 约束 & 清理
     void enforceHandleTimeConstraints(int idx);

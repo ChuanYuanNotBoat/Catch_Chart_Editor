@@ -171,6 +171,11 @@ struct StateSnapshot {
     int                    nextAnchorId = 1;
     int                    nextCurveId  = 1;
     int                    nextGroupId  = 2;
+    SelectionTargets       selectionTargets;
+    bool                   curveVisible = true;
+    bool                   anchorPlacementEnabled = false;
+    bool                   noteCurveSnapEnabled = false;
+    QString                activeLinkShape = QStringLiteral("curve");
 
     bool operator==(const StateSnapshot &o) const {
         return anchors == o.anchors && links == o.links
@@ -179,7 +184,16 @@ struct StateSnapshot {
             && densityModes == o.densityModes
             && selectedAnchorIds == o.selectedAnchorIds
             && selectedLinkKeys == o.selectedLinkKeys
-            && nextAnchorId == o.nextAnchorId;
+            && style.name == o.style.name
+            && style.denominators == o.style.denominators
+            && nextAnchorId == o.nextAnchorId
+            && selectionTargets.anchors == o.selectionTargets.anchors
+            && selectionTargets.segments == o.selectionTargets.segments
+            && selectionTargets.notes == o.selectionTargets.notes
+            && curveVisible == o.curveVisible
+            && anchorPlacementEnabled == o.anchorPlacementEnabled
+            && noteCurveSnapEnabled == o.noteCurveSnapEnabled
+            && activeLinkShape == o.activeLinkShape;
     }
 };
 
