@@ -125,11 +125,10 @@ void NoteEditPanel::setupUi()
     m_ncConnectBtn = new QPushButton(tr("Connect Selected"), m_ncPlaceholder);
     connect(m_ncConnectBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainConnectRequested);
     ncLayout->addWidget(m_ncConnectBtn);
-    m_ncDisconnectBtn = new QPushButton(tr("Delete Selected"), m_ncPlaceholder);
+    m_ncDisconnectBtn = new QPushButton(tr("Disconnect Selected"), m_ncPlaceholder);
     connect(m_ncDisconnectBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainDisconnectRequested);
     ncLayout->addWidget(m_ncDisconnectBtn);
     m_ncDeleteBtn = new QPushButton(tr("Delete Selected"), m_ncPlaceholder);
-    m_ncDeleteBtn->hide(); // replaced by Disconnect above
     connect(m_ncDeleteBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainDeleteRequested);
     ncLayout->addWidget(m_ncDeleteBtn);
     m_ncResetBtn = new QPushButton(tr("Reset Curve"), m_ncPlaceholder);
@@ -312,12 +311,18 @@ void NoteEditPanel::setNoteChainControlsVisible(bool visible)
 
 void NoteEditPanel::syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline, bool noteSnap, bool selAnchors, bool selSegments)
 {
-    if (m_ncAnchorPlaceCheck) m_ncAnchorPlaceCheck->setChecked(anchorPlace);
-    if (m_ncCurveVisibleCheck) m_ncCurveVisibleCheck->setChecked(curveVisible);
-    if (m_ncPolylineModeCheck) m_ncPolylineModeCheck->setChecked(polyline);
-    if (m_ncNoteCurveSnapCheck) m_ncNoteCurveSnapCheck->setChecked(noteSnap);
-    if (m_ncSelectAnchorsCheck) m_ncSelectAnchorsCheck->setChecked(selAnchors);
-    if (m_ncSelectSegmentsCheck) m_ncSelectSegmentsCheck->setChecked(selSegments);
+    const auto setCheckedSilently = [](QCheckBox *box, bool checked) {
+        if (!box)
+            return;
+        const QSignalBlocker blocker(box);
+        box->setChecked(checked);
+    };
+    setCheckedSilently(m_ncAnchorPlaceCheck, anchorPlace);
+    setCheckedSilently(m_ncCurveVisibleCheck, curveVisible);
+    setCheckedSilently(m_ncPolylineModeCheck, polyline);
+    setCheckedSilently(m_ncNoteCurveSnapCheck, noteSnap);
+    setCheckedSilently(m_ncSelectAnchorsCheck, selAnchors);
+    setCheckedSilently(m_ncSelectSegmentsCheck, selSegments);
 }
 
 void NoteEditPanel::setPluginPlacementActions(const QList<PluginPlacementAction> &actions)
@@ -443,7 +448,7 @@ void NoteEditPanel::retranslateUi()
     if (m_ncConnectBtn)
         m_ncConnectBtn->setText(tr("Connect Selected"));
     if (m_ncDisconnectBtn)
-        m_ncDisconnectBtn->setText(tr("Delete Selected"));
+        m_ncDisconnectBtn->setText(tr("Disconnect Selected"));
     if (m_ncDeleteBtn)
         m_ncDeleteBtn->setText(tr("Delete Selected"));
     if (m_ncResetBtn)

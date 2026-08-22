@@ -14,9 +14,6 @@ void ChartCanvas::setNoteChainModeActive(bool active) {
         if (!m_noteChainEditor) m_noteChainEditor = new NoteChain::NoteChainEditor(this);
         m_noteChainEditor->setActive(true);
         m_noteChainEditor->setChartController(m_chartController);
-        // P2-1: seed host context for the editor
-        QVariantMap ctx = buildPluginCanvasContext();
-        m_noteChainEditor->setHostContext(ctx);
         // stop plugin overlay timer; clear overlay cache
         stopOverlayQueryTimer();
         m_overlayCache.clear(); m_eventOverlayCache.clear();
@@ -26,6 +23,8 @@ void ChartCanvas::setNoteChainModeActive(bool active) {
             QString scPath = NoteChain::NoteChainPersistence::sidecarPathForChart(m_sourceChartPath);
             m_noteChainEditor->loadProject(scPath);
         }
+        // Loading replaces the state object, so seed host context afterwards.
+        m_noteChainEditor->setHostContext(buildPluginCanvasContext());
     } else {
         if (m_noteChainEditor) m_noteChainEditor->setActive(false);
     }

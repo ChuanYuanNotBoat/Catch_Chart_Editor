@@ -13,6 +13,7 @@
 #include "file/ChartIO.h"
 #include "file/ChartFileSystem.h"
 #include "controller/ChartController.h"
+#include "editor/NoteChain/NoteChainPersistence.h"
 #include "model/Chart.h"
 #include "utils/MathUtils.h"
 
@@ -2131,6 +2132,36 @@ namespace
         return types.isEmpty();
     }
 
+    bool testNoteChainSidecarSaveUpdatesRevisionAndRejectsStaleWrite()
+    {
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+            return false;
+
+        const QString sidecarPath = tempDir.filePath("curve_tbd.json");
+        NoteChain::NoteChainState state;
+        state.appendAnchor(128.0, 1.25);
+        state.setProjectDirty(true);
+        if (!NoteChain::NoteChainPersistence::saveToFile(state, sidecarPath))
+            return false;
+        if (state.projectRevision() != 1 || state.projectFileUuid().isEmpty() || state.projectDirty())
+            return false;
+
+        state.appendAnchor(256.0, 2.5);
+        state.setProjectDirty(true);
+        if (!NoteChain::NoteChainPersistence::saveToFile(state, sidecarPath))
+            return false;
+        if (state.projectRevision() != 2 || state.projectDirty())
+            return false;
+
+        NoteChain::NoteChainState staleState;
+        staleState.setProjectRevision(1);
+        staleState.setProjectDirty(true);
+        QString error;
+        return !NoteChain::NoteChainPersistence::saveToFile(staleState, sidecarPath, &error)
+               && error.contains("revision conflict");
+    }
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -2236,6 +2267,7 @@ int main(int argc, char **argv)
         {"ChartFileSystem requiredSidecarExtensions", &testChartFileSystemRequiredSidecarExtensions},
         {"ChartFileSystem unregisterFileType", &testChartFileSystemUnregisterFileType},
         {"ChartFileSystem clearRegistrations", &testChartFileSystemClearRegistrations},
+        {"NoteChain sidecar revision + CAS", &testNoteChainSidecarSaveUpdatesRevisionAndRejectsStaleWrite},
     };
 
     int failed = 0;

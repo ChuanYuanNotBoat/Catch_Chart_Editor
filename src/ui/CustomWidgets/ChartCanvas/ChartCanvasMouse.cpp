@@ -768,6 +768,72 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
 
 void ChartCanvas::showRightClickMenu(QMouseEvent *event)
 {
+    if (m_noteChainModeActive && m_noteChainEditor)
+    {
+        auto *editor = m_noteChainEditor;
+        const double laneX = chartCanvasXToLaneX(event->position().x());
+        const double beat = chartYToBeat(event->position().y());
+        // Match the Python tool's context-menu targeting: a right-clicked
+        // segment becomes the action target, while an empty click preserves
+        // the current multi-selection.
+        editor->selectSegmentAt(laneX, beat,
+                                event->modifiers().testFlag(Qt::ControlModifier));
+
+        QMenu curveMenu(this);
+        QAction *commitAction = curveMenu.addAction(tr("Commit Curve -> Notes"));
+        curveMenu.addSeparator();
+
+        QAction *toggleShapeAction = curveMenu.addAction(tr("Toggle Curve / Polyline"));
+        toggleShapeAction->setEnabled(editor->hasSelectedSegments());
+
+        QMenu *densityMenu = curveMenu.addMenu(tr("Curve Placement Density"));
+        struct DensityOption { int denominator; const char *label; };
+        const DensityOption densityOptions[] = {
+            {0, "Follow Editor"}, {1, "1/1"}, {2, "1/2"}, {3, "1/3"},
+            {4, "1/4"}, {6, "1/6"}, {8, "1/8"}, {12, "1/12"},
+            {16, "1/16"}, {24, "1/24"}, {32, "1/32"}, {48, "1/48"},
+            {64, "1/64"}, {96, "1/96"}, {192, "1/192"}, {288, "1/288"}};
+        const int selectedDensity = editor->selectedSegmentDensity();
+        for (const DensityOption &option : densityOptions)
+        {
+            QAction *action = densityMenu->addAction(tr(option.label));
+            action->setCheckable(true);
+            action->setEnabled(editor->hasSelectedSegments());
+            action->setChecked(selectedDensity == option.denominator);
+            connect(action, &QAction::triggered, this, [editor, option]() {
+                editor->setSelectedSegmentDensity(option.denominator);
+            });
+        }
+        if (selectedDensity == -1)
+        {
+            densityMenu->addSeparator();
+            QAction *mixedAction = densityMenu->addAction(tr("Mixed"));
+            mixedAction->setCheckable(true);
+            mixedAction->setChecked(true);
+            mixedAction->setEnabled(false);
+        }
+
+        curveMenu.addSeparator();
+        QAction *connectAction = curveMenu.addAction(tr("Connect Selected"));
+        QAction *disconnectAction = curveMenu.addAction(tr("Disconnect Selected"));
+        disconnectAction->setEnabled(editor->hasSelectedSegments());
+        QAction *deleteAction = curveMenu.addAction(tr("Delete Selected"));
+
+        QAction *selected = curveMenu.exec(event->globalPos());
+        if (selected == commitAction)
+            editor->commitCurveToNotes();
+        else if (selected == toggleShapeAction)
+            editor->toggleSelectedSegmentShape();
+        else if (selected == connectAction)
+            editor->connectSelectedAnchors();
+        else if (selected == disconnectAction)
+            editor->disconnectSelectedSegments();
+        else if (selected == deleteAction)
+            editor->deleteSelected();
+        update();
+        return;
+    }
+
     if (m_pluginToolModeActive)
     {
         const QString pluginId = resolvePluginCanvasToolId();

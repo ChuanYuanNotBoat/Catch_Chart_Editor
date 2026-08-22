@@ -5,6 +5,7 @@
 #include "controller/ChartController.h"
 #include "model/Note.h"
 #include <QDateTime>
+#include <QFileInfo>
 #include <QSet>
 #include <algorithm>
 #include <numeric>
@@ -324,7 +325,26 @@ bool NoteChainEditor::commitCurveToNotes() {
 
 void NoteChainEditor::setAnchorPlacementEnabled(bool on) { if (m_state.anchorPlacementEnabled() == on) return; m_state.setAnchorPlacementEnabled(on); emit statusMessage(on ? "Anchor ON" : "Anchor OFF"); emit needsRepaint(); }
 void NoteChainEditor::setCurveVisible(bool on) { if (m_state.curveVisible() == on) return; m_state.setCurveVisible(on); markDirty(); }
-void NoteChainEditor::setPolylineMode(bool on) { const QString shape = on ? QStringLiteral("polyline") : QStringLiteral("curve"); if (m_state.activeLinkShape() == shape) return; m_state.setActiveLinkShape(shape); markDirty(); }
+void NoteChainEditor::setPolylineMode(bool on) {
+    const QString shape = on ? QStringLiteral("polyline") : QStringLiteral("curve");
+    if (!m_state.selectedLinkKeys().isEmpty()) {
+        bool changed = false;
+        for (const LinkKey &key : m_state.selectedLinkKeys()) {
+            if (m_state.segmentShape(key.first, key.second) != shape) {
+                m_state.setSegmentShape(key.first, key.second, shape);
+                changed = true;
+            }
+        }
+        if (changed) {
+            recordHistory();
+            markDirty();
+        }
+        return;
+    }
+    if (m_state.activeLinkShape() == shape) return;
+    m_state.setActiveLinkShape(shape);
+    markDirty();
+}
 void NoteChainEditor::setNoteCurveSnapEnabled(bool on) { if (m_state.noteCurveSnapEnabled() == on) return; m_state.setNoteCurveSnapEnabled(on); emit needsRepaint(); }
 void NoteChainEditor::setSelectAnchorsEnabled(bool on) { if (m_state.selectionEnabled("anchors") == on) return; m_state.setSelectionEnabled("anchors", on); emit needsRepaint(); }
 void NoteChainEditor::setSelectSegmentsEnabled(bool on) { if (m_state.selectionEnabled("segments") == on) return; m_state.setSelectionEnabled("segments", on); emit needsRepaint(); }
@@ -406,10 +426,44 @@ bool NoteChainEditor::toggleSelectedSegmentShape() {
     return true;
 }
 
-void NoteChainEditor::connectSelectedAnchors() { QList<int> ids = m_state.selectedAnchorIds().values(); bool ch = false; for (int i = 0; i < ids.size(); ++i) for (int j = i + 1; j < ids.size(); ++j) if (!m_state.hasLink(ids[i], ids[j])) { m_state.addLink(ids[i], ids[j]); ch = true; } if (ch) { m_state.seedMissingSegmentDenominators(); recordHistory(); markDirty(); } }
+void NoteChainEditor::connectSelectedAnchors() {
+    QList<int> ids = m_state.selectedAnchorIds().values();
+    std::sort(ids.begin(), ids.end(), [this](int left, int right) {
+        return m_state.anchorIndexById(left) < m_state.anchorIndexById(right);
+    });
+    bool changed = false;
+    for (int i = 0; i + 1 < ids.size(); ++i) {
+        if (!m_state.hasLink(ids[i], ids[i + 1])) {
+            m_state.addLink(ids[i], ids[i + 1]);
+            changed = true;
+        }
+    }
+    if (changed) {
+        m_state.seedMissingSegmentDenominators();
+        recordHistory();
+        markDirty();
+    }
+}
 void NoteChainEditor::disconnectSelectedSegments() { for (auto &k : m_state.selectedLinkKeys()) m_state.removeLink(k.first, k.second); m_state.clearLinkSelection(); recordHistory(); markDirty(); }
 void NoteChainEditor::deleteSelected() { bool ch = false; for (int id : m_state.selectedAnchorIds()) { m_state.removeAnchorById(id); ch = true; } for (auto &k : m_state.selectedLinkKeys()) { m_state.removeLink(k.first, k.second); ch = true; } m_state.clearAnchorSelection(); m_state.clearLinkSelection(); if (ch) { recordHistory(); markDirty(); } }
-void NoteChainEditor::resetCurve() { m_state = NoteChainState{}; m_history.clear(); m_historyIdx = -1; recordHistory(); markDirty(); }
+void NoteChainEditor::resetCurve() {
+    // Reset editable content only.  The sidecar identity/revision belongs to
+    // the project and must survive, otherwise the next save is rejected as a
+    // false CAS conflict.
+    const int revision = m_state.projectRevision();
+    const QString fileUuid = m_state.projectFileUuid();
+    const QString writer = m_state.lastWriterInstance();
+    const QString projectPath = m_state.projectPath();
+    m_state = NoteChainState{};
+    m_state.setProjectRevision(revision);
+    m_state.setProjectFileUuid(fileUuid);
+    m_state.setLastWriterInstance(writer);
+    m_state.setProjectPath(projectPath);
+    m_history.clear();
+    m_historyIdx = -1;
+    recordHistory();
+    markDirty();
+}
 
 // ====== Rendering (direct QPainter, zero overlay serialization) ======
 void NoteChainEditor::render(QPainter *painter, const QRectF &viewport,
@@ -493,7 +547,31 @@ void NoteChainEditor::undo() { if (!canUndo()) return; m_historyIdx--; m_state.r
 void NoteChainEditor::redo() { if (!canRedo()) return; m_historyIdx++; m_state.restoreSnapshot(m_history[m_historyIdx]); emit needsRepaint(); }
 
 // ====== Persistence ======
-bool NoteChainEditor::loadProject(const QString &path) { m_sidecarPath = path; bool ok = NoteChainPersistence::loadFromFile(path, m_state); if (ok) { m_history.clear(); m_historyIdx = -1; recordHistory(); } return ok; }
+bool NoteChainEditor::loadProject(const QString &path) {
+    m_sidecarPath = path;
+    if (path.isEmpty())
+        return false;
+
+    // A missing sidecar starts a new project.  Crucially, never retain the
+    // previous chart's state when switching to a chart without a sidecar.
+    if (!QFileInfo::exists(path)) {
+        m_state = NoteChainState{};
+        m_state.setProjectPath(path);
+        m_state.setProjectDirty(true);
+        m_history.clear();
+        m_historyIdx = -1;
+        recordHistory();
+        return true;
+    }
+
+    const bool ok = NoteChainPersistence::loadFromFile(path, m_state);
+    if (ok) {
+        m_history.clear();
+        m_historyIdx = -1;
+        recordHistory();
+    }
+    return ok;
+}
 bool NoteChainEditor::saveProject(const QString &path) { QString p = path.isEmpty() ? m_sidecarPath : path; if (p.isEmpty()) return false; m_sidecarPath = p; return NoteChainPersistence::saveToFile(m_state, p); }
 
 } // namespace NoteChain

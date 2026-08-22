@@ -1723,6 +1723,7 @@ void MainWindow::createMenus()
             }
         }
         if (d->pluginToolModeToolbarAction) { const QSignalBlocker b(d->pluginToolModeToolbarAction); d->pluginToolModeToolbarAction->setChecked(checked); }
+        if (d->curvePanelAction) { const QSignalBlocker b(d->curvePanelAction); d->curvePanelAction->setChecked(checked); }
     });
 
     QMenu *overlayMenu = d->pluginsMenu->addMenu(tr("Plugin Overlay Elements"));
@@ -2084,17 +2085,17 @@ void MainWindow::createCentralArea()
     connect(d->notePanel, &NoteEditPanel::pluginPlacementActionTriggered, this, &MainWindow::triggerPluginQuickAction);
     // NoteChain native controls
     connect(d->notePanel, &NoteEditPanel::noteChainAnchorPlaceToggled, this, [this](bool on) {
-        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleAnchorPlacement(); });
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setAnchorPlacementEnabled(on); });
     connect(d->notePanel, &NoteEditPanel::noteChainCurveVisibleToggled, this, [this](bool on) {
-        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleCurveVisible(); });
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setCurveVisible(on); });
     connect(d->notePanel, &NoteEditPanel::noteChainPolylineModeToggled, this, [this](bool on) {
-        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->togglePolylineMode(); });
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setPolylineMode(on); });
     connect(d->notePanel, &NoteEditPanel::noteChainNoteCurveSnapToggled, this, [this](bool on) {
-        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleNoteCurveSnap(); });
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setNoteCurveSnapEnabled(on); });
     connect(d->notePanel, &NoteEditPanel::noteChainSelectAnchorsToggled, this, [this](bool on) {
-        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleSelectAnchors(); });
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setSelectAnchorsEnabled(on); });
     connect(d->notePanel, &NoteEditPanel::noteChainSelectSegmentsToggled, this, [this](bool on) {
-        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->toggleSelectSegments(); });
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setSelectSegmentsEnabled(on); });
     connect(d->notePanel, &NoteEditPanel::noteChainCommitRequested, this, [this]() {
         if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->commitCurveToNotes(); d->canvas->update(); } });
     connect(d->notePanel, &NoteEditPanel::noteChainConnectRequested, this, [this]() {

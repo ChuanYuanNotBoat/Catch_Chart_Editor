@@ -12,6 +12,7 @@
 #include <QJsonValue>
 #include <QUuid>
 #include <QDateTime>
+#include <QCoreApplication>
 #include <cmath>
 #include <numeric>
 
@@ -337,7 +338,7 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
 
 // ---- 文件读写 ----
 
-bool NoteChainPersistence::saveToFile(const NoteChainState &state, const QString &filePath, QString *errorMsg)
+bool NoteChainPersistence::saveToFile(NoteChainState &state, const QString &filePath, QString *errorMsg)
 {
     QString effectivePath = filePath;
     if (effectivePath.isEmpty()) {
@@ -356,6 +357,16 @@ bool NoteChainPersistence::saveToFile(const NoteChainState &state, const QString
     }
 
     QJsonObject payload = serialize(state);
+    const QString fileUuid = state.projectFileUuid().isEmpty()
+                                 ? QUuid::createUuid().toString(QUuid::WithoutBraces)
+                                 : state.projectFileUuid();
+    const QString writerInstance = state.lastWriterInstance().isEmpty()
+                                       ? QStringLiteral("%1-%2")
+                                             .arg(QCoreApplication::applicationPid())
+                                             .arg(QUuid::createUuid().toString(QUuid::WithoutBraces).left(12))
+                                       : state.lastWriterInstance();
+    payload["file_uuid"] = fileUuid;
+    payload["last_writer_instance"] = writerInstance;
 
     // CAS 版本号递增
     int diskRevision = 0;
@@ -395,6 +406,11 @@ bool NoteChainPersistence::saveToFile(const NoteChainState &state, const QString
         return false;
     }
 
+    state.setProjectRevision(diskRevision + 1);
+    state.setProjectFileUuid(fileUuid);
+    state.setLastWriterInstance(writerInstance);
+    state.setProjectPath(effectivePath);
+    state.setProjectDirty(false);
     return true;
 }
 
@@ -424,17 +440,12 @@ bool NoteChainPersistence::loadFromFile(const QString &filePath, NoteChainState 
 
     QJsonObject root = doc.object();
 
-    // 检测 V3 格式
-    int formatVersion = parseInt(root.value("format_version"), 0);
-    bool isV3 = (formatVersion >= 3) ||
-                (root.contains("nodes") && root.contains("curves"));
-
-    if (!isV3) {
-        // V2 兼容：直接读取旧格式
-        return deserialize(root, state, errorMsg);
-    }
-
-    return deserialize(root, state, errorMsg);
+    // V2 currently shares the tolerant deserializer with V3.  Keep the
+    // common post-load bookkeeping below so both formats participate in CAS.
+    const bool ok = deserialize(root, state, errorMsg);
+    if (ok)
+        state.setProjectPath(filePath);
+    return ok;
 }
 
 // ---- 侧车文件路径推导 ----
