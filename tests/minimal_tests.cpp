@@ -3,6 +3,8 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QTemporaryDir>
 #include <QtGlobal>
 #include <QSignalSpy>
@@ -2162,6 +2164,43 @@ namespace
                && error.contains("revision conflict");
     }
 
+    bool testNoteChainLoadsPythonLegacyAnchorsAndHandles()
+    {
+        const QJsonObject firstAnchor{
+            {"id", 7},
+            {"lane_x", 96.0},
+            {"beat", QJsonArray{2, 1, 4}},
+            {"in", QJsonArray{-32.0, -0.5}},
+            {"out", QJsonObject{{"lane_dx", 48.0}, {"beat_delta", QJsonArray{0, 3, 4}}}},
+            {"smooth", false}};
+        const QJsonObject secondAnchor{
+            {"id", 9},
+            {"lane_x", 256.0},
+            {"beat", QJsonArray{3, 0, 1}},
+            {"in", QJsonArray{-24.0, -0.25}},
+            {"out", QJsonArray{24.0, 0.25}}};
+        const QJsonObject legacyProject{
+            {"anchors", QJsonArray{firstAnchor, secondAnchor}},
+            {"links", QJsonArray{QJsonArray{7, 9}}},
+            {"segment_denominators", QJsonObject{{"7:9", 12}}},
+            {"segment_shapes", QJsonObject{{"7:9", "polyline"}}}};
+
+        NoteChain::NoteChainState state;
+        if (!NoteChain::NoteChainPersistence::deserialize(legacyProject, state))
+            return false;
+        if (state.anchors().size() != 2 || state.linksAll().size() != 1)
+            return false;
+        const NoteChain::Anchor &anchor = state.anchorAt(0);
+        return nearlyEqual(anchor.beat, 2.25)
+               && nearlyEqual(anchor.inDx, -32.0)
+               && nearlyEqual(anchor.inDy, -0.5)
+               && nearlyEqual(anchor.outDx, 48.0)
+               && nearlyEqual(anchor.outDy, 0.75)
+               && !anchor.smooth
+               && state.segmentDen(7, 9) == 12
+               && state.segmentShape(7, 9) == QStringLiteral("polyline");
+    }
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -2268,6 +2307,7 @@ int main(int argc, char **argv)
         {"ChartFileSystem unregisterFileType", &testChartFileSystemUnregisterFileType},
         {"ChartFileSystem clearRegistrations", &testChartFileSystemClearRegistrations},
         {"NoteChain sidecar revision + CAS", &testNoteChainSidecarSaveUpdatesRevisionAndRejectsStaleWrite},
+        {"NoteChain Python legacy handles", &testNoteChainLoadsPythonLegacyAnchorsAndHandles},
     };
 
     int failed = 0;

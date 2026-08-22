@@ -74,6 +74,21 @@ static int parseInt(const QJsonValue &val, int fallback = 0)
     return fallback;
 }
 
+static QPointF handleOffsetFromJson(const QJsonValue &value)
+{
+    if (value.isObject()) {
+        const QJsonObject object = value.toObject();
+        return QPointF(object.value("lane_dx").toDouble(0.0),
+                       doubleFromTriplet(object.value("beat_delta"), 0.0));
+    }
+    if (value.isArray()) {
+        const QJsonArray array = value.toArray();
+        return QPointF(array.size() > 0 ? array[0].toDouble(0.0) : 0.0,
+                       array.size() > 1 ? array[1].toDouble(0.0) : 0.0);
+    }
+    return {};
+}
+
 // ---- 锚点序列化 ----
 
 QJsonObject NoteChainPersistence::serializeAnchor(const Anchor &anchor)
@@ -115,27 +130,32 @@ bool NoteChainPersistence::deserializeAnchor(const QJsonObject &json, Anchor &an
         anchor.laneX = json.value("lane_x").toDouble(0.0);
         anchor.beat = doubleFromTriplet(json.value("beat"), 0.0);
 
-        QJsonObject compatRaw = json.value("compat_handles").toObject();
-        QJsonObject inRaw  = compatRaw.value("in").toObject();
-        QJsonObject outRaw = compatRaw.value("out").toObject();
-        if (inRaw.isEmpty() && outRaw.isEmpty()) {
-            inRaw = json.value("in").toObject();
-            outRaw = json.value("out").toObject();
-        }
-        if (inRaw.isEmpty() && outRaw.isEmpty()) {
+        const QJsonObject compatRaw = json.value("compat_handles").toObject();
+        QJsonValue inRaw = compatRaw.value("in");
+        QJsonValue outRaw = compatRaw.value("out");
+        if (inRaw.isUndefined() || inRaw.isNull())
+            inRaw = json.value("in");
+        if (outRaw.isUndefined() || outRaw.isNull())
+            outRaw = json.value("out");
+
+        if ((inRaw.isUndefined() || inRaw.isNull()) &&
+            (outRaw.isUndefined() || outRaw.isNull())) {
             QJsonObject joystickRaw = json.value("joystick").toObject();
             const double joyDx = joystickRaw.value("lane_dx").toDouble(0.0);
             const double joyDy = doubleFromTriplet(joystickRaw.value("beat_delta"), 0.0);
-            inRaw["lane_dx"] = -joyDx;
-            inRaw["beat_delta"] = beatToTriplet(-joyDy);
-            outRaw["lane_dx"] = joyDx;
-            outRaw["beat_delta"] = beatToTriplet(joyDy);
+            anchor.inDx = -joyDx;
+            anchor.inDy = -joyDy;
+            anchor.outDx = joyDx;
+            anchor.outDy = joyDy;
+        } else {
+            const QPointF inOffset = handleOffsetFromJson(inRaw);
+            const QPointF outOffset = handleOffsetFromJson(outRaw);
+            anchor.inDx = inOffset.x();
+            anchor.inDy = inOffset.y();
+            anchor.outDx = outOffset.x();
+            anchor.outDy = outOffset.y();
         }
-
-        anchor.inDx = inRaw.value("lane_dx").toDouble(0.0);
-        anchor.inDy = doubleFromTriplet(inRaw.value("beat_delta"), 0.0);
-        anchor.outDx = outRaw.value("lane_dx").toDouble(0.0);
-        anchor.outDy = doubleFromTriplet(outRaw.value("beat_delta"), 0.0);
+        anchor.smooth = json.value("smooth").toBool(true);
 
         return anchor.id >= 0;
     }
@@ -155,6 +175,7 @@ bool NoteChainPersistence::deserializeAnchor(const QJsonObject &json, Anchor &an
         anchor.inDy = inArr.size() >= 2  ? inArr[1].toDouble(0.0)  : 0.0;
         anchor.outDx = outArr.size() >= 1 ? outArr[0].toDouble(0.0) : 0.0;
         anchor.outDy = outArr.size() >= 2 ? outArr[1].toDouble(0.0) : 0.0;
+        anchor.smooth = json.value("smooth").toBool(true);
 
         return anchor.id >= 0;
     }
@@ -257,9 +278,13 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
     // 先解析到临时 state，全部校验通过后再赋值，避免部分加载破坏现有数据 (P2-3 fix)
     NoteChainState tmp;
 
-    // nodes → anchors
+    // nodes → anchors.  Python's older V2 sidecar calls this array
+    // "anchors"; retain its chart-space handles rather than silently
+    // loading an empty curve project.
     int maxAnchorId = 0;
     QJsonArray nodesArray = json.value("nodes").toArray();
+    if (nodesArray.isEmpty() && json.contains("anchors"))
+        nodesArray = json.value("anchors").toArray();
     for (const QJsonValue &nodeVal : nodesArray) {
         QJsonObject nodeObj = nodeVal.toObject();
         Anchor anchor;
@@ -274,7 +299,8 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
     }
     tmp.setNextAnchorId(maxAnchorId + 1);
 
-    // curves → links + segment 属性
+    // curves → links + segment 属性.  V2 stores plain [from, to] pairs in
+    // "links" and keeps per-link properties in root-level maps.
     QJsonArray curvesArray = json.value("curves").toArray();
     for (const QJsonValue &curveVal : curvesArray) {
         QJsonObject curveObj = curveVal.toObject();
@@ -304,6 +330,39 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
         QString shape = curveObj.value("style_category").toString();
         if (!shape.isEmpty()) {
             tmp.setSegmentShape(id0, id1, shape);
+        }
+    }
+
+    // Some Python releases keep a legacy links array alongside (or instead
+    // of) curves.  Import it unconditionally; addLink() normalizes and
+    // deduplicates entries already supplied by V3 curves.
+    {
+        const QJsonArray linksArray = json.value("links").toArray();
+        const QJsonObject legacyDensities = json.value("segment_denominators").toObject();
+        const QJsonObject legacyDensityModes = json.value("curve_density_mode_by_link").toObject();
+        const QJsonObject legacyShapes = json.value("segment_shapes").toObject();
+        for (const QJsonValue &linkVal : linksArray) {
+            const QJsonArray pair = linkVal.toArray();
+            if (pair.size() < 2)
+                continue;
+            const int id0 = pair[0].toInt(-1);
+            const int id1 = pair[1].toInt(-1);
+            if (id0 < 0 || id1 < 0 || id0 == id1)
+                continue;
+
+            tmp.addLink(id0, id1);
+            const QString key = QStringLiteral("%1:%2").arg(qMin(id0, id1)).arg(qMax(id0, id1));
+            const QString densityMode = legacyDensityModes.value(key).toString().trimmed().toLower();
+            if (densityMode == QLatin1String("follow")) {
+                tmp.setDensityMode(id0, id1, 0);
+            } else {
+                const int denominator = parseInt(legacyDensities.value(key), Const::kDefaultSegmentDen);
+                if (denominator > 0)
+                    tmp.setSegmentDen(id0, id1, denominator);
+            }
+            const QString shape = legacyShapes.value(key).toString();
+            if (!shape.isEmpty())
+                tmp.setSegmentShape(id0, id1, shape);
         }
     }
 
