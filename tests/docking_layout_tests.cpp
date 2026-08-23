@@ -1,11 +1,17 @@
 #include <QApplication>
+#include <QAbstractScrollArea>
 #include <QColor>
+#include <QGuiApplication>
 #include <QMainWindow>
+#include <QPointer>
+#include <QScreen>
 #include <QWidget>
 #include <cstdio>
 
 #include "utils/NativeWindowTheme.h"
 #include <DockAreaWidget.h>
+#include <FloatingDockContainer.h>
+#include <FloatingDragPreview.h>
 #include <DockManager.h>
 #include <DockWidget.h>
 
@@ -69,6 +75,8 @@ int main(int argc, char **argv)
 
     QMainWindow window;
     window.resize(900, 600);
+    if (QScreen *screen = QGuiApplication::primaryScreen())
+        window.move(screen->availableGeometry().topLeft() + QPoint(140, 90));
 
     auto *manager = new ads::CDockManager(&window);
     auto *workspaceDock = new ads::CDockWidget(manager, QStringLiteral("Workspace"));
@@ -92,9 +100,51 @@ int main(int argc, char **argv)
     const QByteArray initialState = manager->saveState(1);
     ok &= require(!initialState.isEmpty(), "ADS layout state must be serializable");
 
-    manager->addDockWidgetFloating(panelDock);
+    QPointer<ads::CFloatingDockContainer> detachedWindow;
+    QObject::connect(manager,
+                     &ads::CDockManager::floatingWidgetCreated,
+                     [&detachedWindow](ads::CFloatingDockContainer *floatingWindow)
+                     {
+                         detachedWindow = floatingWindow;
+                     });
+
+    // Exercise the actual non-opaque drag-preview handoff. The preview is an
+    // owned Qt::Tool window; its global geometry must be captured before ADS
+    // reparents the dock into the real floating container.
+    auto *preview = new ads::CFloatingDragPreview(panelDock);
+    const QRect previewGeometry(window.mapToGlobal(QPoint(420, 120)), QSize(320, 360));
+    preview->setGeometry(previewGeometry);
+    preview->show();
+    app.processEvents();
+    const QPoint expectedFloatingOrigin = preview->mapToGlobal(QPoint(0, 0));
+    preview->finishDragging();
+    app.processEvents();
     app.processEvents();
     ok &= require(panelDock->isFloating(), "a panel must be detachable into a floating container");
+    ok &= require(detachedWindow && detachedWindow->isVisible(),
+                  "drag-preview handoff must create a visible floating container");
+
+    if (detachedWindow)
+    {
+#ifdef Q_OS_WIN
+        const QPoint actualFloatingOrigin = detachedWindow->mapToGlobal(QPoint(0, 0));
+        ok &= require(qAbs(actualFloatingOrigin.x() - expectedFloatingOrigin.x()) <= 80
+                          && qAbs(actualFloatingOrigin.y() - expectedFloatingOrigin.y()) <= 80,
+                      "floating container must keep the drag preview's global screen position");
+#endif
+
+        auto *scrollArea = panelDock->findChild<QAbstractScrollArea *>();
+        ok &= require(scrollArea && scrollArea->viewport(),
+                      "ForceScrollArea dock must retain its viewport after becoming floating");
+        if (scrollArea && scrollArea->viewport())
+        {
+            ok &= require(scrollArea->isVisibleTo(detachedWindow)
+                              && scrollArea->viewport()->isVisibleTo(detachedWindow),
+                          "floating scroll panel and viewport must be visible after the queued refresh");
+            ok &= require(!scrollArea->viewport()->size().isEmpty(),
+                          "floating scroll viewport must receive a non-empty first layout");
+        }
+    }
 
     ok &= require(manager->restoreState(initialState, 1), "saved ADS layout must restore successfully");
     app.processEvents();

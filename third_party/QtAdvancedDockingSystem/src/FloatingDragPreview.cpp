@@ -14,8 +14,12 @@
 
 #include <QEvent>
 #include <QApplication>
+#include <QAbstractScrollArea>
+#include <QLayout>
 #include <QPainter>
 #include <QKeyEvent>
+#include <QPointer>
+#include <QTimer>
 #include <QWindow>
 
 #include "DockWidget.h"
@@ -28,6 +32,67 @@
 
 namespace ads
 {
+
+namespace
+{
+void activateWidgetLayout(QWidget* Widget)
+{
+	if (!Widget || !Widget->isVisible())
+	{
+		return;
+	}
+
+	Widget->updateGeometry();
+	if (auto Layout = Widget->layout())
+	{
+		Layout->invalidate();
+		Layout->activate();
+	}
+	Widget->update();
+}
+
+
+void refreshFloatingWidget(CFloatingDockContainer* FloatingWidget)
+{
+	if (!FloatingWidget || !FloatingWidget->isVisible())
+	{
+		return;
+	}
+
+	auto Container = FloatingWidget->dockContainer();
+	activateWidgetLayout(FloatingWidget);
+	activateWidgetLayout(Container);
+	if (!Container)
+	{
+		return;
+	}
+
+	for (auto DockWidget : FloatingWidget->dockWidgets())
+	{
+		activateWidgetLayout(DockWidget->dockAreaWidget());
+		activateWidgetLayout(DockWidget);
+		if (auto ContentWidget = DockWidget->widget())
+		{
+			ContentWidget->updateGeometry();
+			ContentWidget->update();
+		}
+	}
+
+	// ForceScrollArea docks have one more backing-store boundary.  Refresh its
+	// viewport explicitly after the reparented dock hierarchy has received its
+	// final geometry; otherwise Windows can leave the first frame unpainted
+	// until the native floating window is resized.
+	for (auto ScrollArea : Container->findChildren<QAbstractScrollArea*>())
+	{
+		activateWidgetLayout(ScrollArea);
+		if (auto Viewport = ScrollArea->viewport())
+		{
+			Viewport->updateGeometry();
+			Viewport->update();
+		}
+	}
+}
+}
 
 /**
  * Private data class (pimpl)
@@ -279,6 +344,12 @@ FloatingDragPreviewPrivate::FloatingDragPreviewPrivate(CFloatingDragPreview *_pu
 //============================================================================
 void FloatingDragPreviewPrivate::createFloatingWidget()
 {
+	// A frameless drag preview is an owned Qt::Tool window on Windows.  Its
+	// geometry() can be expressed in owner coordinates and can also change when
+	// constructing CFloatingDockContainer reparents Content.  Capture the
+	// native/global target rectangle before that reparenting takes place.
+	const QRect TargetGeometry(_this->mapToGlobal(QPoint(0, 0)), _this->size());
+
 	CDockWidget* DockWidget = qobject_cast<CDockWidget*>(Content);
 	CDockAreaWidget* DockArea = qobject_cast<CDockAreaWidget*>(Content);
 
@@ -295,7 +366,7 @@ void FloatingDragPreviewPrivate::createFloatingWidget()
 
 	if (FloatingWidget)
 	{
-		FloatingWidget->setGeometry(_this->geometry());
+		FloatingWidget->setGeometry(TargetGeometry);
 		FloatingWidget->show();
 		if (!CDockManager::testConfigFlag(CDockManager::DragPreviewHasWindowFrame))
 		{
@@ -307,11 +378,21 @@ void FloatingDragPreviewPrivate::createFloatingWidget()
 			                                  : QMargins();
 			if (frameMargins.top() > 0)
 			{
-				QRect fixedGeometry = _this->geometry();
+				QRect fixedGeometry = TargetGeometry;
 				fixedGeometry.adjust(0, frameMargins.top(), 0, 0);
 				FloatingWidget->setGeometry(fixedGeometry);
 			}
 		}
+
+		// Do not spin a nested event loop here: it makes a mouse release
+		// re-entrant and causes the visible docking stall.  Once Qt has committed
+		// the native window geometry, finish the reparented hierarchy's first
+		// layout and paint in the next normal event-loop turn.
+		QPointer<CFloatingDockContainer> Guard(FloatingWidget);
+		QTimer::singleShot(0, FloatingWidget, [Guard]()
+		{
+			refreshFloatingWidget(Guard);
+		});
 	}
 }
 
