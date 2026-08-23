@@ -7,6 +7,7 @@
 #include <QtMath>
 #include <QPointF>
 #include <QVariantMap>
+#include <algorithm>
 #include <numeric>
 
 namespace NoteChain {
@@ -37,9 +38,10 @@ inline QVector<int> floatBeatToTriplet(double beat, int den) {
     den = qMax(1, den); if (beat < 0.0) beat = 0.0;
     int ticks = static_cast<int>(qRound(beat * den)), beatNum = ticks / den, num = ticks % den;
     if (num < 0) { num += den; beatNum -= 1; }
-    if (num == 0) return {beatNum, 0, 1};
-    int g = std::gcd(num, den);
-    return {beatNum, num / g, den / g};
+    // Note generation deliberately preserves the requested density
+    // denominator.  This matches Python batch_commit.float_beat_to_triplet;
+    // sidecar serialization has its own reduced-fraction conversion.
+    return {beatNum, num, den};
 }
 inline double tripletToFloat(const QVector<int> &tri) {
     if (tri.size() < 3 || tri[2] == 0) return 0.0;
@@ -61,13 +63,75 @@ inline QVector<SampledPoint> sampleSegment(const Anchor &a0, const Anchor &a1, c
     } return pts;
 }
 
+inline QVector<SampledPoint> normalizeSamplesByBeat(const QVector<SampledPoint> &samples) {
+    QVector<SampledPoint> ordered = samples;
+    std::sort(ordered.begin(), ordered.end(), [](const SampledPoint &a, const SampledPoint &b) {
+        if (qAbs(a.beat - b.beat) <= 1e-12)
+            return a.laneX < b.laneX;
+        return a.beat < b.beat;
+    });
+    QVector<SampledPoint> out;
+    out.reserve(ordered.size());
+    constexpr double eps = 1e-6;
+    for (const SampledPoint &point : ordered) {
+        if (out.isEmpty() || qAbs(point.beat - out.last().beat) > eps) {
+            out.append(point);
+        } else {
+            // Python intentionally folds duplicate-beat samples pairwise.
+            out.last().laneX = (out.last().laneX + point.laneX) * 0.5;
+        }
+    }
+    return out;
+}
+
+inline double laneXAtBeat(const QVector<SampledPoint> &samplesByBeat, double beat) {
+    if (samplesByBeat.isEmpty())
+        return 0.0;
+    if (beat <= samplesByBeat.first().beat)
+        return samplesByBeat.first().laneX;
+    if (beat >= samplesByBeat.last().beat)
+        return samplesByBeat.last().laneX;
+    auto upper = std::lower_bound(samplesByBeat.cbegin(), samplesByBeat.cend(), beat,
+                                  [](const SampledPoint &point, double value) {
+                                      return point.beat < value;
+                                  });
+    if (upper == samplesByBeat.cbegin())
+        return upper->laneX;
+    const SampledPoint &right = *upper;
+    const SampledPoint &left = *(upper - 1);
+    const double span = right.beat - left.beat;
+    if (qAbs(span) <= 1e-9)
+        return left.laneX;
+    const double t = (beat - left.beat) / span;
+    return left.laneX + (right.laneX - left.laneX) * t;
+}
+
 // ====== CanvasProjection (chart ↔ canvas) ======
 struct CanvasProjection {
     double lmargin = 64, rmargin = 64, available = 512, laneW = 512;
     double ch = 800, scrollB = 0, visRange = 8; bool flip = false;
-    double lx2x(double lx) const { lx = ncClamp(lx, 0.0, laneW); return lmargin + (lx / laneW) * available; }
-    double b2y(double b) const { double t = (b - scrollB) / qMax(1e-6, visRange); return flip ? ch - t * ch : t * ch; }
-    double x2lx(double x) const { x = ncClamp(x, lmargin, lmargin + available); return ((x - lmargin) / available) * laneW; }
-    double y2b(double y) const { double t = flip ? (1.0 - y / ch) : y / ch; return scrollB + t * visRange; }
+    double lx2x(double lx) const {
+        lx = ncClamp(lx, 0.0, qMax(1.0, laneW));
+        return lmargin + (lx / qMax(1.0, laneW)) * qMax(1.0, available);
+    }
+    double b2y(double b) const {
+        const double t = (b - scrollB) / qMax(1e-6, visRange);
+        return flip ? qMax(1.0, ch) - t * qMax(1.0, ch) : t * qMax(1.0, ch);
+    }
+    double x2lx(double x) const {
+        x = ncClamp(x, lmargin, lmargin + qMax(1.0, available));
+        return ((x - lmargin) / qMax(1.0, available)) * qMax(1.0, laneW);
+    }
+    double y2b(double y) const {
+        const double height = qMax(1.0, ch);
+        const double t = flip ? (1.0 - y / height) : y / height;
+        return scrollB + t * qMax(1e-6, visRange);
+    }
+    QPointF chartToCanvas(const QPointF &point) const { return {lx2x(point.x()), b2y(point.y())}; }
+    QPointF canvasToChart(const QPointF &point) const { return {x2lx(point.x()), y2b(point.y())}; }
+    bool containsEditableCanvasPoint(const QPointF &point) const {
+        return point.x() >= lmargin && point.x() <= lmargin + qMax(1.0, available)
+            && point.y() >= 0.0 && point.y() <= qMax(1.0, ch);
+    }
 };
 } // namespace NoteChain

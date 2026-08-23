@@ -235,6 +235,19 @@ bool ChartCanvas::curveSnapXForBeat(double beat, int currentX, int *outX) const
     double bestLaneX = currentX;
     const double currentCanvasX = laneXToCanvasX(currentX);
 
+    if (m_noteChainModeActive && m_noteChainEditor
+        && m_noteChainEditor->state().noteCurveSnapEnabled()) {
+        double nativeLaneX = currentX;
+        if (m_noteChainEditor->snapLaneXAtBeat(beat, currentX, &nativeLaneX)) {
+            const double distancePx = qAbs(laneXToCanvasX(nativeLaneX) - currentCanvasX);
+            if (distancePx <= kSnapRangePx) {
+                bestDistancePx = distancePx;
+                bestLaneX = nativeLaneX;
+                found = true;
+            }
+        }
+    }
+
     for (const PluginInterface::CanvasOverlayItem &item : m_overlayCache)
     {
         if (item.kind != PluginInterface::CanvasOverlayItem::Line || !item.chartSpace)
@@ -304,7 +317,9 @@ void ChartCanvas::beginMoveSelection(const QPointF &startPos, int referenceIndex
     m_wasGridSnapEnabled = m_gridSnap;
     m_gridSnap = false;
     refreshPluginOverlayCacheForSnap();
-    m_noteSnapReferenceActiveForMove = hasNoteSnapReferenceOverlays();
+    m_noteSnapReferenceActiveForMove = hasNoteSnapReferenceOverlays()
+        || (m_noteChainModeActive && m_noteChainEditor
+            && m_noteChainEditor->state().noteCurveSnapEnabled());
 
     prepareMoveChanges();
     update();
@@ -771,37 +786,42 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
     if (m_noteChainModeActive && m_noteChainEditor)
     {
         auto *editor = m_noteChainEditor;
-        const double laneX = chartCanvasXToLaneX(event->position().x());
-        const double beat = chartYToBeat(event->position().y());
-        // Match the Python tool's context-menu targeting: a right-clicked
-        // segment becomes the action target, while an empty click preserves
-        // the current multi-selection.
-        editor->selectSegmentAt(laneX, beat,
-                                event->modifiers().testFlag(Qt::ControlModifier));
+        editor->setHostContext(buildPluginCanvasContext());
+        NoteChain::CanvasProjection projection;
+        projection.lmargin = laneXToCanvasX(0);
+        const double laneRight = laneXToCanvasX(kLaneWidth);
+        projection.available = qMax(1.0, laneRight - projection.lmargin);
+        projection.rmargin = qMax(0.0, width() - laneRight);
+        projection.laneW = kLaneWidth;
+        projection.ch = qMax(1, height());
+        projection.scrollB = m_scrollBeat;
+        projection.visRange = effectiveVisibleBeatRange();
+        projection.flip = m_verticalFlip;
+        editor->prepareContextMenuAt(event->position(), projection);
 
         QMenu curveMenu(this);
-        QAction *commitAction = curveMenu.addAction(tr("Commit Curve -> Notes"));
+        QAction *commitAction = curveMenu.addAction(tr("Commit Context Segments -> Notes"));
+        commitAction->setEnabled(editor->hasContextSegments());
         curveMenu.addSeparator();
 
         QAction *toggleShapeAction = curveMenu.addAction(tr("Toggle Curve / Polyline"));
-        toggleShapeAction->setEnabled(editor->hasSelectedSegments());
+        toggleShapeAction->setEnabled(editor->hasContextSegments());
 
         QMenu *densityMenu = curveMenu.addMenu(tr("Curve Placement Density"));
-        struct DensityOption { int denominator; const char *label; };
-        const DensityOption densityOptions[] = {
-            {0, "Follow Editor"}, {1, "1/1"}, {2, "1/2"}, {3, "1/3"},
-            {4, "1/4"}, {6, "1/6"}, {8, "1/8"}, {12, "1/12"},
-            {16, "1/16"}, {24, "1/24"}, {32, "1/32"}, {48, "1/48"},
-            {64, "1/64"}, {96, "1/96"}, {192, "1/192"}, {288, "1/288"}};
-        const int selectedDensity = editor->selectedSegmentDensity();
-        for (const DensityOption &option : densityOptions)
+        QVector<int> densityOptions = editor->state().style().denominators;
+        if (densityOptions.isEmpty()) densityOptions = {4, 8, 12, 16};
+        densityOptions.prepend(0);
+        const int selectedDensity = editor->contextSegmentDensity();
+        for (int denominator : densityOptions)
         {
-            QAction *action = densityMenu->addAction(tr(option.label));
+            const QString label = denominator <= 0 ? tr("Follow Editor")
+                                                   : tr("1/%1").arg(denominator);
+            QAction *action = densityMenu->addAction(label);
             action->setCheckable(true);
-            action->setEnabled(editor->hasSelectedSegments());
-            action->setChecked(selectedDensity == option.denominator);
-            connect(action, &QAction::triggered, this, [editor, option]() {
-                editor->setSelectedSegmentDensity(option.denominator);
+            action->setEnabled(editor->hasContextSegments());
+            action->setChecked(selectedDensity == denominator);
+            connect(action, &QAction::triggered, this, [editor, denominator]() {
+                editor->setContextSegmentDensity(denominator);
             });
         }
         if (selectedDensity == -1)
@@ -821,9 +841,9 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
 
         QAction *selected = curveMenu.exec(event->globalPos());
         if (selected == commitAction)
-            editor->commitCurveToNotes();
+            editor->commitContextSegmentsToNotes();
         else if (selected == toggleShapeAction)
-            editor->toggleSelectedSegmentShape();
+            editor->toggleContextSegmentShape();
         else if (selected == connectAction)
             editor->connectSelectedAnchors();
         else if (selected == disconnectAction)

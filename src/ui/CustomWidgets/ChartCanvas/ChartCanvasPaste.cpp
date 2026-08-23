@@ -1,6 +1,7 @@
 ﻿#include "ChartCanvas.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
+#include "editor/NoteChain/NoteChainEditor.h"
 #include "model/Chart.h"
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
@@ -147,6 +148,8 @@ void ChartCanvas::beginPastePreview(const QVector<Note> &notes, const QPoint &cu
     m_pasteTimeOffsetRaw = 0.0;
     m_pasteXOffsetRaw = 0.0;
     m_isDraggingPaste = false;
+    m_pasteSnapReferenceActive = m_noteChainModeActive && m_noteChainEditor
+        && m_noteChainEditor->state().noteCurveSnapEnabled();
 
     if (!cursorPos.isNull())
     {
@@ -273,7 +276,9 @@ void ChartCanvas::beginDragPaste(const QPointF &startPos)
     m_pasteXOffsetRaw = m_pasteXOffset;
 
     refreshPluginOverlayCacheForSnap();
-    m_pasteSnapReferenceActive = hasNoteSnapReferenceOverlays();
+    m_pasteSnapReferenceActive = hasNoteSnapReferenceOverlays()
+        || (m_noteChainModeActive && m_noteChainEditor
+            && m_noteChainEditor->state().noteCurveSnapEnabled());
 }
 
 void ChartCanvas::updateDragPaste(const QPointF &currentPos)
@@ -304,7 +309,10 @@ void ChartCanvas::updateDragPaste(const QPointF &currentPos)
     if (m_pasteSnapReferenceActive && m_pasteDragReferenceIndex >= 0 &&
         m_pasteDragReferenceIndex < m_pasteNotes.size()) {
         const Note &refNote = m_pasteNotes[m_pasteDragReferenceIndex];
-        double refBeat = MathUtils::beatToFloat(refNote.beatNum, refNote.numerator, refNote.denominator) + m_pasteTimeOffset;
+        const double placementShift = m_pasteAnchorBeat - m_pasteRefBeat + m_pasteTimeOffset;
+        const double refBeat = MathUtils::beatToFloat(
+                                   refNote.beatNum, refNote.numerator, refNote.denominator)
+                             + placementShift;
         int snappedX = qBound(0, refNote.x + qRound(m_pasteXOffset), kLaneWidth);
         if (curveSnapXForBeat(refBeat, snappedX, &snappedX))
             m_pasteXOffset = static_cast<double>(snappedX - refNote.x);
@@ -317,7 +325,6 @@ void ChartCanvas::updateDragPaste(const QPointF &currentPos)
 void ChartCanvas::endDragPaste()
 {
     m_isDraggingPaste = false;
-    m_pasteSnapReferenceActive = false;
 }
 
 void ChartCanvas::confirmPaste()
@@ -329,6 +336,7 @@ void ChartCanvas::confirmPaste()
         m_pasteOriginalTimesMs.clear();
         m_pasteBaseOriginalTimeMs = std::numeric_limits<double>::max();
         m_pasteAnchorBeat = 0.0;
+        m_pasteSnapReferenceActive = false;
         return;
     }
 
@@ -408,6 +416,7 @@ void ChartCanvas::confirmPaste()
         m_pasteTimeOffsetRaw = 0.0;
         m_pasteXOffsetRaw = 0.0;
         m_pasteAnchorBeat = 0.0;
+        m_pasteSnapReferenceActive = false;
         update();
         return;
     }
@@ -423,7 +432,9 @@ void ChartCanvas::confirmPaste()
     if (m_pasteSnapReferenceActive && m_pasteDragReferenceIndex >= 0 &&
         m_pasteDragReferenceIndex < m_pasteNotes.size()) {
         const Note &refNote = m_pasteNotes[m_pasteDragReferenceIndex];
-        double refBeat = MathUtils::beatToFloat(refNote.beatNum, refNote.numerator, refNote.denominator) + m_pasteTimeOffset;
+        const double refBeat = MathUtils::beatToFloat(
+                                   refNote.beatNum, refNote.numerator, refNote.denominator)
+                             + snappedTotalBeatShift;
         int snappedX = qBound(0, refNote.x + qRound(finalXShift), kLaneWidth);
         if (curveSnapXForBeat(refBeat, snappedX, &snappedX))
             finalXShift = static_cast<double>(snappedX - refNote.x);
@@ -474,5 +485,6 @@ void ChartCanvas::confirmPaste()
     m_pasteTimeOffsetRaw = 0.0;
     m_pasteXOffsetRaw = 0.0;
     m_pasteAnchorBeat = 0.0;
+    m_pasteSnapReferenceActive = false;
     update();
 }

@@ -12,6 +12,7 @@ public:
 
     // 锚点 (Python: STATE["anchors"])
     int  appendAnchor(double laneX, double beat);
+    int  insertAnchor(const Anchor &anchor);
     void removeAnchorById(int id);
     int  anchorIndexById(int id) const;
     const QVector<Anchor>& anchors() const { return m_anchors; }
@@ -21,6 +22,7 @@ public:
     void setAnchorOutAbsChart(int idx, double laneX, double beat, bool mirror);
     int  nextAnchorId() const { return m_nextAnchorId; }
     QMap<int,int> anchorIndexMap() const;
+    Link normalizedLink(int fromId, int toId) const;
 
     // 链接 (Python: STATE["links"])
     void addLink(int fromId, int toId);
@@ -38,6 +40,18 @@ public:
     void setDensityMode(int fromId, int toId, int mode);
     void seedMissingSegmentDenominators();
     QVector<SegmentInfo> connectedAnchorSegments() const;
+
+    // V3 extension metadata. Unknown/reserved fields survive native edits.
+    NodePersistenceMeta nodeMeta(int anchorId) const;
+    void setNodeMeta(int anchorId, const NodePersistenceMeta &meta);
+    CurvePersistenceMeta curveMeta(int fromId, int toId) const;
+    void setCurveMeta(int fromId, int toId, const CurvePersistenceMeta &meta);
+    const QVector<GroupPersistenceMeta>& nodeGroups() const { return m_nodeGroups; }
+    const QVector<GroupPersistenceMeta>& curveGroups() const { return m_curveGroups; }
+    void setNodeGroups(const QVector<GroupPersistenceMeta> &groups) { m_nodeGroups = groups; }
+    void setCurveGroups(const QVector<GroupPersistenceMeta> &groups) { m_curveGroups = groups; }
+    int nextCurveId() const { return m_nextCurveId; }
+    void setNextCurveId(int id) { m_nextCurveId = qMax(1, id); }
 
     // 选中 (selected_anchor_ids / selected_links)
     void selectAnchor(int id), deselectAnchor(int id), clearAnchorSelection();
@@ -59,6 +73,7 @@ public:
 
     // 选择目标 (selection_targets)
     bool selectionEnabled(const QString &kind) const;
+    bool selectionTargetEnabled(const QString &kind) const;
     void setSelectionEnabled(const QString &kind, bool v);
 
     // 可见性 / overlay toggle / 锚点放置 / snap
@@ -85,8 +100,9 @@ public:
     void setShiftDown(bool v) { m_shiftDown = v; }
 
     // 曲线缓存 / 项目元数据
-    void invalidateCurveCache() { m_cacheValid = false; }
+    void invalidateCurveCache() { m_cacheValid = false; ++m_curveRevision; }
     bool isCurveCacheValid() const { return m_cacheValid; }
+    quint64 curveRevision() const { return m_curveRevision; }
     int projectRevision() const { return m_projRev; }
     void setProjectRevision(int r) { m_projRev = r; }
     QString projectFileUuid() const { return m_projUuid; }
@@ -102,8 +118,8 @@ public:
     void setNextAnchorId(int id) { m_nextAnchorId = qMax(1, id); }
 
     // 约束 & 清理
-    void enforceHandleTimeConstraints(int idx);
-    void enforceAnchorAndConnectedHandleConstraints(int idx);
+    void enforceHandleTimeConstraints(int idx, int timeDivision = 4);
+    void enforceAnchorAndConnectedHandleConstraints(int idx, int timeDivision = 4);
     void cleanupLinksAndSelection();
 
     // 快照
@@ -120,6 +136,10 @@ private:
     QVector<Link> m_links;
     QMap<LinkKey,int> m_segDen, m_densMode;
     QMap<LinkKey,QString> m_segShape;
+    QMap<int,NodePersistenceMeta> m_nodeMeta;
+    QMap<LinkKey,CurvePersistenceMeta> m_curveMeta;
+    QVector<GroupPersistenceMeta> m_nodeGroups, m_curveGroups;
+    int m_nextCurveId = 1;
     QSet<int> m_selAnchorIds; QSet<LinkKey> m_selLinkKeys;
     BoxSelect m_boxSelect; DragState m_drag; LinkDrag m_linkDrag;
     SelectionTargets m_selTargets;
@@ -128,6 +148,7 @@ private:
     QString m_activeShape; StylePreset m_style;
     int m_pendingConnect=-1, m_lastClickIdx=-1; qint64 m_lastClickMs=0;
     bool m_shiftDown=false, m_cacheValid=false;
+    quint64 m_curveRevision = 1;
     int m_projRev=0; QString m_projUuid, m_lastWriter, m_projPath;
     bool m_projDirty=false, m_suppressPersist=false;
     QVariantMap m_lastCtx; QSet<int> m_lastHostSel;

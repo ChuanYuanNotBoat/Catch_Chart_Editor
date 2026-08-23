@@ -400,6 +400,8 @@ void ChartCanvas::setChartController(ChartController *controller)
         disconnect(m_chartController, &ChartController::metaDataChanged, this, nullptr);
     }
     m_chartController = controller;
+    if (m_noteChainEditor)
+        m_noteChainEditor->setChartController(controller);
     if (controller)
     {
         connect(controller, &ChartController::chartChanged, this, [this]()

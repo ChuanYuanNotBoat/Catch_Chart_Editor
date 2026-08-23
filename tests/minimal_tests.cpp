@@ -9,12 +9,15 @@
 #include <QtGlobal>
 #include <QSignalSpy>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 
 #include "file/ProjectIO.h"
 #include "file/ChartIO.h"
 #include "file/ChartFileSystem.h"
 #include "controller/ChartController.h"
+#include "editor/NoteChain/NoteChainCurveSampler.h"
+#include "editor/NoteChain/NoteChainEditor.h"
 #include "editor/NoteChain/NoteChainPersistence.h"
 #include "model/Chart.h"
 #include "utils/MathUtils.h"
@@ -2179,9 +2182,11 @@ namespace
             {"beat", QJsonArray{3, 0, 1}},
             {"in", QJsonArray{-24.0, -0.25}},
             {"out", QJsonArray{24.0, 0.25}}};
+        QJsonArray legacyLinks;
+        legacyLinks.append(QJsonValue(QJsonArray{7, 9}));
         const QJsonObject legacyProject{
             {"anchors", QJsonArray{firstAnchor, secondAnchor}},
-            {"links", QJsonArray{QJsonArray{7, 9}}},
+            {"links", legacyLinks},
             {"segment_denominators", QJsonObject{{"7:9", 12}}},
             {"segment_shapes", QJsonObject{{"7:9", "polyline"}}}};
 
@@ -2199,6 +2204,246 @@ namespace
                && !anchor.smooth
                && state.segmentDen(7, 9) == 12
                && state.segmentShape(7, 9) == QStringLiteral("polyline");
+    }
+
+    bool testNoteChainAnchorInsertionOrderAndDefaultHandles()
+    {
+        NoteChain::NoteChainState state;
+        const int laterIndex = state.appendAnchor(320.0, 4.0);
+        const int laterId = state.anchorAt(laterIndex).id;
+        state.appendAnchor(64.0, 1.0);
+        const int middleIndex = state.appendAnchor(192.0, 2.0);
+
+        if (state.anchors().size() != 3
+            || !nearlyEqual(state.anchorAt(0).beat, 1.0)
+            || !nearlyEqual(state.anchorAt(1).beat, 2.0)
+            || !nearlyEqual(state.anchorAt(2).beat, 4.0)
+            || state.anchorAt(2).id != laterId
+            || middleIndex != 1) {
+            return false;
+        }
+
+        const NoteChain::Anchor &middle = state.anchorAt(middleIndex);
+        return nearlyEqual(middle.inDx, -32.0)
+            && nearlyEqual(middle.outDx, 32.0)
+            && nearlyEqual(middle.inDy, -0.25)
+            && nearlyEqual(middle.outDy, 0.25);
+    }
+
+    bool testNoteChainTripletPreservesRequestedDenominator()
+    {
+        const QVector<int> triplet = NoteChain::floatBeatToTriplet(2.5, 12);
+        const QVector<int> rounded = NoteChain::floatBeatToTriplet(1.0 + 5.0 / 24.0, 24);
+        return triplet == QVector<int>({2, 6, 12})
+            && rounded == QVector<int>({1, 5, 24})
+            && nearlyEqual(NoteChain::tripletToFloat(rounded), 1.0 + 5.0 / 24.0);
+    }
+
+    bool testNoteChainNormalizesNonMonotonicBezierSamples()
+    {
+        NoteChain::Anchor first;
+        first.laneX = 32.0;
+        first.beat = 0.0;
+        first.outDx = 160.0;
+        first.outDy = 4.0;
+        NoteChain::Anchor second;
+        second.laneX = 480.0;
+        second.beat = 2.0;
+        second.inDx = -160.0;
+        second.inDy = -4.0;
+
+        const QVector<NoteChain::SampledPoint> raw =
+            NoteChain::sampleSegment(first, second, QStringLiteral("curve"), 64);
+        bool hasBeatReversal = false;
+        for (int i = 1; i < raw.size(); ++i)
+            hasBeatReversal = hasBeatReversal || raw[i].beat < raw[i - 1].beat;
+        if (!hasBeatReversal)
+            return false;
+
+        const QVector<NoteChain::SampledPoint> normalized = NoteChain::normalizeSamplesByBeat(raw);
+        if (normalized.size() < 2)
+            return false;
+        for (int i = 1; i < normalized.size(); ++i) {
+            if (normalized[i].beat <= normalized[i - 1].beat)
+                return false;
+        }
+
+        const double probeBeat = (normalized.first().beat + normalized.last().beat) * 0.5;
+        const double laneX = NoteChain::laneXAtBeat(normalized, probeBeat);
+        return std::isfinite(laneX) && laneX >= 0.0 && laneX <= NoteChain::Const::kLaneWidth;
+    }
+
+    bool testNoteChainV3MetadataAndDensityRoundTrip()
+    {
+        NoteChain::NoteChainState source;
+        NoteChain::Anchor first;
+        first.id = 11;
+        first.laneX = 80.0;
+        first.beat = 1.25;
+        NoteChain::Anchor second;
+        second.id = 22;
+        second.laneX = 400.0;
+        second.beat = 3.5;
+        source.insertAnchor(first);
+        source.insertAnchor(second);
+        source.addLink(11, 22);
+
+        NoteChain::NodePersistenceMeta nodeMeta;
+        nodeMeta.groupIds = {2, 7};
+        nodeMeta.reserved = QJsonObject{{"python_node_data", "keep"}};
+        source.setNodeMeta(11, nodeMeta);
+
+        NoteChain::CurvePersistenceMeta curveMeta;
+        curveMeta.curveId = 43;
+        curveMeta.curveNo = 5;
+        curveMeta.groupIds = {3, 9};
+        curveMeta.specialJoystickReserved = QJsonObject{{"axis", "x"}};
+        curveMeta.reserved = QJsonObject{{"python_curve_data", 17}};
+        source.setCurveMeta(11, 22, curveMeta);
+        source.setDensityMode(11, 22, 0);
+
+        NoteChain::GroupPersistenceMeta nodeGroup;
+        nodeGroup.id = 2;
+        nodeGroup.name = QStringLiteral("nodes");
+        nodeGroup.reserved = QJsonObject{{"color", "blue"}};
+        source.setNodeGroups({nodeGroup});
+        NoteChain::GroupPersistenceMeta curveGroup;
+        curveGroup.id = 3;
+        curveGroup.name = QStringLiteral("curves");
+        curveGroup.reserved = QJsonObject{{"color", "gold"}};
+        source.setCurveGroups({curveGroup});
+
+        NoteChain::NoteChainState loaded;
+        if (!NoteChain::NoteChainPersistence::deserialize(
+                NoteChain::NoteChainPersistence::serialize(source), loaded)) {
+            return false;
+        }
+        if (!(loaded.nodeMeta(11) == nodeMeta)
+            || !(loaded.curveMeta(11, 22) == curveMeta)
+            || loaded.nodeGroups() != QVector<NoteChain::GroupPersistenceMeta>{nodeGroup}
+            || loaded.curveGroups() != QVector<NoteChain::GroupPersistenceMeta>{curveGroup}
+            || loaded.segmentDensityMode(11, 22) != 0) {
+            return false;
+        }
+
+        loaded.setSegmentDen(11, 22, 24);
+        NoteChain::NoteChainState fixedLoaded;
+        return NoteChain::NoteChainPersistence::deserialize(
+                   NoteChain::NoteChainPersistence::serialize(loaded), fixedLoaded)
+            && fixedLoaded.segmentDensityMode(11, 22) == 24
+            && fixedLoaded.segmentDen(11, 22) == 24;
+    }
+
+    bool testNoteChainInvalidCurveIdentityFallsBackToGeneratedValues()
+    {
+        QJsonArray nodes;
+        nodes.append(QJsonObject{{"node_id", 1}, {"lane_x", 64.0}, {"beat", QJsonArray{0, 0, 1}}});
+        nodes.append(QJsonObject{{"node_id", 2}, {"lane_x", 448.0}, {"beat", QJsonArray{1, 0, 1}}});
+        QJsonArray curves;
+        curves.append(QJsonObject{{"curve_id", 0}, {"curve_no", -3},
+                                  {"node_ids", QJsonArray{1, 2}}});
+        NoteChain::NoteChainState state;
+        if (!NoteChain::NoteChainPersistence::deserialize(
+                QJsonObject{{"format_version", 3}, {"nodes", nodes}, {"curves", curves}}, state)) {
+            return false;
+        }
+        const NoteChain::CurvePersistenceMeta meta = state.curveMeta(1, 2);
+        return meta.curveId > 0 && meta.curveNo > 0;
+    }
+
+    bool testNoteChainBrokenPayloadDoesNotReplaceState()
+    {
+        NoteChain::NoteChainState state;
+        state.appendAnchor(144.0, 2.0);
+        const NoteChain::StateSnapshot before = state.captureSnapshot();
+
+        const QJsonObject broken{
+            {"anchors", QJsonArray{
+                QJsonObject{{"id", 7}, {"lane_x", 64.0}, {"beat", QJsonArray{1, 0, 1}}},
+                QJsonObject{{"id", 9}, {"beat", QJsonArray{2, 0, 1}}}}}};
+        QString error;
+        return !NoteChain::NoteChainPersistence::deserialize(broken, state, &error)
+            && !error.isEmpty()
+            && state.captureSnapshot() == before;
+    }
+
+    bool testNoteChainEditorFailedProjectSwitchIsTransactional()
+    {
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+            return false;
+
+        const QString validPath = tempDir.filePath(QStringLiteral("valid.curve_tbd.json"));
+        NoteChain::NoteChainState source;
+        source.appendAnchor(216.0, 2.75);
+        if (!NoteChain::NoteChainPersistence::saveToFile(source, validPath))
+            return false;
+
+        NoteChain::NoteChainEditor editor;
+        if (!editor.loadProject(validPath))
+            return false;
+        const NoteChain::StateSnapshot before = editor.state().captureSnapshot();
+
+        const QString brokenPath = tempDir.filePath(QStringLiteral("broken.curve_tbd.json"));
+        QFile brokenFile(brokenPath);
+        if (!brokenFile.open(QIODevice::WriteOnly)
+            || brokenFile.write("{ invalid json") <= 0) {
+            return false;
+        }
+        brokenFile.close();
+
+        return !editor.loadProject(brokenPath)
+            && editor.currentSidecarPath() == validPath
+            && editor.state().captureSnapshot() == before;
+    }
+
+    bool testNoteChainHostNoteSelectionSynchronizesNearestAnchors()
+    {
+        NoteChain::NoteChainEditor editor;
+        const int firstIndex = editor.state().appendAnchor(64.0, 1.0);
+        const int firstId = editor.state().anchorAt(firstIndex).id;
+        const int secondIndex = editor.state().appendAnchor(448.0, 6.0);
+        const int secondId = editor.state().anchorAt(secondIndex).id;
+        editor.setSelectNotesEnabled(true);
+
+        QVariantMap selectedNote;
+        selectedNote.insert(QStringLiteral("id"), QStringLiteral("note-b"));
+        selectedNote.insert(QStringLiteral("lane_x"), 430.0);
+        selectedNote.insert(QStringLiteral("beat"), 5.75);
+        QVariantMap context;
+        context.insert(QStringLiteral("selected_note_ids"), QVariantList{QStringLiteral("note-b")});
+        context.insert(QStringLiteral("selected_notes"), QVariantList{selectedNote});
+        editor.setHostContext(context);
+        if (!editor.state().isAnchorSelected(secondId)
+            || editor.state().isAnchorSelected(firstId)) {
+            return false;
+        }
+
+        editor.setSelectNotesEnabled(false);
+        editor.state().setSingleSelectedAnchor(firstId);
+        context.insert(QStringLiteral("selected_note_ids"), QVariantList{QStringLiteral("note-c")});
+        editor.setHostContext(context);
+        return editor.state().isAnchorSelected(firstId)
+            && !editor.state().isAnchorSelected(secondId);
+    }
+
+    bool testChartControllerUndoMarkerTextLifecycle()
+    {
+        ChartController controller;
+        controller.pushUndoMarker(QStringLiteral("Plugin Curve Edit: Move Anchor"));
+        if (!controller.canUndo()
+            || controller.nextUndoActionText() != QStringLiteral("Plugin Curve Edit: Move Anchor")
+            || controller.canRedo()) {
+            return false;
+        }
+        controller.undo();
+        if (controller.canUndo() || !controller.canRedo()
+            || controller.nextRedoActionText() != QStringLiteral("Plugin Curve Edit: Move Anchor")) {
+            return false;
+        }
+        controller.redo();
+        return controller.canUndo() && !controller.canRedo()
+            && controller.nextUndoActionText() == QStringLiteral("Plugin Curve Edit: Move Anchor");
     }
 
 } // namespace
@@ -2308,6 +2553,15 @@ int main(int argc, char **argv)
         {"ChartFileSystem clearRegistrations", &testChartFileSystemClearRegistrations},
         {"NoteChain sidecar revision + CAS", &testNoteChainSidecarSaveUpdatesRevisionAndRejectsStaleWrite},
         {"NoteChain Python legacy handles", &testNoteChainLoadsPythonLegacyAnchorsAndHandles},
+        {"NoteChain anchor order + default handles", &testNoteChainAnchorInsertionOrderAndDefaultHandles},
+        {"NoteChain triplet denominator preservation", &testNoteChainTripletPreservesRequestedDenominator},
+        {"NoteChain non-monotonic Bezier normalization", &testNoteChainNormalizesNonMonotonicBezierSamples},
+        {"NoteChain V3 metadata + density round-trip", &testNoteChainV3MetadataAndDensityRoundTrip},
+        {"NoteChain invalid curve identity fallback", &testNoteChainInvalidCurveIdentityFallsBackToGeneratedValues},
+        {"NoteChain broken payload preserves state", &testNoteChainBrokenPayloadDoesNotReplaceState},
+        {"NoteChain failed project switch is transactional", &testNoteChainEditorFailedProjectSwitchIsTransactional},
+        {"NoteChain host note selection sync", &testNoteChainHostNoteSelectionSynchronizesNearestAnchors},
+        {"ChartController undo marker text lifecycle", &testChartControllerUndoMarkerTextLifecycle},
     };
 
     int failed = 0;

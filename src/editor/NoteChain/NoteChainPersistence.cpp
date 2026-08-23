@@ -89,9 +89,87 @@ static QPointF handleOffsetFromJson(const QJsonValue &value)
     return {};
 }
 
+static QVector<int> positiveIdsFromJson(const QJsonValue &value, int fallback)
+{
+    QVector<int> result;
+    QSet<int> seen;
+    for (const QJsonValue &entry : value.toArray()) {
+        const int id = parseInt(entry, 0);
+        if (id > 0 && !seen.contains(id)) {
+            seen.insert(id);
+            result.append(id);
+        }
+    }
+    if (result.isEmpty())
+        result.append(fallback);
+    return result;
+}
+
+static QJsonArray idsToJson(const QVector<int> &ids, int fallback)
+{
+    QJsonArray result;
+    QSet<int> seen;
+    for (int id : ids) {
+        if (id > 0 && !seen.contains(id)) {
+            seen.insert(id);
+            result.append(id);
+        }
+    }
+    if (result.isEmpty())
+        result.append(fallback);
+    return result;
+}
+
+static QVector<GroupPersistenceMeta> groupsFromJson(const QJsonValue &value, int fallbackId)
+{
+    QVector<GroupPersistenceMeta> result;
+    QSet<int> seen;
+    for (const QJsonValue &entry : value.toArray()) {
+        const QJsonObject object = entry.toObject();
+        const int id = parseInt(object.value("group_id"), 0);
+        if (id <= 0 || seen.contains(id))
+            continue;
+        seen.insert(id);
+        GroupPersistenceMeta group;
+        group.id = id;
+        group.name = object.value("group_name").toString();
+        group.reserved = object.value("reserved").toObject();
+        result.append(group);
+    }
+    if (result.isEmpty()) {
+        GroupPersistenceMeta group;
+        group.id = fallbackId;
+        group.name = QStringLiteral("base");
+        result.append(group);
+    }
+    return result;
+}
+
+static QJsonArray groupsToJson(const QVector<GroupPersistenceMeta> &groups, int fallbackId)
+{
+    QVector<GroupPersistenceMeta> effective = groups;
+    if (effective.isEmpty()) {
+        GroupPersistenceMeta group;
+        group.id = fallbackId;
+        group.name = QStringLiteral("base");
+        effective.append(group);
+    }
+    QJsonArray result;
+    for (const GroupPersistenceMeta &group : effective) {
+        if (group.id <= 0)
+            continue;
+        QJsonObject object;
+        object["group_id"] = group.id;
+        object["group_name"] = group.name.isEmpty() ? QStringLiteral("base") : group.name;
+        object["reserved"] = group.reserved;
+        result.append(object);
+    }
+    return result;
+}
+
 // ---- 锚点序列化 ----
 
-QJsonObject NoteChainPersistence::serializeAnchor(const Anchor &anchor)
+QJsonObject NoteChainPersistence::serializeAnchor(const Anchor &anchor, const NodePersistenceMeta &meta)
 {
     QJsonObject obj;
     obj["node_id"] = anchor.id;
@@ -114,8 +192,8 @@ QJsonObject NoteChainPersistence::serializeAnchor(const Anchor &anchor)
     compatObj["out"] = outObj;
     obj["compat_handles"] = compatObj;
 
-    obj["group_ids"] = QJsonArray{1};
-    obj["reserved"] = QJsonObject();
+    obj["group_ids"] = idsToJson(meta.groupIds, Const::kDefaultNodeGroupId);
+    obj["reserved"] = meta.reserved;
     obj["smooth"] = anchor.smooth;
     return obj;
 }
@@ -207,7 +285,7 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
     QJsonArray nodesArray;
     const QVector<Anchor> &anchorsVec = state.anchors();
     for (const Anchor &a : anchorsVec) {
-        nodesArray.append(serializeAnchor(a));
+        nodesArray.append(serializeAnchor(a, state.nodeMeta(a.id)));
     }
     root["nodes"] = nodesArray;
 
@@ -216,8 +294,9 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
     const QVector<Link> &linksList = state.linksAll();
     for (const Link &link : linksList) {
         QJsonObject curveObj;
-        curveObj["curve_id"] = 0;
-        curveObj["curve_no"] = 0;
+        const CurvePersistenceMeta meta = state.curveMeta(link.from, link.to);
+        curveObj["curve_id"] = meta.curveId;
+        curveObj["curve_no"] = meta.curveNo;
         curveObj["node_ids"] = QJsonArray{link.from, link.to};
 
         QJsonObject densityObj;
@@ -235,23 +314,17 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
         QString shape = state.segmentShape(link.from, link.to);
         curveObj["style_category"] = shape;
 
-        QJsonArray groupIds{1};
-        curveObj["group_ids"]               = groupIds;
-        curveObj["special_joystick_reserved"] = QJsonObject();
-        curveObj["reserved"]                = QJsonObject();
+        curveObj["group_ids"] = idsToJson(meta.groupIds, Const::kDefaultCurveGroupId);
+        curveObj["special_joystick_reserved"] = meta.specialJoystickReserved;
+        curveObj["reserved"] = meta.reserved;
 
         curvesArray.append(curveObj);
     }
     root["curves"] = curvesArray;
 
     // 附加属性
-    QJsonObject baseNodeGroup;
-    baseNodeGroup["group_id"] = 1;
-    baseNodeGroup["group_name"] = QStringLiteral("base");
-    baseNodeGroup["reserved"] = QJsonObject();
-    QJsonObject baseCurveGroup = baseNodeGroup;
-    root["node_groups"]  = QJsonArray{baseNodeGroup};
-    root["curve_groups"] = QJsonArray{baseCurveGroup};
+    root["node_groups"] = groupsToJson(state.nodeGroups(), Const::kDefaultNodeGroupId);
+    root["curve_groups"] = groupsToJson(state.curveGroups(), Const::kDefaultCurveGroupId);
 
     QJsonObject styleObj;
     QJsonArray dens;
@@ -273,7 +346,21 @@ QJsonObject NoteChainPersistence::serialize(const NoteChainState &state)
 
 bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &state, QString *errorMsg)
 {
-    Q_UNUSED(errorMsg)
+    const bool recognized = json.contains("format_version") || json.contains("nodes")
+                         || json.contains("anchors") || json.contains("curves")
+                         || json.contains("links");
+    if (!recognized) {
+        if (errorMsg) *errorMsg = QStringLiteral("unrecognized curve sidecar payload");
+        return false;
+    }
+
+    if ((json.contains("nodes") && !json.value("nodes").isArray())
+        || (json.contains("anchors") && !json.value("anchors").isArray())
+        || (json.contains("curves") && !json.value("curves").isArray())
+        || (json.contains("links") && !json.value("links").isArray())) {
+        if (errorMsg) *errorMsg = QStringLiteral("curve sidecar arrays have invalid types");
+        return false;
+    }
 
     // 先解析到临时 state，全部校验通过后再赋值，避免部分加载破坏现有数据 (P2-3 fix)
     NoteChainState tmp;
@@ -281,23 +368,23 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
     // nodes → anchors.  Python's older V2 sidecar calls this array
     // "anchors"; retain its chart-space handles rather than silently
     // loading an empty curve project.
-    int maxAnchorId = 0;
     QJsonArray nodesArray = json.value("nodes").toArray();
     if (nodesArray.isEmpty() && json.contains("anchors"))
         nodesArray = json.value("anchors").toArray();
     for (const QJsonValue &nodeVal : nodesArray) {
         QJsonObject nodeObj = nodeVal.toObject();
         Anchor anchor;
-        if (deserializeAnchor(nodeObj, anchor, nullptr)) {
-            int idx = tmp.appendAnchor(anchor.laneX, anchor.beat);
-            Anchor &added = tmp.anchorAt(idx);
-            added.inDx = anchor.inDx; added.inDy = anchor.inDy;
-            added.outDx = anchor.outDx; added.outDy = anchor.outDy;
-            added.smooth = anchor.smooth; added.id = anchor.id;
-            maxAnchorId = qMax(maxAnchorId, anchor.id);
+        if (!deserializeAnchor(nodeObj, anchor, nullptr)) {
+            if (errorMsg) *errorMsg = QStringLiteral("invalid anchor entry");
+            return false;
         }
+        const int index = tmp.insertAnchor(anchor);
+        const int actualId = tmp.anchorAt(index).id;
+        NodePersistenceMeta meta;
+        meta.groupIds = positiveIdsFromJson(nodeObj.value("group_ids"), Const::kDefaultNodeGroupId);
+        meta.reserved = nodeObj.value("reserved").toObject();
+        tmp.setNodeMeta(actualId, meta);
     }
-    tmp.setNextAnchorId(maxAnchorId + 1);
 
     // curves → links + segment 属性.  V2 stores plain [from, to] pairs in
     // "links" and keeps per-link properties in root-level maps.
@@ -315,6 +402,23 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
 
         // 添加链接
         tmp.addLink(id0, id1);
+        if (!tmp.hasLink(id0, id1))
+            continue;
+
+        CurvePersistenceMeta meta = tmp.curveMeta(id0, id1);
+        const int curveId = parseInt(curveObj.value("curve_id"), meta.curveId);
+        const int curveNo = parseInt(curveObj.value("curve_no"), meta.curveNo);
+        // Zero/negative identities mean "unspecified" in old or partially
+        // written sidecars. Keep the positive identities allocated by
+        // addLink() instead of replacing them with unusable values.
+        if (curveId > 0)
+            meta.curveId = curveId;
+        if (curveNo > 0)
+            meta.curveNo = curveNo;
+        meta.groupIds = positiveIdsFromJson(curveObj.value("group_ids"), Const::kDefaultCurveGroupId);
+        meta.specialJoystickReserved = curveObj.value("special_joystick_reserved").toObject();
+        meta.reserved = curveObj.value("reserved").toObject();
+        tmp.setCurveMeta(id0, id1, meta);
 
         // 密度
         QJsonObject densityObj = curveObj.value("density").toObject();
@@ -351,7 +455,11 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
                 continue;
 
             tmp.addLink(id0, id1);
-            const QString key = QStringLiteral("%1:%2").arg(qMin(id0, id1)).arg(qMax(id0, id1));
+            const Link normalized = tmp.normalizedLink(id0, id1);
+            const QString orderedKey = QStringLiteral("%1:%2").arg(normalized.from).arg(normalized.to);
+            const QString numericKey = QStringLiteral("%1:%2").arg(qMin(id0, id1)).arg(qMax(id0, id1));
+            const QString key = legacyDensities.contains(orderedKey) || legacyDensityModes.contains(orderedKey)
+                                    || legacyShapes.contains(orderedKey) ? orderedKey : numericKey;
             const QString densityMode = legacyDensityModes.value(key).toString().trimmed().toLower();
             if (densityMode == QLatin1String("follow")) {
                 tmp.setDensityMode(id0, id1, 0);
@@ -365,6 +473,9 @@ bool NoteChainPersistence::deserialize(const QJsonObject &json, NoteChainState &
                 tmp.setSegmentShape(id0, id1, shape);
         }
     }
+
+    tmp.setNodeGroups(groupsFromJson(json.value("node_groups"), Const::kDefaultNodeGroupId));
+    tmp.setCurveGroups(groupsFromJson(json.value("curve_groups"), Const::kDefaultCurveGroupId));
 
     // 元数据
     if (json.contains("revision")) {
@@ -431,13 +542,19 @@ bool NoteChainPersistence::saveToFile(NoteChainState &state, const QString &file
     int diskRevision = 0;
     if (fi.exists()) {
         QFile readFile(effectivePath);
-        if (readFile.open(QIODevice::ReadOnly)) {
-            QJsonDocument diskDoc = QJsonDocument::fromJson(readFile.readAll());
-            readFile.close();
-            if (diskDoc.isObject()) {
-                diskRevision = parseInt(diskDoc.object().value("revision"), 0);
-            }
+        if (!readFile.open(QIODevice::ReadOnly)) {
+            if (errorMsg) *errorMsg = QStringLiteral("failed to read existing sidecar: %1").arg(readFile.errorString());
+            return false;
         }
+        QJsonParseError diskParseError;
+        const QJsonDocument diskDoc = QJsonDocument::fromJson(readFile.readAll(), &diskParseError);
+        readFile.close();
+        if (diskParseError.error != QJsonParseError::NoError || !diskDoc.isObject()) {
+            if (errorMsg) *errorMsg = QStringLiteral("existing sidecar is not valid JSON: %1")
+                                           .arg(diskParseError.errorString());
+            return false;
+        }
+        diskRevision = parseInt(diskDoc.object().value("revision"), 0);
     }
     // CAS revision 冲突检测：比较内存 revision 与磁盘 revision
     int memRevision = state.projectRevision();
@@ -458,7 +575,12 @@ bool NoteChainPersistence::saveToFile(NoteChainState &state, const QString &file
     }
 
     QJsonDocument doc(payload);
-    saveFile.write(doc.toJson(QJsonDocument::Indented));
+    const QByteArray encoded = doc.toJson(QJsonDocument::Indented);
+    if (saveFile.write(encoded) != encoded.size()) {
+        if (errorMsg) *errorMsg = QStringLiteral("failed to write save file: %1").arg(saveFile.errorString());
+        saveFile.cancelWriting();
+        return false;
+    }
 
     if (!saveFile.commit()) {
         if (errorMsg) *errorMsg = QStringLiteral("failed to commit save file: %1").arg(saveFile.errorString());

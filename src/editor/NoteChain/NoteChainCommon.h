@@ -11,6 +11,7 @@
 #include <QSet>
 #include <QPair>
 #include <QHash>
+#include <QJsonObject>
 #include <QVariantMap>
 
 namespace NoteChain {
@@ -18,11 +19,14 @@ namespace NoteChain {
 // ====== 常量 ======
 namespace Const {
     constexpr double kLaneWidth          = 512.0;
+    // Interaction and drawing sizes are canvas pixels.  Geometry stored in
+    // Anchor remains chart-space; never compare these values to lane/beat
+    // coordinates directly.
     constexpr double kAnchorHitRadius    = 16.0;
     constexpr double kHandleHitRadius    = 14.0;
-    constexpr double kSegmentHitDist     = 12.0;
-    constexpr double kAnchorDrawRadius   = 8.0;
-    constexpr double kHandleDrawRadius   = 5.0;
+    constexpr double kSegmentHitDist     = 14.0;
+    constexpr double kAnchorDrawRadius   = 6.0;
+    constexpr double kHandleDrawRadius   = 4.0;
     constexpr double kDefaultSegmentDen  = 4;
     constexpr int    kMaxHistory         = 128;
     constexpr int    kSerializeDen       = 288;
@@ -101,7 +105,7 @@ struct Link {
 // ====== 框选 ======
 struct BoxSelect {
     bool   active = false;
-    double startX = 0.0, startY = 0.0; // chart 坐标
+    double startX = 0.0, startY = 0.0; // canvas 像素坐标
     double endX   = 0.0, endY   = 0.0;
     bool   append = false;              // Ctrl 追加
 };
@@ -117,7 +121,7 @@ struct LinkDrag {
     bool   active        = false;
     int    sourceAnchorId = -1;
     int    hoverAnchorId  = -1;
-    double x = 0.0, y = 0.0; // canvas 坐标（用于预览线）
+    double x = 0.0, y = 0.0; // canvas 像素坐标（用于预览线）
 };
 
 // ====== 选择目标 ======
@@ -135,11 +139,49 @@ struct StylePreset {
 
 // ====== Overlay toggles ======
 struct OverlayToggles {
+    bool enabled      = true;
     bool preview      = true;
     bool controlPoints = true;
     bool handles      = true;
     bool samplePoints = true;
     bool labels       = true;
+};
+
+// V3 sidecar extension fields are intentionally retained even when the
+// native editor does not interpret them.  Dropping these values on save made
+// opening a Python-authored project in the C++ editor destructive.
+struct NodePersistenceMeta {
+    QVector<int> groupIds{Const::kDefaultNodeGroupId};
+    QJsonObject reserved;
+
+    bool operator==(const NodePersistenceMeta &o) const {
+        return groupIds == o.groupIds && reserved == o.reserved;
+    }
+};
+
+struct CurvePersistenceMeta {
+    int curveId = 0;
+    int curveNo = 0;
+    QVector<int> groupIds{Const::kDefaultCurveGroupId};
+    QJsonObject specialJoystickReserved;
+    QJsonObject reserved;
+
+    bool operator==(const CurvePersistenceMeta &o) const {
+        return curveId == o.curveId && curveNo == o.curveNo
+            && groupIds == o.groupIds
+            && specialJoystickReserved == o.specialJoystickReserved
+            && reserved == o.reserved;
+    }
+};
+
+struct GroupPersistenceMeta {
+    int id = 0;
+    QString name;
+    QJsonObject reserved;
+
+    bool operator==(const GroupPersistenceMeta &o) const {
+        return id == o.id && name == o.name && reserved == o.reserved;
+    }
 };
 
 // ====== 采样点（用于 commit） ======
@@ -165,6 +207,10 @@ struct StateSnapshot {
     QMap<LinkKey, int>     segmentDenominators;
     QMap<LinkKey, QString> segmentShapes;
     QMap<LinkKey, int>     densityModes;       // "follow"=0 或 "fixed"=den
+    QMap<int, NodePersistenceMeta> nodeMeta;
+    QMap<LinkKey, CurvePersistenceMeta> curveMeta;
+    QVector<GroupPersistenceMeta> nodeGroups;
+    QVector<GroupPersistenceMeta> curveGroups;
     QSet<int>              selectedAnchorIds;
     QSet<LinkKey>          selectedLinkKeys;
     StylePreset            style;
@@ -182,11 +228,17 @@ struct StateSnapshot {
             && segmentDenominators == o.segmentDenominators
             && segmentShapes == o.segmentShapes
             && densityModes == o.densityModes
+            && nodeMeta == o.nodeMeta
+            && curveMeta == o.curveMeta
+            && nodeGroups == o.nodeGroups
+            && curveGroups == o.curveGroups
             && selectedAnchorIds == o.selectedAnchorIds
             && selectedLinkKeys == o.selectedLinkKeys
             && style.name == o.style.name
             && style.denominators == o.style.denominators
             && nextAnchorId == o.nextAnchorId
+            && nextCurveId == o.nextCurveId
+            && nextGroupId == o.nextGroupId
             && selectionTargets.anchors == o.selectionTargets.anchors
             && selectionTargets.segments == o.selectionTargets.segments
             && selectionTargets.notes == o.selectionTargets.notes

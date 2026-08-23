@@ -38,6 +38,7 @@ if(BUILD_TESTING)
         src/file/ChartIO.cpp
         src/file/ProjectIO.cpp
         src/file/ChartFileSystem.cpp
+        src/editor/NoteChain/NoteChainEditor.cpp
         src/editor/NoteChain/NoteChainState.cpp
         src/editor/NoteChain/NoteChainPersistence.cpp
     )

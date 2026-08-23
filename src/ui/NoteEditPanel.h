@@ -50,7 +50,8 @@ public:
     void setModeFromHost(int mode);
     int currentMode() const { return m_currentMode; }
     void setNoteChainControlsVisible(bool visible);
-    void syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline, bool noteSnap, bool selAnchors, bool selSegments);
+    void syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline,
+                                         bool noteSnap, bool selAnchors, bool selSegments, bool selNotes);
 
 
     LongRangeSelector *longRangeSelector() const { return m_longRangeSelector; }
@@ -79,6 +80,7 @@ signals:
     void noteChainNoteCurveSnapToggled(bool on);
     void noteChainSelectAnchorsToggled(bool on);
     void noteChainSelectSegmentsToggled(bool on);
+    void noteChainSelectNotesToggled(bool on);
     void noteChainConnectRequested();
     void noteChainDisconnectRequested();
     void noteChainResetRequested();
@@ -136,6 +138,7 @@ private:
     QCheckBox *m_ncNoteCurveSnapCheck = nullptr;
     QCheckBox *m_ncSelectAnchorsCheck = nullptr;
     QCheckBox *m_ncSelectSegmentsCheck = nullptr;
+    QCheckBox *m_ncSelectNotesCheck = nullptr;
     QPushButton *m_ncCommitBtn = nullptr;
     QPushButton *m_ncDeleteBtn = nullptr;
     QPushButton *m_ncConnectBtn = nullptr;

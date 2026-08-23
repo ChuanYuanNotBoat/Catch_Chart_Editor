@@ -52,6 +52,9 @@ public:
     bool loadChartFromData(const QString &path, Chart loadedChart);
     bool saveChart(const QString &path);
     bool applyExternalChartMutation(const QString &actionName, const Chart &mutatedChart);
+    // Adds a no-op entry to the shared undo timeline. Native auxiliary
+    // editors use the action text to undo/redo their own state in lockstep.
+    void pushUndoMarker(const QString &actionName);
     bool applyBatchEdit(const QString &actionName,
                         const QVector<Note> &notesToAdd,
                         const QVector<Note> &notesToRemove,
@@ -77,6 +80,7 @@ private:
     class UpdateBpmCommand;
     class SetMetaCommand;
     class ExternalMutationCommand;
+    class UndoMarkerCommand;
 
     Chart m_chart;
     QUndoStack *m_undoStack;

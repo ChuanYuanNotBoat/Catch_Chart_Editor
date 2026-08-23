@@ -1709,21 +1709,61 @@ void MainWindow::createMenus()
     d->pluginToolModeAction->setCheckable(true);
     d->pluginToolModeAction->setEnabled(true);
     connect(d->pluginToolModeAction, &QAction::toggled, this, [this](bool checked) {
-        if (d->canvas) d->canvas->setNoteChainModeActive(checked);
+        if (d->canvas) {
+            d->canvas->setNoteChainModeActive(checked);
+            d->canvas->setMode(checked ? ChartCanvas::AnchorPlace : ChartCanvas::PlaceNote);
+        }
         if (d->notePanel) {
             d->notePanel->setNoteChainControlsVisible(checked);
+            d->notePanel->setModeFromHost(checked ? NoteEditPanel::PlaceAnchorMode
+                                                  : NoteEditPanel::PlaceNoteMode);
             if (checked && d->canvas && d->canvas->noteChainEditor()) {
                 auto *ed = d->canvas->noteChainEditor();
                 d->notePanel->syncNoteChainControlsFromEditor(ed->state().anchorPlacementEnabled(),
                     ed->state().curveVisible(),
                     ed->state().activeLinkShape() == "polyline",
                     ed->state().noteCurveSnapEnabled(),
-                    ed->state().selectionEnabled("anchors"),
-                    ed->state().selectionEnabled("segments"));
+                    ed->state().selectionTargetEnabled("anchors"),
+                    ed->state().selectionTargetEnabled("segments"),
+                    ed->state().selectionTargetEnabled("notes"));
             }
         }
         if (d->pluginToolModeToolbarAction) { const QSignalBlocker b(d->pluginToolModeToolbarAction); d->pluginToolModeToolbarAction->setChecked(checked); }
         if (d->curvePanelAction) { const QSignalBlocker b(d->curvePanelAction); d->curvePanelAction->setChecked(checked); }
+    });
+    QAction *exportCurveStyleAction = d->pluginsMenu->addAction(tr("Export Curve Style..."));
+    connect(exportCurveStyleAction, &QAction::triggered, this, [this]() {
+        if (!d->canvas) return;
+        if (!d->canvas->isNoteChainModeActive()) {
+            if (d->pluginToolModeAction) d->pluginToolModeAction->setChecked(true);
+            else d->canvas->setNoteChainModeActive(true);
+        }
+        auto *editor = d->canvas->noteChainEditor();
+        if (!editor) return;
+        const QString path = QFileDialog::getSaveFileName(
+            this, tr("Export Curve Style"), Settings::instance().lastOpenPath(),
+            tr("Curve Style (*.curve_style.json);;JSON Files (*.json)"));
+        if (path.isEmpty()) return;
+        QString error;
+        if (!editor->exportStylePreset(path, &error))
+            QMessageBox::warning(this, tr("Export Curve Style"), error);
+    });
+    QAction *importCurveStyleAction = d->pluginsMenu->addAction(tr("Import Curve Style..."));
+    connect(importCurveStyleAction, &QAction::triggered, this, [this]() {
+        if (!d->canvas) return;
+        if (!d->canvas->isNoteChainModeActive()) {
+            if (d->pluginToolModeAction) d->pluginToolModeAction->setChecked(true);
+            else d->canvas->setNoteChainModeActive(true);
+        }
+        auto *editor = d->canvas->noteChainEditor();
+        if (!editor) return;
+        const QString path = QFileDialog::getOpenFileName(
+            this, tr("Import Curve Style"), Settings::instance().lastOpenPath(),
+            tr("Curve Style (*.curve_style.json *.json);;All Files (*.*)"));
+        if (path.isEmpty()) return;
+        QString error;
+        if (!editor->importStylePreset(path, &error))
+            QMessageBox::warning(this, tr("Import Curve Style"), error);
     });
 
     QMenu *overlayMenu = d->pluginsMenu->addMenu(tr("Plugin Overlay Elements"));
@@ -2060,14 +2100,35 @@ void MainWindow::createCentralArea()
             {
         if (mode == NoteEditPanel::PlaceAnchorMode)
         {
+            if (d->pluginToolModeAction && !d->pluginToolModeAction->isChecked())
+                d->pluginToolModeAction->setChecked(true);
+            else
+                d->canvas->setNoteChainModeActive(true);
             d->canvas->setMode(ChartCanvas::AnchorPlace);
-            togglePluginEnhancedToolMode(true);
-            if (!d->canvas->isPluginToolModeActive())
-            {
-                d->notePanel->setModeFromHost(NoteEditPanel::PlaceNoteMode);
-                d->canvas->setMode(ChartCanvas::PlaceNote);
+            if (d->canvas->noteChainEditor()) {
+                d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+                d->canvas->noteChainEditor()->setAnchorPlacementEnabled(true);
             }
             return;
+        }
+
+        // Select mode remains available while the native curve editor is
+        // active, allowing curve box-selection and optional note pass-through.
+        if (mode == NoteEditPanel::SelectMode && d->canvas->isNoteChainModeActive()) {
+            d->canvas->setMode(ChartCanvas::Select);
+            if (d->canvas->noteChainEditor()) {
+                d->canvas->noteChainEditor()->setAnchorPlacementEnabled(false);
+                d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+            }
+            return;
+        }
+
+        if (d->canvas->isNoteChainModeActive()) {
+            if (d->pluginToolModeAction && d->pluginToolModeAction->isChecked())
+                d->pluginToolModeAction->setChecked(false);
+            else
+                d->canvas->setNoteChainModeActive(false);
+            d->notePanel->setModeFromHost(mode);
         }
 
         if (d->canvas->isPluginToolModeActive())
@@ -2085,19 +2146,52 @@ void MainWindow::createCentralArea()
     connect(d->notePanel, &NoteEditPanel::pluginPlacementActionTriggered, this, &MainWindow::triggerPluginQuickAction);
     // NoteChain native controls
     connect(d->notePanel, &NoteEditPanel::noteChainAnchorPlaceToggled, this, [this](bool on) {
-        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setAnchorPlacementEnabled(on); });
+        if (!d->canvas)
+            return;
+        if (on && !d->canvas->isNoteChainModeActive()) {
+            if (d->pluginToolModeAction) d->pluginToolModeAction->setChecked(true);
+            else d->canvas->setNoteChainModeActive(true);
+        }
+        if (!d->canvas->noteChainEditor())
+            return;
+        d->canvas->setMode(on ? ChartCanvas::AnchorPlace : ChartCanvas::Select);
+        d->notePanel->setModeFromHost(on ? NoteEditPanel::PlaceAnchorMode : NoteEditPanel::SelectMode);
+        d->canvas->noteChainEditor()->setAnchorPlacementEnabled(on);
+        d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext()); });
     connect(d->notePanel, &NoteEditPanel::noteChainCurveVisibleToggled, this, [this](bool on) {
         if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setCurveVisible(on); });
     connect(d->notePanel, &NoteEditPanel::noteChainPolylineModeToggled, this, [this](bool on) {
         if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setPolylineMode(on); });
     connect(d->notePanel, &NoteEditPanel::noteChainNoteCurveSnapToggled, this, [this](bool on) {
-        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setNoteCurveSnapEnabled(on); });
+        if (!d->canvas || !d->canvas->noteChainEditor())
+            return;
+        d->canvas->noteChainEditor()->setNoteCurveSnapEnabled(on);
+        if (on && d->canvas->isNoteChainModeActive()) {
+            d->canvas->setMode(ChartCanvas::Select);
+            d->notePanel->setModeFromHost(NoteEditPanel::SelectMode);
+            d->canvas->noteChainEditor()->setAnchorPlacementEnabled(false);
+            d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+        } });
     connect(d->notePanel, &NoteEditPanel::noteChainSelectAnchorsToggled, this, [this](bool on) {
         if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setSelectAnchorsEnabled(on); });
     connect(d->notePanel, &NoteEditPanel::noteChainSelectSegmentsToggled, this, [this](bool on) {
         if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setSelectSegmentsEnabled(on); });
+    connect(d->notePanel, &NoteEditPanel::noteChainSelectNotesToggled, this, [this](bool on) {
+        if (!d->canvas || !d->canvas->noteChainEditor())
+            return;
+        d->canvas->noteChainEditor()->setSelectNotesEnabled(on);
+        if (on && d->canvas->isNoteChainModeActive()) {
+            d->canvas->setMode(ChartCanvas::Select);
+            d->notePanel->setModeFromHost(NoteEditPanel::SelectMode);
+            d->canvas->noteChainEditor()->setAnchorPlacementEnabled(false);
+            d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+        } });
     connect(d->notePanel, &NoteEditPanel::noteChainCommitRequested, this, [this]() {
-        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->commitCurveToNotes(); d->canvas->update(); } });
+        if (d->canvas && d->canvas->noteChainEditor()) {
+            d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+            d->canvas->noteChainEditor()->commitCurveToNotes();
+            d->canvas->update();
+        } });
     connect(d->notePanel, &NoteEditPanel::noteChainConnectRequested, this, [this]() {
         if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->connectSelectedAnchors(); d->canvas->update(); } });
     connect(d->notePanel, &NoteEditPanel::noteChainDisconnectRequested, this, [this]() {
@@ -2106,6 +2200,25 @@ void MainWindow::createCentralArea()
         if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->deleteSelected(); d->canvas->update(); } });
     connect(d->notePanel, &NoteEditPanel::noteChainResetRequested, this, [this]() {
         if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->resetCurve(); d->canvas->update(); } });
+    connect(d->canvas, &ChartCanvas::noteChainControlsChanged, this, [this]() {
+        if (!d->notePanel || !d->canvas || !d->canvas->noteChainEditor()) return;
+        const auto &state = d->canvas->noteChainEditor()->state();
+        if (d->canvas->isNoteChainModeActive()) {
+            if (state.anchorPlacementEnabled()) {
+                d->canvas->setMode(ChartCanvas::AnchorPlace);
+                d->notePanel->setModeFromHost(NoteEditPanel::PlaceAnchorMode);
+            } else if (d->notePanel->currentMode() == NoteEditPanel::PlaceAnchorMode) {
+                d->canvas->setMode(ChartCanvas::Select);
+                d->notePanel->setModeFromHost(NoteEditPanel::SelectMode);
+            }
+        }
+        d->notePanel->syncNoteChainControlsFromEditor(
+            state.anchorPlacementEnabled(), state.curveVisible(),
+            state.activeLinkShape() == QLatin1String("polyline"), state.noteCurveSnapEnabled(),
+            state.selectionTargetEnabled(QStringLiteral("anchors")),
+            state.selectionTargetEnabled(QStringLiteral("segments")),
+            state.selectionTargetEnabled(QStringLiteral("notes")));
+    });
     connect(d->canvas, &ChartCanvas::mirrorAxisChanged, d->notePanel, &NoteEditPanel::setMirrorAxisValue);
 
 
@@ -2141,9 +2254,14 @@ void MainWindow::createCentralArea()
     d->curvePanelAction->setCheckable(true);
     d->curvePanelAction->setEnabled(true);
     connect(d->curvePanelAction, &QAction::toggled, this, [this](bool checked) {
-        if (d->canvas) d->canvas->setNoteChainModeActive(checked);
+        if (d->canvas) {
+            d->canvas->setNoteChainModeActive(checked);
+            d->canvas->setMode(checked ? ChartCanvas::AnchorPlace : ChartCanvas::PlaceNote);
+        }
         if (d->notePanel) {
             d->notePanel->setNoteChainControlsVisible(checked);
+            d->notePanel->setModeFromHost(checked ? NoteEditPanel::PlaceAnchorMode
+                                                  : NoteEditPanel::PlaceNoteMode);
             // Sync checkbox states from editor
             if (checked && d->canvas && d->canvas->noteChainEditor()) {
                 auto *ed = d->canvas->noteChainEditor();
@@ -2151,8 +2269,9 @@ void MainWindow::createCentralArea()
                     ed->state().curveVisible(),
                     ed->state().activeLinkShape() == "polyline",
                     ed->state().noteCurveSnapEnabled(),
-                    ed->state().selectionEnabled("anchors"),
-                    ed->state().selectionEnabled("segments"));
+                    ed->state().selectionTargetEnabled("anchors"),
+                    ed->state().selectionTargetEnabled("segments"),
+                    ed->state().selectionTargetEnabled("notes"));
             }
         }
         if (d->pluginToolModeAction) { const QSignalBlocker b(d->pluginToolModeAction); d->pluginToolModeAction->setChecked(checked); }
@@ -3255,6 +3374,8 @@ void MainWindow::undo()
         Logger::debug("Undo triggered");
         const QString actionText = d->chartController->nextUndoActionText();
         d->chartController->undo();
+        if (d->canvas && d->canvas->noteChainEditor())
+            d->canvas->noteChainEditor()->onHostUndo(actionText);
         if (PluginManager *pm = activePluginManager())
             pm->notifyHostUndo(actionText);
     }
@@ -3267,6 +3388,8 @@ void MainWindow::redo()
         Logger::debug("Redo triggered");
         const QString actionText = d->chartController->nextRedoActionText();
         d->chartController->redo();
+        if (d->canvas && d->canvas->noteChainEditor())
+            d->canvas->noteChainEditor()->onHostRedo(actionText);
         if (PluginManager *pm = activePluginManager())
             pm->notifyHostRedo(actionText);
     }

@@ -50,6 +50,13 @@ namespace
         return pluginId.trimmed().toLower().startsWith("builtin.");
     }
 
+    bool isReplacedByNativeModule(const PluginInterface *plugin)
+    {
+        return plugin
+            && plugin->pluginId().trimmed().compare(QStringLiteral("builtin.note_chain_assist"),
+                                                    Qt::CaseInsensitive) == 0;
+    }
+
     bool shouldPreferPlugin(PluginInterface *currentWinner, PluginInterface *candidate)
     {
         if (!candidate)
@@ -99,7 +106,7 @@ void PluginManager::loadPlugins(const QString &pluginsDir, QWidget *parent)
             PluginInterface *p = loaded[i];
             if (!p)
                 continue;
-            if (p->pluginId().trimmed().compare("builtin.note_chain_assist", Qt::CaseInsensitive) == 0) {
+            if (isReplacedByNativeModule(p)) {
                 Logger::info(QString("Plugin '%1' skipped: replaced by native C++ NoteChain module.").arg(p->pluginId()));
                 continue;
             }
@@ -120,6 +127,13 @@ void PluginManager::loadPlugins(const QString &pluginsDir, QWidget *parent)
             if (!p)
             {
                 Logger::warn(QString("Plugin %1 is null!").arg(i));
+                continue;
+            }
+
+            if (isReplacedByNativeModule(p)) {
+                Logger::info(QString("Plugin '%1' unloaded: native C++ NoteChain module is authoritative.")
+                                 .arg(p->pluginId()));
+                rejected.append(p);
                 continue;
             }
 

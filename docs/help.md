@@ -16,8 +16,8 @@
 ### 主界面区域
 
 - 顶部菜单栏：包含文件、编辑、视图、设置、播放、工具、插件和帮助入口。
-- 顶部工具栏：`Note` / `BPM` / `Meta` 切换右侧编辑面板；`Plugins` 打开插件管理器；`Launch Curve Tool` 启动曲线插件工具模式。
-- 左侧栏：显示谱面密度曲线、播放按钮、纵向缩放，以及插件快捷按钮。
+- 顶部工具栏：`Note` / `BPM` / `Meta` 切换右侧编辑面板；`Curve` 启动或关闭原生曲线编辑工具；`Plugins` 打开插件管理器。
+- 左侧栏：显示谱面密度曲线、播放按钮、纵向缩放，以及外部插件提供的快捷按钮。
 - 中央预览与画布：中间为主编辑画布，旁边实时预览当前谱面效果。
 - 右侧栏：按工具栏切换 `Note`、`BPM`、`Meta` 三个编辑面板。
 
@@ -90,13 +90,13 @@
 - `Place Rain`：雨音符放置模式。第一次左键设置起点，第二次左键设置终点；终点必须晚于起点。
 - `Delete Mode`：删除模式。左键已有音符会删除该音符。
 - `Select Mode`：选择模式。左键点击选择音符，拖拽框选多个音符。
-- `Place Anchor`：进入曲线插件的锚点放置模式；需要有支持画布交互的插件。
+- `Place Anchor`：启动原生曲线工具并进入锚点放置模式。
 - `Copy`：与 `Edit -> Copy` 相同。
 - `Time Division`：设置时间分度，影响音符放置、播放头吸附、粘贴预览和曲线生成密度。可手动输入，最大会限制到 `96`。
 - `Grid Snap`：开启后横向位置吸附到网格。
 - `Grid Settings...`：设置横向网格数量。
 - `Mirror Flip`：按指定 `Axis X` 镜像翻转选中音符。`Show Guide` 显示可拖动参考线，`Show Preview` 显示翻转预览，`Flip Selected` 执行翻转。
-- `Curve Plugin Options`：当曲线插件可用时出现，用于显示插件提供的放置相关选项。
+- 原生曲线控制：启用 `Curve` 或 `Place Anchor` 后出现，包含锚点放置、曲线显示、折线模式、音符吸附、选择目标、提交、连接、断开、删除和重置。
 
 ### 右侧 BPM 面板
 
@@ -137,67 +137,70 @@
 - `Esc`：取消粘贴预览或区间复制状态。
 - `Delete`：删除选中音符。
 
-## 插件文档
+## 曲线工具与插件文档
 
-插件功能与主程序分段说明，但入口仍在同一个程序内。内置插件会随程序一起加载；外部插件通常放在程序目录的 `plugins` 文件夹下，并需要对应的 `*.plugin.json` 描述文件和脚本/二进制文件。
+Note Chain Assist 已由主程序内部的 C++ 模块实现，不依赖 Python 或插件进程。其他外部插件通常放在程序目录的 `plugins` 文件夹下，并需要对应的 `*.plugin.json` 描述文件和脚本/二进制文件。
 
 ### Plugins 插件菜单
 
 - `Plugins -> Plugin Manager...`：打开插件管理器。可查看插件启用状态、加载状态、名称、ID、版本、作者和能力；勾选 `Enabled` 后点击 `Reload Plugins` 应用；`Open Plugins Folder` 可打开插件目录。
-- `Plugins -> Plugin Actions`：显示插件提供的菜单动作，例如颜色格式化、导入/导出曲线样式等。
+- `Plugins -> Plugin Actions`：显示外部插件提供的菜单动作，例如颜色格式化。
 - `Plugins -> Plugin Panels`：打开插件提供的面板。如果当前没有插件面板，会显示空项。
-- `Plugins -> Plugin Enhanced Tool Mode`：启用插件增强画布工具模式。启用后，支持画布交互的插件可以接管左键、右键、滚轮、键盘等输入。
+- `Plugins -> Curve Edit Tool`：启动或关闭原生曲线编辑工具，与顶部工具栏的 `Curve` 状态同步。
+- `Plugins -> Export Curve Style...` / `Import Curve Style...`：导出或导入原生曲线的密度样式预设。
 - `Plugins -> Plugin Overlay Elements`：控制插件叠加层显示内容，包括 `Enable Overlay`、`Preview Notes`、`Control Points`、`Handles`、`Sample Points`、`Labels`。
 
 ### 插件工具栏与侧栏入口
 
-- 顶部 `Plugins` 工具栏：`Plugins` 按钮打开插件管理器；`Launch Curve Tool` 启动/关闭曲线工具模式。
-- 左侧 `Plugin Shortcuts`：显示插件提供的快捷按钮。不同插件会按分组显示，点击按钮执行对应动作。
-- 右侧 `Note -> Curve Plugin Options`：显示曲线插件提供的可勾选工具选项，例如锚点放置、显示曲线、可选中对象等。
+- 顶部主工具栏：`Curve` 启动/关闭原生曲线工具；`Plugins` 按钮打开插件管理器。
+- 左侧 `Plugin Shortcuts`：显示外部插件提供的快捷按钮。不同插件会按分组显示，点击按钮执行对应动作。
+- 右侧 `Note` 面板：原生曲线工具启用时显示曲线控制项。
 
-### 内置插件：Note Chain Assist
+### 原生曲线工具：Note Chain Assist
 
-用途：在主画布上编辑曲线锚点与控制柄，再把曲线转换成一串 Catch 音符。适合快速制作连续 note 串、曲线变形和密度调整。
+用途：在主画布上编辑曲线锚点与控制柄，再按指定密度生成一串真实的 Catch 普通音符。该工具完全运行在主程序内部，旧的 `builtin.note_chain_assist` Python 插件只保留兼容文件，不会再启动 Python 进程。
 
 位置：
 
-- 顶部插件工具栏：`Launch Curve Tool`。
-- `Plugins -> Plugin Enhanced Tool Mode`。
+- 顶部主工具栏：`Curve`。
+- `Plugins -> Curve Edit Tool`。
 - 右侧 `Note -> Place Anchor`。
-- 右侧 `Note -> Curve Plugin Options`。
-- 左侧 `Plugin Shortcuts` 分组。
-- 插件工具模式下的画布右键菜单。
-- `Plugins -> Plugin Actions` 中的工具菜单动作。
+- 右侧 `Note` 面板中的原生曲线控制。
+- 原生曲线工具启用时的画布右键菜单。
+- `Plugins -> Export Curve Style...` / `Import Curve Style...`。
 
 常用动作：
 
-- `Commit Curve`：将当前曲线提交为真实音符。位置：顶部插件工具栏、左侧插件快捷区、插件右键菜单。快捷键：插件工具模式下按 `Enter`。
-- `Anchor Place`：开启后左键空白处添加锚点；关闭后可减少误放置。位置：右侧 `Curve Plugin Options`。快捷键：插件工具模式下按 `A`。
-- `Show Curve (with Nodes)`：显示/隐藏曲线与节点叠加层。位置：右侧 `Curve Plugin Options`。
-- `Selectable: Anchors` / `Selectable: Segments` / `Selectable: Notes`：控制画布上可选中的对象类型。位置：右侧 `Curve Plugin Options`。
-- `Reset Curve`：重置全部曲线锚点与控制柄。位置：左侧插件快捷区。
-- `Connect Selected`：连接选中的锚点。位置：左侧插件快捷区、插件右键菜单。
-- `Delete Selected Segment`：删除选中的曲线段。位置：左侧插件快捷区、插件右键菜单。
-- `Curve Placement Density`：设置曲线生成音符的密度。位置：插件工具模式下右键菜单。可选择跟随编辑器分度，或按具体 `1/n` 密度设置；选中两节点之间的分段时可单独设置分段密度。
-- `Cycle Density`：切换曲线密度样式。位置：插件右键菜单。
-- `Export Style` / `Import Style`：导出或导入曲线样式预设。位置：`Plugins -> Plugin Actions`。
+- `Commit Curve → Notes`：按每一段的密度将整条曲线提交为真实普通音符；已有同拍同位置音符不会重复生成。快捷键：曲线工具启用时按 `Enter`。
+- `Commit Context Segments -> Notes`：在曲线段上右键，只提交右键命中的目标段；框选或已选择的段也会纳入右键目标。
+- `Anchor Placement`：开启后左键空白处添加锚点；关闭时切换到选择模式。快捷键：曲线工具启用时按 `A`。
+- `Show Curve`：显示或隐藏曲线、锚点及控制柄。
+- `Polyline Mode`：在贝塞尔曲线和直线段之间切换；也可在目标段右键选择 `Toggle Curve / Polyline`。
+- `Snap Notes to Curve`：拖动普通音符或粘贴预览时，在对应拍点将横向位置吸附到曲线；开启后自动进入选择模式。
+- `Select: Anchors` / `Select: Segments` / `Select: Notes`：控制选择模式和框选能够命中的对象。选择音符时会按拍点和位置同步匹配最近且尚未使用的锚点。
+- `Connect Selected` / `Disconnect Selected`：连接选中的锚点，或断开选中的曲线段。
+- `Delete Selected`：删除选中的锚点或曲线段。`Reset Curve` 清空当前曲线工程。
+- `Curve Placement Density`：在曲线段右键菜单中设置目标段密度。`Follow Editor` 跟随右侧 `Time Division`，也可固定为样式提供的 `1/n` 密度；提交时会保留该分母。
+- `Export Curve Style...` / `Import Curve Style...`：导出或导入密度分母列表等曲线样式设置。
 
 画布操作：
 
-- 左键拖动锚点或控制柄：移动节点/柄。
-- 开启 `Anchor Place` 后左键空白处：追加锚点。
+- 左键拖动锚点或控制柄：移动节点/柄；锚点始终按拍点顺序组织。
+- 开启 `Anchor Placement` 后左键空白处：在对应拍点插入锚点，并自动推断默认控制柄。
 - 右键锚点：删除锚点。
 - 双击锚点：切换平滑/折角状态。
-- 鼠标滚轮：切换分母序列样式。
 - `Shift + 拖动锚点到另一个锚点`：连接节点。
-- `Esc`：取消插件当前操作。
-- `Ctrl+Z` / `Ctrl+Y`：在插件工具模式下撤销/重做曲线相关编辑。
+- 选择模式下拖拽空白处：框选已启用的锚点、曲线段和音符目标。
+- `Esc`：取消当前拖拽、连接或框选并清除曲线选择。
+- `Delete` / `Backspace`：删除当前曲线选择。
+- `Ctrl+Z` / `Ctrl+Y`：通过主程序统一撤销时间线撤销/重做曲线编辑和音符提交。
 
 说明：
 
-- 曲线插件主要处理普通 note；雨音符等特殊类型会显示但不作为曲线修改对象。
-- 曲线数据会存放在谱面旁的 `.mcce-plugin/*.curve_tbd.json` sidecar 文件中，并会在源谱面与工作副本之间同步。
-- 只有执行 `Commit Curve` 后，曲线预览才会写成真实音符。
+- 曲线工具只生成和吸附普通 note；雨音符等特殊类型不作为曲线修改对象。
+- 曲线数据使用 V3 JSON sidecar，存放在谱面工作副本旁的 `.mcce-plugin/*.curve_tbd.json` 中；保存谱面时会与源谱面同步，切换谱面时会事务式切换工程。
+- V3 sidecar 会保留曲线/节点身份、分组、连接、控制柄、形状、密度模式及扩展元数据，并兼容读取旧 Python 插件的 `anchors`、handle 和 `links` 数据。
+- 曲线预览本身不会修改谱面；只有执行整曲线或目标段提交后才会生成真实音符。
 
 ### BPM 辅助文件
 
@@ -240,7 +243,7 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 
 - 如果插件菜单为空，先到 `Plugins -> Plugin Manager...` 检查插件是否启用、是否加载成功。
 - 修改插件启用状态后，需要点击 `Reload Plugins` 才会应用。
-- 进程插件依赖对应运行环境。例如 Python 插件需要系统 PATH 中能找到 `python`。
+- 外部进程插件仍依赖对应运行环境，例如 Python 插件需要系统 PATH 中能找到 `python`；原生 Note Chain Assist 不受此限制。
 - 插件动作可能会批量修改谱面，执行前建议先保存或确认自动保存设置。
 
 ## 默认快捷键速查
@@ -259,5 +262,5 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 | 播放/暂停 | `Space` | `Playback -> Play/Pause` |
 | 取消当前操作 | `Esc` | 画布 |
 | 缩放时间轴 | `Ctrl + 鼠标滚轮` | 画布 |
-| 切换曲线锚点放置 | `A` | Note Chain Assist 工具模式 |
-| 提交曲线 | `Enter` | Note Chain Assist 工具模式 |
+| 切换曲线锚点放置 | `A` | 原生 Note Chain Assist 工具模式 |
+| 提交整条曲线 | `Enter` | 原生 Note Chain Assist 工具模式 |

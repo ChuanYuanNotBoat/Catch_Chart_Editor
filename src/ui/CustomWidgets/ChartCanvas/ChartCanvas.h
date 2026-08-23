@@ -120,6 +120,7 @@ signals:
     void timeScaleChanged(double scale);
     void mirrorAxisChanged(int axisX);
     void statusMessage(const QString &msg); // Status bar message hook.
+    void noteChainControlsChanged();
     void rangeStartChanged(double beat);
     void rangeEndChanged(double beat);
     void rangeDragFinished(double startBeat, double endBeat);

@@ -119,6 +119,10 @@ void NoteEditPanel::setupUi()
     m_ncSelectSegmentsCheck->setChecked(true);
     connect(m_ncSelectSegmentsCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainSelectSegmentsToggled);
     ncLayout->addWidget(m_ncSelectSegmentsCheck);
+    m_ncSelectNotesCheck = new QCheckBox(tr("Select: Notes"), m_ncPlaceholder);
+    m_ncSelectNotesCheck->setChecked(false);
+    connect(m_ncSelectNotesCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainSelectNotesToggled);
+    ncLayout->addWidget(m_ncSelectNotesCheck);
     m_ncCommitBtn = new QPushButton(tr("Commit Curve → Notes"), m_ncPlaceholder);
     connect(m_ncCommitBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainCommitRequested);
     ncLayout->addWidget(m_ncCommitBtn);
@@ -309,7 +313,8 @@ void NoteEditPanel::setNoteChainControlsVisible(bool visible)
     if (m_ncPlaceholder) m_ncPlaceholder->setVisible(visible);
 }
 
-void NoteEditPanel::syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline, bool noteSnap, bool selAnchors, bool selSegments)
+void NoteEditPanel::syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline,
+                                                     bool noteSnap, bool selAnchors, bool selSegments, bool selNotes)
 {
     const auto setCheckedSilently = [](QCheckBox *box, bool checked) {
         if (!box)
@@ -323,6 +328,7 @@ void NoteEditPanel::syncNoteChainControlsFromEditor(bool anchorPlace, bool curve
     setCheckedSilently(m_ncNoteCurveSnapCheck, noteSnap);
     setCheckedSilently(m_ncSelectAnchorsCheck, selAnchors);
     setCheckedSilently(m_ncSelectSegmentsCheck, selSegments);
+    setCheckedSilently(m_ncSelectNotesCheck, selNotes);
 }
 
 void NoteEditPanel::setPluginPlacementActions(const QList<PluginPlacementAction> &actions)

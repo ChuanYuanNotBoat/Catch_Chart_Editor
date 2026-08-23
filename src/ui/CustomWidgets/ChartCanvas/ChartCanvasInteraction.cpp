@@ -449,6 +449,13 @@ void ChartCanvas::setPluginToolMode(bool enabled, const QString &pluginId)
 void ChartCanvas::setSourceChartPath(const QString &sourceChartPath)
 {
     m_sourceChartPath = sourceChartPath.trimmed();
+    if (m_noteChainModeActive && m_noteChainEditor) {
+        const QVariantMap context = buildPluginCanvasContext();
+        const QString sidecarPath = context.value(QStringLiteral("curve_project_path")).toString();
+        if (!sidecarPath.isEmpty() && sidecarPath != m_noteChainEditor->currentSidecarPath())
+            m_noteChainEditor->loadProject(sidecarPath);
+        m_noteChainEditor->setHostContext(context);
+    }
 }
 
 void ChartCanvas::setPluginOverlayToggles(const QVariantMap &toggles)
@@ -468,8 +475,11 @@ void ChartCanvas::setPluginOverlayToggles(const QVariantMap &toggles)
         changed = true;
     }
 
-    if (changed)
+    if (changed) {
+        if (m_noteChainModeActive && m_noteChainEditor)
+            m_noteChainEditor->setHostContext(buildPluginCanvasContext());
         update();
+    }
 }
 
 QString ChartCanvas::resolvePluginCanvasToolId() const

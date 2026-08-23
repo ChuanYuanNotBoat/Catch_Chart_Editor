@@ -522,6 +522,18 @@ private:
     QString m_chartPath;
 };
 
+class ChartController::UndoMarkerCommand : public QUndoCommand
+{
+public:
+    explicit UndoMarkerCommand(const QString &actionName)
+        : QUndoCommand(actionName.isEmpty() ? QStringLiteral("Auxiliary Edit") : actionName)
+    {
+    }
+
+    void undo() override {}
+    void redo() override {}
+};
+
 // ---------- ChartController 实现 ----------
 ChartController::ChartController(QObject *parent) : QObject(parent)
 {
@@ -777,6 +789,11 @@ bool ChartController::applyExternalChartMutation(const QString &actionName, cons
 {
     m_undoStack->push(new ExternalMutationCommand(this, actionName, m_chart, mutatedChart, m_currentChartPath));
     return true;
+}
+
+void ChartController::pushUndoMarker(const QString &actionName)
+{
+    m_undoStack->push(new UndoMarkerCommand(actionName));
 }
 
 bool ChartController::applyBatchEdit(const QString &actionName,

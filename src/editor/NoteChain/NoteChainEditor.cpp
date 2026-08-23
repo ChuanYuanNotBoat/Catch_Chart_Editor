@@ -1,332 +1,717 @@
-// NoteChainEditor.cpp - main editor implementation (based on Python input_handler.py)
+// NoteChainEditor.cpp - native curve editor and host integration.
 #include "NoteChainEditor.h"
-#include "NoteChainCurveSampler.h"
+
 #include "NoteChainPersistence.h"
 #include "controller/ChartController.h"
 #include "model/Note.h"
+
 #include <QDateTime>
+#include <QFile>
 #include <QFileInfo>
-#include <QSet>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSaveFile>
 #include <algorithm>
+#include <limits>
 #include <numeric>
+#include <utility>
+
 namespace NoteChain {
 
 namespace {
+
 QString normalNotePositionKey(const Note &note)
 {
     if (note.type != NoteType::NORMAL || note.denominator == 0)
         return QString();
-    qint64 num = static_cast<qint64>(note.beatNum) * note.denominator + note.numerator;
-    qint64 den = note.denominator;
-    if (den < 0) {
-        den = -den;
-        num = -num;
+    qint64 numerator = static_cast<qint64>(note.beatNum) * note.denominator + note.numerator;
+    qint64 denominator = note.denominator;
+    if (denominator < 0) {
+        denominator = -denominator;
+        numerator = -numerator;
     }
-    const qint64 g = std::gcd(num < 0 ? -num : num, den);
-    if (g > 0) {
-        num /= g;
-        den /= g;
+    const qint64 divisor = std::gcd(numerator < 0 ? -numerator : numerator, denominator);
+    if (divisor > 0) {
+        numerator /= divisor;
+        denominator /= divisor;
     }
-    return QStringLiteral("%1/%2:%3").arg(num).arg(den).arg(note.x);
+    return QStringLiteral("%1/%2:%3").arg(numerator).arg(denominator).arg(note.x);
 }
 
 int defaultCommitDenominator(const NoteChainState &state)
 {
-    const QVariantMap ctx = state.lastContext();
-    const int overrideDen = ctx.value(QStringLiteral("plugin_time_division_override"), 0).toInt();
-    if (overrideDen > 0)
-        return overrideDen;
-    return qMax(1, ctx.value(QStringLiteral("time_division"), 4).toInt());
-}
+    const QVariantMap context = state.lastContext();
+    const int overrideDenominator = context.value(QStringLiteral("plugin_time_division_override"), 0).toInt();
+    if (overrideDenominator > 0)
+        return overrideDenominator;
+    const int timeDivision = context.value(QStringLiteral("time_division"), 0).toInt();
+    if (timeDivision > 0)
+        return timeDivision;
+    if (!state.style().denominators.isEmpty())
+        return qMax(1, state.style().denominators.first());
+    return Const::kDefaultSegmentDen;
 }
 
-NoteChainEditor::NoteChainEditor(QObject *parent) : QObject(parent) {}
+bool isCurveCheckpoint(const QString &actionText)
+{
+    return actionText.trimmed().startsWith(QString::fromLatin1(Const::checkpointPrefix()), Qt::CaseInsensitive);
+}
 
-void NoteChainEditor::setActive(bool active) {
-    if (m_active == active) return;
+QPointF snappedChartPoint(const NoteChainState &state, const QPointF &chartPoint,
+                          bool snapBeat, bool snapLane)
+{
+    const QVariantMap context = state.lastContext();
+    const int gridDivision = qMax(1, context.value(QStringLiteral("grid_division"), 8).toInt());
+    const int timeDivision = qMax(1, context.value(QStringLiteral("time_division"), 1).toInt());
+    double laneX = ncClamp(chartPoint.x(), 0.0, Const::kLaneWidth);
+    double beat = qMax(0.0, chartPoint.y());
+    if (snapLane && context.value(QStringLiteral("grid_snap"), false).toBool())
+        laneX = qRound((laneX / Const::kLaneWidth) * gridDivision) * (Const::kLaneWidth / gridDivision);
+    if (snapBeat)
+        beat = qRound(beat * timeDivision) / static_cast<double>(timeDivision);
+    return {laneX, beat};
+}
+
+QString checkpointLabel(const QString &detail)
+{
+    return QStringLiteral("%1: %2").arg(QString::fromLatin1(Const::checkpointPrefix()), detail);
+}
+
+} // namespace
+
+NoteChainEditor::NoteChainEditor(QObject *parent)
+    : QObject(parent)
+{
+    recordHistory();
+}
+
+void NoteChainEditor::setActive(bool active)
+{
+    if (m_active == active)
+        return;
     m_active = active;
-    if (active) {
-        m_state.setCurveVisible(true);
-    } else {
-        // auto-save on deactivate
-        if (!m_sidecarPath.isEmpty() && m_state.projectDirty())
-            NoteChainPersistence::saveToFile(m_state, m_sidecarPath);
+    if (!active) {
+        if (!m_sidecarPath.isEmpty() && m_state.projectDirty()) {
+            QString error;
+            if (!NoteChainPersistence::saveToFile(m_state, m_sidecarPath, &error))
+                emit statusMessage(tr("Failed to save curve project: %1").arg(error));
+        }
         m_state.drag() = DragState{};
         m_state.linkDrag() = LinkDrag{};
         m_state.boxSelect() = BoxSelect{};
         m_state.clearAnchorSelection();
         m_state.clearLinkSelection();
+        m_contextLinkKeys.clear();
+        m_dragChanged = false;
     }
+    emit controlsChanged();
+    emit needsRepaint();
 }
 
-void NoteChainEditor::setHostContext(const QVariantMap &ctx) {
-    m_state.setLastContext(ctx);
+void NoteChainEditor::setHostContext(const QVariantMap &context)
+{
+    m_state.setLastContext(context);
+    const QVariantMap toggles = context.value(QStringLiteral("overlay_toggles")).toMap();
+    OverlayToggles &overlay = m_state.overlayToggles();
+    if (toggles.contains(QStringLiteral("overlay_enabled"))) overlay.enabled = toggles.value(QStringLiteral("overlay_enabled")).toBool();
+    if (toggles.contains(QStringLiteral("preview"))) overlay.preview = toggles.value(QStringLiteral("preview")).toBool();
+    if (toggles.contains(QStringLiteral("control_points"))) overlay.controlPoints = toggles.value(QStringLiteral("control_points")).toBool();
+    if (toggles.contains(QStringLiteral("handles"))) overlay.handles = toggles.value(QStringLiteral("handles")).toBool();
+    if (toggles.contains(QStringLiteral("sample_points"))) overlay.samplePoints = toggles.value(QStringLiteral("sample_points")).toBool();
+    if (toggles.contains(QStringLiteral("labels"))) overlay.labels = toggles.value(QStringLiteral("labels")).toBool();
     syncAnchorPlacementWithHostMode();
     syncAnchorSelectionFromHostNotes();
 }
 
-void NoteChainEditor::syncAnchorPlacementWithHostMode() {
-    QVariantMap ctx = m_state.lastContext();
-    QVariantMap hostSel = ctx.value("host_selection_tool").toMap();
-    QString mode = hostSel.value("mode").toString().trimmed().toLower();
-    if (mode == "anchor_place") m_state.setAnchorPlacementEnabled(true);
-    else if (mode == "place_note" || mode == "place_rain" || mode == "delete" || mode == "select")
+void NoteChainEditor::syncAnchorPlacementWithHostMode()
+{
+    const QString mode = m_state.lastContext().value(QStringLiteral("host_selection_tool")).toMap()
+                             .value(QStringLiteral("mode")).toString().trimmed().toLower();
+    if (mode.isEmpty() || mode == m_lastHostMode)
+        return;
+    m_lastHostMode = mode;
+    bool changed = false;
+    if (mode == QLatin1String("anchor_place")) {
+        changed = !m_state.anchorPlacementEnabled();
+        m_state.setAnchorPlacementEnabled(true);
+    } else if (mode == QLatin1String("place_note") || mode == QLatin1String("place_rain")
+               || mode == QLatin1String("delete") || mode == QLatin1String("select")) {
+        changed = m_state.anchorPlacementEnabled();
         m_state.setAnchorPlacementEnabled(false);
+    }
+    if (changed)
+        emit controlsChanged();
 }
 
-void NoteChainEditor::syncAnchorSelectionFromHostNotes() {
-    QVariantMap ctx = m_state.lastContext();
-    QVariantList hostSel = ctx.value("selected_notes").toList();
-    // Build set of (beat_key, x) positions from host-selected notes
-    struct PosKey { double beat; int x;
-        bool operator<(const PosKey &o) const { return beat < o.beat || (qAbs(beat - o.beat) < 1e-9 && x < o.x); }
-        bool operator==(const PosKey &o) const { return qAbs(beat - o.beat) < 1e-9 && x == o.x; }
-    };
-    QSet<int> ids;
-    QVector<PosKey> hostKeys;
-    for (auto &v : hostSel) {
-        QVariantMap note = v.toMap();
-        QVariantList beat = note.value("beat").toList();
-        if (beat.size() < 3) continue;
-        double b = static_cast<double>(beat[0].toInt()) + static_cast<double>(beat[1].toInt()) / qMax(1, beat[2].toInt());
-        int x = qRound(note.value("x", note.value("lane_x", 0)).toDouble());
-        hostKeys.append({b, x});
-        ids.insert(note.value("id", -1).toInt());
+void NoteChainEditor::syncAnchorSelectionFromHostNotes()
+{
+    QSet<int> &lastSignature = m_state.lastHostSelectedNoteIds();
+    if (!m_state.selectionTargetEnabled(QStringLiteral("notes"))
+        || !m_state.selectionTargetEnabled(QStringLiteral("anchors"))) {
+        lastSignature.clear();
+        return;
     }
-    // Only update if host selection actually changed
-    auto &last = m_state.lastHostSelectedNoteIds();
-    if (last == ids) return;
-    last = ids;
-    // Match host notes to anchors: if a host note is close to an anchor, select that anchor
-    if (hostKeys.isEmpty()) { m_state.clearAnchorSelection(); m_state.invalidateCurveCache(); return; }
-    m_state.clearAnchorSelection();
-    const double beatTol = 0.1; const int xTol = 8;
-    for (const auto &hk : hostKeys) {
-        for (int i = 0; i < m_state.anchors().size(); ++i) {
-            const auto &a = m_state.anchorAt(i);
-            if (qAbs(a.beat - hk.beat) < beatTol && qAbs(qRound(a.laneX) - hk.x) < xTol) {
-                m_state.selectAnchor(a.id);
-                break;
+    if (!m_state.drag().mode.isEmpty() || m_state.boxSelect().active)
+        return;
+
+    QSet<int> signature;
+    for (const QVariant &value : m_state.lastContext().value(QStringLiteral("selected_note_ids")).toList()) {
+        const QString id = value.toString();
+        if (!id.isEmpty())
+            signature.insert(static_cast<int>(qHash(id)));
+    }
+    if (lastSignature == signature)
+        return;
+    lastSignature = signature;
+
+    const QVariantList hostSelection = m_state.lastContext().value(QStringLiteral("selected_notes")).toList();
+    struct Position { double beat = 0.0; int laneX = 0; };
+    QVector<Position> positions;
+    for (const QVariant &value : hostSelection) {
+        const QVariantMap note = value.toMap();
+        const QVariant beatRaw = note.value(QStringLiteral("beat"));
+        bool beatOk = false;
+        double beat = beatRaw.toDouble(&beatOk);
+        if (!beatOk) {
+            const QVariantList beatValue = beatRaw.toList();
+            if (beatValue.size() >= 3 && beatValue[2].toInt() != 0) {
+                beat = beatValue[0].toInt()
+                     + static_cast<double>(beatValue[1].toInt()) / beatValue[2].toInt();
+                beatOk = true;
             }
         }
+        if (!beatOk)
+            continue;
+        const int laneX = qRound(note.value(QStringLiteral("x"), note.value(QStringLiteral("lane_x"))).toDouble());
+        positions.append({beat, laneX});
     }
-    m_state.invalidateCurveCache();
+    if (positions.isEmpty() || m_state.anchors().isEmpty())
+        return;
+
+    QSet<int> usedAnchorIds;
+    QVector<int> pickedAnchorIds;
+    for (const Position &position : positions) {
+        int bestId = -1;
+        double bestDistanceSquared = std::numeric_limits<double>::infinity();
+        for (const Anchor &anchor : m_state.anchors()) {
+            if (usedAnchorIds.contains(anchor.id))
+                continue;
+            const double dx = anchor.laneX - position.laneX;
+            const double dy = anchor.beat - position.beat;
+            const double distanceSquared = dx * dx + dy * dy;
+            if (distanceSquared < bestDistanceSquared) {
+                bestDistanceSquared = distanceSquared;
+                bestId = anchor.id;
+            }
+        }
+        if (bestId > 0) {
+            usedAnchorIds.insert(bestId);
+            pickedAnchorIds.append(bestId);
+        }
+    }
+    if (pickedAnchorIds.isEmpty())
+        return;
+
+    std::sort(pickedAnchorIds.begin(), pickedAnchorIds.end(), [this](int left, int right) {
+        return m_state.anchorIndexById(left) < m_state.anchorIndexById(right);
+    });
+    m_state.clearAnchorSelection();
+    for (int id : pickedAnchorIds)
+        m_state.selectAnchor(id);
+    emit needsRepaint();
 }
 
-void NoteChainEditor::recordHistory() {
-    StateSnapshot snap = m_state.captureSnapshot();
-    // dedup
-    if (m_historyIdx >= 0 && m_historyIdx < m_history.size() && m_history[m_historyIdx] == snap) return;
-    if (m_historyIdx < m_history.size() - 1) m_history.resize(m_historyIdx + 1);
-    m_history.append(snap);
-    if (m_history.size() > Const::kMaxHistory) m_history.removeFirst();
+bool NoteChainEditor::recordHistory()
+{
+    const StateSnapshot snapshot = m_state.captureSnapshot();
+    if (m_historyIdx >= 0 && m_historyIdx < m_history.size() && m_history[m_historyIdx] == snapshot)
+        return false;
+    if (m_historyIdx < m_history.size() - 1)
+        m_history.resize(m_historyIdx + 1);
+    m_history.append(snapshot);
+    if (m_history.size() > Const::kMaxHistory)
+        m_history.removeFirst();
     m_historyIdx = m_history.size() - 1;
+    return true;
 }
 
-void NoteChainEditor::markDirty() { m_state.setProjectDirty(true); emit needsRepaint(); }
+bool NoteChainEditor::finishMutation(const QString &label)
+{
+    if (!recordHistory())
+        return false;
+    markDirty();
+    emit requestHostUndoCheckpoint(checkpointLabel(label));
+    return true;
+}
 
-// ====== Hit testing ======
-int NoteChainEditor::findAnchorHit(double cx, double cy) const {
-    int best = -1; double bestDist = Const::kAnchorHitRadius;
+void NoteChainEditor::markDirty()
+{
+    m_state.setProjectDirty(true);
+    emit needsRepaint();
+}
+
+QVector<SampledPoint> NoteChainEditor::segmentSamples(const SegmentInfo &segment, int count) const
+{
+    if (count != 24)
+        return sampleSegment(segment.a0, segment.a1, segment.shape, count);
+    if (m_cachedCurveRevision != m_state.curveRevision()) {
+        m_segmentSampleCache.clear();
+        m_cachedCurveRevision = m_state.curveRevision();
+    }
+    const LinkKey key = makeLinkKey(segment.id0, segment.id1);
+    auto found = m_segmentSampleCache.constFind(key);
+    if (found != m_segmentSampleCache.cend())
+        return found.value();
+    const QVector<SampledPoint> samples = sampleSegment(segment.a0, segment.a1, segment.shape, count);
+    m_segmentSampleCache.insert(key, samples);
+    return samples;
+}
+
+int NoteChainEditor::findAnchorHit(const QPointF &canvasPos, const CanvasProjection &projection) const
+{
+    int bestIndex = -1;
+    double bestDistance = Const::kAnchorHitRadius;
     for (int i = 0; i < m_state.anchors().size(); ++i) {
-        const auto &a = m_state.anchorAt(i);
-        double d = ncDist(cx, cy, a.laneX, a.beat);
-        if (d < bestDist) { best = i; bestDist = d; }
+        const QPointF point = projection.chartToCanvas(m_state.anchorAt(i).pos());
+        const double distance = ncDist(canvasPos.x(), canvasPos.y(), point.x(), point.y());
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = i;
+        }
     }
-    return best;
+    return bestIndex;
 }
 
-QPair<QString,int> NoteChainEditor::findHandleHit(double cx, double cy) const {
-    QPair<QString,int> best("", -1); double bestDist = Const::kHandleHitRadius;
+QPair<QString, int> NoteChainEditor::findHandleHit(const QPointF &canvasPos, const CanvasProjection &projection) const
+{
+    QPair<QString, int> best(QString(), -1);
+    double bestDistance = Const::kHandleHitRadius;
     for (int i = 0; i < m_state.anchors().size(); ++i) {
-        const auto &a = m_state.anchorAt(i);
-        if (a.hasInHandle()) {
-            QPointF p = a.inAbs(); double d = ncDist(cx, cy, p.x(), p.y());
-            if (d < bestDist) { best = {"in", i}; bestDist = d; }
+        const Anchor &anchor = m_state.anchorAt(i);
+        const QPointF inPoint = projection.chartToCanvas(anchor.inAbs());
+        const QPointF outPoint = projection.chartToCanvas(anchor.outAbs());
+        const double inDistance = ncDist(canvasPos.x(), canvasPos.y(), inPoint.x(), inPoint.y());
+        if (inDistance < bestDistance) {
+            best = {QStringLiteral("in"), i};
+            bestDistance = inDistance;
         }
-        if (a.hasOutHandle()) {
-            QPointF p = a.outAbs(); double d = ncDist(cx, cy, p.x(), p.y());
-            if (d < bestDist) { best = {"out", i}; bestDist = d; }
-        }
-    }
-    return best;
-}
-
-QPair<int,int> NoteChainEditor::findSegmentHit(double cx, double cy) const {
-    QVector<SegmentInfo> segs = m_state.connectedAnchorSegments();
-    QPair<int,int> best(-1, -1); double bestDist = Const::kSegmentHitDist;
-    for (const auto &seg : segs) {
-        auto pts = sampleSegment(seg.a0, seg.a1, seg.shape, Const::kMaxSamplesPerSeg);
-        for (int j = 0; j < pts.size() - 1; ++j) {
-            double d = ncPtSegDist(cx, cy, pts[j].laneX, pts[j].beat, pts[j+1].laneX, pts[j+1].beat);
-            if (d < bestDist) { best = {seg.id0, seg.id1}; bestDist = d; }
+        const double outDistance = ncDist(canvasPos.x(), canvasPos.y(), outPoint.x(), outPoint.y());
+        if (outDistance < bestDistance) {
+            best = {QStringLiteral("out"), i};
+            bestDistance = outDistance;
         }
     }
     return best;
 }
 
-// ====== Cursor hint (P0-2) ======
-QString NoteChainEditor::hoverCursorHint(double cx, double cy) const {
-    if (!m_active) return QString();
-    // Link drag: always pointing_hand
-    if (m_state.linkDrag().active) return QStringLiteral("pointing_hand");
-    // Handle hit
-    auto hh = const_cast<NoteChainEditor*>(this)->findHandleHit(cx, cy);
-    if (hh.second >= 0) return QStringLiteral("pointing_hand");
-    // Anchor hit
-    if (m_state.selectionEnabled("anchors")) {
-        int ah = const_cast<NoteChainEditor*>(this)->findAnchorHit(cx, cy);
-        if (ah >= 0) return QStringLiteral("pointing_hand");
+QPair<int, int> NoteChainEditor::findSegmentHit(const QPointF &canvasPos, const CanvasProjection &projection) const
+{
+    QPair<int, int> best(-1, -1);
+    double bestDistance = Const::kSegmentHitDist;
+    for (const SegmentInfo &segment : m_state.connectedAnchorSegments()) {
+        const QVector<SampledPoint> samples = segmentSamples(segment);
+        if (samples.size() < 2)
+            continue;
+        QPointF previous = projection.chartToCanvas({samples.first().laneX, samples.first().beat});
+        for (int i = 1; i < samples.size(); ++i) {
+            const QPointF current = projection.chartToCanvas({samples[i].laneX, samples[i].beat});
+            const double distance = ncPtSegDist(canvasPos.x(), canvasPos.y(),
+                                                previous.x(), previous.y(), current.x(), current.y());
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = {segment.id0, segment.id1};
+            }
+            previous = current;
+        }
     }
-    // Drag in progress
-    const auto &d = m_state.drag();
-    if (d.mode == "anchor") return QStringLiteral("size_all");
-    if (d.mode == "in" || d.mode == "out") return QStringLiteral("crosshair");
+    return best;
+}
+
+QString NoteChainEditor::hoverCursorHint(const QPointF &canvasPos, const CanvasProjection &projection) const
+{
+    if (!m_active)
+        return QString();
+    if (m_state.linkDrag().active)
+        return QStringLiteral("pointing_hand");
+    if (!m_state.drag().mode.isEmpty()) {
+        if (m_state.drag().mode == QLatin1String("anchor")) return QStringLiteral("size_all");
+        return QStringLiteral("crosshair");
+    }
+    if (findHandleHit(canvasPos, projection).second >= 0)
+        return QStringLiteral("pointing_hand");
+    if (m_state.selectionEnabled(QStringLiteral("anchors")) && findAnchorHit(canvasPos, projection) >= 0)
+        return QStringLiteral("pointing_hand");
     return QString();
 }
 
-// ====== Mouse events ======
-bool NoteChainEditor::handleMousePress(double cx, double cy, int button, bool shift, bool ctrl) {
-    if (!m_active || button != Const::kLeftButton) return false;
-    // note_curve_snap: passthrough left-button events to host for note selection
-    if (m_state.noteCurveSnapEnabled()) return false;
+bool NoteChainEditor::handleMousePress(const QPointF &canvasPos, const CanvasProjection &projection,
+                                       int button, bool shift, bool ctrl)
+{
+    if (!m_active)
+        return false;
+    if (button == Const::kRightButton) {
+        prepareContextMenuAt(canvasPos, projection);
+        return false;
+    }
+    if (button != Const::kLeftButton || m_state.noteCurveSnapEnabled())
+        return false;
 
-    // P0-3: snap chart point from host context
-    auto snapPoint = [this](double lx, double bt) -> QPointF {
-        QVariantMap ctx = m_state.lastContext();
-        bool gridSnap = ctx.value("grid_snap", false).toBool();
-        int gridDiv = qMax(1, ctx.value("grid_division", 8).toInt());
-        int timeDiv = qMax(1, ctx.value("time_division", 1).toInt());
-        lx = ncClamp(lx, 0.0, Const::kLaneWidth);
-        if (gridSnap && gridDiv > 0) lx = qRound((lx / Const::kLaneWidth) * gridDiv) * (Const::kLaneWidth / gridDiv);
-        bt = qMax(0.0, bt);
-        bt = qRound(bt * timeDiv) / static_cast<double>(timeDiv);
-        return {lx, bt};
-    };
-    qint64 now = QDateTime::currentMSecsSinceEpoch();
-    auto hHit = findHandleHit(cx, cy);
-    int aHit = m_state.selectionEnabled("anchors") ? findAnchorHit(cx, cy) : -1;
-    auto segHit = m_state.selectionEnabled("segments") ? findSegmentHit(cx, cy) : QPair<int,int>(-1,-1);
-    if (hHit.second >= 0 && !shift) { m_state.drag() = {hHit.first, hHit.second}; recordHistory(); return true; }
-    if (aHit >= 0) { int anchorId = m_state.anchorAt(aHit).id;
-        if (shift) { m_state.drag() = DragState{}; m_state.linkDrag() = LinkDrag{true, anchorId, -1, cx, cy}; return true; }
-        bool isDouble = (m_state.lastClickAnchor() == aHit && (now - m_state.lastClickMs()) <= Const::kDoubleClickMs);
-        m_state.setLastClick(aHit, now);
-        if (isDouble) { auto &a = m_state.anchorAt(aHit); a.smooth = !a.smooth; m_state.invalidateCurveCache(); recordHistory(); return true; }
-        if (ctrl) m_state.toggleAnchorSelection(anchorId); else { m_state.clearAnchorSelection(); m_state.clearLinkSelection(); m_state.selectAnchor(anchorId); }
-        m_state.drag() = {"anchor", aHit}; m_state.setPendingConnectAnchorId(-1); recordHistory(); return true; }
-    if (segHit.first >= 0) { LinkKey k = makeLinkKey(segHit.first, segHit.second); if (ctrl) m_state.toggleLinkSelection(k); else { m_state.clearAnchorSelection(); m_state.clearLinkSelection(); m_state.selectLink(k); } return true; }
-    bool isSM = m_state.lastContext().value("host_selection_tool").toMap().value("is_select_mode", false).toBool();
-    bool ns = m_state.selectionEnabled("notes");
-    if ((ctrl || isSM) && !ns) { m_state.boxSelect() = BoxSelect{true, cx, cy, cx, cy, ctrl}; return true; }
-    if (ns && !m_state.anchorPlacementEnabled()) return false;
-    if (!m_state.anchorPlacementEnabled()) return true;
-    // P1-1: bounds check - don't place anchors outside editable lane
-    if (cx < 0.0 || cx > Const::kLaneWidth || cy < 0.0) { m_state.clearAnchorSelection(); m_state.clearLinkSelection(); m_state.setPendingConnectAnchorId(-1); return true; }
-    QPointF sp = snapPoint(cx, cy);
-    int sc = m_state.selectedAnchorIds().size(); int idx = m_state.appendAnchor(sp.x(), sp.y()); int nid = m_state.anchorAt(idx).id;
-    if (sc == 1 && nid > 0) { int prev = *m_state.selectedAnchorIds().begin(); m_state.addLink(prev, nid); m_state.setSingleSelectedAnchor(nid); } else { m_state.clearAnchorSelection(); }
-    m_state.setPendingConnectAnchorId(-1); m_state.cleanupLinksAndSelection(); m_state.drag() = {"anchor", idx}; markDirty(); return true;
-}
-bool NoteChainEditor::handleMouseMove(double cx, double cy, int buttons) {
-    if (!m_active) return false; auto &ld = m_state.linkDrag();
-    if (ld.active) { ld.x = cx; ld.y = cy; return true; }
-    if (m_state.boxSelect().active) { m_state.boxSelect().endX = cx; m_state.boxSelect().endY = cy; return true; }
-    // P1-4: mid-drag switch from anchor drag to link drag on shift
-    auto &drag = m_state.drag();
-    if (drag.mode == "anchor" && drag.index >= 0 && drag.index < m_state.anchors().size() && (buttons & Qt::LeftButton) && m_state.shiftDown()) {
-        int anchorId = m_state.anchorAt(drag.index).id;
-        drag = DragState{};
-        m_state.linkDrag() = LinkDrag{true, anchorId, -1, cx, cy};
+    const QPair<QString, int> handleHit = findHandleHit(canvasPos, projection);
+    const int anchorHit = m_state.selectionEnabled(QStringLiteral("anchors"))
+                              ? findAnchorHit(canvasPos, projection) : -1;
+    const QPair<int, int> segmentHit = m_state.selectionEnabled(QStringLiteral("segments"))
+                                           ? findSegmentHit(canvasPos, projection) : QPair<int, int>(-1, -1);
+    const bool blankHit = handleHit.second < 0 && anchorHit < 0 && segmentHit.first < 0;
+    const bool hadSelection = !m_state.selectedAnchorIds().isEmpty() || !m_state.selectedLinkKeys().isEmpty();
+    const bool singleAnchorFastChain = m_state.anchorPlacementEnabled()
+                                    && m_state.selectedAnchorIds().size() == 1
+                                    && m_state.selectedLinkKeys().isEmpty();
+    if (blankHit && hadSelection && !singleAnchorFastChain) {
+        m_state.clearAnchorSelection();
+        m_state.clearLinkSelection();
+        m_state.setPendingConnectAnchorId(-1);
+        emit needsRepaint();
         return true;
     }
-    if (m_lastMoveTimer.isValid() && m_lastMoveTimer.elapsed() < kMoveThrottleMs) return !m_state.drag().mode.isEmpty();
-    m_lastMoveTimer.start();
-    if (drag.mode.isEmpty() || drag.index < 0 || drag.index >= m_state.anchors().size()) return false;
-    auto &a = m_state.anchorAt(drag.index);
-    if (drag.mode == "anchor") {
-        QVariantMap ctx = m_state.lastContext();
-        int timeDiv = qMax(1, ctx.value("time_division", 1).toInt());
-        a.laneX = ncClamp(cx, 0.0, Const::kLaneWidth);
-        a.beat = qMax(0.0, cy);
-        a.beat = qRound(a.beat * timeDiv) / static_cast<double>(timeDiv); // snap beat only
-        m_state.enforceAnchorAndConnectedHandleConstraints(drag.index);
+
+    const QVariantMap hostSelectionTool = m_state.lastContext().value(QStringLiteral("host_selection_tool")).toMap();
+    const bool hostSelectMode = hostSelectionTool.value(QStringLiteral("is_select_mode"), false).toBool();
+    const bool notesSelectable = m_state.selectionEnabled(QStringLiteral("notes"));
+    if (blankHit && hostSelectMode && notesSelectable)
+        return false;
+
+    if (handleHit.second >= 0 && !shift) {
+        m_state.drag() = {handleHit.first, handleHit.second};
+        m_dragChanged = false;
+        return true;
     }
-    else if (drag.mode == "in") { m_state.setAnchorInAbsChart(drag.index, cx, cy, a.smooth); m_state.enforceHandleTimeConstraints(drag.index); }
-    else if (drag.mode == "out") { m_state.setAnchorOutAbsChart(drag.index, cx, cy, a.smooth); m_state.enforceHandleTimeConstraints(drag.index); }
-    m_state.invalidateCurveCache(); markDirty(); return true;
-}
-bool NoteChainEditor::handleMouseRelease(double cx, double cy, int) {
-    if (!m_active) return false; auto &bs = m_state.boxSelect(); auto &ld = m_state.linkDrag(); auto &drag = m_state.drag();
-    if (bs.active) { bs.endX = cx; bs.endY = cy; double rx0=qMin(bs.startX,bs.endX),ry0=qMin(bs.startY,bs.endY),rw=qAbs(bs.endX-bs.startX),rh=qAbs(bs.endY-bs.startY); double rx1=rx0+rw,ry1=ry0+rh; QSet<int> hIds; for(int i=0;i<m_state.anchors().size();++i){auto&a=m_state.anchorAt(i);if(ncPtInRect(a.laneX,a.beat,rx0,ry0,rx1,ry1))hIds.insert(a.id);} if(bs.append){for(int id:hIds)m_state.selectAnchor(id);}else{m_state.clearAnchorSelection();m_state.clearLinkSelection();for(int id:hIds)m_state.selectAnchor(id);} bs=BoxSelect{}; recordHistory(); markDirty(); return true; }
-    if (ld.active) { ld.active=false; int best=-1; double bd=20.0; for(int i=0;i<m_state.anchors().size();++i){auto&a=m_state.anchorAt(i);if(a.id==ld.sourceAnchorId)continue;double d=ncDist(cx,cy,a.laneX,a.beat);if(d<bd){best=i;bd=d;}} if(best>=0){m_state.addLink(ld.sourceAnchorId,m_state.anchorAt(best).id);recordHistory();markDirty();} ld=LinkDrag{}; return true; }
-    // P1-3: emit checkpoint when drag ends
-    if (drag.mode.isEmpty()) return false; bool hadDrag = !drag.mode.isEmpty(); recordHistory(); emit requestHostUndoCheckpoint(tr("Curve Edit")); drag = DragState{}; return true;
+
+    if (anchorHit >= 0) {
+        const int anchorId = m_state.anchorAt(anchorHit).id;
+        if (shift) {
+            m_state.drag() = DragState{};
+            m_state.linkDrag() = LinkDrag{true, anchorId, -1, canvasPos.x(), canvasPos.y()};
+            return true;
+        }
+        if (ctrl)
+            m_state.toggleAnchorSelection(anchorId);
+        else
+            m_state.selectAnchor(anchorId);
+        m_state.clearLinkSelection();
+
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        const bool doubleClick = m_state.lastClickAnchor() == anchorHit
+                              && now - m_state.lastClickMs() <= Const::kDoubleClickMs;
+        m_state.setLastClick(anchorHit, now);
+        if (doubleClick) {
+            Anchor &anchor = m_state.anchorAt(anchorHit);
+            anchor.smooth = !anchor.smooth;
+            m_state.invalidateCurveCache();
+            finishMutation(tr("Toggle Anchor Smoothness"));
+            return true;
+        }
+        m_state.drag() = {QStringLiteral("anchor"), anchorHit};
+        m_state.setPendingConnectAnchorId(-1);
+        m_dragChanged = false;
+        emit needsRepaint();
+        return true;
+    }
+
+    if (segmentHit.first >= 0) {
+        const LinkKey key = makeLinkKey(segmentHit.first, segmentHit.second);
+        if (ctrl)
+            m_state.toggleLinkSelection(key);
+        else {
+            m_state.clearLinkSelection();
+            m_state.selectLink(key);
+        }
+        if (m_state.selectionEnabled(QStringLiteral("anchors"))) {
+            if (!ctrl) m_state.clearAnchorSelection();
+            m_state.selectAnchor(segmentHit.first);
+            m_state.selectAnchor(segmentHit.second);
+        } else {
+            m_state.clearAnchorSelection();
+        }
+        emit needsRepaint();
+        return true;
+    }
+
+    if ((ctrl || hostSelectMode) && !notesSelectable) {
+        m_state.boxSelect() = BoxSelect{true, canvasPos.x(), canvasPos.y(),
+                                       canvasPos.x(), canvasPos.y(), ctrl};
+        emit needsRepaint();
+        return true;
+    }
+    if (notesSelectable && !m_state.anchorPlacementEnabled())
+        return false;
+    if (!m_state.anchorPlacementEnabled())
+        return true;
+    if (!projection.containsEditableCanvasPoint(canvasPos)) {
+        m_state.clearAnchorSelection();
+        m_state.clearLinkSelection();
+        m_state.setPendingConnectAnchorId(-1);
+        emit needsRepaint();
+        return true;
+    }
+
+    const QPointF chartPoint = snappedChartPoint(m_state, projection.canvasToChart(canvasPos), true, true);
+    const QSet<int> selectedBefore = m_state.selectedAnchorIds();
+    const int newIndex = m_state.appendAnchor(chartPoint.x(), chartPoint.y());
+    const int newId = m_state.anchorAt(newIndex).id;
+    if (selectedBefore.size() == 1) {
+        m_state.addLink(*selectedBefore.cbegin(), newId);
+        m_state.setSingleSelectedAnchor(newId);
+    } else {
+        m_state.clearAnchorSelection();
+    }
+    m_state.setPendingConnectAnchorId(-1);
+    m_state.cleanupLinksAndSelection();
+    m_state.drag() = {QStringLiteral("anchor"), newIndex};
+    m_dragChanged = true;
+    markDirty();
+    return true;
 }
 
-// ====== Keyboard ======
-bool NoteChainEditor::handleKeyDown(int key, bool, bool ctrl) {
-    if (!m_active) return false;
-    if (key == Qt::Key_Delete || key == Qt::Key_Backspace) { deleteSelected(); return true; }
-    if (key == Qt::Key_Escape) { m_state.drag() = DragState{}; m_state.linkDrag() = LinkDrag{}; m_state.boxSelect() = BoxSelect{}; m_state.clearAnchorSelection(); m_state.clearLinkSelection(); m_state.setPendingConnectAnchorId(-1); markDirty(); return true; }
-    if (key == Qt::Key_A && !ctrl) { toggleAnchorPlacement(); return true; }
+bool NoteChainEditor::handleMouseMove(const QPointF &canvasPos, const CanvasProjection &projection,
+                                      int buttons, bool shift)
+{
+    if (!m_active)
+        return false;
+    LinkDrag &linkDrag = m_state.linkDrag();
+    if (linkDrag.active) {
+        linkDrag.x = canvasPos.x();
+        linkDrag.y = canvasPos.y();
+        linkDrag.hoverAnchorId = -1;
+        if (m_state.selectionEnabled(QStringLiteral("anchors"))) {
+            const int hit = findAnchorHit(canvasPos, projection);
+            if (hit >= 0 && m_state.anchorAt(hit).id != linkDrag.sourceAnchorId)
+                linkDrag.hoverAnchorId = m_state.anchorAt(hit).id;
+        }
+        return true;
+    }
+
+    DragState &drag = m_state.drag();
+    if (shift && drag.mode == QLatin1String("anchor") && drag.index >= 0
+        && drag.index < m_state.anchors().size() && (buttons & Qt::LeftButton)) {
+        const int sourceId = m_state.anchorAt(drag.index).id;
+        drag = DragState{};
+        m_state.linkDrag() = LinkDrag{true, sourceId, -1, canvasPos.x(), canvasPos.y()};
+        return true;
+    }
+    if (m_state.boxSelect().active) {
+        m_state.boxSelect().endX = canvasPos.x();
+        m_state.boxSelect().endY = canvasPos.y();
+        return true;
+    }
+    if (drag.mode.isEmpty() || drag.index < 0 || drag.index >= m_state.anchors().size())
+        return false;
+    if (m_lastMoveTimer.isValid() && m_lastMoveTimer.elapsed() < kMoveThrottleMs)
+        return true;
+    m_lastMoveTimer.start();
+
+    const QPointF chartPoint = projection.canvasToChart(canvasPos);
+    const int timeDivision = qMax(1, m_state.lastContext().value(QStringLiteral("time_division"), 1).toInt());
+    Anchor &anchor = m_state.anchorAt(drag.index);
+    if (drag.mode == QLatin1String("anchor")) {
+        const QPointF snapped = snappedChartPoint(m_state, chartPoint, true, false);
+        anchor.laneX = snapped.x();
+        anchor.beat = snapped.y();
+        m_state.enforceAnchorAndConnectedHandleConstraints(drag.index, timeDivision);
+    } else if (drag.mode == QLatin1String("in")) {
+        m_state.setAnchorInAbsChart(drag.index, chartPoint.x(), chartPoint.y(), true);
+        m_state.enforceHandleTimeConstraints(drag.index, timeDivision);
+    } else if (drag.mode == QLatin1String("out")) {
+        m_state.setAnchorOutAbsChart(drag.index, chartPoint.x(), chartPoint.y(), true);
+        m_state.enforceHandleTimeConstraints(drag.index, timeDivision);
+    }
+    m_state.invalidateCurveCache();
+    m_dragChanged = true;
+    markDirty();
+    return true;
+}
+
+bool NoteChainEditor::handleMouseRelease(const QPointF &canvasPos, const CanvasProjection &projection, int button)
+{
+    Q_UNUSED(button)
+    if (!m_active)
+        return false;
+    LinkDrag &linkDrag = m_state.linkDrag();
+    if (linkDrag.active) {
+        const int sourceId = linkDrag.sourceAnchorId;
+        const int targetId = linkDrag.hoverAnchorId;
+        linkDrag = LinkDrag{};
+        if (sourceId > 0 && targetId > 0 && sourceId != targetId && !m_state.hasLink(sourceId, targetId)) {
+            m_state.addLink(sourceId, targetId);
+            m_state.cleanupLinksAndSelection();
+            finishMutation(tr("Connect Curve Segment"));
+        }
+        return true;
+    }
+
+    BoxSelect &box = m_state.boxSelect();
+    if (box.active) {
+        box.endX = canvasPos.x();
+        box.endY = canvasPos.y();
+        const QRectF selection = QRectF(QPointF(box.startX, box.startY),
+                                        QPointF(box.endX, box.endY)).normalized();
+        QSet<int> selectedAnchors = box.append ? m_state.selectedAnchorIds() : QSet<int>{};
+        QSet<LinkKey> selectedLinks = box.append ? m_state.selectedLinkKeys() : QSet<LinkKey>{};
+        for (const Anchor &anchor : m_state.anchors()) {
+            if (selection.contains(projection.chartToCanvas(anchor.pos())))
+                selectedAnchors.insert(anchor.id);
+        }
+        for (const SegmentInfo &segment : m_state.connectedAnchorSegments()) {
+            const QVector<SampledPoint> samples = segmentSamples(segment);
+            const bool intersects = std::any_of(samples.cbegin(), samples.cend(), [&](const SampledPoint &point) {
+                return selection.contains(projection.chartToCanvas({point.laneX, point.beat}));
+            });
+            if (intersects)
+                selectedLinks.insert(makeLinkKey(segment.id0, segment.id1));
+        }
+        m_state.clearAnchorSelection();
+        m_state.clearLinkSelection();
+        if (m_state.selectionEnabled(QStringLiteral("anchors")))
+            for (int id : selectedAnchors) m_state.selectAnchor(id);
+        if (m_state.selectionEnabled(QStringLiteral("segments")))
+            for (const LinkKey &key : selectedLinks) m_state.selectLink(key);
+        box = BoxSelect{};
+        emit needsRepaint();
+        return true;
+    }
+
+    DragState &drag = m_state.drag();
+    if (drag.mode.isEmpty())
+        return false;
+    drag = DragState{};
+    if (m_dragChanged)
+        finishMutation(tr("Edit Curve"));
+    m_dragChanged = false;
+    return true;
+}
+
+bool NoteChainEditor::handleKeyDown(int key, bool shift, bool ctrl)
+{
+    Q_UNUSED(shift)
+    if (!m_active)
+        return false;
+    if (key == Qt::Key_Delete || key == Qt::Key_Backspace) {
+        deleteSelected();
+        return true;
+    }
+    if (key == Qt::Key_Escape) {
+        const bool hadInteraction = !m_state.drag().mode.isEmpty() || m_state.linkDrag().active || m_state.boxSelect().active;
+        const bool hadSelection = !m_state.selectedAnchorIds().isEmpty() || !m_state.selectedLinkKeys().isEmpty();
+        m_state.drag() = DragState{};
+        m_state.linkDrag() = LinkDrag{};
+        m_state.boxSelect() = BoxSelect{};
+        m_state.clearAnchorSelection();
+        m_state.clearLinkSelection();
+        m_state.setPendingConnectAnchorId(-1);
+        m_dragChanged = false;
+        if (hadInteraction || hadSelection) emit needsRepaint();
+        return hadInteraction || hadSelection;
+    }
+    if (key == Qt::Key_A && !ctrl) {
+        toggleAnchorPlacement();
+        return true;
+    }
     return false;
 }
 
-// ====== Actions ======
-bool NoteChainEditor::commitCurveToNotes() {
-    if (!m_chartCtrl) return false;
-    QVector<SegmentInfo> segs = m_state.connectedAnchorSegments();
-    if (segs.isEmpty()) return false;
-    QVector<Note> toAdd; QSet<LinkKey> tKeys;
-    if (!m_state.selectedLinkKeys().isEmpty()) tKeys = m_state.selectedLinkKeys();
+bool NoteChainEditor::commitLinksToNotes(const QSet<LinkKey> *targetLinks)
+{
+    if (!m_chartCtrl)
+        return false;
+    const QVector<SegmentInfo> segments = m_state.connectedAnchorSegments();
+    if (segments.isEmpty() || (targetLinks && targetLinks->isEmpty()))
+        return false;
+
+    if (!m_sidecarPath.isEmpty() && m_state.projectDirty()) {
+        QString error;
+        if (!NoteChainPersistence::saveToFile(m_state, m_sidecarPath, &error)) {
+            emit statusMessage(tr("Failed to save curve project: %1").arg(error));
+            return false;
+        }
+    }
+
     QSet<QString> existing;
     if (const Chart *chart = m_chartCtrl->chart()) {
         for (const Note &note : chart->notes()) {
             const QString key = normalNotePositionKey(note);
-            if (!key.isEmpty())
-                existing.insert(key);
+            if (!key.isEmpty()) existing.insert(key);
         }
     }
     QSet<QString> seen;
-    const int fallbackDen = defaultCommitDenominator(m_state);
-    for (const auto &seg : segs) {
-        if (!tKeys.isEmpty() && !tKeys.contains(makeLinkKey(seg.id0, seg.id1))) continue;
-        int den = (m_state.segmentDensityMode(seg.id0, seg.id1) == 0) ? fallbackDen : seg.denominator;
-        double lo = qMin(seg.a0.beat, seg.a1.beat), hi = qMax(seg.a0.beat, seg.a1.beat);
-        auto sampled = sampleSegment(seg.a0, seg.a1, seg.shape, 32);
-        QMap<double, double> beatLane; for (const auto &pt : sampled) beatLane[pt.beat] = pt.laneX;
-        int sTick = qRound(lo * den), eTick = qRound(hi * den);
-        for (int tick = sTick; tick <= eTick; ++tick) {
-            double beat = static_cast<double>(tick) / den;
-            if (beat < lo || beat > hi) continue;
-            auto it = beatLane.lowerBound(beat); double lx;
-            if (it == beatLane.begin()) lx = it.value();
-            else if (it == beatLane.end()) { auto prev = beatLane.constEnd(); --prev; lx = prev.value(); }
-            else { auto prev = it; --prev; double t = (beat - prev.key()) / qMax(1e-9, it.key() - prev.key()); lx = prev.value() + (it.value() - prev.value()) * t; }
-            lx = ncClamp(lx, 0.0, Const::kLaneWidth);
-            QVector<int> tri = floatBeatToTriplet(beat, den);
-            Note n; n.beatNum = tri[0]; n.numerator = tri[1]; n.denominator = tri[2]; n.x = qRound(lx); n.type = NoteType::NORMAL;
-            const QString key = normalNotePositionKey(n);
-            if (key.isEmpty() || existing.contains(key) || seen.contains(key))
+    QVector<Note> notes;
+    const int fallbackDenominator = defaultCommitDenominator(m_state);
+    for (const SegmentInfo &segment : segments) {
+        const LinkKey key = makeLinkKey(segment.id0, segment.id1);
+        if (targetLinks && !targetLinks->contains(key))
+            continue;
+        const int denominator = m_state.segmentDensityMode(segment.id0, segment.id1) == 0
+                                    ? fallbackDenominator : qMax(1, segment.denominator);
+        const QVector<SampledPoint> samplesByBeat = normalizeSamplesByBeat(segmentSamples(segment, 32));
+        if (samplesByBeat.size() < 2)
+            continue;
+        const double lowBeat = samplesByBeat.first().beat;
+        const double highBeat = samplesByBeat.last().beat;
+        int startTick = qRound(lowBeat * denominator);
+        int endTick = qRound(highBeat * denominator);
+        if (endTick < startTick) qSwap(startTick, endTick);
+        for (int tick = startTick; tick <= endTick; ++tick) {
+            const double beat = static_cast<double>(tick) / denominator;
+            if (beat < lowBeat || beat > highBeat)
                 continue;
-            seen.insert(key);
-            toAdd.append(n);
+            const QVector<int> triplet = floatBeatToTriplet(beat, denominator);
+            Note note;
+            note.beatNum = triplet[0];
+            note.numerator = triplet[1];
+            note.denominator = triplet[2];
+            note.x = qRound(ncClamp(laneXAtBeat(samplesByBeat, beat), 0.0, Const::kLaneWidth));
+            note.type = NoteType::NORMAL;
+            const QString positionKey = normalNotePositionKey(note);
+            if (positionKey.isEmpty() || existing.contains(positionKey) || seen.contains(positionKey))
+                continue;
+            seen.insert(positionKey);
+            notes.append(note);
         }
     }
-    if (toAdd.isEmpty()) return false;
-    std::sort(toAdd.begin(), toAdd.end(), [](const Note &a, const Note &b) { double ba = a.getStartBeat(), bb = b.getStartBeat(); if (qAbs(ba - bb) < 1e-9) return a.x < b.x; return ba < bb; });
-    m_chartCtrl->addNotes(toAdd);
-    // auto-save sidecar after commit
-    if (!m_sidecarPath.isEmpty()) NoteChainPersistence::saveToFile(m_state, m_sidecarPath);
-    emit requestHostUndoCheckpoint(QStringLiteral("Commit Curve -> Notes"));
-    return true;
+    if (notes.isEmpty())
+        return false;
+    std::sort(notes.begin(), notes.end(), [](const Note &left, const Note &right) {
+        const double leftBeat = left.getStartBeat();
+        const double rightBeat = right.getStartBeat();
+        if (qAbs(leftBeat - rightBeat) <= 1e-9) return left.x < right.x;
+        return leftBeat < rightBeat;
+    });
+    return m_chartCtrl->applyBatchEdit(tr("Commit Curve -> Notes"), notes, {}, {});
 }
 
-void NoteChainEditor::setAnchorPlacementEnabled(bool on) { if (m_state.anchorPlacementEnabled() == on) return; m_state.setAnchorPlacementEnabled(on); emit statusMessage(on ? "Anchor ON" : "Anchor OFF"); emit needsRepaint(); }
-void NoteChainEditor::setCurveVisible(bool on) { if (m_state.curveVisible() == on) return; m_state.setCurveVisible(on); markDirty(); }
-void NoteChainEditor::setPolylineMode(bool on) {
-    const QString shape = on ? QStringLiteral("polyline") : QStringLiteral("curve");
+bool NoteChainEditor::commitCurveToNotes() { return commitLinksToNotes(nullptr); }
+bool NoteChainEditor::commitContextSegmentsToNotes() { return commitLinksToNotes(&m_contextLinkKeys); }
+
+void NoteChainEditor::setAnchorPlacementEnabled(bool enabled)
+{
+    if (m_state.anchorPlacementEnabled() == enabled)
+        return;
+    m_state.setAnchorPlacementEnabled(enabled);
+    emit controlsChanged();
+    emit needsRepaint();
+}
+
+void NoteChainEditor::setCurveVisible(bool visible)
+{
+    if (m_state.curveVisible() == visible)
+        return;
+    m_state.setCurveVisible(visible);
+    emit controlsChanged();
+    emit needsRepaint();
+}
+
+void NoteChainEditor::setPolylineMode(bool polyline)
+{
+    const QString shape = polyline ? QStringLiteral("polyline") : QStringLiteral("curve");
     if (!m_state.selectedLinkKeys().isEmpty()) {
         bool changed = false;
         for (const LinkKey &key : m_state.selectedLinkKeys()) {
@@ -335,55 +720,83 @@ void NoteChainEditor::setPolylineMode(bool on) {
                 changed = true;
             }
         }
-        if (changed) {
-            recordHistory();
-            markDirty();
-        }
+        if (changed) finishMutation(tr("Change Curve Shape"));
+        emit controlsChanged();
         return;
     }
-    if (m_state.activeLinkShape() == shape) return;
+    if (m_state.activeLinkShape() == shape)
+        return;
     m_state.setActiveLinkShape(shape);
     markDirty();
+    emit controlsChanged();
 }
-void NoteChainEditor::setNoteCurveSnapEnabled(bool on) { if (m_state.noteCurveSnapEnabled() == on) return; m_state.setNoteCurveSnapEnabled(on); emit needsRepaint(); }
-void NoteChainEditor::setSelectAnchorsEnabled(bool on) { if (m_state.selectionEnabled("anchors") == on) return; m_state.setSelectionEnabled("anchors", on); emit needsRepaint(); }
-void NoteChainEditor::setSelectSegmentsEnabled(bool on) { if (m_state.selectionEnabled("segments") == on) return; m_state.setSelectionEnabled("segments", on); emit needsRepaint(); }
+
+void NoteChainEditor::setNoteCurveSnapEnabled(bool enabled)
+{
+    if (m_state.noteCurveSnapEnabled() == enabled)
+        return;
+    m_state.setNoteCurveSnapEnabled(enabled);
+    markDirty();
+    emit controlsChanged();
+}
+
+void NoteChainEditor::setSelectAnchorsEnabled(bool enabled)
+{
+    if (m_state.selectionTargetEnabled(QStringLiteral("anchors")) == enabled)
+        return;
+    m_state.setSelectionEnabled(QStringLiteral("anchors"), enabled);
+    emit controlsChanged();
+    emit needsRepaint();
+}
+
+void NoteChainEditor::setSelectSegmentsEnabled(bool enabled)
+{
+    if (m_state.selectionTargetEnabled(QStringLiteral("segments")) == enabled)
+        return;
+    m_state.setSelectionEnabled(QStringLiteral("segments"), enabled);
+    emit controlsChanged();
+    emit needsRepaint();
+}
+
+void NoteChainEditor::setSelectNotesEnabled(bool enabled)
+{
+    m_state.setSelectionEnabled(QStringLiteral("notes"), enabled);
+    emit controlsChanged();
+}
+
 void NoteChainEditor::toggleAnchorPlacement() { setAnchorPlacementEnabled(!m_state.anchorPlacementEnabled()); }
 void NoteChainEditor::toggleCurveVisible() { setCurveVisible(!m_state.curveVisible()); }
-void NoteChainEditor::togglePolylineMode() { setPolylineMode(m_state.activeLinkShape() != QStringLiteral("polyline")); }
+void NoteChainEditor::togglePolylineMode() { setPolylineMode(m_state.activeLinkShape() != QLatin1String("polyline")); }
 void NoteChainEditor::toggleNoteCurveSnap() { setNoteCurveSnapEnabled(!m_state.noteCurveSnapEnabled()); }
-void NoteChainEditor::toggleSelectAnchors() { setSelectAnchorsEnabled(!m_state.selectionEnabled("anchors")); }
-void NoteChainEditor::toggleSelectSegments() { setSelectSegmentsEnabled(!m_state.selectionEnabled("segments")); }
-void NoteChainEditor::toggleSelectNotes() { m_state.setSelectionEnabled("notes", !m_state.selectionEnabled("notes")); }
+void NoteChainEditor::toggleSelectAnchors() { setSelectAnchorsEnabled(!m_state.selectionTargetEnabled(QStringLiteral("anchors"))); }
+void NoteChainEditor::toggleSelectSegments() { setSelectSegmentsEnabled(!m_state.selectionTargetEnabled(QStringLiteral("segments"))); }
+void NoteChainEditor::toggleSelectNotes() { setSelectNotesEnabled(!m_state.selectionTargetEnabled(QStringLiteral("notes"))); }
 
-bool NoteChainEditor::selectSegmentAt(double chartX, double chartY, bool append) {
-    auto hit = findSegmentHit(chartX, chartY);
-    if (hit.first < 0)
-        return false;
-    LinkKey key = makeLinkKey(hit.first, hit.second);
-    if (!append && !m_state.isLinkSelected(key)) {
-        m_state.clearAnchorSelection();
-        m_state.clearLinkSelection();
+void NoteChainEditor::prepareContextMenuAt(const QPointF &canvasPos, const CanvasProjection &projection)
+{
+    const QPair<int, int> hit = findSegmentHit(canvasPos, projection);
+    const QSet<LinkKey> selected = m_state.selectedLinkKeys();
+    m_contextLinkKeys.clear();
+    if (hit.first >= 0) {
+        const LinkKey hitKey = makeLinkKey(hit.first, hit.second);
+        if (selected.contains(hitKey)) m_contextLinkKeys = selected;
+        else m_contextLinkKeys.insert(hitKey);
+    } else {
+        m_contextLinkKeys = selected;
     }
-    if (append)
-        m_state.toggleLinkSelection(key);
-    else
-        m_state.selectLink(key);
-    emit needsRepaint();
-    return true;
 }
 
 bool NoteChainEditor::hasSelectedSegments() const { return !m_state.selectedLinkKeys().isEmpty(); }
 
-int NoteChainEditor::selectedSegmentDensity() const {
-    if (m_state.selectedLinkKeys().isEmpty())
+int NoteChainEditor::densityForLinks(const QSet<LinkKey> &links) const
+{
+    if (links.isEmpty())
         return -2;
     bool first = true;
     int signature = -2;
-    for (const LinkKey &key : m_state.selectedLinkKeys()) {
-        const int value = (m_state.segmentDensityMode(key.first, key.second) == 0)
-                              ? 0
-                              : m_state.segmentDen(key.first, key.second);
+    for (const LinkKey &key : links) {
+        const int value = m_state.segmentDensityMode(key.first, key.second) == 0
+                              ? 0 : m_state.segmentDen(key.first, key.second);
         if (first) {
             signature = value;
             first = false;
@@ -394,39 +807,65 @@ int NoteChainEditor::selectedSegmentDensity() const {
     return signature;
 }
 
-bool NoteChainEditor::setSelectedSegmentDensity(int denominator) {
-    if (m_state.selectedLinkKeys().isEmpty())
+int NoteChainEditor::selectedSegmentDensity() const { return densityForLinks(m_state.selectedLinkKeys()); }
+int NoteChainEditor::contextSegmentDensity() const { return densityForLinks(m_contextLinkKeys); }
+
+bool NoteChainEditor::setDensityForLinks(const QSet<LinkKey> &links, int denominator, const QString &label)
+{
+    if (links.isEmpty())
         return false;
-    for (const LinkKey &key : m_state.selectedLinkKeys()) {
-        if (denominator <= 0)
-            m_state.setDensityMode(key.first, key.second, 0);
-        else
-            m_state.setSegmentDen(key.first, key.second, denominator);
+    bool changed = false;
+    for (const LinkKey &key : links) {
+        const int before = m_state.segmentDensityMode(key.first, key.second) == 0
+                               ? 0 : m_state.segmentDen(key.first, key.second);
+        if (before == qMax(0, denominator))
+            continue;
+        if (denominator <= 0) m_state.setDensityMode(key.first, key.second, 0);
+        else m_state.setSegmentDen(key.first, key.second, denominator);
+        changed = true;
     }
-    recordHistory();
-    markDirty();
-    return true;
+    return changed && finishMutation(label);
 }
 
-bool NoteChainEditor::toggleSelectedSegmentShape() {
-    if (m_state.selectedLinkKeys().isEmpty())
+bool NoteChainEditor::setSelectedSegmentDensity(int denominator)
+{
+    return setDensityForLinks(m_state.selectedLinkKeys(), denominator, tr("Change Curve Density"));
+}
+
+bool NoteChainEditor::setContextSegmentDensity(int denominator)
+{
+    return setDensityForLinks(m_contextLinkKeys, denominator, tr("Change Curve Density"));
+}
+
+bool NoteChainEditor::toggleShapeForLinks(const QSet<LinkKey> &links, const QString &label)
+{
+    if (links.isEmpty())
         return false;
     bool allPolyline = true;
-    for (const LinkKey &key : m_state.selectedLinkKeys()) {
-        if (m_state.segmentShape(key.first, key.second) != QStringLiteral("polyline")) {
+    for (const LinkKey &key : links) {
+        if (m_state.segmentShape(key.first, key.second) != QLatin1String("polyline")) {
             allPolyline = false;
             break;
         }
     }
-    const QString next = allPolyline ? QStringLiteral("curve") : QStringLiteral("polyline");
-    for (const LinkKey &key : m_state.selectedLinkKeys())
-        m_state.setSegmentShape(key.first, key.second, next);
-    recordHistory();
-    markDirty();
-    return true;
+    const QString nextShape = allPolyline ? QStringLiteral("curve") : QStringLiteral("polyline");
+    for (const LinkKey &key : links)
+        m_state.setSegmentShape(key.first, key.second, nextShape);
+    return finishMutation(label);
 }
 
-void NoteChainEditor::connectSelectedAnchors() {
+bool NoteChainEditor::toggleSelectedSegmentShape()
+{
+    return toggleShapeForLinks(m_state.selectedLinkKeys(), tr("Change Curve Shape"));
+}
+
+bool NoteChainEditor::toggleContextSegmentShape()
+{
+    return toggleShapeForLinks(m_contextLinkKeys, tr("Change Curve Shape"));
+}
+
+void NoteChainEditor::connectSelectedAnchors()
+{
     QList<int> ids = m_state.selectedAnchorIds().values();
     std::sort(ids.begin(), ids.end(), [this](int left, int right) {
         return m_state.anchorIndexById(left) < m_state.anchorIndexById(right);
@@ -440,138 +879,332 @@ void NoteChainEditor::connectSelectedAnchors() {
     }
     if (changed) {
         m_state.seedMissingSegmentDenominators();
-        recordHistory();
-        markDirty();
+        finishMutation(tr("Connect Curve Segments"));
     }
 }
-void NoteChainEditor::disconnectSelectedSegments() { for (auto &k : m_state.selectedLinkKeys()) m_state.removeLink(k.first, k.second); m_state.clearLinkSelection(); recordHistory(); markDirty(); }
-void NoteChainEditor::deleteSelected() { bool ch = false; for (int id : m_state.selectedAnchorIds()) { m_state.removeAnchorById(id); ch = true; } for (auto &k : m_state.selectedLinkKeys()) { m_state.removeLink(k.first, k.second); ch = true; } m_state.clearAnchorSelection(); m_state.clearLinkSelection(); if (ch) { recordHistory(); markDirty(); } }
-void NoteChainEditor::resetCurve() {
-    // Reset editable content only.  The sidecar identity/revision belongs to
-    // the project and must survive, otherwise the next save is rejected as a
-    // false CAS conflict.
-    const int revision = m_state.projectRevision();
-    const QString fileUuid = m_state.projectFileUuid();
-    const QString writer = m_state.lastWriterInstance();
-    const QString projectPath = m_state.projectPath();
-    m_state = NoteChainState{};
-    m_state.setProjectRevision(revision);
-    m_state.setProjectFileUuid(fileUuid);
-    m_state.setLastWriterInstance(writer);
-    m_state.setProjectPath(projectPath);
-    m_history.clear();
-    m_historyIdx = -1;
-    recordHistory();
-    markDirty();
+
+void NoteChainEditor::disconnectSelectedSegments()
+{
+    const QSet<LinkKey> selected = m_state.selectedLinkKeys();
+    if (selected.isEmpty())
+        return;
+    for (const LinkKey &key : selected)
+        m_state.removeLink(key.first, key.second);
+    m_state.clearLinkSelection();
+    finishMutation(tr("Disconnect Curve Segments"));
 }
 
-// ====== Rendering (direct QPainter, zero overlay serialization) ======
-void NoteChainEditor::render(QPainter *painter, const QRectF &viewport,
-                              double scrollBeat, double visibleBeatRange,
-                              const CanvasProjection &proj) {
-    if (!m_active || !m_state.curveVisible()) return;
-    Q_UNUSED(viewport)
-    painter->save(); painter->setRenderHint(QPainter::Antialiasing);
-    double visLo = scrollBeat - visibleBeatRange * 0.1;
-    double visHi = scrollBeat + visibleBeatRange * 1.1;
-    OverlayToggles &tg = m_state.overlayToggles();
-    // curves
-    QVector<SegmentInfo> segs = m_state.connectedAnchorSegments();
-    for (const auto &seg : segs) {
-        if (qMax(seg.a0.beat, seg.a1.beat) < visLo || qMin(seg.a0.beat, seg.a1.beat) > visHi) continue;
-        LinkKey key = makeLinkKey(seg.id0, seg.id1); bool sel = m_state.isLinkSelected(key);
-        QColor col = (seg.shape == QStringLiteral("polyline")) ? QColor(200,200,200,180) : QColor(51,204,255,200);
-        if (sel) col = QColor(255,214,107);
-        auto pts = sampleSegment(seg.a0, seg.a1, seg.shape, 24);
-        QPen pen(col, (seg.shape == QStringLiteral("polyline") && !sel) ? 1.5 : (sel ? 3.0 : 2.0)); painter->setPen(pen);
-        for (int j = 0; j < pts.size() - 1; ++j) {
-            painter->drawLine(QPointF(proj.lx2x(pts[j].laneX), proj.b2y(pts[j].beat)),
-                              QPointF(proj.lx2x(pts[j+1].laneX), proj.b2y(pts[j+1].beat)));
+void NoteChainEditor::deleteSelected()
+{
+    const QSet<int> selectedAnchors = m_state.selectedAnchorIds();
+    const QSet<LinkKey> selectedLinks = m_state.selectedLinkKeys();
+    if (selectedAnchors.isEmpty() && selectedLinks.isEmpty())
+        return;
+    for (const LinkKey &key : selectedLinks)
+        m_state.removeLink(key.first, key.second);
+    for (int id : selectedAnchors)
+        m_state.removeAnchorById(id);
+    m_state.clearAnchorSelection();
+    m_state.clearLinkSelection();
+    finishMutation(tr("Delete Curve Selection"));
+}
+
+void NoteChainEditor::resetCurve()
+{
+    if (m_state.anchors().isEmpty() && m_state.linksAll().isEmpty())
+        return;
+    QVector<int> anchorIds;
+    for (const Anchor &anchor : m_state.anchors()) anchorIds.append(anchor.id);
+    for (int id : anchorIds) m_state.removeAnchorById(id);
+    m_state.clearLinks();
+    const NoteChainState defaults;
+    m_state.setNodeGroups(defaults.nodeGroups());
+    m_state.setCurveGroups(defaults.curveGroups());
+    m_state.setNextCurveId(1);
+    m_contextLinkKeys.clear();
+    finishMutation(tr("Reset Curve"));
+}
+
+bool NoteChainEditor::snapLaneXAtBeat(double beat, double preferredLaneX, double *outLaneX) const
+{
+    if (!outLaneX || !m_state.noteCurveSnapEnabled())
+        return false;
+    bool found = false;
+    double bestDistance = std::numeric_limits<double>::infinity();
+    double bestLaneX = preferredLaneX;
+    for (const SegmentInfo &segment : m_state.connectedAnchorSegments()) {
+        const QVector<SampledPoint> samples = normalizeSamplesByBeat(segmentSamples(segment));
+        if (samples.size() < 2 || beat < samples.first().beat - 1e-7 || beat > samples.last().beat + 1e-7)
+            continue;
+        const double laneX = laneXAtBeat(samples, beat);
+        const double distance = qAbs(laneX - preferredLaneX);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestLaneX = laneX;
+            found = true;
         }
-        // P0-3: sample point markers (every 4th)
-        if (tg.samplePoints) {
-            painter->setPen(QPen(QColor(0x88,0xFF,0xFF,0xFF), 1.0));
-            painter->setBrush(QColor(0x88,0xFF,0xFF,0xFF));
-            for (int k = 0; k < pts.size(); k += 4) {
-                double sx = proj.lx2x(pts[k].laneX), sy = proj.b2y(pts[k].beat);
-                painter->drawRect(QRectF(sx - 2, sy - 2, 4, 4));
+    }
+    if (found) *outLaneX = bestLaneX;
+    return found;
+}
+
+bool NoteChainEditor::exportStylePreset(const QString &path, QString *errorMessage) const
+{
+    if (path.trimmed().isEmpty()) {
+        if (errorMessage) *errorMessage = tr("Empty style path");
+        return false;
+    }
+    QJsonArray denominators;
+    for (int denominator : m_state.style().denominators)
+        if (denominator > 0) denominators.append(denominator);
+    QJsonObject payload;
+    payload["style_name"] = m_state.style().name;
+    payload["denominators"] = denominators;
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) {
+        if (errorMessage) *errorMessage = file.errorString();
+        return false;
+    }
+    const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Indented);
+    if (file.write(data) != data.size() || !file.commit()) {
+        if (errorMessage) *errorMessage = file.errorString();
+        return false;
+    }
+    return true;
+}
+
+bool NoteChainEditor::importStylePreset(const QString &path, QString *errorMessage)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (errorMessage) *errorMessage = file.errorString();
+        return false;
+    }
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        if (errorMessage) *errorMessage = parseError.errorString();
+        return false;
+    }
+    StylePreset style;
+    style.name = document.object().value("style_name").toString(QStringLiteral("imported"));
+    QSet<int> seen;
+    for (const QJsonValue &value : document.object().value("denominators").toArray()) {
+        const int denominator = value.toInt();
+        if (denominator > 0 && denominator <= 288 && !seen.contains(denominator)) {
+            seen.insert(denominator);
+            style.denominators.append(denominator);
+        }
+    }
+    if (style.denominators.isEmpty()) {
+        if (errorMessage) *errorMessage = tr("Style has no valid denominators");
+        return false;
+    }
+    m_state.setStyle(style);
+    markDirty();
+    return true;
+}
+
+void NoteChainEditor::render(QPainter *painter, const QRectF &viewport, const CanvasProjection &projection)
+{
+    if (!painter || !m_active || !m_state.curveVisible() || !m_state.overlayToggles().enabled)
+        return;
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    const OverlayToggles &toggles = m_state.overlayToggles();
+    const QRectF paddedViewport = viewport.adjusted(-32.0, -32.0, 32.0, 32.0);
+
+    if (toggles.preview) {
+        for (const SegmentInfo &segment : m_state.connectedAnchorSegments()) {
+            const QVector<SampledPoint> samples = segmentSamples(segment);
+            if (samples.size() < 2)
+                continue;
+            QRectF bounds;
+            QVector<QPointF> canvasSamples;
+            canvasSamples.reserve(samples.size());
+            for (const SampledPoint &sample : samples) {
+                const QPointF point = projection.chartToCanvas({sample.laneX, sample.beat});
+                canvasSamples.append(point);
+                bounds = bounds.isNull() ? QRectF(point, QSizeF(1.0, 1.0)) : bounds.united(QRectF(point, QSizeF(1.0, 1.0)));
+            }
+            if (!bounds.intersects(paddedViewport))
+                continue;
+            const bool selected = m_state.isLinkSelected(makeLinkKey(segment.id0, segment.id1));
+            painter->setPen(QPen(selected ? QColor(255, 214, 107) : QColor(51, 204, 255, 220),
+                                 selected ? 3.0 : 2.0));
+            for (int i = 0; i + 1 < canvasSamples.size(); ++i)
+                painter->drawLine(canvasSamples[i], canvasSamples[i + 1]);
+            if (toggles.samplePoints) {
+                painter->setPen(QPen(QColor(255, 255, 255, 136), 1.0));
+                painter->setBrush(QColor(255, 255, 255, 136));
+                for (int i = 0; i < canvasSamples.size(); i += 4)
+                    painter->drawRect(QRectF(canvasSamples[i].x() - 2.0, canvasSamples[i].y() - 2.0, 4.0, 4.0));
             }
         }
     }
-    // anchors + handles + labels
+
     for (int i = 0; i < m_state.anchors().size(); ++i) {
-        const auto &a = m_state.anchorAt(i); bool sel = m_state.isAnchorSelected(a.id);
-        bool isDrag = (m_state.drag().index == i && !m_state.drag().mode.isEmpty());
-        double ax = proj.lx2x(a.laneX), ay = proj.b2y(a.beat);
-        if (tg.handles) {
-            { QPointF inP(proj.lx2x(a.laneX+a.inDx), proj.b2y(a.beat+a.inDy)); painter->setPen(QPen(sel?QColor(100,160,255):QColor(180,140,60),1)); painter->drawLine(QPointF(ax,ay),inP); painter->setBrush(sel?QColor(100,160,255):QColor(180,140,60)); painter->setPen(Qt::NoPen); painter->drawEllipse(inP,Const::kHandleDrawRadius,Const::kHandleDrawRadius); }
-            { QPointF outP(proj.lx2x(a.laneX+a.outDx), proj.b2y(a.beat+a.outDy)); painter->setPen(QPen(sel?QColor(100,160,255):QColor(180,140,60),1)); painter->drawLine(QPointF(ax,ay),outP); painter->setBrush(sel?QColor(100,160,255):QColor(180,140,60)); painter->setPen(Qt::NoPen); painter->drawEllipse(outP,Const::kHandleDrawRadius,Const::kHandleDrawRadius); }
+        const Anchor &anchor = m_state.anchorAt(i);
+        const QPointF anchorPoint = projection.chartToCanvas(anchor.pos());
+        if (!paddedViewport.contains(anchorPoint))
+            continue;
+        const bool selected = m_state.isAnchorSelected(anchor.id);
+        const bool dragging = m_state.drag().mode == QLatin1String("anchor") && m_state.drag().index == i;
+        if (toggles.handles) {
+            const QPointF inPoint = projection.chartToCanvas(anchor.inAbs());
+            const QPointF outPoint = projection.chartToCanvas(anchor.outAbs());
+            painter->setPen(QPen(QColor(160, 160, 160, 102), 1.0));
+            painter->drawLine(anchorPoint, inPoint);
+            painter->drawLine(anchorPoint, outPoint);
+            painter->setPen(QPen(Qt::white, 1.0));
+            painter->setBrush(QColor(238, 170, 85, 170));
+            painter->drawRect(QRectF(inPoint.x() - 4.0, inPoint.y() - 4.0, 8.0, 8.0));
+            painter->drawRect(QRectF(outPoint.x() - 4.0, outPoint.y() - 4.0, 8.0, 8.0));
         }
-        if (tg.controlPoints) {
-            // Outer ring (semi-transparent, larger)
-            QColor ao = isDrag ? QColor(0,119,255,170) : (sel ? QColor(255,155,47,170) : QColor(0,163,255,170));
-            painter->setBrush(ao); painter->setPen(Qt::NoPen);
-            painter->drawEllipse(QPointF(ax,ay), Const::kAnchorDrawRadius + 1.5, Const::kAnchorDrawRadius + 1.5);
-            // Core
-            QColor ac = isDrag ? QColor(0,119,255) : (sel ? QColor(255,155,47) : QColor(0,163,255));
-            painter->setBrush(ac); painter->setPen(Qt::NoPen);
-            painter->drawEllipse(QPointF(ax,ay), Const::kAnchorDrawRadius, Const::kAnchorDrawRadius);
+        if (toggles.controlPoints) {
+            const QColor fill = selected ? QColor(255, 155, 47, 190)
+                              : dragging ? QColor(0, 119, 255, 190)
+                                         : QColor(0, 163, 255, 190);
+            painter->setPen(QPen(Qt::white, selected ? 2.5 : 1.5));
+            painter->setBrush(fill);
+            painter->drawRect(QRectF(anchorPoint.x() - 6.0, anchorPoint.y() - 6.0, 12.0, 12.0));
         }
-        if (tg.labels) { painter->setPen(QColor(255,255,255)); QFont f=painter->font(); f.setPixelSize(12); painter->setFont(f); painter->drawText(QPointF(ax+12,ay-4),QString("A%1(%2)").arg(i).arg(a.smooth?"S":"C")); }
+        if (toggles.labels) {
+            painter->setPen(Qt::white);
+            QFont font = painter->font();
+            font.setPixelSize(12);
+            painter->setFont(font);
+            painter->drawText(anchorPoint + QPointF(8.0, -4.0),
+                              QStringLiteral("A%1(%2)").arg(i).arg(anchor.smooth ? tr("Smooth") : tr("Corner")));
+        }
     }
-    // box select
-    if (m_state.boxSelect().active) { double x0=qMin(m_state.boxSelect().startX,m_state.boxSelect().endX),y0=qMin(m_state.boxSelect().startY,m_state.boxSelect().endY),x1=qMax(m_state.boxSelect().startX,m_state.boxSelect().endX),y1=qMax(m_state.boxSelect().startY,m_state.boxSelect().endY); painter->setPen(QPen(QColor(255,204,102),1.5,Qt::DashLine)); painter->setBrush(QColor(255,204,102,40)); painter->drawRect(QRectF(proj.lx2x(x0),proj.b2y(y0),proj.lx2x(x1)-proj.lx2x(x0),proj.b2y(y1)-proj.b2y(y0))); }
-    // link drag preview
-    if (m_state.linkDrag().active) { const auto &ld=m_state.linkDrag(); int idx=m_state.anchorIndexById(ld.sourceAnchorId); if(idx>=0){const auto&a=m_state.anchorAt(idx);painter->setPen(QPen(QColor(255,224,138),2.0,Qt::DashLine));painter->drawLine(QPointF(proj.lx2x(a.laneX),proj.b2y(a.beat)),QPointF(proj.lx2x(ld.x),proj.b2y(ld.y)));
-        // P0-4: hover highlight on target anchor
-        if (ld.hoverAnchorId >= 0) { int hidx = m_state.anchorIndexById(ld.hoverAnchorId); if (hidx >= 0) { const auto &ha = m_state.anchorAt(hidx); double hx = proj.lx2x(ha.laneX), hy = proj.b2y(ha.beat); painter->setPen(QPen(QColor(255,224,138),2.0)); painter->setBrush(QColor(0x33,0xFF,0xE0,0x8A)); painter->drawRect(QRectF(hx - 8, hy - 8, 16, 16)); } }
-    } }
-    // P1-2: summary label (density info + anchor mode)
-    if (tg.labels) {
-        QFont sf; sf.setPixelSize(12); painter->setFont(sf);
-        QStringList dns; for (int d : m_state.style().denominators) dns << QString::number(d);
-        int overrideDen = m_state.lastContext().value("plugin_time_division_override", 0).toInt();
-        int effDen = overrideDen > 0 ? overrideDen : qMax(1, m_state.lastContext().value("time_division", 4).toInt());
-        QString ancMode = m_state.anchorPlacementEnabled() ? QStringLiteral("ON") : QStringLiteral("OFF");
-        QString sum = QString("Den:%1  Snap:%2  Anchor:%3").arg(dns.join("/")).arg(effDen).arg(ancMode);
-        painter->setPen(QColor(0xDD,0xEE,0xFF));
-        painter->drawText(QPointF(16, 18), sum);
+
+    if (m_state.boxSelect().active) {
+        const BoxSelect &box = m_state.boxSelect();
+        const QRectF rect = QRectF(QPointF(box.startX, box.startY), QPointF(box.endX, box.endY)).normalized();
+        painter->setPen(QPen(QColor(255, 204, 102), 1.5, Qt::DashLine));
+        painter->setBrush(QColor(255, 204, 102, 50));
+        painter->drawRect(rect);
+    }
+
+    if (m_state.linkDrag().active) {
+        const LinkDrag &drag = m_state.linkDrag();
+        const int sourceIndex = m_state.anchorIndexById(drag.sourceAnchorId);
+        if (sourceIndex >= 0) {
+            const QPointF source = projection.chartToCanvas(m_state.anchorAt(sourceIndex).pos());
+            QPointF target(drag.x, drag.y);
+            const int hoverIndex = m_state.anchorIndexById(drag.hoverAnchorId);
+            if (hoverIndex >= 0) {
+                target = projection.chartToCanvas(m_state.anchorAt(hoverIndex).pos());
+                painter->setPen(QPen(QColor(255, 224, 138), 2.0));
+                painter->setBrush(QColor(255, 224, 138, 50));
+                painter->drawRect(QRectF(target.x() - 8.0, target.y() - 8.0, 16.0, 16.0));
+            }
+            painter->setPen(QPen(QColor(255, 224, 138), 2.0, Qt::DashLine));
+            painter->drawLine(source, target);
+        }
+    }
+
+    if (toggles.labels) {
+        QStringList denominators;
+        for (int denominator : m_state.style().denominators) denominators.append(QString::number(denominator));
+        painter->setPen(QColor(221, 238, 255));
+        QFont font = painter->font();
+        font.setPixelSize(12);
+        painter->setFont(font);
+        painter->drawText(QPointF(16.0, 18.0),
+                          tr("Density: %1  Effective: %2  Anchor: %3")
+                              .arg(denominators.join(QLatin1Char('/')))
+                              .arg(defaultCommitDenominator(m_state))
+                              .arg(m_state.anchorPlacementEnabled() ? tr("ON") : tr("OFF")));
     }
     painter->restore();
 }
 
-// ====== Undo/Redo ======
 bool NoteChainEditor::canUndo() const { return m_historyIdx > 0; }
-bool NoteChainEditor::canRedo() const { return m_historyIdx < m_history.size() - 1; }
-void NoteChainEditor::undo() { if (!canUndo()) return; m_historyIdx--; m_state.restoreSnapshot(m_history[m_historyIdx]); emit needsRepaint(); }
-void NoteChainEditor::redo() { if (!canRedo()) return; m_historyIdx++; m_state.restoreSnapshot(m_history[m_historyIdx]); emit needsRepaint(); }
+bool NoteChainEditor::canRedo() const { return m_historyIdx >= 0 && m_historyIdx < m_history.size() - 1; }
 
-// ====== Persistence ======
-bool NoteChainEditor::loadProject(const QString &path) {
-    m_sidecarPath = path;
-    if (path.isEmpty())
-        return false;
-
-    // A missing sidecar starts a new project.  Crucially, never retain the
-    // previous chart's state when switching to a chart without a sidecar.
-    if (!QFileInfo::exists(path)) {
-        m_state = NoteChainState{};
-        m_state.setProjectPath(path);
-        m_state.setProjectDirty(true);
-        m_history.clear();
-        m_historyIdx = -1;
-        recordHistory();
-        return true;
-    }
-
-    const bool ok = NoteChainPersistence::loadFromFile(path, m_state);
-    if (ok) {
-        m_history.clear();
-        m_historyIdx = -1;
-        recordHistory();
-    }
-    return ok;
+void NoteChainEditor::undo()
+{
+    if (!canUndo())
+        return;
+    --m_historyIdx;
+    m_state.restoreSnapshot(m_history[m_historyIdx]);
+    m_state.setProjectDirty(true);
+    emit controlsChanged();
+    emit needsRepaint();
 }
-bool NoteChainEditor::saveProject(const QString &path) { QString p = path.isEmpty() ? m_sidecarPath : path; if (p.isEmpty()) return false; m_sidecarPath = p; return NoteChainPersistence::saveToFile(m_state, p); }
+
+void NoteChainEditor::redo()
+{
+    if (!canRedo())
+        return;
+    ++m_historyIdx;
+    m_state.restoreSnapshot(m_history[m_historyIdx]);
+    m_state.setProjectDirty(true);
+    emit controlsChanged();
+    emit needsRepaint();
+}
+
+void NoteChainEditor::onHostUndo(const QString &actionText) { if (isCurveCheckpoint(actionText)) undo(); }
+void NoteChainEditor::onHostRedo(const QString &actionText) { if (isCurveCheckpoint(actionText)) redo(); }
+
+bool NoteChainEditor::loadProject(const QString &path)
+{
+    const QString effectivePath = path.trimmed();
+    if (effectivePath.isEmpty())
+        return false;
+    if (effectivePath == m_sidecarPath)
+        return true;
+
+    if (!m_sidecarPath.isEmpty() && m_state.projectDirty()) {
+        QString saveError;
+        if (!NoteChainPersistence::saveToFile(m_state, m_sidecarPath, &saveError)) {
+            emit statusMessage(tr("Failed to save previous curve project: %1").arg(saveError));
+            return false;
+        }
+    }
+
+    // Project switching is transactional: a malformed sidecar must not
+    // replace the live curve or redirect later saves to the bad file.
+    NoteChainState loadedState;
+    if (!QFileInfo::exists(effectivePath)) {
+        loadedState.setProjectPath(effectivePath);
+        loadedState.setProjectDirty(false);
+    } else {
+        QString error;
+        if (!NoteChainPersistence::loadFromFile(effectivePath, loadedState, &error)) {
+            emit statusMessage(tr("Failed to load curve project: %1").arg(error));
+            return false;
+        }
+    }
+
+    m_state = std::move(loadedState);
+    m_sidecarPath = effectivePath;
+    m_history.clear();
+    m_historyIdx = -1;
+    recordHistory();
+    m_contextLinkKeys.clear();
+    m_lastHostMode.clear();
+    m_cachedCurveRevision = 0;
+    m_segmentSampleCache.clear();
+    emit controlsChanged();
+    emit needsRepaint();
+    return true;
+}
+
+bool NoteChainEditor::saveProject(const QString &path)
+{
+    const QString effectivePath = path.isEmpty() ? m_sidecarPath : path;
+    if (effectivePath.isEmpty())
+        return false;
+    QString error;
+    if (!NoteChainPersistence::saveToFile(m_state, effectivePath, &error)) {
+        emit statusMessage(tr("Failed to save curve project: %1").arg(error));
+        return false;
+    }
+    m_sidecarPath = effectivePath;
+    return true;
+}
 
 } // namespace NoteChain

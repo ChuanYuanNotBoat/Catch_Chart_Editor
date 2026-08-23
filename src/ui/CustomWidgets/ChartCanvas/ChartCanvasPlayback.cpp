@@ -135,6 +135,7 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
 
     // NoteChain native: keyboard shortcuts
     if (m_noteChainModeActive && m_noteChainEditor) {
+        m_noteChainEditor->setHostContext(buildPluginCanvasContext());
         if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
             m_noteChainEditor->commitCurveToNotes();
             event->accept(); return;
@@ -152,10 +153,24 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
             event->accept(); return;
         }
         if (event->matches(QKeySequence::Undo)) {
-            m_noteChainEditor->undo(); event->accept(); return;
+            if (m_chartController && m_chartController->canUndo()) {
+                const QString actionText = m_chartController->nextUndoActionText();
+                m_chartController->undo();
+                m_noteChainEditor->onHostUndo(actionText);
+            } else {
+                m_noteChainEditor->undo();
+            }
+            event->accept(); return;
         }
         if (event->matches(QKeySequence::Redo)) {
-            m_noteChainEditor->redo(); event->accept(); return;
+            if (m_chartController && m_chartController->canRedo()) {
+                const QString actionText = m_chartController->nextRedoActionText();
+                m_chartController->redo();
+                m_noteChainEditor->onHostRedo(actionText);
+            } else {
+                m_noteChainEditor->redo();
+            }
+            event->accept(); return;
         }
     }
 
@@ -576,6 +591,7 @@ void ChartCanvas::cancelPaste()
         m_pasteTimeOffsetRaw = 0.0;
         m_pasteXOffsetRaw = 0.0;
         m_pasteAnchorBeat = 0.0;
+        m_pasteSnapReferenceActive = false;
         update();
         emit statusMessage(tr("Paste cancelled."));
     }

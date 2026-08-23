@@ -15,7 +15,7 @@ public:
     static QString sidecarPathForChart(const QString &chartPath);
 
 private:
-    static QJsonObject serializeAnchor(const Anchor &anchor);
+    static QJsonObject serializeAnchor(const Anchor &anchor, const NodePersistenceMeta &meta);
     static bool deserializeAnchor(const QJsonObject &json, Anchor &anchor, QString *errorMsg);
 };
 
