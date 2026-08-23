@@ -16,6 +16,7 @@
 #include <QApplication>
 #include <QPainter>
 #include <QKeyEvent>
+#include <QWindow>
 
 #include "DockWidget.h"
 #include "DockAreaWidget.h"
@@ -298,11 +299,18 @@ void FloatingDragPreviewPrivate::createFloatingWidget()
 		FloatingWidget->show();
 		if (!CDockManager::testConfigFlag(CDockManager::DragPreviewHasWindowFrame))
 		{
-			QApplication::processEvents();
-			int FrameHeight = FloatingWidget->frameGeometry().height() - FloatingWidget->geometry().height();
-			QRect FixedGeometry = _this->geometry();
-			FixedGeometry.adjust(0, FrameHeight, 0, 0);
-			FloatingWidget->setGeometry(FixedGeometry);
+			// Query already available frame margins without pumping the global
+			// event loop. Processing events here made creating or canceling a
+			// floating panel re-entrant and visibly stalled the drag release.
+			const QMargins frameMargins = FloatingWidget->windowHandle()
+			                                  ? FloatingWidget->windowHandle()->frameMargins()
+			                                  : QMargins();
+			if (frameMargins.top() > 0)
+			{
+				QRect fixedGeometry = _this->geometry();
+				fixedGeometry.adjust(0, frameMargins.top(), 0, 0);
+				FloatingWidget->setGeometry(fixedGeometry);
+			}
 		}
 	}
 }

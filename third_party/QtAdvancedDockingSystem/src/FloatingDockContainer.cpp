@@ -511,32 +511,9 @@ void FloatingDockContainerPrivate::titleMouseReleaseEvent()
 	if (DockManager->dockAreaOverlay()->dropAreaUnderCursor() != InvalidDockWidgetArea
 	 || DockManager->containerOverlay()->dropAreaUnderCursor() != InvalidDockWidgetArea)
 	{
-		CDockOverlay *Overlay = DockManager->containerOverlay();
-		if (!Overlay->dropOverlayRect().isValid())
-		{
-			Overlay = DockManager->dockAreaOverlay();
-		}
-
-		// Do not resize if we drop into an autohide sidebar area to preserve
-		// the dock area size for the initial size of the auto hide area
-		if (!ads::internal::isSideBarArea(Overlay->dropAreaUnderCursor()))
-		{
-			// Resize the floating widget to the size of the highlighted drop area
-			// rectangle
-			QRect Rect = Overlay->dropOverlayRect();
-			int FrameWidth = (_this->frameSize().width() - _this->rect().width())
-				/ 2;
-			int TitleBarHeight = _this->frameSize().height()
-				- _this->rect().height() - FrameWidth;
-			if (Rect.isValid())
-			{
-				QPoint TopLeft = Overlay->mapToGlobal(Rect.topLeft());
-				TopLeft.ry() += TitleBarHeight;
-				_this->setGeometry(
-					QRect(TopLeft,
-						QSize(Rect.width(), Rect.height() - TitleBarHeight)));
-			}
-		}
+		// Redock directly. Resizing the native floating window to the overlay
+		// first produces a visible intermediate frame and forces the window
+		// manager to animate a resize immediately before the window is hidden.
 		DropContainer->dropFloatingWidget(_this, QCursor::pos());
 	}
 

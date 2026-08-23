@@ -120,6 +120,68 @@ namespace
         return (luminance >= 0.5) ? QColor(20, 20, 20) : QColor(245, 245, 245);
     }
 
+    void applyApplicationPaletteFor(const QColor &background)
+    {
+        const QColor text = sidebarTextColorFor(background);
+        const bool dark = text.lightness() > 128;
+        const QColor window = dark ? background.lighter(108) : background.darker(103);
+        const QColor base = dark ? window.lighter(120) : window.darker(105);
+        const QColor button = dark ? window.lighter(132) : window.darker(112);
+        const QColor highlight = dark ? button.lighter(120) : button.lighter(108);
+        const QColor disabledText = dark ? QColor("#9A9A9A") : QColor("#707070");
+
+        QPalette palette = qApp->palette();
+        if (palette.color(QPalette::Window) == window &&
+            palette.color(QPalette::WindowText) == text &&
+            palette.color(QPalette::Base) == base)
+        {
+            return;
+        }
+
+        palette.setColor(QPalette::Window, window);
+        palette.setColor(QPalette::WindowText, text);
+        palette.setColor(QPalette::Base, base);
+        palette.setColor(QPalette::AlternateBase, window);
+        palette.setColor(QPalette::Text, text);
+        palette.setColor(QPalette::Button, button);
+        palette.setColor(QPalette::ButtonText, text);
+        palette.setColor(QPalette::Highlight, highlight);
+        palette.setColor(QPalette::HighlightedText, text);
+        palette.setColor(QPalette::Disabled, QPalette::WindowText, disabledText);
+        palette.setColor(QPalette::Disabled, QPalette::Text, disabledText);
+        palette.setColor(QPalette::Disabled, QPalette::ButtonText, disabledText);
+        qApp->setPalette(palette);
+    }
+
+    QString lightweightDockStyle(bool dark)
+    {
+        const QString suffix = dark ? QStringLiteral("_dark") : QString();
+        const QString closeIcon = QStringLiteral(":/ads/images/close-button%1.svg").arg(suffix);
+        const QString closeDisabledIcon = QStringLiteral(":/ads/images/close-button-disabled%1.svg").arg(suffix);
+        const QString detachIcon = QStringLiteral(":/ads/images/detach-button%1.svg").arg(suffix);
+        const QString detachDisabledIcon = QStringLiteral(":/ads/images/detach-button-disabled%1.svg").arg(suffix);
+        const QString tabsIcon = QStringLiteral(":/ads/images/tabs-menu-button%1.svg").arg(suffix);
+
+        // ADS' upstream theme contains hundreds of selectors. This compact
+        // subset keeps the essential layout, colors and controls while
+        // avoiding a costly full-tree stylesheet match on every float/drop.
+        return QString(
+                   "ads--CDockContainerWidget, ads--CDockAreaWidget, ads--CDockWidget { background: palette(window); }"
+                   "ads--CDockSplitter::handle { background: palette(mid); }"
+                   "ads--CDockAreaTitleBar { background: palette(window); border-bottom: 1px solid palette(mid); }"
+                   "ads--CDockWidgetTab { background: palette(window); border-right: 1px solid palette(mid); padding: 0; }"
+                   "ads--CDockWidgetTab[activeTab=\"true\"] { background: palette(button); }"
+                   "ads--CDockWidgetTab QLabel, #autoHideTitleLabel { color: palette(window-text); }"
+                   "ads--CTitleBarButton, #tabCloseButton { background: transparent; border: none; padding: 0; }"
+                   "ads--CTitleBarButton:hover, #tabCloseButton:hover { background: palette(highlight); }"
+                   "#tabsMenuButton::menu-indicator { image: none; }"
+                   "#tabsMenuButton { qproperty-icon: url(%5); qproperty-iconSize: 16px; }"
+                   "#dockAreaCloseButton, #tabCloseButton { qproperty-icon: url(%1), url(%2) disabled; qproperty-iconSize: 16px; }"
+                   "#detachGroupButton { qproperty-icon: url(%3), url(%4) disabled; qproperty-iconSize: 16px; }"
+                   "QScrollArea#dockWidgetScrollArea { padding: 0; border: none; }")
+            .arg(closeIcon, closeDisabledIcon, detachIcon, detachDisabledIcon, tabsIcon);
+    }
+
     bool isModifierKey(int key)
     {
         return key == Qt::Key_Control || key == Qt::Key_Shift || key == Qt::Key_Alt || key == Qt::Key_Meta;
@@ -1321,6 +1383,10 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->pluginToolModePluginId.clear();
 
     setAcceptDrops(true);
+    // Establish the palette before creating the widget tree. Applying a
+    // global stylesheet afterwards recursively repolishes every dock widget
+    // and also slows down each subsequently created floating window.
+    applyApplicationPaletteFor(Settings::instance().backgroundColor());
 
     setupUi();
     createCentralArea();
@@ -1960,9 +2026,13 @@ void MainWindow::createCentralArea()
     Logger::debug("Creating central area...");
 
     ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
-    ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DockAreaDynamicTabsMenuButtonVisibility, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::MiddleMouseButtonClosesTab, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewShowsContentPixmap, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewHasWindowFrame, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DisableStylesheet, true);
     d->dockManager = new ads::CDockManager(this);
     d->dockManager->setObjectName(QStringLiteral("mainDockManager"));
     const bool darkTheme = sidebarTextColorFor(Settings::instance().backgroundColor()).lightness() > 128;
@@ -1974,8 +2044,12 @@ void MainWindow::createCentralArea()
             this,
             [this](ads::CFloatingDockContainer *floatingWindow)
             {
-                const bool dark = sidebarTextColorFor(Settings::instance().backgroundColor()).lightness() > 128;
-                NativeWindowTheme::apply(floatingWindow, dark, true);
+                const QColor background = Settings::instance().backgroundColor();
+                const QColor text = sidebarTextColorFor(background);
+                const bool dark = text.lightness() > 128;
+                const QColor caption = dark ? background.lighter(108) : background.darker(103);
+                const QColor border = dark ? caption.lighter(165) : caption.darker(145);
+                NativeWindowTheme::apply(floatingWindow, caption, text, border, true);
             });
 
     d->leftPanel = new LeftPanel(d->dockManager);
@@ -2366,8 +2440,6 @@ void MainWindow::createCentralArea()
     addToolBarBreak(Qt::TopToolBarArea);
     d->pluginToolBar = addToolBar(tr("Plugins"));
     d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
-    applySidebarTheme();
-
     Logger::debug("Central area created with LeftPanel.");
 }
 
@@ -4184,6 +4256,7 @@ void MainWindow::showInfoCenter(int initialTab)
 void MainWindow::applySidebarTheme()
 {
     const QColor bg = Settings::instance().backgroundColor();
+    applyApplicationPaletteFor(bg);
     const QColor fg = sidebarTextColorFor(bg);
     const bool darkTheme = (fg.lightness() > 128);
     const QColor panelBg = darkTheme ? bg.lighter(108) : bg.darker(103);
@@ -4244,12 +4317,15 @@ void MainWindow::applySidebarTheme()
         d->dockManager->setColorSchemeMode(darkTheme
                                                ? ads::CDockManager::ColorSchemeMode::Dark
                                                : ads::CDockManager::ColorSchemeMode::Light);
+        const QString dockStyle = lightweightDockStyle(darkTheme);
+        if (d->dockManager->styleSheet() != dockStyle)
+            d->dockManager->setStyleSheet(dockStyle);
 
         for (ads::CFloatingDockContainer *floatingWindow : d->dockManager->floatingWidgets())
-            NativeWindowTheme::apply(floatingWindow, darkTheme, true);
+            NativeWindowTheme::apply(floatingWindow, panelBg, fg, panelBorder, true);
     }
 
-    NativeWindowTheme::apply(this, darkTheme);
+    NativeWindowTheme::apply(this, panelBg, fg, panelBorder);
 
     if (menuBar())
     {
@@ -4266,11 +4342,11 @@ void MainWindow::applySidebarTheme()
     if (d->mainToolBar)
     {
         const QString toolbarCss = QString(
-                                       "QToolBar { background-color: %1; color: %2; border-bottom: 1px solid %4; border-top: 1px solid %4; spacing: 6px; padding: 2px 4px; }"
-                                       "QToolButton { background-color: %5; color: %2; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; }"
-                                       "QToolButton:hover { background-color: %6; }"
-                                       "QToolButton:pressed { background-color: %7; }")
-                                       .arg(panelBg.name(), fg.name(), panelInputBg.name(), panelBorder.name(), panelButtonBg.name(),
+                                       "QToolBar { background-color: %1; color: %2; border-bottom: 1px solid %3; border-top: 1px solid %3; spacing: 6px; padding: 2px 4px; }"
+                                       "QToolButton { background-color: %4; color: %2; border: 1px solid %3; border-radius: 6px; padding: 4px 8px; }"
+                                       "QToolButton:hover { background-color: %5; }"
+                                       "QToolButton:pressed { background-color: %6; }")
+                                       .arg(panelBg.name(), fg.name(), panelBorder.name(), panelButtonBg.name(),
                                             panelButtonHoverBg.name(), panelButtonPressedBg.name());
         d->mainToolBar->setStyleSheet(toolbarCss);
         if (d->pluginToolBar)
@@ -4286,29 +4362,4 @@ void MainWindow::applySidebarTheme()
     if (d->rightDensityBar)
         d->rightDensityBar->update();
 
-    // Global dialog/message box theming. This keeps popups readable on dark backgrounds.
-    const QString dialogCss = QString(
-                                  "QDialog, QMessageBox, QInputDialog { background-color: %1; color: %2; }"
-                                  "QDialog QLabel, QMessageBox QLabel, QInputDialog QLabel, QDialog QGroupBox { color: %2; }"
-                                  "QDialog QLabel[hintText=\"true\"] { color: %6; }"
-                                  "QDialog QLineEdit, QDialog QTextEdit, QDialog QPlainTextEdit, QDialog QComboBox,"
-                                  "QDialog QAbstractSpinBox, QDialog QListWidget, QDialog QTreeWidget, QDialog QTableWidget,"
-                                  "QMessageBox QLineEdit, QInputDialog QLineEdit {"
-                                  "  background-color: %3; color: %2; border: 1px solid %4; }"
-                                  "QDialog QAbstractItemView, QMessageBox QAbstractItemView, QInputDialog QAbstractItemView {"
-                                  "  background-color: %3; color: %2; border: 1px solid %4;"
-                                  "  selection-background-color: %5; selection-color: %6; }"
-                                  "QDialog QPushButton, QMessageBox QPushButton, QInputDialog QPushButton {"
-                                  "  background-color: %5; color: %2; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; }"
-                                  "QDialog QPushButton:hover, QMessageBox QPushButton:hover, QInputDialog QPushButton:hover {"
-                                  "  background-color: %7; }"
-                                  "QDialog QPushButton:pressed, QMessageBox QPushButton:pressed, QInputDialog QPushButton:pressed {"
-                                  "  background-color: %8; }"
-                                  "QDialog QPushButton:disabled, QMessageBox QPushButton:disabled, QInputDialog QPushButton:disabled {"
-                                  "  color: %6; }"
-                                  "QDialog QMenuBar, QDialog QMenu { background-color: %1; color: %2; }"
-                                  "QDialog QTabWidget::pane { border: 1px solid %4; }")
-                                  .arg(panelBg.name(), fg.name(), panelInputBg.name(), panelBorder.name(), panelButtonBg.name(),
-                                       panelDisabledText.name(), panelButtonHoverBg.name(), panelButtonPressedBg.name());
-    qApp->setStyleSheet(dialogCss);
 }

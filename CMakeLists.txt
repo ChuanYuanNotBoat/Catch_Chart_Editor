@@ -63,7 +63,9 @@ if(BUILD_TESTING)
 
     add_executable(DockingLayoutTests
         tests/docking_layout_tests.cpp
+        src/utils/NativeWindowTheme.cpp
     )
+    target_include_directories(DockingLayoutTests PRIVATE src)
     target_link_libraries(DockingLayoutTests
         PRIVATE
         Qt6::Core
@@ -74,6 +76,7 @@ if(BUILD_TESTING)
     add_test(NAME ui_docking_layout_tests COMMAND DockingLayoutTests)
 
     if(WIN32)
+        target_link_libraries(DockingLayoutTests PRIVATE dwmapi)
         set_tests_properties(core_minimal_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
         set_tests_properties(ui_docking_layout_tests PROPERTIES

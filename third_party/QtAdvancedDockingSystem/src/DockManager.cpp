@@ -207,11 +207,13 @@ DockManagerPrivate::DockManagerPrivate(CDockManager* _public) :
 //============================================================================
 void DockManagerPrivate::loadStylesheet()
 {
+	// Static builds still need the ADS resource collection when applications
+	// provide a smaller custom stylesheet using the bundled SVG controls.
+	initResource();
 	if (CDockManager::testConfigFlag(CDockManager::DisableStylesheet))
 	{
 		return;
 	}
-	initResource();
 	QString Result;
 	QString FileName = ":ads/stylesheets/";
 	FileName += CDockManager::testConfigFlag(CDockManager::FocusHighlighting)
@@ -225,9 +227,13 @@ void DockManagerPrivate::loadStylesheet()
     }
     else
         CurrentStylesheetDark = false;
-    FileName += ".css";
+	FileName += ".css";
 	QFile StyleSheetFile(FileName);
-	StyleSheetFile.open(QIODevice::ReadOnly);
+	if (!StyleSheetFile.open(QIODevice::ReadOnly))
+	{
+		_this->setStyleSheet(QString());
+		return;
+	}
 	QTextStream StyleSheetStream(&StyleSheetFile);
 	Result = StyleSheetStream.readAll();
 	StyleSheetFile.close();
