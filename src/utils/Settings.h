@@ -4,6 +4,7 @@
 #include <QKeySequence>
 #include <QColor>
 #include <QList>
+#include <QByteArray>
 
 class Settings
 {
@@ -99,6 +100,12 @@ public:
 
     int chartPickerPrimaryColumnWidth() const;
     void setChartPickerPrimaryColumnWidth(int width);
+
+    QByteArray mainWindowGeometry() const;
+    void setMainWindowGeometry(const QByteArray &geometry);
+    QByteArray dockLayoutState() const;
+    void setDockLayoutState(const QByteArray &state);
+    void clearDockLayoutState();
 
 private:
     Settings();

@@ -28,9 +28,11 @@
 #include "model/Skin.h"
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
+#include <DockManager.h>
+#include <DockWidget.h>
+#include <DockAreaWidget.h>
 #include <QMenuBar>
 #include <QToolBar>
-#include <QSplitter>
 #include <QStatusBar>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -57,6 +59,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPalette>
 #include <QRadioButton>
 #include <QCheckBox>
 #include <QLineEdit>
@@ -1269,9 +1272,13 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->skin = skin;
     d->canvas = nullptr;
     d->rightDensityBar = nullptr;
-    d->splitter = nullptr;
-    d->rightPanelContainer = nullptr;
-    d->currentRightPanel = nullptr;
+    d->dockManager = nullptr;
+    d->workspaceDock = nullptr;
+    d->leftPanelDock = nullptr;
+    d->previewDock = nullptr;
+    d->notePanelDock = nullptr;
+    d->bpmPanelDock = nullptr;
+    d->metaPanelDock = nullptr;
     d->notePanel = nullptr;
     d->bpmPanel = nullptr;
     d->metaPanel = nullptr;
@@ -1432,7 +1439,15 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
 MainWindow::~MainWindow()
 {
+    saveDockLayout();
     clearWorkingCopySession(true);
+    if (d->dockManager)
+    {
+        // Destroy ADS while Private is still alive: floating dock destruction
+        // emits signals whose handlers update the plugin dock registry.
+        delete d->dockManager;
+        d->dockManager = nullptr;
+    }
     delete d->skin;
     delete d;
     Logger::info("MainWindow destroyed");
@@ -1442,6 +1457,9 @@ void MainWindow::setupUi()
 {
     setWindowTitle(tr("Catch Chart Editor"));
     resize(1200, 800);
+    const QByteArray geometry = Settings::instance().mainWindowGeometry();
+    if (!geometry.isEmpty() && !restoreGeometry(geometry))
+        Logger::warn("Failed to restore main window geometry; using defaults.");
     Logger::debug("MainWindow UI setup completed");
 }
 
@@ -1532,6 +1550,20 @@ void MainWindow::createMenus()
     connect(paste288Action, &QAction::toggled, this, &MainWindow::togglePaste288Division);
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+    if (d->dockManager)
+    {
+        QMenu *panelsMenu = viewMenu->addMenu(tr("Panels"));
+        const QList<ads::CDockWidget *> docks = {
+            d->leftPanelDock, d->previewDock, d->notePanelDock, d->bpmPanelDock, d->metaPanelDock};
+        for (ads::CDockWidget *dock : docks)
+        {
+            if (dock)
+                panelsMenu->addAction(dock->toggleViewAction());
+        }
+        panelsMenu->addSeparator();
+        panelsMenu->addAction(tr("Reset Panel Layout"), this, &MainWindow::resetDockLayout);
+        viewMenu->addSeparator();
+    }
     d->colorAction = viewMenu->addAction(tr("&Color Notes"));
     d->colorAction->setCheckable(true);
     d->colorAction->setChecked(Settings::instance().colorNoteEnabled());
@@ -1728,6 +1760,8 @@ void MainWindow::createMenus()
                     ed->state().selectionTargetEnabled("notes"));
             }
         }
+        if (checked)
+            showEditorPanel(d->notePanel);
         if (d->pluginToolModeToolbarAction) { const QSignalBlocker b(d->pluginToolModeToolbarAction); d->pluginToolModeToolbarAction->setChecked(checked); }
         if (d->curvePanelAction) { const QSignalBlocker b(d->curvePanelAction); d->curvePanelAction->setChecked(checked); }
     });
@@ -1923,13 +1957,21 @@ void MainWindow::createCentralArea()
 {
     Logger::debug("Creating central area...");
 
-    d->leftPanel = new LeftPanel(this);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DockAreaDynamicTabsMenuButtonVisibility, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::MiddleMouseButtonClosesTab, true);
+    d->dockManager = new ads::CDockManager(this);
+    d->dockManager->setObjectName(QStringLiteral("mainDockManager"));
+    d->dockManager->setColorSchemeMode(ads::CDockManager::ColorSchemeMode::FollowPalette);
+
+    d->leftPanel = new LeftPanel(d->dockManager);
     d->leftPanel->setObjectName("leftPanelRoot");
     d->leftPanel->setAttribute(Qt::WA_StyledBackground, true);
     d->leftPanel->setChartController(d->chartController);
     d->leftPanel->setPlaybackController(d->playbackController);
 
-    d->canvas = new ChartCanvas(this);
+    d->canvas = new ChartCanvas(d->dockManager);
     d->canvas->setChartController(d->chartController);
     d->canvas->setSelectionController(d->selectionController);
     d->canvas->setPlaybackController(d->playbackController);
@@ -1948,7 +1990,7 @@ void MainWindow::createCentralArea()
     d->canvas->setNoteSoundFile(noteSoundPath);
     d->canvas->setNoteSoundEnabled(!noteSoundPath.isEmpty());
 
-    d->previewWidget = new RealtimePreviewWidget(this);
+    d->previewWidget = new RealtimePreviewWidget(d->dockManager);
     d->previewWidget->setChartController(d->chartController);
     d->previewWidget->setPlaybackController(d->playbackController);
     d->previewWidget->setColorMode(Settings::instance().colorNoteEnabled());
@@ -1968,12 +2010,13 @@ void MainWindow::createCentralArea()
 
     d->leftPanel->setChartCanvas(d->canvas);
 
-    d->rightDensityBar = new DensityCurve(this);
+    d->rightDensityBar = new DensityCurve(d->dockManager);
     d->rightDensityBar->setChartController(d->chartController);
     d->rightDensityBar->setPlaybackController(d->playbackController);
     d->rightDensityBar->setCanvas(d->canvas);
 
-    QWidget *canvasContainer = new QWidget(this);
+    QWidget *canvasContainer = new QWidget(d->dockManager);
+    canvasContainer->setObjectName(QStringLiteral("chartWorkspaceRoot"));
     QHBoxLayout *canvasLayout = new QHBoxLayout(canvasContainer);
     canvasLayout->setContentsMargins(0, 0, 0, 0);
     canvasLayout->setSpacing(0);
@@ -2028,21 +2071,15 @@ void MainWindow::createCentralArea()
             d->playbackController->seekTo(d->densityPendingSeekMs);
         d->densitySeekGestureActive = false; });
 
-    d->rightPanelContainer = new QWidget(this);
-    d->rightPanelContainer->setObjectName("rightPanelRoot");
-    d->rightPanelContainer->setAttribute(Qt::WA_StyledBackground, true);
-    QVBoxLayout *rightLayout = new QVBoxLayout(d->rightPanelContainer);
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-
-    d->notePanel = new NoteEditPanel(d->rightPanelContainer);
-    d->bpmPanel = new BPMTimePanel(d->rightPanelContainer);
-    d->metaPanel = new MetaEditPanel(d->rightPanelContainer);
-    d->currentRightPanel = d->notePanel;
-    rightLayout->addWidget(d->notePanel);
-    rightLayout->addWidget(d->bpmPanel);
-    rightLayout->addWidget(d->metaPanel);
-    d->bpmPanel->setVisible(false);
-    d->metaPanel->setVisible(false);
+    d->notePanel = new NoteEditPanel(d->dockManager);
+    d->notePanel->setObjectName(QStringLiteral("notePanelRoot"));
+    d->notePanel->setAttribute(Qt::WA_StyledBackground, true);
+    d->bpmPanel = new BPMTimePanel(d->dockManager);
+    d->bpmPanel->setObjectName(QStringLiteral("bpmPanelRoot"));
+    d->bpmPanel->setAttribute(Qt::WA_StyledBackground, true);
+    d->metaPanel = new MetaEditPanel(d->dockManager);
+    d->metaPanel->setObjectName(QStringLiteral("metaPanelRoot"));
+    d->metaPanel->setAttribute(Qt::WA_StyledBackground, true);
 
     d->notePanel->setChartController(d->chartController);
     d->notePanel->setSelectionController(d->selectionController);
@@ -2236,13 +2273,48 @@ void MainWindow::createCentralArea()
                 d->notePanel->longRangeSelector()->setEndBeat(endBeat);
             });
 
-    d->splitter = new QSplitter(Qt::Horizontal, this);
-    d->splitter->addWidget(d->leftPanel);
-    d->splitter->addWidget(d->previewWidget);
-    d->splitter->addWidget(canvasContainer);
-    d->splitter->addWidget(d->rightPanelContainer);
-    d->splitter->setSizes({150, 200, 700, 300});
-    setCentralWidget(d->splitter);
+    d->workspaceDock = new ads::CDockWidget(d->dockManager, tr("Chart Workspace"));
+    d->workspaceDock->setObjectName(QStringLiteral("dock.workspace"));
+    d->workspaceDock->setWidget(canvasContainer, ads::CDockWidget::ForceNoScrollArea);
+    ads::CDockAreaWidget *workspaceArea = d->dockManager->setCentralWidget(d->workspaceDock);
+
+    d->leftPanelDock = new ads::CDockWidget(d->dockManager, tr("Navigation"));
+    d->leftPanelDock->setObjectName(QStringLiteral("dock.navigation"));
+    d->leftPanelDock->setWidget(d->leftPanel, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *leftArea = d->dockManager->addDockWidget(
+        ads::LeftDockWidgetArea, d->leftPanelDock, workspaceArea);
+
+    d->previewDock = new ads::CDockWidget(d->dockManager, tr("Realtime Preview"));
+    d->previewDock->setObjectName(QStringLiteral("dock.preview"));
+    d->previewDock->setWidget(d->previewWidget, ads::CDockWidget::ForceNoScrollArea);
+    d->dockManager->addDockWidget(ads::RightDockWidgetArea, d->previewDock, leftArea);
+
+    d->notePanelDock = new ads::CDockWidget(d->dockManager, tr("Note Editor"));
+    d->notePanelDock->setObjectName(QStringLiteral("dock.note"));
+    d->notePanelDock->setWidget(d->notePanel, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *editorArea = d->dockManager->addDockWidget(
+        ads::RightDockWidgetArea, d->notePanelDock, workspaceArea);
+
+    d->bpmPanelDock = new ads::CDockWidget(d->dockManager, tr("BPM & Timing"));
+    d->bpmPanelDock->setObjectName(QStringLiteral("dock.bpm"));
+    d->bpmPanelDock->setWidget(d->bpmPanel, ads::CDockWidget::ForceScrollArea);
+    d->dockManager->addDockWidgetTabToArea(d->bpmPanelDock, editorArea);
+
+    d->metaPanelDock = new ads::CDockWidget(d->dockManager, tr("Metadata"));
+    d->metaPanelDock->setObjectName(QStringLiteral("dock.metadata"));
+    d->metaPanelDock->setWidget(d->metaPanel, ads::CDockWidget::ForceScrollArea);
+    d->dockManager->addDockWidgetTabToArea(d->metaPanelDock, editorArea);
+    d->notePanelDock->setAsCurrentTab();
+
+    // Match the former 150/200/700/300 proportions while retaining fully
+    // composable dock areas. Calls are ignored by ADS if a splitter shape
+    // changes in a future version.
+    d->dockManager->setSplitterSizes(leftArea, {150, 200});
+    d->dockManager->setSplitterSizes(workspaceArea, {350, 650, 300});
+
+    d->defaultDockLayoutState = d->dockManager->saveState(1);
+    restoreDockLayout();
+
     d->mainToolBar = addToolBar(tr("Tools"));
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
                                                    { showEditorPanel(d->notePanel); });
@@ -2274,12 +2346,13 @@ void MainWindow::createCentralArea()
                     ed->state().selectionTargetEnabled("notes"));
             }
         }
+        if (checked)
+            showEditorPanel(d->notePanel);
         if (d->pluginToolModeAction) { const QSignalBlocker b(d->pluginToolModeAction); d->pluginToolModeAction->setChecked(checked); }
     });
     addToolBarBreak(Qt::TopToolBarArea);
     d->pluginToolBar = addToolBar(tr("Plugins"));
     d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
-    showEditorPanel(d->notePanel);
     applySidebarTheme();
 
     Logger::debug("Central area created with LeftPanel.");
@@ -2459,6 +2532,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
         return;
     }
 
+    saveDockLayout();
     clearWorkingCopySession(true);
     event->accept();
 }
@@ -3634,6 +3708,7 @@ void MainWindow::changeEvent(QEvent *event)
 void MainWindow::retranslateUi()
 {
     setWindowTitle(tr("Catch Chart Editor"));
+    updateDockTitles();
     createMenus();
     if (d->mainToolBar)
         d->mainToolBar->setWindowTitle(tr("Tools"));
@@ -3668,18 +3743,82 @@ void MainWindow::showEditorPanel(QWidget *panel)
     if (!panel)
         return;
 
-    d->notePanel->setVisible(panel == d->notePanel);
-    d->bpmPanel->setVisible(panel == d->bpmPanel);
-    d->metaPanel->setVisible(panel == d->metaPanel);
+    ads::CDockWidget *dock = nullptr;
     if (panel == d->notePanel)
-        d->currentRightPanel = d->notePanel;
+        dock = d->notePanelDock;
     else if (panel == d->bpmPanel)
-        d->currentRightPanel = d->bpmPanel;
+        dock = d->bpmPanelDock;
     else if (panel == d->metaPanel)
-        d->currentRightPanel = d->metaPanel;
+        dock = d->metaPanelDock;
+    else if (panel == d->leftPanel)
+        dock = d->leftPanelDock;
+    else if (panel == d->previewWidget)
+        dock = d->previewDock;
 
-    if (d->rightPanelContainer)
-        d->rightPanelContainer->setVisible(true);
+    if (!dock)
+        return;
+
+    dock->toggleView(true);
+    dock->setAsCurrentTab();
+    dock->raise();
+    dock->activateWindow();
+}
+
+void MainWindow::saveDockLayout()
+{
+    Settings::instance().setMainWindowGeometry(saveGeometry());
+    if (d->dockManager)
+        Settings::instance().setDockLayoutState(d->dockManager->saveState(1));
+}
+
+void MainWindow::restoreDockLayout()
+{
+    if (!d->dockManager)
+        return;
+
+    const QByteArray state = Settings::instance().dockLayoutState();
+    if (state.isEmpty())
+        return;
+
+    if (!d->dockManager->restoreState(state, 1))
+    {
+        Logger::warn("Failed to restore ADS panel layout; reverting to defaults.");
+        Settings::instance().clearDockLayoutState();
+        if (!d->defaultDockLayoutState.isEmpty())
+            d->dockManager->restoreState(d->defaultDockLayoutState, 1);
+    }
+}
+
+void MainWindow::resetDockLayout()
+{
+    if (!d->dockManager || d->defaultDockLayoutState.isEmpty())
+        return;
+
+    if (!d->dockManager->restoreState(d->defaultDockLayoutState, 1))
+    {
+        statusBar()->showMessage(tr("Failed to reset panel layout."), 3000);
+        return;
+    }
+
+    Settings::instance().clearDockLayoutState();
+    d->notePanelDock->setAsCurrentTab();
+    statusBar()->showMessage(tr("Panel layout reset."), 2000);
+}
+
+void MainWindow::updateDockTitles()
+{
+    if (d->workspaceDock)
+        d->workspaceDock->setWindowTitle(tr("Chart Workspace"));
+    if (d->leftPanelDock)
+        d->leftPanelDock->setWindowTitle(tr("Navigation"));
+    if (d->previewDock)
+        d->previewDock->setWindowTitle(tr("Realtime Preview"));
+    if (d->notePanelDock)
+        d->notePanelDock->setWindowTitle(tr("Note Editor"));
+    if (d->bpmPanelDock)
+        d->bpmPanelDock->setWindowTitle(tr("BPM & Timing"));
+    if (d->metaPanelDock)
+        d->metaPanelDock->setWindowTitle(tr("Metadata"));
 }
 
 // ==================== Paste 288 division option slot ====================
@@ -4072,7 +4211,24 @@ void MainWindow::applySidebarTheme()
     };
 
     applyPanelStyle(d->leftPanel, "leftPanelRoot");
-    applyPanelStyle(d->rightPanelContainer, "rightPanelRoot");
+    applyPanelStyle(d->notePanel, "notePanelRoot");
+    applyPanelStyle(d->bpmPanel, "bpmPanelRoot");
+    applyPanelStyle(d->metaPanel, "metaPanelRoot");
+
+    if (d->dockManager)
+    {
+        QPalette palette = d->dockManager->palette();
+        palette.setColor(QPalette::Window, panelBg);
+        palette.setColor(QPalette::WindowText, fg);
+        palette.setColor(QPalette::Base, panelInputBg);
+        palette.setColor(QPalette::AlternateBase, panelBg);
+        palette.setColor(QPalette::Text, fg);
+        palette.setColor(QPalette::Button, panelButtonBg);
+        palette.setColor(QPalette::ButtonText, fg);
+        palette.setColor(QPalette::Highlight, panelButtonHoverBg);
+        palette.setColor(QPalette::HighlightedText, fg);
+        d->dockManager->setPalette(palette);
+    }
 
     if (menuBar())
     {
@@ -4104,11 +4260,6 @@ void MainWindow::applySidebarTheme()
     {
         statusBar()->setStyleSheet(QString("QStatusBar { background-color: %1; color: %2; border-top: 1px solid %3; }")
                                        .arg(panelBg.name(), fg.name(), panelBorder.name()));
-    }
-
-    if (d->splitter)
-    {
-        d->splitter->setStyleSheet(QString("QSplitter::handle { background-color: %1; }").arg(panelBorder.name()));
     }
 
     if (d->rightDensityBar)

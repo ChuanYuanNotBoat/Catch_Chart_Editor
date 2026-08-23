@@ -7,6 +7,7 @@
 #include <QKeySequence>
 #include <QSet>
 #include <QString>
+#include <QByteArray>
 #include <QVariantMap>
 #include <limits>
 
@@ -14,10 +15,8 @@ class ChartController;
 class SelectionController;
 class PlaybackController;
 class Skin;
-class RightPanel;
 class LeftPanel;
 class DensityCurve;
-class QSplitter;
 class QWidget;
 class NoteEditPanel;
 class BPMTimePanel;
@@ -27,9 +26,14 @@ class QActionGroup;
 class QMenu;
 class ChartCanvas;
 class QToolBar;
-class QDialog;
 class QTimer;
 class RealtimePreviewWidget;
+
+namespace ads
+{
+class CDockManager;
+class CDockWidget;
+}
 
 class MainWindow::Private
 {
@@ -41,9 +45,14 @@ public:
     ChartCanvas *canvas = nullptr;
     RealtimePreviewWidget *previewWidget = nullptr;
     DensityCurve *rightDensityBar = nullptr;
-    QSplitter *splitter = nullptr;
-    QWidget *rightPanelContainer = nullptr;
-    RightPanel *currentRightPanel = nullptr;
+    ads::CDockManager *dockManager = nullptr;
+    ads::CDockWidget *workspaceDock = nullptr;
+    ads::CDockWidget *leftPanelDock = nullptr;
+    ads::CDockWidget *previewDock = nullptr;
+    ads::CDockWidget *notePanelDock = nullptr;
+    ads::CDockWidget *bpmPanelDock = nullptr;
+    ads::CDockWidget *metaPanelDock = nullptr;
+    QByteArray defaultDockLayoutState;
     NoteEditPanel *notePanel = nullptr;
     BPMTimePanel *bpmPanel = nullptr;
     MetaEditPanel *metaPanel = nullptr;
@@ -88,7 +97,7 @@ public:
     QActionGroup *languageActionGroup = nullptr;
     QList<QAction *> pluginToolbarActions;
     QHash<QString, QVariantMap> pluginActionMeta;
-    QHash<QString, QPointer<QDialog>> pluginPanelDialogs;
+    QHash<QString, QPointer<ads::CDockWidget>> pluginPanelDocks;
     QSet<QString> batchEditDisabledActions;
     QString pluginToolModePluginId;
     QHash<QString, QAction *> shortcutActions;

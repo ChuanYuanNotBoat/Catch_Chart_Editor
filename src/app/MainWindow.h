@@ -7,9 +7,7 @@ class ChartController;
 class SelectionController;
 class PlaybackController;
 class Skin;
-class RightPanel;
 class LeftPanel;
-class QSplitter;
 class QMenu;
 class QKeySequence;
 class QCloseEvent;
@@ -117,6 +115,10 @@ private:
     void showInfoCenter(int initialTab);
     void applySidebarTheme();
     void showEditorPanel(QWidget *panel);
+    void saveDockLayout();
+    void restoreDockLayout();
+    void resetDockLayout();
+    void updateDockTitles();
 
     class Private;
     Private *d;

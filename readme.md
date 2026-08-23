@@ -193,12 +193,16 @@ The skin is included under permission and is used for demonstration purposes onl
 This project is licensed under the GPL-3.0 License — see the [LICENSE](LICENSE) file for details.
 本项目基于 GPL-3.0 许可证发布，详见 [LICENSE](LICENSE) 文件。
 
+The vendored Qt Advanced Docking System 5.1.1 dependency is licensed under LGPL-2.1; its source and license texts are included in `third_party/QtAdvancedDockingSystem`.
+项目内置的 Qt Advanced Docking System 5.1.1 依赖采用 LGPL-2.1，源码及许可证文本位于 `third_party/QtAdvancedDockingSystem`。
+
 ---
 
 ## Acknowledgements / 致谢
 
 - Malody community for the game and file format
 - Qt team for the cross-platform framework
+- Qt Advanced Docking System contributors for the composable panel framework
 - All testers and contributors
 
 ---

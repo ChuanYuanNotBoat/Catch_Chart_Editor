@@ -16,6 +16,9 @@
 #include "utils/DiagnosticCollector.h"
 #include "model/Skin.h"
 #include "model/Note.h"
+#include <DockManager.h>
+#include <DockWidget.h>
+#include <DockAreaWidget.h>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QMenu>
@@ -667,16 +670,16 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
 
 void MainWindow::closePluginPanels(const QString &reasonText)
 {
-    if (d->pluginPanelDialogs.isEmpty())
+    if (d->pluginPanelDocks.isEmpty())
         return;
 
-    const auto dialogs = d->pluginPanelDialogs;
-    for (auto it = dialogs.constBegin(); it != dialogs.constEnd(); ++it)
+    const auto docks = d->pluginPanelDocks;
+    for (auto it = docks.constBegin(); it != docks.constEnd(); ++it)
     {
         if (it.value())
-            it.value()->close();
+            it.value()->closeDockWidget();
     }
-    d->pluginPanelDialogs.clear();
+    d->pluginPanelDocks.clear();
 
     if (!reasonText.isEmpty())
         statusBar()->showMessage(reasonText, 2000);
@@ -696,10 +699,11 @@ void MainWindow::triggerPluginPanelAction()
         return;
 
     const QString key = pluginId + "::" + panelId;
-    if (d->pluginPanelDialogs.contains(key) && d->pluginPanelDialogs[key])
+    if (d->pluginPanelDocks.contains(key) && d->pluginPanelDocks[key])
     {
-        QDialog *existing = d->pluginPanelDialogs[key];
-        existing->show();
+        ads::CDockWidget *existing = d->pluginPanelDocks[key];
+        existing->toggleView(true);
+        existing->setAsCurrentTab();
         existing->raise();
         existing->activateWindow();
         return;
@@ -725,32 +729,38 @@ void MainWindow::triggerPluginPanelAction()
     if (!workspaceConfig.isEmpty())
         context.insert("workspace", workspaceConfig);
 
-    QDialog *dialog = new QDialog(this, Qt::Tool);
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle(title.isEmpty() ? tr("Plugin Panel") : title);
-    dialog->setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
-    if (workspaceConfig.value("default_layout").toString().toLower() == "advanced")
-        dialog->resize(680, 520);
-    else if (workspaceConfig.value("default_layout").toString().toLower() == "dual")
-        dialog->resize(580, 460);
-    QVBoxLayout *layout = new QVBoxLayout(dialog);
-    layout->setContentsMargins(0, 0, 0, 0);
+    if (!d->dockManager)
+        return;
 
-    QWidget *panel = app->pluginManager()->createFloatingPanel(pluginId, panelId, dialog, context);
+    const QString panelTitle = title.isEmpty() ? tr("Plugin Panel") : title;
+    ads::CDockWidget *dock = new ads::CDockWidget(d->dockManager, panelTitle);
+    dock->setObjectName(QStringLiteral("dock.plugin.%1.%2").arg(pluginId, panelId));
+    dock->setFeature(ads::CDockWidget::DockWidgetDeleteOnClose, true);
+    dock->setFeature(ads::CDockWidget::DockWidgetForceCloseWithArea, true);
+    if (workspaceConfig.value("default_layout").toString().toLower() == "advanced")
+        dock->resize(680, 520);
+    else if (workspaceConfig.value("default_layout").toString().toLower() == "dual")
+        dock->resize(580, 460);
+
+    QWidget *panel = app->pluginManager()->createFloatingPanel(pluginId, panelId, dock, context);
     if (!panel)
     {
-        delete dialog;
+        delete dock;
         QMessageBox::warning(this, tr("Plugin Panel"), tr("Failed to create plugin panel."));
         return;
     }
 
-    layout->addWidget(panel);
-    if (dialog->size().isEmpty())
-        dialog->resize(520, 420);
-    d->pluginPanelDialogs.insert(key, dialog);
-    connect(dialog, &QDialog::destroyed, this, [this, key]()
-            { d->pluginPanelDialogs.remove(key); });
-    dialog->show();
+    panel->setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
+    dock->setWidget(panel, ads::CDockWidget::AutoScrollArea);
+    if (d->notePanelDock && d->notePanelDock->dockAreaWidget())
+        d->dockManager->addDockWidgetTabToArea(dock, d->notePanelDock->dockAreaWidget());
+    else
+        d->dockManager->addDockWidget(ads::RightDockWidgetArea, dock);
+
+    d->pluginPanelDocks.insert(key, dock);
+    connect(dock, &QObject::destroyed, this, [this, key]()
+            { d->pluginPanelDocks.remove(key); });
+    dock->setAsCurrentTab();
 }
 
 void MainWindow::openPluginManager()

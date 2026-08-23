@@ -76,6 +76,7 @@ target_link_libraries(CatchChartEditor
     Qt6::Core
     Qt6::Widgets
     Qt6::Multimedia
+    ads::qtadvanceddocking-qt6
 )
 
 if(COMMAND qt_finalize_executable)
@@ -131,6 +132,12 @@ add_custom_command(TARGET CatchChartEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/resources/default_skin
         $<TARGET_FILE_DIR:CatchChartEditor>/skins/default
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        $<TARGET_FILE_DIR:CatchChartEditor>/licenses/QtAdvancedDockingSystem
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/third_party/QtAdvancedDockingSystem/LICENSE
+        ${CMAKE_SOURCE_DIR}/third_party/QtAdvancedDockingSystem/gnu-lgpl-v2.1.md
+        $<TARGET_FILE_DIR:CatchChartEditor>/licenses/QtAdvancedDockingSystem
 )
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/resources/note_sounds")

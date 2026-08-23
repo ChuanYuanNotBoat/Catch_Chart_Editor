@@ -415,3 +415,28 @@ void Settings::setChartPickerPrimaryColumnWidth(int width)
 {
     m_settings.setValue("ui/chartPickerPrimaryColumnWidth", qBound(320, width, 2000));
 }
+
+QByteArray Settings::mainWindowGeometry() const
+{
+    return m_settings.value("ui/mainWindowGeometry").toByteArray();
+}
+
+void Settings::setMainWindowGeometry(const QByteArray &geometry)
+{
+    m_settings.setValue("ui/mainWindowGeometry", geometry);
+}
+
+QByteArray Settings::dockLayoutState() const
+{
+    return m_settings.value("ui/dockLayoutState").toByteArray();
+}
+
+void Settings::setDockLayoutState(const QByteArray &state)
+{
+    m_settings.setValue("ui/dockLayoutState", state);
+}
+
+void Settings::clearDockLayoutState()
+{
+    m_settings.remove("ui/dockLayoutState");
+}
