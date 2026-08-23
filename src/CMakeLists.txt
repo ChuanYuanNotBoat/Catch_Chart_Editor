@@ -12,6 +12,7 @@
     utils/MathUtils.cpp
     utils/FileUtils.cpp
     utils/Settings.cpp
+    utils/NativeWindowTheme.cpp
     utils/Logger.cpp
     utils/Translator.cpp
     utils/PerformanceTimer.cpp
@@ -78,6 +79,10 @@ target_link_libraries(CatchChartEditor
     Qt6::Multimedia
     ads::qtadvanceddocking-qt6
 )
+
+if(WIN32)
+    target_link_libraries(CatchChartEditor PRIVATE dwmapi)
+endif()
 
 if(COMMAND qt_finalize_executable)
     qt_finalize_executable(CatchChartEditor)

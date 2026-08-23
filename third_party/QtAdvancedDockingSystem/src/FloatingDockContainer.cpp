@@ -535,7 +535,6 @@ void FloatingDockContainerPrivate::titleMouseReleaseEvent()
 				_this->setGeometry(
 					QRect(TopLeft,
 						QSize(Rect.width(), Rect.height() - TitleBarHeight)));
-				QApplication::processEvents();
 			}
 		}
 		DropContainer->dropFloatingWidget(_this, QCursor::pos());

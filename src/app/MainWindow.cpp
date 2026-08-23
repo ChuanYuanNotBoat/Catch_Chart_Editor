@@ -28,9 +28,11 @@
 #include "model/Skin.h"
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
+#include "utils/NativeWindowTheme.h"
 #include <DockManager.h>
 #include <DockWidget.h>
 #include <DockAreaWidget.h>
+#include <FloatingDockContainer.h>
 #include <QMenuBar>
 #include <QToolBar>
 #include <QStatusBar>
@@ -1963,7 +1965,18 @@ void MainWindow::createCentralArea()
     ads::CDockManager::setConfigFlag(ads::CDockManager::MiddleMouseButtonClosesTab, true);
     d->dockManager = new ads::CDockManager(this);
     d->dockManager->setObjectName(QStringLiteral("mainDockManager"));
-    d->dockManager->setColorSchemeMode(ads::CDockManager::ColorSchemeMode::FollowPalette);
+    const bool darkTheme = sidebarTextColorFor(Settings::instance().backgroundColor()).lightness() > 128;
+    d->dockManager->setColorSchemeMode(darkTheme
+                                           ? ads::CDockManager::ColorSchemeMode::Dark
+                                           : ads::CDockManager::ColorSchemeMode::Light);
+    connect(d->dockManager,
+            &ads::CDockManager::floatingWidgetCreated,
+            this,
+            [this](ads::CFloatingDockContainer *floatingWindow)
+            {
+                const bool dark = sidebarTextColorFor(Settings::instance().backgroundColor()).lightness() > 128;
+                NativeWindowTheme::apply(floatingWindow, dark, true);
+            });
 
     d->leftPanel = new LeftPanel(d->dockManager);
     d->leftPanel->setObjectName("leftPanelRoot");
@@ -4228,7 +4241,15 @@ void MainWindow::applySidebarTheme()
         palette.setColor(QPalette::Highlight, panelButtonHoverBg);
         palette.setColor(QPalette::HighlightedText, fg);
         d->dockManager->setPalette(palette);
+        d->dockManager->setColorSchemeMode(darkTheme
+                                               ? ads::CDockManager::ColorSchemeMode::Dark
+                                               : ads::CDockManager::ColorSchemeMode::Light);
+
+        for (ads::CFloatingDockContainer *floatingWindow : d->dockManager->floatingWidgets())
+            NativeWindowTheme::apply(floatingWindow, darkTheme, true);
     }
+
+    NativeWindowTheme::apply(this, darkTheme);
 
     if (menuBar())
     {
