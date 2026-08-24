@@ -146,6 +146,33 @@ int main(int argc, char **argv)
         }
     }
 
+    // Closing a floating container hides its persistent ADS window and marks
+    // the contained panel closed.  The panel must remain recoverable through
+    // the same toggle action exposed by View -> Panels.
+    if (detachedWindow)
+    {
+        detachedWindow->close();
+        app.processEvents();
+        ok &= require(panelDock->isClosed() && !panelDock->toggleViewAction()->isChecked(),
+                      "closing a floating container must update its panel action");
+
+        panelDock->toggleViewAction()->trigger();
+        app.processEvents();
+        ok &= require(!panelDock->isClosed() && panelDock->toggleViewAction()->isChecked(),
+                      "a closed floating panel must reopen from its panel action");
+        ok &= require(detachedWindow->isVisible(),
+                      "reopening a floating panel must show its existing container");
+
+        // Simulate a delayed, non-close platform hide after reopening.  It
+        // must not consume a stale close marker and close the panel again.
+        detachedWindow->hide();
+        app.processEvents();
+        ok &= require(!panelDock->isClosed() && panelDock->toggleViewAction()->isChecked(),
+                      "a later generic hide must not re-close a recovered panel");
+        detachedWindow->show();
+        app.processEvents();
+    }
+
     ok &= require(manager->restoreState(initialState, 1), "saved ADS layout must restore successfully");
     app.processEvents();
     ok &= require(!panelDock->isFloating() && !panelDock->isClosed(),

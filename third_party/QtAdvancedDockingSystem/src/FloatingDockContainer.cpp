@@ -902,6 +902,13 @@ void CFloatingDockContainer::closeEvent(QCloseEvent *event)
 		return;
 	}
 
+	// Arm the close-only hide propagation before closing the dock widgets.
+	// Closing the last visible tab can hide this floating container from inside
+	// DockWidget->toggleView(false).  Arming the flag afterwards leaves it
+	// pending until a later platform hide, which closes a panel immediately
+	// after the user has reopened it from the Panels menu.
+	d->HideContentOnNextHide = true;
+
 	bool HasOpenDockWidgets = false;
 	for (auto DockWidget : d->DockContainer->openedDockWidgets())
 	{
@@ -921,17 +928,11 @@ void CFloatingDockContainer::closeEvent(QCloseEvent *event)
 
 	if (HasOpenDockWidgets)
 	{
+		// A custom close handler kept content open, so there is no close hide to
+		// propagate and the marker must not leak into a future hide/show cycle.
+		d->HideContentOnNextHide = false;
 		return;
 	}
-
-	// New bug (QWebEngineView reload side effect):
-	// when a WebEngine-based dock is tabified into a floating container, the
-	// embedded native/web process can trigger delayed hide/show cycles on the
-	// floating window. If every non-spontaneous hide propagates to
-	// DockWidget->toggleView(false), unrelated tabs are marked closed and seem
-	// to "disappear". We therefore arm HideContentOnNextHide only for the 
-	// explicit close path.
-	d->HideContentOnNextHide = true;
 
 	// In Qt version after 5.9.2 there seems to be a bug that causes the
 	// QWidget::event() function to not receive any NonClientArea mouse
@@ -988,6 +989,9 @@ void CFloatingDockContainer::hideEvent(QHideEvent *event)
 void CFloatingDockContainer::showEvent(QShowEvent *event)
 {
 	Super::showEvent(event);
+	// A visible container must never inherit a close marker from a prior close
+	// whose hide event was coalesced by the window system.
+	d->HideContentOnNextHide = false;
 #if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
     if (CDockManager::testConfigFlag(CDockManager::FocusHighlighting))
     {
