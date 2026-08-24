@@ -19,7 +19,7 @@
 ### 主界面区域
 
 - 顶部菜单栏：包含文件、编辑、视图、设置、播放、工具、插件和帮助入口。
-- 顶部工具栏：`Note` / `BPM` / `Meta` 打开并聚焦对应编辑面板；`Curve` 启动或关闭原生曲线编辑工具；`Plugins` 打开插件管理器。
+- 顶部工具栏：`Note` / `BPM` / `Meta` 打开并聚焦对应编辑面板；`Curve` 启动或关闭原生曲线编辑工具；`Quantize Paste to 1/288` 显示并切换粘贴颜色模式；`Plugins` 打开插件管理器。
 - `Navigation` 面板：显示谱面密度曲线、播放按钮、纵向缩放，以及外部插件提供的快捷按钮。
 - `Realtime Preview` 面板：实时预览当前谱面效果。
 - `Chart Workspace`：不可关闭的中央谱面画布与时间密度导航条。
@@ -52,7 +52,7 @@
 - `Edit -> Copy`：复制当前选中的音符。快捷键：`Ctrl+C`。如果没有选中音符，第一次按下会记录参考线处的区间起点，移动视图后再次按下会复制区间内音符。
 - `Edit -> Paste`：进入粘贴预览。快捷键：`Ctrl+V`。拖动预览可调整位置，点击画布左上角 `Confirm` 确认，点击 `Cancel` 或按 `Esc` 取消。
 - `Edit -> Delete`：删除当前选中的音符或插件工具中的选中对象。快捷键：`Delete`。
-- `Edit -> Paste with 288 Division`：切换粘贴时是否使用 288 分度转换，以将粘贴note统一为蓝色。
+- `Edit -> Quantize Paste to 1/288`：手动开启后，将粘贴的普通/Rain 音符起点和 Rain 终点舍入到 `1/288` 并以分母 `288` 保存，使粘贴后的 Note 统一使用 `/288` 蓝色。默认关闭；关闭时优先保留各 Note 原分母，原分母无法精确表达新拍点时才自动约分。
 
 ### View 视图菜单
 
@@ -146,6 +146,7 @@
 - 右键画布：打开上下文菜单。
 - 右键菜单 `Play from Reference Time`：从参考线时间开始播放。
 - 右键菜单 `Paste`：在鼠标位置粘贴剪贴板音符。
+- 右键菜单 `Quantize Paste to 1/288`：与顶部工具栏、`Edit` 菜单中的同名开关同步；粘贴预览左上角会显示当前 `Timing: 1/288` 状态。
 - 右键菜单 `Mirror Flip Selected (Center Line)`：按默认中心线镜像翻转当前目标音符。
 - 右键菜单 `Edit Color (By Division)`：批量设置目标音符的颜色分度，也可选择 `Minimal Irregular (Red)` 标记最小非常规分度。
 - `Esc`：取消粘贴预览或区间复制状态。
@@ -194,7 +195,7 @@ Note Chain Assist 已由主程序内部的 C++ 模块实现，不依赖 Python �
 - `Select: Anchors` / `Select: Segments` / `Select: Notes`：控制选择模式和框选能够命中的对象。选择音符时会按拍点和位置同步匹配最近且尚未使用的锚点。
 - `Connect Selected` / `Disconnect Selected`：连接选中的锚点，或断开选中的曲线段。
 - `Delete Selected`：删除选中的锚点或曲线段。`Reset Curve` 清空当前曲线工程。
-- `Curve Placement Density`：在曲线段右键菜单中设置目标段密度。`Follow Editor` 跟随右侧 `Time Division`，也可固定为样式提供的 `1/n` 密度；提交时会保留该分母。
+- `Generated Note Spacing`：在曲线段右键菜单中设置提交后生成 Note 的拍点间隔。`Follow Time Division` 跟随右侧当前分度，也可固定为样式提供的 `1/n`；画布顶部只显示当前实际生效或已选曲线段的间隔，不再显示含义不清的可用分度列表。
 - `Export Curve Style...` / `Import Curve Style...`：导出或导入密度分母列表等曲线样式设置。
 
 画布操作：
@@ -206,7 +207,7 @@ Note Chain Assist 已由主程序内部的 C++ 模块实现，不依赖 Python �
 - `Shift + 拖动锚点到另一个锚点`：连接节点。
 - 选择模式下拖拽空白处：框选已启用的锚点、曲线段和音符目标。
 - `Esc`：取消当前拖拽、连接或框选并清除曲线选择。
-- `Delete` / `Backspace`：删除当前曲线选择。
+- `Delete` / `Backspace`：删除当前曲线选择；即使焦点位于主窗口或侧栏，主窗口级删除动作也会优先转发给已选锚点/曲线段。
 - `Ctrl+Z` / `Ctrl+Y`：通过主程序统一撤销时间线撤销/重做曲线编辑和音符提交。
 
 说明：
@@ -243,15 +244,15 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 
 位置：
 
-- 顶部插件工具栏：`Format Note Colors`。
-- 左侧 `Plugin Shortcuts`：`Format Note Colors`。
+- 顶部插件工具栏：`Format Note Colors` 快捷按钮。
 - `Plugins -> Plugin Actions`。
 
 使用方法：
 
 1. 打开谱面。
-2. 点击任意位置的 `Format Note Colors`。
-3. 插件会批量整理当前谱面的音符颜色分度，并让主程序重新加载或刷新谱面。
+2. 点击 `Format Note Colors`，在宿主原生对话框中选择 `Selected Notes`、`Beat Range` 或 `Entire Chart`。
+3. 选择拍点范围时，按大范围选择器相同的 `整数 分子/分母` 格式填写起止点，也可用 `Now` 读取当前播放时间。
+4. 执行后只格式化普通和 Rain 音符的起点颜色分度，不修改 Sound Note；整次修改作为一个可撤销动作写入主程序历史。
 
 ### 插件使用注意
 

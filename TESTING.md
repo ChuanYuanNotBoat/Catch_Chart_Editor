@@ -83,7 +83,10 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 - 打开、新建、切换难度、保存、另存和导出 `.mcz`；
 - 播放/暂停、变速、滚轮导航、缩放和拖动 seek；
 - Note/Rain 放置、框选、范围选择、复制粘贴、镜像和撤销重做；
+- 默认粘贴优先保持原分母；无法精确表达时允许自动约分；仅在手动启用时把预览和最终 Note 统一量化为 `/288`；
 - 曲线锚点/控制柄拖动、连接、段密度、整曲线/目标段提交、样式导入导出和 sidecar 重开；
+- 大谱面启用曲线工具后持续移动鼠标，确认 hover 不随 Note 数量明显卡顿，并验证主窗口级 `Delete` 可删除锚点/曲线段；
+- Note Color Formatter 分别验证已选 Note、拍点范围和整谱模式，确认 Sound Note 不变且单次撤销可完整恢复；
 - Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、标签化、浮动、关闭、恢复和重启持久化；
 - 深色/浅色主题下主窗口与浮动窗口标题栏、文字、边框和首帧内容；
 - 外部进程插件启动失败、超时、重新加载和 Python 不在 PATH 的提示；
