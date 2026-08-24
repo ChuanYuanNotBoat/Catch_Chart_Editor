@@ -39,7 +39,8 @@ CTest 名称：`ui_docking_layout_tests`
 - ADS 布局序列化和恢复；
 - 实际非透明拖动预览到浮动容器的交接；
 - 浮动窗口保持预览的全局屏幕位置；
-- `ForceScrollArea` 和 viewport 在浮动首帧可见且尺寸有效。
+- `ForceScrollArea` 和 viewport 在浮动首帧可见且尺寸有效；
+- 关闭浮动窗口会同步面板动作，动作可立即恢复面板，后续普通隐藏事件不会再次误关面板。
 
 ## 本地命令
 
@@ -87,7 +88,8 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 - 曲线锚点/控制柄拖动、连接、段密度、整曲线/目标段提交、样式导入导出和 sidecar 重开；
 - 大谱面启用曲线工具后持续移动鼠标，确认 hover 不随 Note 数量明显卡顿，并验证主窗口级 `Delete` 可删除锚点/曲线段；
 - Note Color Formatter 分别验证已选 Note、拍点范围和整谱模式，确认 Sound Note 不变且单次撤销可完整恢复；
-- Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、标签化、浮动、关闭、恢复和重启持久化；
+- Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、标签化、浮动、关闭、无需重启恢复和重启持久化；
+- 关闭主窗口后确认 GUI、日志终端、外部插件子进程和主进程均结束；
 - 深色/浅色主题下主窗口与浮动窗口标题栏、文字、边框和首帧内容；
 - 外部进程插件启动失败、超时、重新加载和 Python 不在 PATH 的提示；
 - 中文、英文、日文界面的关键菜单和对话框。
