@@ -4,6 +4,7 @@
 #include "controller/PlaybackController.h"
 #include "render/NoteRenderer.h"
 #include "utils/MathUtils.h"
+#include "utils/Settings.h"
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
 #include "model/Chart.h"
@@ -1010,6 +1011,17 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
     QAction *playFromRefAction = menu.addAction(tr("Play from Reference Time"));
     QAction *pasteAction = menu.addAction(tr("Paste"));
     pasteAction->setEnabled(m_selectionController && !m_selectionController->getClipboard().isEmpty());
+    QAction *paste288ModeAction = menu.addAction(tr("Quantize Paste to 1/288"));
+    paste288ModeAction->setCheckable(true);
+    paste288ModeAction->setChecked(Settings::instance().pasteUse288Division());
+    paste288ModeAction->setToolTip(
+        tr("Round pasted Normal/Rain note start and end beats to 1/288 and store denominator 288."));
+    connect(paste288ModeAction, &QAction::toggled, this, [this](bool enabled) {
+        Settings::instance().setPasteUse288Division(enabled);
+        emit statusMessage(enabled ? tr("Paste timing: quantize to 1/288")
+                                   : tr("Paste timing: preserve normal timing"));
+        update();
+    });
     const QVector<int> mirrorTargetIndices = collectMirrorTargetIndices(event->pos());
     QAction *mirrorFlipAction = menu.addAction(tr("Mirror Flip Selected (Center Line)"));
     mirrorFlipAction->setEnabled(!mirrorTargetIndices.isEmpty());

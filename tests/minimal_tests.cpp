@@ -487,6 +487,36 @@ namespace
         return beatNum == 7 && num == 0 && den == 1;
     }
 
+    bool testMathUtilsQuantizeBeatTo288Division()
+    {
+        int beatNum = 0;
+        int num = 0;
+        int den = 1;
+        if (!MathUtils::quantizeBeatToDivision(1.5, 288, beatNum, num, den))
+            return false;
+        if (beatNum != 1 || num != 144 || den != 288)
+            return false;
+
+        const double seventh = 2.0 + 1.0 / 7.0;
+        if (!MathUtils::quantizeBeatToDivision(seventh, 288, beatNum, num, den))
+            return false;
+        return beatNum == 2 && num == 41 && den == 288
+            && !MathUtils::quantizeBeatToDivision(1.0, 0, beatNum, num, den);
+    }
+
+    bool testMathUtilsPreservesRepresentableDivisionOnly()
+    {
+        int beatNum = 0;
+        int num = 0;
+        int den = 1;
+        if (!MathUtils::representBeatWithDivision(2.5, 4, beatNum, num, den))
+            return false;
+        if (beatNum != 2 || num != 2 || den != 4)
+            return false;
+        return !MathUtils::representBeatWithDivision(2.0 + 1.0 / 3.0, 4,
+                                                     beatNum, num, den);
+    }
+
     bool testMathUtilsIsSameTimeWithSnap()
     {
         Note a = makeNormalNote(1, 1, 3, 100, "a");
@@ -2485,6 +2515,8 @@ int main(int argc, char **argv)
         {"MathUtils cache before first segment", &testMathUtilsCacheBeforeFirstSegmentConsistency},
         {"MathUtils floatToBeat simplifies fraction", &testMathUtilsFloatToBeatSimplifiesFraction},
         {"MathUtils floatToBeat integral", &testMathUtilsFloatToBeatIntegralCase},
+        {"MathUtils quantize beat to 1/288", &testMathUtilsQuantizeBeatTo288Division},
+        {"MathUtils preserve representable division only", &testMathUtilsPreservesRepresentableDivisionOnly},
         {"MathUtils isSameTime with snap", &testMathUtilsIsSameTimeWithSnap},
         {"MathUtils beat/pixel guard values", &testMathUtilsBeatPixelGuardValues},
         {"MathUtils snap note reduces fraction", &testMathUtilsSnapNoteToTimeReducesFraction},

@@ -366,21 +366,6 @@ void ChartCanvas::confirmPaste()
         MathUtils::msToBeat(ms, bpmList, offset, b, n, d);
         return MathUtils::beatToFloat(b, n, d);
     };
-    auto assignBeatWithDen = [](double beatFloat, int targetDen, int &outBeatNum, int &outNum, int &outDen)
-    {
-        if (targetDen <= 0)
-            targetDen = 1;
-        const qint64 ticks = qRound64(beatFloat * targetDen);
-        outBeatNum = static_cast<int>(ticks / targetDen);
-        outNum = static_cast<int>(ticks % targetDen);
-        if (outNum < 0)
-        {
-            outNum += targetDen;
-            outBeatNum -= 1;
-        }
-        outDen = targetDen;
-    };
-
     QVector<double> fallbackOriginalTimes;
     bool usingCachedOriginalTimes =
         (m_pasteOriginalTimesMs.size() == m_pasteNotes.size()) &&
@@ -441,6 +426,7 @@ void ChartCanvas::confirmPaste()
     }
 
     QVector<Note> newNotes;
+    const bool use288Division = Settings::instance().pasteUse288Division();
     for (int i = 0; i < m_pasteNotes.size(); ++i)
     {
         const Note &originalNote = m_pasteNotes[i];
@@ -457,13 +443,30 @@ void ChartCanvas::confirmPaste()
         // Preserve original denominator, same as move-selection logic.
         const double originalBeatFloat = MathUtils::beatToFloat(originalNote.beatNum, originalNote.numerator, originalNote.denominator);
         const double newBeatFloat = originalBeatFloat + snappedTotalBeatShift;
-        MathUtils::floatToBeat(newBeatFloat, newNote.beatNum, newNote.numerator, newNote.denominator);
+        const bool startRepresented = use288Division
+            ? MathUtils::quantizeBeatToDivision(newBeatFloat, 288,
+                                                newNote.beatNum, newNote.numerator, newNote.denominator)
+            : MathUtils::representBeatWithDivision(newBeatFloat, qMax(1, originalNote.denominator),
+                                                   newNote.beatNum, newNote.numerator, newNote.denominator);
+        if (!startRepresented)
+        {
+            MathUtils::floatToBeat(newBeatFloat, newNote.beatNum, newNote.numerator, newNote.denominator);
+        }
 
         if (originalNote.type == NoteType::RAIN)
         {
             const double originalEndBeatFloat = MathUtils::beatToFloat(originalNote.endBeatNum, originalNote.endNumerator, originalNote.endDenominator);
             const double newEndBeatFloat = originalEndBeatFloat + snappedTotalBeatShift;
-            MathUtils::floatToBeat(newEndBeatFloat, newNote.endBeatNum, newNote.endNumerator, newNote.endDenominator);
+            const bool endRepresented = use288Division
+                ? MathUtils::quantizeBeatToDivision(newEndBeatFloat, 288,
+                                                    newNote.endBeatNum, newNote.endNumerator, newNote.endDenominator)
+                : MathUtils::representBeatWithDivision(newEndBeatFloat, qMax(1, originalNote.endDenominator),
+                                                       newNote.endBeatNum, newNote.endNumerator, newNote.endDenominator);
+            if (!endRepresented)
+            {
+                MathUtils::floatToBeat(newEndBeatFloat, newNote.endBeatNum,
+                                       newNote.endNumerator, newNote.endDenominator);
+            }
         }
 
         newNote.x = originalNote.x + qRound(finalXShift);
@@ -475,7 +478,9 @@ void ChartCanvas::confirmPaste()
     if (!newNotes.isEmpty())
     {
         m_chartController->addNotes(newNotes);
-        emit statusMessage(tr("Pasted %1 notes").arg(newNotes.size()));
+        emit statusMessage(use288Division
+                               ? tr("Pasted %1 notes using 1/288 timing").arg(newNotes.size())
+                               : tr("Pasted %1 notes").arg(newNotes.size()));
     }
 
     m_isPasting = false;

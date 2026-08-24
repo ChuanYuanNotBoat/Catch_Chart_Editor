@@ -1349,6 +1349,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->leftPanel = nullptr;
     d->undoAction = nullptr;
     d->redoAction = nullptr;
+    d->paste288Action = nullptr;
     d->colorAction = nullptr;
     d->timelineDivisionColorAction = nullptr;
     d->timelineDivisionColorSettingsAction = nullptr;
@@ -1610,12 +1611,26 @@ void MainWindow::createMenus()
             Logger::debug("Deleted selected notes via menu");
          } });
 
-    // Paste option: use 288-division conversion.
+    // Explicit paste timing mode. The same action is visible in the Edit menu
+    // and the main toolbar so the active quantization cannot be missed.
     editMenu->addSeparator();
-    QAction *paste288Action = editMenu->addAction(tr("Paste with 288 Division"));
-    paste288Action->setCheckable(true);
-    paste288Action->setChecked(Settings::instance().pasteUse288Division());
-    connect(paste288Action, &QAction::toggled, this, &MainWindow::togglePaste288Division);
+    if (!d->paste288Action)
+    {
+        d->paste288Action = new QAction(this);
+        d->paste288Action->setObjectName(QStringLiteral("action.paste_quantize_288"));
+        d->paste288Action->setCheckable(true);
+        connect(d->paste288Action, &QAction::toggled, this, &MainWindow::togglePaste288Division);
+    }
+    d->paste288Action->setText(tr("Quantize Paste to 1/288"));
+    d->paste288Action->setToolTip(
+        tr("Round pasted Normal/Rain note start and end beats to 1/288 and store denominator 288."));
+    {
+        const QSignalBlocker blocker(d->paste288Action);
+        d->paste288Action->setChecked(Settings::instance().pasteUse288Division());
+    }
+    editMenu->addAction(d->paste288Action);
+    if (d->mainToolBar && !d->mainToolBar->actions().contains(d->paste288Action))
+        d->mainToolBar->addAction(d->paste288Action);
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     if (d->dockManager)
@@ -3911,6 +3926,12 @@ void MainWindow::togglePaste288Division(bool enabled)
 {
     Settings::instance().setPasteUse288Division(enabled);
     Logger::info(QString("Paste 288 division: %1").arg(enabled ? "enabled" : "disabled"));
+    statusBar()->showMessage(
+        enabled ? tr("Paste timing: quantize to 1/288")
+                : tr("Paste timing: preserve normal timing"),
+        2500);
+    if (d->canvas)
+        d->canvas->update();
 }
 
 void MainWindow::changeLanguage()

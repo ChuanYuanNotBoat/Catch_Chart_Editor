@@ -362,11 +362,25 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
             if (!std::isfinite(originalTime))
                 continue;
             const double originalBeatFloat = previewBeatFromTimeMs(originalTime);
-            const double previewBeatFloat = originalBeatFloat + totalBeatShift;
+            const double requestedPreviewBeat = originalBeatFloat + totalBeatShift;
+            Note previewNote = note;
+            const bool use288Division = Settings::instance().pasteUse288Division();
+            const bool represented = use288Division
+                ? MathUtils::quantizeBeatToDivision(requestedPreviewBeat, 288,
+                                                    previewNote.beatNum, previewNote.numerator, previewNote.denominator)
+                : MathUtils::representBeatWithDivision(requestedPreviewBeat, qMax(1, note.denominator),
+                                                       previewNote.beatNum, previewNote.numerator, previewNote.denominator);
+            if (!represented)
+            {
+                MathUtils::floatToBeat(requestedPreviewBeat, previewNote.beatNum,
+                                       previewNote.numerator, previewNote.denominator);
+            }
+            const double previewBeatFloat = MathUtils::beatToFloat(
+                previewNote.beatNum, previewNote.numerator, previewNote.denominator);
             const double y = baseY + sign * ((previewBeatFloat - m_scrollBeat) * invVisibleRange * canvasHeight);
             const int previewShiftedX = qBound(0, note.x + qRound(m_pasteXOffset), kLaneWidth);
             const double x = lmargin + (previewShiftedX / static_cast<double>(kLaneWidth)) * availableWidth;
-            m_noteRenderer->drawNote(painter, note, QPointF(x, y), false, -1);
+            m_noteRenderer->drawNote(painter, previewNote, QPointF(x, y), false, -1);
         }
     }
 
@@ -375,6 +389,12 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
     painter.drawText(QRect(10, 10, 100, 30), Qt::AlignCenter, tr("Confirm"));
     painter.fillRect(QRect(120, 10, 100, 30), QColor(200, 200, 200));
     painter.drawText(QRect(120, 10, 100, 30), Qt::AlignCenter, tr("Cancel"));
+    if (Settings::instance().pasteUse288Division())
+    {
+        painter.setPen(QColor(255, 225, 120));
+        painter.drawText(QRect(230, 10, 180, 30), Qt::AlignVCenter | Qt::AlignLeft,
+                         tr("Timing: 1/288"));
+    }
 }
 
 void ChartCanvas::drawMirrorPreview(QPainter &painter,

@@ -2,6 +2,7 @@
 #include "MathUtils.h"
 #include "Logger.h"
 #include <cmath>
+#include <limits>
 #include <numeric> // for std::gcd
 #include <QDebug>
 
@@ -481,4 +482,39 @@ double MathUtils::measureBpmFromTime(int startBeatNum, int startNumerator, int s
     double bpm = (beatDiff / durationSeconds) * 60.0;
 
     return bpm;
+}
+
+bool MathUtils::quantizeBeatToDivision(double beat, int division,
+                                       int &beatNum, int &numerator, int &denominator)
+{
+    if (!std::isfinite(beat) || division <= 0)
+        return false;
+
+    const qint64 ticks = qRound64(beat * static_cast<double>(division));
+    qint64 whole = ticks / division;
+    qint64 remainder = ticks % division;
+    if (remainder < 0)
+    {
+        remainder += division;
+        --whole;
+    }
+    if (whole < std::numeric_limits<int>::min() || whole > std::numeric_limits<int>::max())
+        return false;
+
+    beatNum = static_cast<int>(whole);
+    numerator = static_cast<int>(remainder);
+    denominator = division;
+    return true;
+}
+
+bool MathUtils::representBeatWithDivision(double beat, int division,
+                                          int &beatNum, int &numerator, int &denominator)
+{
+    if (!std::isfinite(beat) || division <= 0)
+        return false;
+    const double scaled = beat * static_cast<double>(division);
+    const qint64 nearestTick = qRound64(scaled);
+    if (std::abs(scaled - static_cast<double>(nearestTick)) > 1e-7)
+        return false;
+    return quantizeBeatToDivision(beat, division, beatNum, numerator, denominator);
 }
