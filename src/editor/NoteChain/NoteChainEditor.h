@@ -60,6 +60,7 @@ public:
     void deleteSelected();
     void resetCurve();
     void prepareContextMenuAt(const QPointF &canvasPos, const CanvasProjection &projection);
+    bool hasSelectedItems() const;
     bool hasSelectedSegments() const;
     bool hasContextSegments() const { return !m_contextLinkKeys.isEmpty(); }
     int selectedSegmentDensity() const; // -2=no target, -1=mixed, 0=follow, >0=fixed

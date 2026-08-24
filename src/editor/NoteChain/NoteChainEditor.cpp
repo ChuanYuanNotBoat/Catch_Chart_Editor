@@ -786,6 +786,11 @@ void NoteChainEditor::prepareContextMenuAt(const QPointF &canvasPos, const Canva
     }
 }
 
+bool NoteChainEditor::hasSelectedItems() const
+{
+    return !m_state.selectedAnchorIds().isEmpty() || !m_state.selectedLinkKeys().isEmpty();
+}
+
 bool NoteChainEditor::hasSelectedSegments() const { return !m_state.selectedLinkKeys().isEmpty(); }
 
 int NoteChainEditor::densityForLinks(const QSet<LinkKey> &links) const
@@ -1106,17 +1111,25 @@ void NoteChainEditor::render(QPainter *painter, const QRectF &viewport, const Ca
     }
 
     if (toggles.labels) {
-        QStringList denominators;
-        for (int denominator : m_state.style().denominators) denominators.append(QString::number(denominator));
+        const int editorDivision = defaultCommitDenominator(m_state);
+        const int selectedDensity = selectedSegmentDensity();
+        QString spacingText;
+        if (selectedDensity == -1)
+            spacingText = tr("Selected segments: mixed spacing");
+        else if (selectedDensity == 0)
+            spacingText = tr("Selected segments: follow Time Division (1/%1)").arg(editorDivision);
+        else if (selectedDensity > 0)
+            spacingText = tr("Selected segments: fixed 1/%1").arg(selectedDensity);
+        else
+            spacingText = tr("Generated notes follow Time Division (1/%1)").arg(editorDivision);
         painter->setPen(QColor(221, 238, 255));
         QFont font = painter->font();
         font.setPixelSize(12);
         painter->setFont(font);
         painter->drawText(QPointF(16.0, 18.0),
-                          tr("Density: %1  Effective: %2  Anchor: %3")
-                              .arg(denominators.join(QLatin1Char('/')))
-                              .arg(defaultCommitDenominator(m_state))
-                              .arg(m_state.anchorPlacementEnabled() ? tr("ON") : tr("OFF")));
+                          tr("%1  |  Anchor placement: %2")
+                              .arg(spacingText,
+                                   m_state.anchorPlacementEnabled() ? tr("ON") : tr("OFF")));
     }
     painter->restore();
 }

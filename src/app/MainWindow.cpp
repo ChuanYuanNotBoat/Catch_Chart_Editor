@@ -1589,6 +1589,14 @@ void MainWindow::createMenus()
     registerShortcutAction(d->deleteAction, "edit.delete", QKeySequence::Delete);
     connect(d->deleteAction, &QAction::triggered, this, [this]()
             {
+        if (d->canvas && d->canvas->isNoteChainModeActive() && d->canvas->noteChainEditor() &&
+            d->canvas->noteChainEditor()->hasSelectedItems()) {
+            d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+            d->canvas->noteChainEditor()->deleteSelected();
+            d->canvas->update();
+            Logger::debug("Deleted native Note Chain selection via menu shortcut");
+            return;
+        }
         if (d->canvas && d->canvas->triggerPluginDeleteSelection()) {
             Logger::debug("Deleted plugin selection via menu");
             return;
@@ -4355,8 +4363,11 @@ void MainWindow::applySidebarTheme()
                                     "QMenuBar::item { background: transparent; color: %2; padding: 4px 8px; }"
                                     "QMenuBar::item:selected { background: %3; }"
                                     "QMenu { background-color: %1; color: %2; border: 1px solid %4; }"
-                                    "QMenu::item:selected { background-color: %3; }")
-                                    .arg(bg.name(), fg.name(), panelButtonBg.name(), panelBorder.name());
+                                    "QMenu::item { color: %2; padding: 5px 24px 5px 10px; }"
+                                    "QMenu::item:selected { background-color: %3; color: %2; }"
+                                    "QMenu::item:disabled { color: %5; }")
+                                    .arg(bg.name(), fg.name(), panelButtonBg.name(), panelBorder.name(),
+                                         panelDisabledText.name());
         menuBar()->setStyleSheet(menuCss);
     }
 

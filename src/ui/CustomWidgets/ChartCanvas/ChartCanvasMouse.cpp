@@ -48,7 +48,30 @@ void fillPluginEventModifiers(PluginInterface::CanvasInputEvent *outEvent, Qt::K
     outEvent->modifiers = static_cast<int>(eventModifiers);
     outEvent->shiftDown = eventModifiers.testFlag(Qt::ShiftModifier);
     outEvent->ctrlDown = eventModifiers.testFlag(Qt::ControlModifier);
-}struct ColorDivisionOption
+}
+
+void applyContextMenuTheme(QMenu *menu)
+{
+    if (!menu)
+        return;
+    const QColor base = Settings::instance().backgroundColor();
+    const double luminance = 0.2126 * base.redF() + 0.7152 * base.greenF() + 0.0722 * base.blueF();
+    const bool dark = luminance < 0.5;
+    const QColor menuBg = dark ? base.lighter(118) : base.darker(104);
+    const QColor text = dark ? QColor(248, 248, 250) : QColor(20, 20, 22);
+    const QColor disabled = dark ? QColor(176, 180, 188) : QColor(100, 100, 104);
+    const QColor selected = dark ? menuBg.lighter(145) : menuBg.darker(112);
+    const QColor border = dark ? QColor(255, 255, 255, 70) : QColor(0, 0, 0, 70);
+    menu->setStyleSheet(QStringLiteral(
+        "QMenu { background-color: %1; color: %2; border: 1px solid %5; }"
+        "QMenu::item { color: %2; padding: 5px 26px 5px 10px; }"
+        "QMenu::item:selected { background-color: %4; color: %2; }"
+        "QMenu::item:disabled { color: %3; }"
+        "QMenu::separator { height: 1px; background: %5; margin: 4px 8px; }")
+        .arg(menuBg.name(), text.name(), disabled.name(), selected.name(), border.name()));
+}
+
+struct ColorDivisionOption
 {
     int denominator;
     const char *label;
@@ -801,6 +824,7 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
         editor->prepareContextMenuAt(event->position(), projection);
 
         QMenu curveMenu(this);
+        applyContextMenuTheme(&curveMenu);
         QAction *commitAction = curveMenu.addAction(tr("Commit Context Segments -> Notes"));
         commitAction->setEnabled(editor->hasContextSegments());
         curveMenu.addSeparator();
@@ -808,14 +832,14 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
         QAction *toggleShapeAction = curveMenu.addAction(tr("Toggle Curve / Polyline"));
         toggleShapeAction->setEnabled(editor->hasContextSegments());
 
-        QMenu *densityMenu = curveMenu.addMenu(tr("Curve Placement Density"));
+        QMenu *densityMenu = curveMenu.addMenu(tr("Generated Note Spacing"));
         QVector<int> densityOptions = editor->state().style().denominators;
         if (densityOptions.isEmpty()) densityOptions = {4, 8, 12, 16};
         densityOptions.prepend(0);
         const int selectedDensity = editor->contextSegmentDensity();
         for (int denominator : densityOptions)
         {
-            const QString label = denominator <= 0 ? tr("Follow Editor")
+            const QString label = denominator <= 0 ? tr("Follow Time Division")
                                                    : tr("1/%1").arg(denominator);
             QAction *action = densityMenu->addAction(label);
             action->setCheckable(true);
@@ -889,10 +913,11 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
         }
 
         QMenu pluginMenu(this);
+        applyContextMenuTheme(&pluginMenu);
         QAction *commitCurveAction = pluginMenu.addAction(tr("Commit Curve -> Notes"));
         pluginMenu.addSeparator();
 
-        QMenu *densityMenu = pluginMenu.addMenu(tr("Curve Placement Density"));
+        QMenu *densityMenu = pluginMenu.addMenu(tr("Generated Note Spacing"));
         struct DensityOption
         {
             int denominator;
@@ -1008,6 +1033,7 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
     }
 
     QMenu menu(this);
+    applyContextMenuTheme(&menu);
     QAction *playFromRefAction = menu.addAction(tr("Play from Reference Time"));
     QAction *pasteAction = menu.addAction(tr("Paste"));
     pasteAction->setEnabled(m_selectionController && !m_selectionController->getClipboard().isEmpty());
