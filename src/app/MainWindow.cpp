@@ -2643,6 +2643,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
     saveDockLayout();
     clearWorkingCopySession(true);
     event->accept();
+
+    // ADS keeps closed floating containers alive so their panels can be
+    // reopened.  Those hidden top-level windows make Qt's implicit
+    // quit-on-last-window-closed behavior platform dependent.  Closing the
+    // confirmed main editor window is an explicit application-exit request.
+    QCoreApplication::quit();
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
