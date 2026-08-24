@@ -2,6 +2,7 @@
 #include "MainWindowPrivate.h"
 #include "app/Application.h"
 #include "controller/ChartController.h"
+#include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "plugin/PluginManager.h"
 #include "ui/dialogs/LogSettingsDialog.h"
@@ -10,6 +11,7 @@
 #include "ui/CustomWidgets/RealtimePreviewWidget.h"
 #include "ui/LeftPanel.h"
 #include "ui/NoteEditPanel.h"
+#include "ui/LongRangeSelector.h"
 #include "file/ChartIO.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
@@ -56,6 +58,7 @@
 #include <QGroupBox>
 #include <QStandardPaths>
 #include <QTimer>
+#include <algorithm>
 
 namespace
 {
@@ -245,6 +248,7 @@ void MainWindow::populatePluginToolsMenu()
         payload.insert("title", title);
         payload.insert("confirm_message", entry.action.confirmMessage);
         payload.insert("host_action", entry.action.hostAction);
+        payload.insert("scope_selector", entry.action.scopeSelector);
         payload.insert("requires_undo_snapshot", entry.action.requiresUndoSnapshot);
         payload.insert("placement", entry.action.placement);
         payload.insert("checkable", entry.action.checkable);
@@ -340,6 +344,7 @@ void MainWindow::refreshPluginUiExtensions()
         meta.insert("title", title);
         meta.insert("confirm_message", entry.action.confirmMessage);
         meta.insert("host_action", entry.action.hostAction);
+        meta.insert("scope_selector", entry.action.scopeSelector);
         meta.insert("requires_undo_snapshot", entry.action.requiresUndoSnapshot);
         meta.insert("placement", entry.action.placement);
         meta.insert("checkable", entry.action.checkable);
@@ -522,6 +527,7 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
     const QString actionTitle = meta.value("title").toString();
     const QString confirmMessage = meta.value("confirm_message").toString();
     const QString hostAction = meta.value("host_action").toString().trimmed().toLower();
+    const QString scopeSelector = meta.value("scope_selector").toString().trimmed().toLower();
     const bool requiresUndo = meta.value("requires_undo_snapshot", true).toBool();
     const bool syncToolModeWithChecked = meta.value("sync_plugin_tool_mode_with_checked", false).toBool();
     if (pluginId.isEmpty() || actionId.isEmpty())
@@ -583,6 +589,80 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
         return false;
     }
 
+    QVariantMap actionContext;
+    if (scopeSelector == QLatin1String("note_range"))
+    {
+        QDialog scopeDialog(this);
+        scopeDialog.setWindowTitle(tr("Format Note Colors"));
+        scopeDialog.setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
+
+        QVBoxLayout *scopeLayout = new QVBoxLayout(&scopeDialog);
+        QFormLayout *scopeForm = new QFormLayout;
+        QComboBox *scopeCombo = new QComboBox(&scopeDialog);
+        const int selectedCount = d->selectionController
+                                      ? d->selectionController->selectedIndices().size()
+                                      : 0;
+        if (selectedCount > 0)
+            scopeCombo->addItem(tr("Selected Notes (%1)").arg(selectedCount), QStringLiteral("selected"));
+        scopeCombo->addItem(tr("Beat Range"), QStringLiteral("range"));
+        scopeCombo->addItem(tr("Entire Chart"), QStringLiteral("all"));
+        scopeForm->addRow(tr("Format Scope:"), scopeCombo);
+        scopeLayout->addLayout(scopeForm);
+
+        LongRangeSelector *rangeEditor = new LongRangeSelector(&scopeDialog);
+        rangeEditor->setInputOnlyMode(tr("Beat Range"));
+        rangeEditor->setChartController(d->chartController);
+        rangeEditor->setPlaybackController(d->playbackController);
+        if (d->canvas)
+        {
+            rangeEditor->setTimeDivision(d->canvas->timeDivision());
+            rangeEditor->setStartBeat(d->canvas->scrollBeat());
+            rangeEditor->setEndBeat(d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+        }
+        scopeLayout->addWidget(rangeEditor);
+
+        QLabel *scopeHint = new QLabel(
+            tr("Only Normal and Rain note start colors are formatted. Sound notes are not changed."),
+            &scopeDialog);
+        scopeHint->setWordWrap(true);
+        scopeLayout->addWidget(scopeHint);
+
+        QDialogButtonBox *scopeButtons = new QDialogButtonBox(
+            QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &scopeDialog);
+        if (QPushButton *okButton = scopeButtons->button(QDialogButtonBox::Ok))
+            okButton->setText(tr("Format"));
+        connect(scopeButtons, &QDialogButtonBox::accepted, &scopeDialog, &QDialog::accept);
+        connect(scopeButtons, &QDialogButtonBox::rejected, &scopeDialog, &QDialog::reject);
+        scopeLayout->addWidget(scopeButtons);
+
+        const auto updateRangeVisibility = [scopeCombo, rangeEditor]() {
+            rangeEditor->setVisible(scopeCombo->currentData().toString() == QLatin1String("range"));
+        };
+        connect(scopeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                &scopeDialog, [updateRangeVisibility](int) { updateRangeVisibility(); });
+        updateRangeVisibility();
+
+        if (scopeDialog.exec() != QDialog::Accepted)
+            return false;
+
+        const QString selectedScope = scopeCombo->currentData().toString();
+        actionContext.insert(QStringLiteral("format_scope"), selectedScope);
+        if (selectedScope == QLatin1String("range"))
+        {
+            if (!rangeEditor->hasValidRange())
+            {
+                QMessageBox::warning(this, tr("Format Note Colors"), tr("Enter a valid beat range."));
+                return false;
+            }
+            double startBeat = rangeEditor->currentStartBeat();
+            double endBeat = rangeEditor->currentEndBeat();
+            if (startBeat > endBeat)
+                std::swap(startBeat, endBeat);
+            actionContext.insert(QStringLiteral("range_start_beat"), startBeat);
+            actionContext.insert(QStringLiteral("range_end_beat"), endBeat);
+        }
+    }
+
     QVariantMap context;
     if (!d->workingChartPath.isEmpty())
     {
@@ -604,6 +684,8 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
         for (auto it = canvasContext.constBegin(); it != canvasContext.constEnd(); ++it)
             context.insert(it.key(), it.value());
     }
+    for (auto it = actionContext.constBegin(); it != actionContext.constEnd(); ++it)
+        context.insert(it.key(), it.value());
     context.insert("action_title", actionTitle);
     Logger::info(QString("Running plugin action: plugin=%1 action=%2 path=%3")
                      .arg(pluginId)

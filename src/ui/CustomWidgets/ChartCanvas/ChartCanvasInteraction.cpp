@@ -574,6 +574,7 @@ QVariantMap ChartCanvas::buildPluginCanvasContext() const
     overlayContext.insert("style_library_paths", styleLibraryPaths);
 
     QVariantList selectedIds;
+    QVariantList selectedIndices;
     QVariantList selectedNotes;
     QVariantList existingNotePositions;
     if (m_selectionController && chart())
@@ -587,10 +588,9 @@ QVariantMap ChartCanvas::buildPluginCanvasContext() const
             if (idx < 0 || idx >= notes.size())
                 continue;
             const auto &note = notes[idx];
-            if (note.id.isEmpty())
-                continue;
-            selectedIds.append(note.id);
-
+            selectedIndices.append(idx);
+            if (!note.id.isEmpty())
+                selectedIds.append(note.id);
             selectedNotes.append(serializeSelectedNoteForPlugin(note));
         }
     }
@@ -604,6 +604,7 @@ QVariantMap ChartCanvas::buildPluginCanvasContext() const
         }
     }
     overlayContext.insert("selected_note_ids", selectedIds);
+    overlayContext.insert("selected_note_indices", selectedIndices);
     overlayContext.insert("selected_notes", selectedNotes);
     overlayContext.insert("existing_note_positions", existingNotePositions);
     return overlayContext;

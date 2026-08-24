@@ -22,6 +22,7 @@ public:
         QString confirmMessage;
         QString hostAction;               // "" | undo | redo
         QString placement = "tools_menu"; // tools_menu | top_toolbar | left_sidebar | right_note_panel | plugin_context_menu
+        QString scopeSelector;            // "" | note_range (host-provided scope dialog)
         bool requiresUndoSnapshot = true;
         bool checkable = false;
         bool checked = false;
@@ -102,6 +103,7 @@ public:
     static constexpr const char *kCapabilityHostBatchEdit = "host_batch_edit";
     static constexpr const char *kCapabilityCanvasInteraction = "canvas_interaction";
     static constexpr const char *kCapabilityPanelWorkspace = "panel_workspace";
+    static constexpr const char *kCapabilityContextualToolActions = "contextual_tool_actions";
     static constexpr const char *kPlacementToolsMenu = "tools_menu";
     static constexpr const char *kPlacementTopToolbar = "top_toolbar";
     static constexpr const char *kPlacementLeftSidebar = "left_sidebar";
