@@ -2,7 +2,7 @@
 
 > **目的**：完整描述当前编辑器的数据模型、文件格式、插件体系、坐标系统、外置 sidecar 文件格式等，为重构格式与导出到标准 mcz/mc 提供精确的结构定义。
 >
-> **版本**：Beta v1.10.5 | **最后更新**：2026-08-09
+> **版本**：Beta v1.11.0（开发中） | **最后更新**：2026-08-24
 >
 > ⚠️ **核心约束**：`.mc` 文件的 JSON 结构**永远不能更改**，必须保持与 Malody 官方格式完全兼容。所有扩展数据必须存放在 `.mcce-plugin/` 或独立辅助文件中。如果需要更改，则需要保证有可以导出为规范.mc/mcz的能力。
 
@@ -626,15 +626,14 @@ struct BatchEdit {
 ```
 {appDir}/plugins/
 ├── builtin/                  # 内置（优先加载）
-│   ├── note_chain_assist/
-│   │   ├── note_chain_assist.plugin.json
-│   │   └── note_chain_assist.py
 │   └── note_color_formatter/
 │       ├── note_color_formatter.plugin.json
 │       └── note_color_formatter.py
 ├── samples/                  # 示例（不会被加载）
 └── *.dll / *.so / *.dylib   # Native 插件
 ```
+
+仓库仍保留旧 `builtin.note_chain_assist` Python 源码用于 legacy 数据对照，但 `PluginManager` 会明确跳过该插件。现行 Note Chain 是 `src/editor/NoteChain/` 的内部 C++ 模块。
 
 ### 6.5 插件冲突解决
 
@@ -708,82 +707,88 @@ struct BatchEdit {
 namespace NoteChain {
 
 struct Anchor {
-    int id = -1;              // 唯一 ID
-    double laneX = 0.0;       // chart lane 坐标（0-512）
-    double beat = 0.0;        // chart beat 坐标
-    double handleInDx = 0.0;  // 入控制柄 lane 偏移（相对锚点）
-    double handleInDy = 0.0;  // 入控制柄 beat 偏移
-    double handleOutDx = 0.0; // 出控制柄 lane 偏移（相对锚点）
-    double handleOutDy = 0.0; // 出控制柄 beat 偏移
+    int id = -1;
+    double laneX = 0.0;       // chart lane，范围 0..512
+    double beat = 0.0;        // chart beat
+    double inDx = 0.0;        // 入控制柄相对 lane 偏移
+    double inDy = 0.0;        // 入控制柄相对 beat 偏移
+    double outDx = 0.0;
+    double outDy = 0.0;
+    bool smooth = true;
 };
 
-struct Link { int fromAnchorId, toAnchorId; };
+struct Link { int from, to; };
 using LinkKey = QPair<int, int>;  // (minId, maxId)
 
 constexpr const char *kShapeCurve    = "curve";
 constexpr const char *kShapePolyline = "polyline";
-
-struct CurveProjectMeta {
-    QString filename;
-    int revision = 0;         // CAS 版本号
-    int anchorIdCounter = 0;
-};
 } // namespace NoteChain
 ```
+
+Node/Curve/Group 的未知 V3 扩展字段由 `NodePersistenceMeta`、`CurvePersistenceMeta` 和 `GroupPersistenceMeta` 保留，原生编辑后不得丢弃。
 
 ### 8.2 State 管理（NoteChainState）
 
 ```cpp
 class NoteChainState {
-    QMap<int, Anchor> m_anchors;
-    QSet<LinkKey> m_links;
-    SegmentDenominatorMap m_segmentDenominators;  // LinkKey → int
-    SegmentShapeMap m_segmentShapes;              // LinkKey → QString
+    QVector<Anchor> m_anchors;                    // 按 beat 排序
+    QVector<Link> m_links;
+    QMap<LinkKey, int> m_segDen;                  // LinkKey → 分母
+    QMap<LinkKey, int> m_densMode;                // follow / fixed
+    QMap<LinkKey, QString> m_segShape;
     QSet<int> m_selectedAnchorIds;
-    QSet<int> m_compoundSelection;               // 框选
-    int m_nextAnchorId = 0;
-    CurveProjectMeta m_projectMeta;
+    QSet<LinkKey> m_selectedLinkKeys;
+    QVector<GroupPersistenceMeta> m_nodeGroups, m_curveGroups;
+    int m_nextAnchorId = 1;
+    int m_projectRevision = 0;
 };
 ```
+
+`NoteChainEditor` 负责鼠标/键盘输入、直接 `QPainter` 绘制、提交 Note、样式导入导出及宿主 Undo/Redo checkpoint；`NoteChainState` 不直接依赖画布像素。
 
 ### 8.3 V3 Sidecar 格式（`.curve_tbd.json`）
 
 ```json
 {
-    "version": 3,
-    "meta": { "revision": 0, "anchorIdCounter": 5 },
-    "anchors": [
+    "format_version": 3,
+    "coordinate_space": "chart",
+    "revision": 4,
+    "file_uuid": "...",
+    "nodes": [
+        { "node_id": 1, "lane_x": 128.0, "beat": [0, 0, 288], "smooth": true },
+        { "node_id": 2, "lane_x": 384.0, "beat": [1, 0, 288], "smooth": true }
+    ],
+    "curves": [
         {
-            "id": 0,
-            "lane_x": 256.0,
-            "beat": 0.0,
-            "handle_in_dx": 0.0,
-            "handle_in_dy": 0.0,
-            "handle_out_dx": 0.0,
-            "handle_out_dy": 0.0
+            "curve_id": 1,
+            "curve_no": 1,
+            "node_ids": [1, 2],
+            "style_category": "curve",
+            "density": { "mode": "follow" }
         }
     ],
-    "links": [{ "from": 0, "to": 1 }],
-    "segment_denominators": { "0_1": 4 },
-    "segment_shapes": { "0_1": "curve" }
+    "node_groups": [],
+    "curve_groups": []
 }
 ```
 
-| 字段                              | 说明                                             |
-| --------------------------------- | ------------------------------------------------ |
-| `version`                       | 固定为 3                                         |
-| `meta.revision`                 | CAS 版本号，每次保存 +1                          |
-| `anchors[].lane_x`              | lane 坐标（chart 空间，0-512）                   |
-| `anchors[].beat`                | beat 坐标（chart 空间）                          |
-| `anchors[].handle_in/out_dx/dy` | 控制柄偏移                                       |
-| `segment_denominators`          | 键`"from_to"` → 分母值                        |
-| `segment_shapes`                | 键`"from_to"` → `"curve"` 或 `"polyline"` |
+| 字段 | 说明 |
+|------|------|
+| `format_version` | 固定为 3 |
+| `coordinate_space` | 规范值为 `chart` |
+| `revision` | CAS 版本号；成功保存后递增 |
+| `nodes` | 稳定节点身份、lane/beat、控制柄、平滑状态和分组 |
+| `curves` | 稳定 `curve_id`、唯一 `curve_no`、端点、形状、密度和分组 |
+| `node_groups` / `curve_groups` | V3 分组定义 |
+
+实际 schema 还会保留 writer、扩展元数据和未知字段。旧 `anchors` / `links` / handle 表达只用于兼容读取，不是新文件的规范输出。
 
 ### 8.4 坐标体系
 
 - Sidecar 中锚点使用 **Chart 坐标**（laneX + beat）
-- 编辑器绘制时通过 `ChartCanvas` 转换到 Canvas 像素
+- 编辑器输入和绘制只通过 `CanvasProjection` 在 chart-space 与 Canvas 像素间转换
 - 提交为 note 时必须将采样点转为 `Note` 的 beat + x
+- 命中半径和框选范围使用像素；不得写回为 chart 坐标
 
 ### 8.5 文件路径推导
 
@@ -791,6 +796,8 @@ class NoteChainState {
 // chart.mc → .mcce-plugin/chart.curve_tbd.json
 static QString sidecarPathForChart(const QString &chartFilePath);
 ```
+
+保存采用 revision CAS 与 `QSaveFile` 原子提交；加载和谱面切换先解析临时状态，验证成功后才替换当前项目。完整维护约束见 [NOTE_CHAIN_EDITOR.md](NOTE_CHAIN_EDITOR.md)。
 
 ---
 
@@ -802,14 +809,14 @@ static QString sidecarPathForChart(const QString &chartFilePath);
 
 ```json
 {
-    "pluginId": "tool.note_chain_assist",
-    "displayName": "Note Chain Assist",
+    "pluginId": "tool.example_curve",
+    "displayName": "Example Curve Tool",
     "version": "1.0.0",
     "description": "Curve-driven note chain tool",
     "author": "Author",
     "pluginApiVersion": 3,
     "executable": "python",
-    "args": ["note_chain_assist.py"],
+    "args": ["example_curve.py"],
     "capabilities": [
         "tool_actions",
         "canvas_overlay",
@@ -972,10 +979,11 @@ src/
 │   ├── PluginManager.h / PluginManager.cpp    # 插件管理器
 │   └── ExternalProcessPlugin.h / .cpp         # 外部进程插件
 ├── editor/NoteChain/
-│   ├── NoteChainCommon.h                      # 常量/类型
-│   ├── NoteChainData.h                        # Anchor/Link/CurveProjectMeta
-│   ├── NoteChainState.h / .cpp                # 运行时状态
-│   └── NoteChainPersistence.h / .cpp          # V3 JSON 序列化
+│   ├── NoteChainCommon.h                      # chart-space 常量/类型
+│   ├── NoteChainCurveSampler.h                # 贝塞尔/折线采样与 beat 归一化
+│   ├── NoteChainState.h / .cpp                # 运行时状态/选择/快照
+│   ├── NoteChainPersistence.h / .cpp          # V3 JSON、CAS 与原子保存
+│   └── NoteChainEditor.h / .cpp               # 输入、绘制、命令与宿主协作
 ├── controller/
 │   └── ChartController.h / .cpp               # 编辑控制器 + Undo/Redo
 ├── render/
@@ -1247,6 +1255,7 @@ malody/Assets/Malody/Scripts/
 └── Utils/
     └── BundleChart.cs             // 内置捆绑谱面识别
 
+```
 
 ---
 

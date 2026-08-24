@@ -112,7 +112,6 @@ docs/branch_context/feat-rain-length-drag.md
 # 临时开发文档 / 笔记
 AUTOTIMING_BINARY_MAPPING.md
 REVERSE_ENGINEERING_PROGRESS.md
-docs/EXCLUDE_BPM_TODO.md
 tmp_impl_plan.md
 render_style_source.txt
 
@@ -124,5 +123,3 @@ tools/inspect_adrp.py
 tools/resolve_adrp_targets.py
 tools/tmp_resolve_got.py
 build_test/*
-docs/NOTE_CHAIN_ASSIST_CURVE_PLUGIN_AUDIT.md
-docs/todo_native_notechain_migration.md

@@ -24,7 +24,14 @@ Plugin tool actions can be mounted to:
 
 ## References
 
-- `docs/PROCESS_PLUGIN_PROTOCOL.md`
-- `docs/ADVANCED_COLOR_EDITOR_PLUGIN.md`
-- `docs/PLUGIN_TEMPLATE.md`
-- `plugins/samples/beat_normalizer/`
+- [Plugin docs index](docs/README.md)
+- [Process plugin protocol](docs/PROCESS_PLUGIN_PROTOCOL.md)
+- [Canvas interaction protocol](docs/CANVAS_INTERACTION_PROTOCOL.md)
+- [Minimal process example](docs/PROCESS_PLUGIN_MINIMAL_EXAMPLE.md)
+- [Advanced color editor capability](docs/ADVANCED_COLOR_EDITOR_PLUGIN.md)
+- [Native plugin template](docs/PLUGIN_TEMPLATE.md)
+- [Runtime samples](../../plugins/samples/README.md)
+
+The former `builtin.note_chain_assist` process plugin is not an active SDK
+example. It is skipped by the host because the authoritative implementation is
+the native module under `src/editor/NoteChain`.
