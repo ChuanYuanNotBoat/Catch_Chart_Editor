@@ -113,16 +113,25 @@ bool ChartCanvas_dispatchNoteChainMouseMove(ChartCanvas *canvas, QMouseEvent *ev
     if (!canvas || !event || !canvas->isNoteChainModeActive() || !canvas->noteChainEditor())
         return false;
     NoteChain::NoteChainEditor *editor = canvas->noteChainEditor();
-    editor->setHostContext(canvas->pluginCanvasActionContext());
+    // Host context serializes the chart selection and all Normal-note positions.
+    // None of those values changes merely because the pointer moved, so rebuilding
+    // it here made idle mouse motion O(chart note count). Press/release and explicit
+    // host state changes keep the editor context synchronized.
     const NoteChain::CanvasProjection projection = projectionFor(canvas);
     const bool shift = event->modifiers().testFlag(Qt::ShiftModifier);
     const bool handled = editor->handleMouseMove(event->position(), projection,
                                                   static_cast<int>(event->buttons()), shift);
     const QString cursor = editor->hoverCursorHint(event->position(), projection);
-    if (cursor == QLatin1String("pointing_hand")) canvas->setCursor(Qt::PointingHandCursor);
-    else if (cursor == QLatin1String("size_all")) canvas->setCursor(Qt::SizeAllCursor);
-    else if (cursor == QLatin1String("crosshair")) canvas->setCursor(Qt::CrossCursor);
-    else canvas->unsetCursor();
+    Qt::CursorShape cursorShape = Qt::ArrowCursor;
+    if (cursor == QLatin1String("pointing_hand")) cursorShape = Qt::PointingHandCursor;
+    else if (cursor == QLatin1String("size_all")) cursorShape = Qt::SizeAllCursor;
+    else if (cursor == QLatin1String("crosshair")) cursorShape = Qt::CrossCursor;
+    if (cursorShape == Qt::ArrowCursor) {
+        if (canvas->testAttribute(Qt::WA_SetCursor))
+            canvas->unsetCursor();
+    } else if (!canvas->testAttribute(Qt::WA_SetCursor) || canvas->cursor().shape() != cursorShape) {
+        canvas->setCursor(cursorShape);
+    }
     if (handled) canvas->update();
     return handled;
 }
