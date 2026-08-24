@@ -268,12 +268,12 @@
 <context>
     <name>ChartCanvas</name>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1014"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1052"/>
         <source>Mirror Flip Selected (Center Line)</source>
         <translation>選択ノートを左右反転（中央線）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="662"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="686"/>
         <source>Mirrored %1 note(s).</source>
         <translation>%1 個のノートを左右反転しました。</translation>
     </message>
@@ -300,137 +300,167 @@
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="177"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="182"/>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1034"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1072"/>
         <source>Mirror Flip Notes</source>
         <translation>ノートを左右反転</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="691"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="692"/>
         <source>Plugin Curve Edit</source>
         <translation>プラグインカーブ編集</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="720"/>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="744"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="721"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="745"/>
         <source>Plugin Action</source>
         <translation>プラグインアクション</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="722"/>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="751"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="723"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="752"/>
         <source>Plugin Action: %1</source>
         <translation>プラグインアクション: %1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="727"/>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="756"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="728"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="757"/>
         <source>Plugin batch action completed: %1</source>
         <translation>プラグインバッチアクションが完了しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="766"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp" line="767"/>
         <source>Plugin action completed: %1</source>
         <translation>プラグインアクションが完了しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1101"/>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1106"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1139"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1144"/>
         <source>Invalid Rain Note</source>
         <translation>無効なレインノート</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1101"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1139"/>
         <source>Invalid rain note parameters.</source>
         <translation>無効なレインノートパラメータです。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1106"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1144"/>
         <source>End time must be later than start time</source>
         <translation>終了時間は開始時間より後でなければなりません</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1010"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1037"/>
         <source>Play from Reference Time</source>
         <translation>基準時間から再生</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="803"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="828"/>
         <source>Commit Context Segments -&gt; Notes</source>
         <translation>現在の区間をノートに確定</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="807"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="832"/>
         <source>Toggle Curve / Polyline</source>
         <translation>曲線／折れ線を切替</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="817"/>
         <source>Follow Editor</source>
-        <translation>エディターに追従</translation>
+        <translation type="vanished">エディターに追従</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="818"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="843"/>
         <source>1/%1</source>
         <translation>1/%1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="837"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="862"/>
         <source>Connect Selected</source>
         <translation>選択項目を接続</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="838"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="863"/>
         <source>Disconnect Selected</source>
         <translation>選択項目を切断</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="840"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="865"/>
         <source>Delete Selected</source>
         <translation>選択項目を削除</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="929"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="955"/>
         <source>Set Segment Density: Follow Editor</source>
         <translation>セグメント密度を設定: エディタに追従</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="930"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="956"/>
         <source>Set Segment Density: 1/%1</source>
         <translation>セグメント密度を設定: 1/%1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="933"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="959"/>
         <source>No segment selected for density change.</source>
         <translation>密度変更のためにセグメントが選択されていません。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="830"/>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="953"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="855"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="979"/>
         <source>Mixed</source>
         <translation>混合</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1011"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="835"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="920"/>
+        <source>Generated Note Spacing</source>
+        <translation>生成ノート間隔</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="842"/>
+        <source>Follow Time Division</source>
+        <translation>時間分割に追従</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1038"/>
         <source>Paste</source>
         <translation>貼り付け</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1016"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1040"/>
+        <source>Quantize Paste to 1/288</source>
+        <translation>貼り付けを1/288に量子化</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1044"/>
+        <source>Round pasted Normal/Rain note start and end beats to 1/288 and store denominator 288.</source>
+        <translation>貼り付ける通常/Rainノートの開始・終了拍を1/288に丸め、分母を288で保存します。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1047"/>
+        <source>Paste timing: quantize to 1/288</source>
+        <translation>貼り付けタイミング：1/288に量子化</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1048"/>
+        <source>Paste timing: preserve normal timing</source>
+        <translation>貼り付けタイミング：通常の分度を維持</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1054"/>
         <source>Edit Color (By Division)</source>
         <translation>色を編集 (分割による)</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="732"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="756"/>
         <source>Color division changed to %1 for %2 note(s).</source>
         <translation>%2 個のノートの色分割を %1 に変更しました。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="739"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="763"/>
         <source>Minimal Irregular (Blue)</source>
         <translation>最小不規則分母 (青)</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="777"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="801"/>
         <source>Applied minimal irregular denominator for %1 note(s).</source>
         <translation>%1 個のノートに最小不規則分母を適用しました。</translation>
     </message>
@@ -466,7 +496,12 @@
         <translation>クリップボードが空です。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPaste.cpp" line="478"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPaste.cpp" line="482"/>
+        <source>Pasted %1 notes using 1/288 timing</source>
+        <translation>1/288タイミングで%1個のノートを貼り付けました</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPaste.cpp" line="483"/>
         <source>Pasted %1 notes</source>
         <translation>%1 個のノートを貼り付けました</translation>
     </message>
@@ -481,14 +516,19 @@
         <translation>貼り付けがキャンセルされました。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp" line="375"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp" line="389"/>
         <source>Confirm</source>
         <translation>確認</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp" line="377"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp" line="391"/>
         <source>Cancel</source>
         <translation>キャンセル</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp" line="396"/>
+        <source>Timing: 1/288</source>
+        <translation>タイミング：1/288</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp" line="242"/>
@@ -503,24 +543,22 @@
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="179"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="187"/>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="891"/>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="999"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="917"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="1025"/>
         <source>Commit Curve -&gt; Notes</source>
         <translation>曲線をノートに確定</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="810"/>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="894"/>
         <source>Curve Placement Density</source>
-        <translation>カーブ配置密度</translation>
+        <translation type="vanished">カーブ配置密度</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="943"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="969"/>
         <source>Curve density: follow editor</source>
         <translation>カーブ密度: エディタに追従</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="945"/>
+        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="971"/>
         <source>Curve density set to 1/%1</source>
         <translation>カーブ密度を 1/%1 に設定</translation>
     </message>
@@ -720,39 +758,39 @@
     <name>LongRangeSelector</name>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="92"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="183"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="182"/>
         <source>Range Select</source>
         <translation>範囲選択</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="100"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="199"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="198"/>
         <source>Show Range</source>
         <translation>範囲を表示</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="107"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="188"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="187"/>
         <source>Start:</source>
         <translation>開始:</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="111"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="124"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="193"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="195"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="192"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="194"/>
         <source>Now</source>
         <translation>現在</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="120"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="190"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="189"/>
         <source>End:</source>
         <translation>終了:</translation>
     </message>
     <message>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="132"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="197"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="196"/>
         <source>Select</source>
         <translation>選択</translation>
     </message>
@@ -760,495 +798,504 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1458"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3710"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1527"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3818"/>
         <source>Catch Chart Editor</source>
         <translation>Catch Chart Editor</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1484"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1553"/>
         <source>&amp;File</source>
         <translation>ファイル(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1488"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1557"/>
         <source>&amp;Open Chart...</source>
         <translation>チャートを開く(&amp;O)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1490"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1559"/>
         <source>Open &amp;Folder...</source>
         <translation>フォルダを開く(&amp;F)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1491"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1560"/>
         <source>Open &amp;Imported Charts...</source>
         <translation>インポート済み譜面を開く(&amp;I)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1492"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1561"/>
         <source>Ctrl+Shift+O</source>
         <translation>Ctrl+Shift+O</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1493"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1562"/>
         <source>&amp;Save</source>
         <translation>保存(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1495"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1564"/>
         <source>Save &amp;As...</source>
         <translation>名前を付けて保存(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1497"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1566"/>
         <source>&amp;Export .mcz...</source>
         <translation>.mcz にエクスポート(&amp;E)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1500"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1569"/>
         <source>Switch &amp;Difficulty...</source>
         <translation>難易度を切り替え(&amp;D)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1502"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1571"/>
         <source>E&amp;xit</source>
         <translation>終了(&amp;X)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1505"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1574"/>
         <source>&amp;Edit</source>
         <translation>編集(&amp;E)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1506"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1575"/>
         <source>&amp;Undo</source>
         <translation>元に戻す(&amp;U)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1509"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1578"/>
         <source>&amp;Redo</source>
         <translation>やり直し(&amp;R)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1513"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1582"/>
         <source>&amp;Copy</source>
         <translation>コピー(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1516"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1585"/>
         <source>&amp;Paste</source>
         <translation>貼り付け(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1519"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1588"/>
         <source>&amp;Delete</source>
         <translation>削除(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1547"/>
         <source>Paste with 288 Division</source>
-        <translation>288分割で貼り付け</translation>
+        <translation type="vanished">288分割で貼り付け</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1552"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1643"/>
         <source>&amp;View</source>
         <translation>表示(&amp;V)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1567"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1658"/>
         <source>&amp;Color Notes</source>
         <translation>カラーノート(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1571"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1662"/>
         <source>Color Timeline Divisions</source>
         <translation>タイムライン分割を色分け</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1575"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1666"/>
         <source>Timeline Division Color Advanced Settings...</source>
         <translation>タイムライン分割色の詳細設定...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1577"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1668"/>
         <source>&amp;Hyperfruit Outline</source>
         <translation>ハイパーフルーツ アウトライン(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1581"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1672"/>
         <source>&amp;Vertical Flip</source>
         <translation>垂直反転(&amp;V)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1587"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1678"/>
         <source>Show Background Image</source>
         <translation>背景画像を表示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1616"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1707"/>
         <source>Background Color</source>
         <translation>背景色</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1617"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1708"/>
         <source>Black</source>
         <translation>黒</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1623"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1714"/>
         <source>White</source>
         <translation>白</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1628"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1719"/>
         <source>Gray</source>
         <translation>グレー</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1633"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1724"/>
         <source>Custom...</source>
         <translation>カスタム...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1636"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1727"/>
         <source>Select Background Color</source>
         <translation>背景色を選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1643"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1734"/>
         <source>&amp;Settings</source>
         <translation>設定(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1644"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1735"/>
         <source>Note Size...</source>
         <translation>ノートサイズ...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1646"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1737"/>
         <source>Calibrate Skin...</source>
         <translation>スキンを調整...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1648"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1739"/>
         <source>Outline Settings...</source>
         <translation>アウトライン設定...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1650"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1741"/>
         <source>Note Sound Volume...</source>
         <translation>ノート音量...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1660"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1751"/>
         <source>Keyboard Shortcuts...</source>
         <translation>キーボードショートカット...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1663"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3844"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1754"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3958"/>
         <source>Language</source>
         <translation>言語(Language)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1679"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1770"/>
         <source>&amp;Playback</source>
         <translation>再生(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1680"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1771"/>
         <source>&amp;Play/Pause</source>
         <translation>再生/一時停止(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1691"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1782"/>
         <source>&amp;Speed</source>
         <translation>速度(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1696"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1787"/>
         <source>%1x</source>
         <translation>%1x</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1732"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1823"/>
         <source>&amp;Tools</source>
         <translation>ツール(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1734"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1825"/>
         <source>&amp;Plugin Manager...</source>
         <translation>プラグインマネージャー(&amp;P)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1736"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1827"/>
         <source>Plugin &amp;Actions</source>
         <translation>プラグインアクション(&amp;A)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1738"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1829"/>
         <source>Plugin &amp;Panels</source>
         <translation>プラグインパネル(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1825"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1916"/>
         <source>&amp;Grid Settings...</source>
         <translation>グリッド設定(&amp;G)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1827"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1918"/>
         <source>&amp;Log Settings...</source>
         <translation>ログ設定(&amp;L)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1829"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1920"/>
         <source>&amp;Export Diagnostics Report...</source>
         <translation>診断レポートをエクスポート(&amp;E)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1655"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1746"/>
         <source>&amp;Skin</source>
         <translation>スキン(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1391"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2987"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1460"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3095"/>
         <source>Audio Load Error</source>
         <translation>オーディオ読み込みエラー</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1485"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1554"/>
         <source>&amp;New Chart...</source>
         <translation>新規チャート(&amp;N)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1555"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1632"/>
+        <source>Quantize Paste to 1/288</source>
+        <translation>貼り付けを1/288に量子化</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1634"/>
+        <source>Round pasted Normal/Rain note start and end beats to 1/288 and store denominator 288.</source>
+        <translation>貼り付ける通常/Rainノートの開始・終了拍を1/288に丸め、分母を288で保存します。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="1646"/>
         <source>Panels</source>
         <translation>パネル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1564"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1655"/>
         <source>Reset Panel Layout</source>
         <translation>パネルレイアウトをリセット</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1657"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1748"/>
         <source>Note &amp;Sound</source>
         <translation>ノート音(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1733"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1824"/>
         <source>&amp;Plugins</source>
         <translation>プラグイン(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1740"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1831"/>
         <source>Curve Edit Tool</source>
         <translation>曲線編集ツール</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1768"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1859"/>
         <source>Export Curve Style...</source>
         <translation>曲線スタイルをエクスポート...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1778"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1783"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1869"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1874"/>
         <source>Export Curve Style</source>
         <translation>曲線スタイルをエクスポート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1779"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1870"/>
         <source>Curve Style (*.curve_style.json);;JSON Files (*.json)</source>
         <translation>曲線スタイル (*.curve_style.json);;JSON ファイル (*.json)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1785"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1876"/>
         <source>Import Curve Style...</source>
         <translation>曲線スタイルをインポート...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1795"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1800"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1886"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1891"/>
         <source>Import Curve Style</source>
         <translation>曲線スタイルをインポート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1796"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1887"/>
         <source>Curve Style (*.curve_style.json *.json);;All Files (*.*)</source>
         <translation>曲線スタイル (*.curve_style.json *.json);;すべてのファイル (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1831"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1922"/>
         <source>&amp;Help</source>
         <translation>ヘルプ(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1832"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1923"/>
         <source>Check for Updates...</source>
         <translation>更新を確認...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1834"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1925"/>
         <source>Help Documentation...</source>
         <translation>ヘルプドキュメント...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1835"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1926"/>
         <source>About...</source>
         <translation>について...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1836"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1927"/>
         <source>Version Information...</source>
         <translation>バージョン情報...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1837"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1928"/>
         <source>Logs...</source>
         <translation>ログ...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1861"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1866"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1934"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1952"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1957"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2025"/>
         <source>Keyboard Shortcuts</source>
         <translation>キーボードショートカット</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1861"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1952"/>
         <source>No configurable shortcuts are available.</source>
         <translation>設定可能なショートカットはありません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1870"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1961"/>
         <source>Rebind shortcuts. Clear a field to disable a shortcut.</source>
         <translation>ショートカットを再割り当てします。項目を空にするとそのショートカットを無効化できます。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1871"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1962"/>
         <source>Note: currently only 2-key combos using Shift/Ctrl are reliably supported. More complex combos and multi-main-key single-step bindings are not supported yet.</source>
         <translation>注意: 現在は Shift/Ctrl を使う2キーの組み合わせのみ安定してサポートされています。より複雑な組み合わせや複数主キーの単発バインドは未対応です。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1891"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1982"/>
         <source>Reset</source>
         <translation>リセット</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1907"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1998"/>
         <source>Reset All</source>
         <translation>すべてリセット</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1935"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2026"/>
         <source>Shortcut conflict detected. Please assign unique shortcuts.</source>
         <translation>ショートカットの競合が検出されました。重複しないように設定してください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1953"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2044"/>
         <source>Keyboard shortcuts updated.</source>
         <translation>キーボードショートカットを更新しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2115"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2512"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2985"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2225"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2620"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3093"/>
         <source>Audio file not found: %1</source>
         <translation>オーディオファイルが見つかりません: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2123"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2233"/>
         <source>Audio reloaded: %1</source>
         <translation>オーディオを再読み込みしました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2276"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3811"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2386"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3919"/>
         <source>Chart Workspace</source>
         <translation>譜面ワークスペース</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2281"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3813"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2391"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3921"/>
         <source>Navigation</source>
         <translation>ナビゲーション</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2287"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3815"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2397"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3923"/>
         <source>Realtime Preview</source>
         <translation>リアルタイムプレビュー</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2292"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3817"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2402"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3925"/>
         <source>Note Editor</source>
         <translation>ノート編集</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2298"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3819"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2408"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3927"/>
         <source>BPM &amp; Timing</source>
         <translation>BPM とタイミング</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2303"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3821"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2413"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3929"/>
         <source>Metadata</source>
         <translation>メタデータ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2318"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3714"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2428"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3822"/>
         <source>Tools</source>
         <translation>ツール</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2319"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3718"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2429"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3826"/>
         <source>Note</source>
         <translation>ノート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2321"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3720"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2431"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3828"/>
         <source>BPM</source>
         <translation>BPM</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2323"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3722"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2433"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3830"/>
         <source>Meta</source>
         <translation>メタ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2325"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3724"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2435"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3832"/>
         <source>Curve</source>
         <translation>曲線</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2354"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2355"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3716"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3726"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2464"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2465"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3824"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3834"/>
         <source>Plugins</source>
         <translation>プラグイン</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2441"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2549"/>
         <source>Auto-saved: %1</source>
         <translation>自動保存しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2467"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2575"/>
         <source>Recover Unsaved Session</source>
         <translation>未保存セッションを復元</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2468"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2576"/>
         <source>Detected that the previous session may not have exited normally.
 Unsaved edits were found in a recovery working copy.
 Do you want to recover them now?</source>
@@ -1257,37 +1304,37 @@ Do you want to recover them now?</source>
 今すぐ復元しますか？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2483"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2591"/>
         <source>Recovery Failed</source>
         <translation>復元に失敗</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2483"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2591"/>
         <source>Failed to load the recovery working copy.</source>
         <translation>復元用作業コピーの読み込みに失敗しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2522"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2630"/>
         <source>Recovered unsaved session</source>
         <translation>未保存セッションを復元しました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2529"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2637"/>
         <source>Closing the application will end this editing session.</source>
         <translation>アプリケーションを閉じるとこの編集セッションは終了します。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2575"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2683"/>
         <source>Importing MCZ: %1</source>
         <translation>MCZ をインポート中: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2586"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2694"/>
         <source>Unsaved Changes</source>
         <translation>保存されていない変更</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2587"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2695"/>
         <source>Current chart has unsaved changes.
 %1
 Do you want to save before continuing?</source>
@@ -1296,471 +1343,481 @@ Do you want to save before continuing?</source>
 続行する前に保存しますか？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2609"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3282"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3324"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2717"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3390"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3432"/>
         <source>Save Chart As</source>
         <translation>チャートを名前を付けて保存</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2611"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3284"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3325"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2719"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3392"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3433"/>
         <source>Malody Catch Chart (*.mc);;All Files (*.*)</source>
         <translation>Malody Catch チャート (*.mc);;すべてのファイル (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2618"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2709"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2718"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2741"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2921"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2928"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2946"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2955"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3317"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3355"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3428"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3434"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3439"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1077"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2726"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2817"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2826"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2849"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3029"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3036"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3054"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3063"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3425"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3463"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3536"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3542"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3547"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1159"/>
         <source>Error</source>
         <translation>エラー</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2618"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3317"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3355"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2726"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3425"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3463"/>
         <source>Failed to save chart.</source>
         <translation>チャートの保存に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2637"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3309"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3347"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2745"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3417"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3455"/>
         <source>Saved: %1</source>
         <translation>保存しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2648"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2756"/>
         <source>Creating a new chart will replace the current one in editor.</source>
         <translation>新しいチャートを作成すると、現在のチャートがエディタ内で置き換えられます。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2653"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2761"/>
         <source>Select Audio File</source>
         <translation>オーディオファイルを選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2654"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2762"/>
         <source>OGG Files (*.ogg);;All Files (*.*)</source>
         <translation>OGG ファイル (*.ogg);;すべてのファイル (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2709"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2817"/>
         <source>Failed to create directory:
 %1</source>
         <translation>ディレクトリの作成に失敗しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2719"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2827"/>
         <source>Failed to copy audio file to:
 %1</source>
         <translation>オーディオファイルのコピーに失敗しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2741"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2849"/>
         <source>Failed to create chart file:
 %1</source>
         <translation>チャートファイルの作成に失敗しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2746"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2854"/>
         <source>Measuring BPM, please wait...</source>
         <translation>BPMを測定中、お待ちください...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2747"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2855"/>
         <source>Auto Timing</source>
         <translation>自動タイミング</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2782"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2890"/>
         <source>BPM detected: %1, offset: %2 ms</source>
         <translation>BPM検出: %1、オフセット: %2 ms</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2789"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2897"/>
         <source>Auto-timing skipped (detection failed). Default BPM=120.</source>
         <translation>自動タイミングをスキップしました (検出失敗)。デフォルトBPM=120。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2808"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2916"/>
         <source>Open Chart</source>
         <translation>チャートを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2809"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2917"/>
         <source>Malody Catch Chart (*.mc *.mcz);;All Files (*.*)</source>
         <translation>Malody Catch チャート (*.mc *.mcz);;すべてのファイル (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2825"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2933"/>
         <source>Open Folder</source>
         <translation>フォルダを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2835"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3115"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3207"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2943"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3223"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3315"/>
         <source>No Charts</source>
         <translation>チャートがありません</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2835"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3115"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2943"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3223"/>
         <source>No .mc files found in the selected folder.</source>
         <translation>選択されたフォルダに .mc ファイルが見つかりません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2839"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2947"/>
         <source>Select Chart in Folder</source>
         <translation>フォルダ内のチャートを選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2863"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2971"/>
         <source>Opening another chart will replace the current one in editor.</source>
         <translation>別のチャートを開くと、現在のチャートがエディタ内で置き換えられます。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2884"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2992"/>
         <source>Chart Already Imported</source>
         <translation>譜面は既にインポート済みです</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2885"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2993"/>
         <source>This song appears to be imported already.</source>
         <translation>この曲は既にインポートされているようです。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2886"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2994"/>
         <source>Open an imported chart from the local library, or import this MCZ again into a new folder?</source>
         <translation>ローカル譜面ライブラリから既存譜面を開きますか？ それともこの MCZ を新しいフォルダに再インポートしますか？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2888"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2996"/>
         <source>Open Imported</source>
         <translation>インポート済みを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2889"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2997"/>
         <source>Import Again</source>
         <translation>再インポート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2921"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3029"/>
         <source>Failed to extract MCZ file.</source>
         <translation>MCZ ファイルの展開に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2928"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3036"/>
         <source>No .mc files found in the extracted content.</source>
         <translation>展開されたコンテンツに .mc ファイルが見つかりません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2932"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3040"/>
         <source>Select Chart from MCZ</source>
         <translation>MCZ からチャートを選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2940"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3048"/>
         <source>Plugin panels were closed after chart switch.</source>
         <translation>譜面切り替え後、プラグインパネルは閉じられました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2956"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3064"/>
         <source>Failed to load chart.</source>
         <translation>チャートの読み込みに失敗しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3003"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3111"/>
         <source>Loaded: %1</source>
         <translation>読み込みました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3012"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3120"/>
         <source>Select a chart:</source>
         <translation>チャートを選択:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3044"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3152"/>
         <source>Select a chart (grouped by song):</source>
         <translation>チャートを選択 (曲ごとにグループ化):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3048"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3156"/>
         <source>Song / Folder / Chart</source>
         <translation>曲 / フォルダ / チャート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3076"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3184"/>
         <source>(Root)</source>
         <translation>(ルート)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3141"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3249"/>
         <source>Please select a chart item, not a song or folder group.</source>
         <translation>曲またはフォルダグループではなく、チャート項目を選択してください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3155"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3263"/>
         <source>Imported Chart Library</source>
         <translation>インポート済み譜面ライブラリ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3159"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3267"/>
         <source>Select a chart from imported songs:</source>
         <translation>インポート済み楽曲から譜面を選択:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3163"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3271"/>
         <source>Song / Chart</source>
         <translation>楽曲 / 譜面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3048"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3163"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3156"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3271"/>
         <source>Difficulty</source>
         <translation>難易度</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3207"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3315"/>
         <source>No imported .mc files were found in the local library.</source>
         <translation>ローカルライブラリにインポート済みの .mc ファイルが見つかりませんでした。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3141"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3230"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3249"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3338"/>
         <source>Select Chart</source>
         <translation>譜面を選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3230"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3338"/>
         <source>Please select a chart item, not a song folder.</source>
         <translation>楽曲フォルダではなく、譜面項目を選択してください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3241"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3376"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="582"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3349"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3484"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="588"/>
         <source>No Chart</source>
         <translation>チャートがありません</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3241"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3349"/>
         <source>No chart is currently open.</source>
         <translation>現在開いているチャートはありません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3249"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3261"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3357"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3369"/>
         <source>No Other Charts</source>
         <translation>他のチャートはありません</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3249"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3357"/>
         <source>No other difficulties found in this directory.</source>
         <translation>このディレクトリに他の難易度が見つかりません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3261"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3369"/>
         <source>No other difficulties found.</source>
         <translation>他の難易度が見つかりません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3265"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3373"/>
         <source>Switch Difficulty</source>
         <translation>難易度を切り替え</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3376"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3484"/>
         <source>Please open a chart first before exporting.</source>
         <translation>エクスポートする前に、まずチャートを開いてください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3402"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3510"/>
         <source>Export .mcz</source>
         <translation>.mcz にエクスポート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3404"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3512"/>
         <source>Malody Catch Pack (*.mcz);;All Files (*.*)</source>
         <translation>Malody Catch パック (*.mcz);;すべてのファイル (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3421"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3529"/>
         <source>Exported: %1</source>
         <translation>エクスポートしました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3423"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3531"/>
         <source>Success</source>
         <translation>成功</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3423"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3531"/>
         <source>Chart exported successfully to:
 %1</source>
         <translation>チャートが正常にエクスポートされました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3428"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3536"/>
         <source>Failed to export chart to MCZ format.</source>
         <translation>チャートを MCZ 形式にエクスポートできませんでした。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3434"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3542"/>
         <source>Exception during export: %1</source>
         <translation>エクスポート中に例外が発生しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3439"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3547"/>
         <source>Unknown exception during export.</source>
         <translation>エクスポート中に不明な例外が発生しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3492"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3600"/>
         <source>Timeline Division Color Advanced Settings</source>
         <translation>タイムライン分割色の詳細設定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3514"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3622"/>
         <source>Enable Timeline Division Coloring</source>
         <translation>タイムライン分割の色分けを有効化</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3520"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3628"/>
         <source>Custom</source>
         <translation>カスタム</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3521"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3629"/>
         <source>Classic</source>
         <translation>クラシック</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3522"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3630"/>
         <source>All</source>
         <translation>すべて</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3526"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3634"/>
         <source>Preset:</source>
         <translation>プリセット:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3529"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3637"/>
         <source>Custom Rules</source>
         <translation>カスタムルール</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3532"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3640"/>
         <source>Common divisions:</source>
         <translation>よく使う分割:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3553"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3661"/>
         <source>Extra divisions (manual):</source>
         <translation>追加分割 (手動):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3566"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3674"/>
         <source>Enter denominator, e.g. 48</source>
         <translation>分母を入力（例: 48）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3567"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3675"/>
         <source>Add</source>
         <translation>追加</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3568"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3676"/>
         <source>Remove Selected</source>
         <translation>選択項目を削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3591"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3699"/>
         <source>Invalid Division</source>
         <translation>無効な分割</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3591"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3699"/>
         <source>Please enter a positive integer denominator.</source>
         <translation>正の整数の分母を入力してください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3596"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3704"/>
         <source>Already In Common List</source>
         <translation>既に共通リストにあります</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3596"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3704"/>
         <source>This division is already in common rules. Please use its checkbox.</source>
         <translation>この分割は既に共通ルールに含まれています。対応するチェックボックスを使用してください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3799"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3907"/>
         <source>Failed to reset panel layout.</source>
         <translation>パネルレイアウトをリセットできませんでした。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3805"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3913"/>
         <source>Panel layout reset.</source>
         <translation>パネルレイアウトをリセットしました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3844"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3938"/>
+        <source>Paste timing: quantize to 1/288</source>
+        <translation>貼り付けタイミング：1/288に量子化</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3939"/>
+        <source>Paste timing: preserve normal timing</source>
+        <translation>貼り付けタイミング：通常の分度を維持</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3958"/>
         <source>Failed to load language pack: %1</source>
         <translation>言語パックの読み込みに失敗しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3858"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3972"/>
         <source>Language changed to %1</source>
         <translation>言語が %1 に変更されました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3863"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3977"/>
         <source>Checking for updates...</source>
         <translation>更新を確認中...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3877"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3909"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3915"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3991"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4023"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4029"/>
         <source>Check for Updates</source>
         <translation>更新を確認</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3878"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3992"/>
         <source>Update check failed: %1</source>
         <translation>更新の確認に失敗しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3896"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4010"/>
         <source>Update Available</source>
         <translation>更新があります</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3897"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4011"/>
         <source>A newer version is available.</source>
         <translation>新しいバージョンがあります。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3898"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4012"/>
         <source>Current: %1
 Latest: %2
 
@@ -1771,19 +1828,19 @@ Open release page?</source>
 リリースページを開きますか？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3900"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4014"/>
         <source>Open Release Page</source>
         <translation>リリースページを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3910"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4024"/>
         <source>You are using the latest version.
 Current: %1</source>
         <translation>最新バージョンを使用しています。
 現在: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3916"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4030"/>
         <source>Current version appears newer than latest release.
 Current: %1
 Latest: %2</source>
@@ -1792,12 +1849,12 @@ Latest: %2</source>
 最新: %2</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3947"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4061"/>
         <source>Help Center</source>
         <translation>ヘルプセンター</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3963"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4077"/>
         <source># Help Documentation
 
 Create a `docs/help.md` file to customize this page.
@@ -1816,7 +1873,7 @@ Quick start:
 3. ノートを編集して `.mcz` を保存/エクスポート。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3977"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4091"/>
         <source># About
 
 Create a `docs/about.md` file to customize this page.</source>
@@ -1825,7 +1882,7 @@ Create a `docs/about.md` file to customize this page.</source>
 `docs/about.md` ファイルを作成してこのページをカスタマイズできます。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4008"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4122"/>
         <source>## History Updates
 
 Open the **History** tab for collapsible long update notes.</source>
@@ -1834,47 +1891,47 @@ Open the **History** tab for collapsible long update notes.</source>
 **履歴**タブを開くと、折りたたみ可能な長い更新ノートが表示されます。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4016"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4130"/>
         <source>Long update notes are grouped by prefix and version and can be collapsed.</source>
         <translation>長い更新ノートはプレフィックスとバージョンでグループ化され、折りたたむことができます。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3969"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4083"/>
         <source>Help</source>
         <translation>ヘルプ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3672"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3780"/>
         <source>Audio is not ready. Please reload a valid audio file.</source>
         <translation>オーディオの準備ができていません。有効なオーディオファイルを再読み込みしてください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3979"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4093"/>
         <source>About</source>
         <translation>について</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3994"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4108"/>
         <source>Application Version:</source>
         <translation>アプリケーションバージョン:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3996"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4110"/>
         <source>Qt Runtime:</source>
         <translation>Qt ランタイム:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3998"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4112"/>
         <source>Build ABI:</source>
         <translation>ビルド ABI:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4000"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4114"/>
         <source>Operating System:</source>
         <translation>オペレーティングシステム:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4004"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4118"/>
         <source>## Version Notes
 
 </source>
@@ -1883,348 +1940,390 @@ Open the **History** tab for collapsible long update notes.</source>
 </translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4011"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4125"/>
         <source>Version</source>
         <translation>バージョン</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4025"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4139"/>
         <source>Expand All</source>
         <translation>すべて展開</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4026"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4140"/>
         <source>Collapse All</source>
         <translation>すべて折りたたむ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4037"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4151"/>
         <source>No history document found. Put one in `docs/history.md` or `docs/changelog.md`.</source>
         <translation>履歴ドキュメントが見つかりません。`docs/history.md` または `docs/changelog.md` に配置してください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4065"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4179"/>
         <source>History</source>
         <translation>履歴</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4070"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4184"/>
         <source>Logs are generated in the application &apos;logs&apos; directory.</source>
         <translation>ログはアプリケーションの logs ディレクトリに生成されます。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4076"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4190"/>
         <source>File</source>
         <translation>ファイル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4076"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4190"/>
         <source>Size (KB)</source>
         <translation>サイズ (KB)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4076"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4190"/>
         <source>Modified</source>
         <translation>更新日時</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4086"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4200"/>
         <source>Refresh</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4087"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4201"/>
         <source>Open Selected Log</source>
         <translation>選択したログを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4088"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4202"/>
         <source>Open Current Log</source>
         <translation>現在のログを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4096"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4140"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4146"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4155"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4210"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4254"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4260"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4269"/>
         <source>Logs</source>
         <translation>ログ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4140"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4254"/>
         <source>No log file selected.</source>
         <translation>ログファイルが選択されていません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4146"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4260"/>
         <source>Current log file is not available yet.</source>
         <translation>現在のログファイルはまだ利用できません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4155"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4269"/>
         <source>Log folder does not exist yet.</source>
         <translation>ログフォルダはまだ存在しません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="214"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="274"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="217"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="278"/>
         <source>(Plugin manager unavailable)</source>
         <translation>(プラグインマネージャーは利用できません)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="222"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="225"/>
         <source>(No plugin actions)</source>
         <translation>(プラグインアクションはありません)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="260"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="264"/>
         <source>(No menu actions)</source>
         <translation>(メニューアクションはありません)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="549"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="555"/>
         <source>Confirm Plugin Action</source>
         <translation>プラグインアクションの確認</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="582"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="588"/>
         <source>Please open a chart first.</source>
         <translation>まずチャートを開いてください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="591"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="628"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="649"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="656"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="671"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="710"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="731"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="738"/>
         <source>Plugin Action</source>
         <translation>プラグインアクション</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="649"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="731"/>
         <source>Plugin action failed: %1</source>
         <translation>プラグインアクションが失敗しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="656"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="738"/>
         <source>Plugin action finished, but failed to reload chart.</source>
         <translation>プラグインアクションは完了しましたが、チャートの再読み込みに失敗しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="622"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="661"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="704"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="743"/>
         <source>Plugin Action: %1</source>
         <translation>プラグインアクション: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="282"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="286"/>
         <source>(No plugin panels)</source>
         <translation>(プラグインパネルなし)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="628"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="710"/>
         <source>Plugin batch edit is empty or invalid: %1</source>
         <translation>プラグインのバッチ編集が空または無効です: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="564"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="572"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="631"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="665"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="570"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="578"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="713"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="747"/>
         <source>Plugin action completed: %1</source>
         <translation>プラグインアクションが完了しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="591"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="596"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="654"/>
+        <source>Format Note Colors</source>
+        <translation>ノート色を整形</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="606"/>
+        <source>Selected Notes (%1)</source>
+        <translation>選択ノート（%1）</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="607"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="613"/>
+        <source>Beat Range</source>
+        <translation>拍範囲</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="608"/>
+        <source>Entire Chart</source>
+        <translation>譜面全体</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="609"/>
+        <source>Format Scope:</source>
+        <translation>整形範囲：</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="625"/>
+        <source>Only Normal and Rain note start colors are formatted. Sound notes are not changed.</source>
+        <translation>通常ノートとRainノートの開始位置の色だけを整形します。サウンドノートは変更しません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="633"/>
+        <source>Format</source>
+        <translation>整形</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="654"/>
+        <source>Enter a valid beat range.</source>
+        <translation>有効な拍範囲を入力してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="671"/>
         <source>Failed to sync working copy before plugin action.</source>
         <translation>プラグインアクション前に作業コピーの同期に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="735"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="749"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="817"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="831"/>
         <source>Plugin Panel</source>
         <translation>プラグインパネル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="749"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="831"/>
         <source>Failed to create plugin panel.</source>
         <translation>プラグインパネルの作成に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="771"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="853"/>
         <source>Plugin Manager</source>
         <translation>プラグインマネージャー</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="771"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="853"/>
         <source>Plugin manager is not available.</source>
         <translation>プラグインマネージャーは利用できません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="778"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="860"/>
         <source>Plugin panels were closed after plugin reload.</source>
         <translation>プラグイン再読み込み後、プラグインパネルは閉じられました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="803"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="885"/>
         <source>Log Settings</source>
         <translation>ログ設定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="808"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="890"/>
         <source>Enable JSON Logging</source>
         <translation>JSON ログを有効にする</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="812"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="894"/>
         <source>Enable Verbose Logging</source>
         <translation>詳細ログを有効にする</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="816"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="898"/>
         <source>Enable Qt Noise Filter</source>
         <translation>Qt ノイズフィルタを有効にする</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="820"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="902"/>
         <source>Qt Categories (comma-separated):</source>
         <translation>Qt カテゴリ (カンマ区切り):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="827"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="909"/>
         <source>Message Prefixes (comma-separated):</source>
         <translation>メッセージプレフィックス (カンマ区切り):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="835"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="917"/>
         <source>Log File:</source>
         <translation>ログファイル:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4089"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="839"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4203"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="921"/>
         <source>Open Log Folder</source>
         <translation>ログフォルダを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="851"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="933"/>
         <source>JSON Log File:</source>
         <translation>JSON ログファイル:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="936"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1018"/>
         <source>Grid Beat Number</source>
         <translation>グリッド拍番号</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="949"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1031"/>
         <source> pt</source>
         <translation> pt</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="950"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1032"/>
         <source>Font size for beat numbers on the left side of the grid</source>
         <translation>グリッド左側の拍番号のフォントサイズ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="984"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1066"/>
         <source>Size:</source>
         <translation>サイズ:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1023"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1105"/>
         <source>Export Diagnostics Report</source>
         <translation>診断レポートをエクスポート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1025"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1107"/>
         <source>Text Files (*.txt);;JSON Files (*.json);;All Files (*.*)</source>
         <translation>テキストファイル (*.txt);;JSON ファイル (*.json);;すべてのファイル (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1046"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1064"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1128"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1146"/>
         <source>Export Successful</source>
         <translation>エクスポート成功</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1047"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1065"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1129"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1147"/>
         <source>Diagnostics report exported to:
 %1</source>
         <translation>診断レポートがエクスポートされました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1052"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1070"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1134"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1152"/>
         <source>Export Failed</source>
         <translation>エクスポート失敗</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1052"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1070"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1134"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1152"/>
         <source>Failed to open file for writing.</source>
         <translation>書き込み用にファイルを開けませんでした。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1077"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1159"/>
         <source>Exception during export:
 %1</source>
         <translation>エクスポート中に例外が発生しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1084"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1166"/>
         <source>Note Size</source>
         <translation>ノートサイズ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1089"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1171"/>
         <source>Size (pixels):</source>
         <translation>サイズ (ピクセル):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1097"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1179"/>
         <source>Note: This setting affects fallback circle notes. When a skin is loaded, note size is controlled by skin calibration.</source>
         <translation>注: この設定は代替の円形ノートにのみ適用されます。スキン読み込み時のノートサイズはスキン校正で調整してください。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1163"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1245"/>
         <source>No Skin</source>
         <translation>スキンがありません</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1163"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1245"/>
         <source>No skin loaded, cannot calibrate.</source>
         <translation>スキンが読み込まれていないため、調整できません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1168"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1250"/>
         <source>Calibrate Skin: %1</source>
         <translation>スキンを調整: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1180"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1262"/>
         <source>Scale Factor:</source>
         <translation>拡大縮小率:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1250"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1332"/>
         <source>Outline Settings</source>
         <translation>アウトライン設定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1256"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1338"/>
         <source>Outline Width (px):</source>
         <translation>アウトラインの幅 (px):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1268"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1350"/>
         <source>Outline Color:</source>
         <translation>アウトラインの色:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1287"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1369"/>
         <source>Note Sound Volume</source>
         <translation>ノート音量</translation>
     </message>
@@ -2270,132 +2369,132 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>スキンの読み込みに失敗しました: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="901"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="983"/>
         <source>Session Settings</source>
         <translation>セッション設定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="906"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="988"/>
         <source>Editing Session</source>
         <translation>編集セッション</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="909"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="991"/>
         <source>Enable Auto Save</source>
         <translation>自動保存を有効にする</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="913"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="995"/>
         <source> s</source>
         <translation> 秒</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="931"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1013"/>
         <source>Auto Save Interval:</source>
         <translation>自動保存間隔:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1013"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1095"/>
         <source>Session settings updated</source>
         <translation>セッション設定が更新されました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="917"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="999"/>
         <source>Enable Audio Correction (Testing)</source>
         <translation>オーディオ補正を有効にする（テスト）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1710"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="920"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1801"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1002"/>
         <source>Lock 60 FPS</source>
         <translation>60 FPS に固定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1711"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="921"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1802"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1003"/>
         <source>Lock 90 FPS</source>
         <translation>90 FPS に固定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1712"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="922"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1803"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1004"/>
         <source>Lock 120 FPS</source>
         <translation>120 FPS に固定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1713"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1729"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="923"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1804"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1820"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1005"/>
         <source>Unlimited</source>
         <translation>無制限</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="933"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1015"/>
         <source>Playback FPS Cap:</source>
         <translation>再生 FPS 上限:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1498"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1567"/>
         <source>Export .mcz (&amp;Pure)...</source>
         <translation>.mcz をエクスポート（&amp;純粋）...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1594"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1685"/>
         <source>Background Image Brightness...</source>
         <translation>背景画像の明るさ...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1601"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1692"/>
         <source>Background Image Brightness</source>
         <translation>背景画像の明るさ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1602"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1693"/>
         <source>Brightness (%):</source>
         <translation>明るさ (%):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1614"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1705"/>
         <source>Background image brightness: %1%</source>
         <translation>背景画像の明るさ: %1%</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3402"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3510"/>
         <source>Export .mcz (Pure)</source>
         <translation>.mcz をエクスポート（純粋）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3728"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3836"/>
         <source>Launch Curve Tool</source>
         <translation>カーブツールを起動</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="489"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="494"/>
         <source>No plugin supports canvas interaction.</source>
         <translation>キャンバス操作に対応したプラグインがありません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="513"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="518"/>
         <source>Plugin enhanced tool mode ON</source>
         <translation>プラグイン拡張ツールモード: ON</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="514"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="519"/>
         <source>Plugin enhanced tool mode OFF</source>
         <translation>プラグイン拡張ツールモード: OFF</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1683"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1774"/>
         <source>Mark Playback Jerk</source>
         <translation>再生の乱れをマーク</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1706"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1797"/>
         <source>Playback FPS Cap</source>
         <translation>再生FPS上限</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1730"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1821"/>
         <source>Playback FPS cap: %1</source>
         <translation>再生FPS上限: %1</translation>
     </message>
@@ -2404,42 +2503,42 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation type="vanished">プラグイン拡張ツールモード</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1803"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1894"/>
         <source>Plugin Overlay Elements</source>
         <translation>プラグインオーバーレイ要素</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1817"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1908"/>
         <source>Enable Overlay</source>
         <translation>オーバーレイを有効にする</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1818"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1909"/>
         <source>Preview Notes</source>
         <translation>ノートをプレビュー</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1819"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1910"/>
         <source>Control Points</source>
         <translation>コントロールポイント</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1820"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1911"/>
         <source>Handles</source>
         <translation>ハンドル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1821"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1912"/>
         <source>Sample Points</source>
         <translation>サンプルポイント</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1822"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1913"/>
         <source>Labels</source>
         <translation>ラベル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1652"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1743"/>
         <source>Session Settings...</source>
         <translation>セッション設定...</translation>
     </message>
@@ -2572,7 +2671,7 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="98"/>
         <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="633"/>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1203"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1216"/>
         <source>Failed to save curve project: %1</source>
         <translation>曲線プロジェクトを保存できませんでした: %1</translation>
     </message>
@@ -2598,79 +2697,103 @@ Open the **History** tab for collapsible long update notes.</source>
     </message>
     <message>
         <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="723"/>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="859"/>
         <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="864"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="869"/>
         <source>Change Curve Shape</source>
         <translation>曲線の形状を変更</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="832"/>
         <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="837"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="842"/>
         <source>Change Curve Density</source>
         <translation>曲線密度を変更</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="882"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="887"/>
         <source>Connect Curve Segments</source>
         <translation>曲線区間を接続</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="894"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="899"/>
         <source>Disconnect Curve Segments</source>
         <translation>曲線区間を切断</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="909"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="914"/>
         <source>Delete Curve Selection</source>
         <translation>選択した曲線を削除</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="925"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="930"/>
         <source>Reset Curve</source>
         <translation>曲線をリセット</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="954"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="959"/>
         <source>Empty style path</source>
         <translation>スタイルのパスが空です</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1000"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1005"/>
         <source>Style has no valid denominators</source>
         <translation>スタイルに有効な分母がありません</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1078"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1083"/>
         <source>Smooth</source>
         <translation>スムーズ</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1078"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1083"/>
         <source>Corner</source>
         <translation>角</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1116"/>
-        <source>Density: %1  Effective: %2  Anchor: %3</source>
-        <translation>密度: %1  実効: %2  アンカー: %3</translation>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1118"/>
+        <source>Selected segments: mixed spacing</source>
+        <translation>選択セグメント：間隔が混在</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1119"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1120"/>
+        <source>Selected segments: follow Time Division (1/%1)</source>
+        <translation>選択セグメント：時間分割に追従（1/%1）</translation>
+    </message>
+    <message>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1122"/>
+        <source>Selected segments: fixed 1/%1</source>
+        <translation>選択セグメント：固定 1/%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1124"/>
+        <source>Generated notes follow Time Division (1/%1)</source>
+        <translation>生成ノートは時間分割に追従（1/%1）</translation>
+    </message>
+    <message>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1130"/>
+        <source>%1  |  Anchor placement: %2</source>
+        <translation>%1  |  アンカー配置：%2</translation>
+    </message>
+    <message>
+        <source>Density: %1  Effective: %2  Anchor: %3</source>
+        <translation type="vanished">密度: %1  実効: %2  アンカー: %3</translation>
+    </message>
+    <message>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1132"/>
         <source>ON</source>
         <translation>オン</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1119"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1132"/>
         <source>OFF</source>
         <translation>オフ</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1163"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1176"/>
         <source>Failed to save previous curve project: %1</source>
         <translation>前の曲線プロジェクトを保存できませんでした: %1</translation>
     </message>
     <message>
-        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1177"/>
+        <location filename="../../src/editor/NoteChain/NoteChainEditor.cpp" line="1190"/>
         <source>Failed to load curve project: %1</source>
         <translation>曲線プロジェクトを読み込めませんでした: %1</translation>
     </message>
@@ -3071,163 +3194,163 @@ Open the **History** tab for collapsible long update notes.</source>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="124"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="127"/>
         <source>Plugin Action</source>
         <translation>プラグインアクション</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1312"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1394"/>
         <source>Volume: %1%</source>
         <translation>音量: %1%</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="144"/>
+        <location filename="../../src/app/MainWindow.cpp" line="208"/>
         <source>Ctrl</source>
         <translation>Ctrl</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="146"/>
+        <location filename="../../src/app/MainWindow.cpp" line="210"/>
         <source>Alt</source>
         <translation>Alt</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="148"/>
+        <location filename="../../src/app/MainWindow.cpp" line="212"/>
         <source>Shift</source>
         <translation>Shift</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="150"/>
+        <location filename="../../src/app/MainWindow.cpp" line="214"/>
         <source>Meta</source>
         <translation>メタ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="269"/>
+        <location filename="../../src/app/MainWindow.cpp" line="333"/>
         <source>History</source>
         <translation>履歴</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="294"/>
+        <location filename="../../src/app/MainWindow.cpp" line="358"/>
         <source>Other</source>
         <translation>その他</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="633"/>
+        <location filename="../../src/app/MainWindow.cpp" line="697"/>
         <source>Source directory does not exist:
 %1</source>
         <translation>ソースディレクトリが存在しません:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="640"/>
+        <location filename="../../src/app/MainWindow.cpp" line="704"/>
         <source>Failed to create working directory:
 %1</source>
         <translation>作業ディレクトリの作成に失敗しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="678"/>
-        <location filename="../../src/app/MainWindow.cpp" line="697"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1151"/>
+        <location filename="../../src/app/MainWindow.cpp" line="742"/>
+        <location filename="../../src/app/MainWindow.cpp" line="761"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1215"/>
         <source>Copy cancelled by user.</source>
         <translation>ユーザーによってコピーがキャンセルされました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="687"/>
+        <location filename="../../src/app/MainWindow.cpp" line="751"/>
         <source>Failed to create working subdirectory:
 %1</source>
         <translation>作業サブディレクトリの作成に失敗しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="706"/>
+        <location filename="../../src/app/MainWindow.cpp" line="770"/>
         <source>Failed to prepare working file path:
 %1</source>
         <translation>作業ファイルパスの準備に失敗しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="716"/>
+        <location filename="../../src/app/MainWindow.cpp" line="780"/>
         <source>Failed to copy required file:
 %1</source>
         <translation>必要なファイルのコピーに失敗しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="988"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1044"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1052"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1108"/>
         <source>Source chart path is empty.</source>
         <translation>ソースチャートのパスが空です。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="996"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1052"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1060"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1116"/>
         <source>Failed to create working copy directory:
 %1</source>
         <translation>作業コピーディレクトリの作成に失敗しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1004"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1060"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1068"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1124"/>
         <source>Source chart does not exist:
 %1</source>
         <translation>ソースチャートが存在しません:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1019"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1087"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1083"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1151"/>
         <source>Working copy chart file is missing:
 %1</source>
         <translation>作業コピーのチャートファイルがありません:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1096"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1160"/>
         <source>Preparing working copy...</source>
         <translation>作業コピーを準備中...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1097"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1161"/>
         <source>Cancel</source>
         <translation>キャンセル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1114"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1178"/>
         <source>Preparing working copy...
 %1/%2 files, %3/%4 MB</source>
         <translation>作業コピーを準備中...
 %1/%2 ファイル、%3/%4 MB</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1160"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1224"/>
         <source>Failed to create working copy.</source>
         <translation>作業コピーの作成に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1180"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1244"/>
         <source>Chart controller is not available.</source>
         <translation>チャートコントローラーが利用できません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1198"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1262"/>
         <source>Failed to parse chart data:
 %1</source>
         <translation>チャートデータの解析に失敗しました:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1211"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1275"/>
         <source>Loading chart data...</source>
         <translation>チャートデータを読み込み中...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1245"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1309"/>
         <source>Failed to parse chart data.</source>
         <translation>チャートデータの解析に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1253"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1317"/>
         <source>Failed to apply loaded chart.</source>
         <translation>読み込んだチャートの適用に失敗しました。</translation>
     </message>
