@@ -874,6 +874,7 @@ void MainWindow::triggerPluginPanelAction()
     else
         d->dockManager->addDockWidget(ads::RightDockWidgetArea, dock);
 
+    configureCompactToolDock(dock);
     d->pluginPanelDocks.insert(key, dock);
     connect(dock, &QObject::destroyed, this, [this, key]()
             { d->pluginPanelDocks.remove(key); });

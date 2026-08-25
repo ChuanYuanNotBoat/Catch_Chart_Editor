@@ -33,10 +33,12 @@
 #include <DockManager.h>
 #include <DockWidget.h>
 #include <DockAreaWidget.h>
+#include <DockAreaTitleBar.h>
 #include <FloatingDockContainer.h>
 #include <QMenuBar>
 #include <QToolBar>
 #include <QStatusBar>
+#include <QStyle>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QLabel>
@@ -83,6 +85,7 @@
 #include <QThread>
 #include <QTreeWidget>
 #include <QSet>
+#include <QPointer>
 #include <QTimer>
 #include <QTextBrowser>
 #include <QTabWidget>
@@ -172,6 +175,8 @@ namespace
                    "ads--CDockContainerWidget, ads--CDockAreaWidget, ads--CDockWidget { background: palette(window); }"
                    "ads--CDockSplitter::handle { background: palette(mid); }"
                    "ads--CDockAreaTitleBar { background: palette(window); border-bottom: 1px solid palette(mid); }"
+                   "ads--CDockAreaTitleBar[compactToolHandle=\"true\"] { border: none; background: palette(window); }"
+                   "QLabel#compactToolDockGrip { color: palette(mid); background: transparent; border: none; padding: 0; font-size: 7px; }"
                    "ads--CDockWidgetTab { background: palette(window); border-right: 1px solid palette(mid); padding: 0; }"
                    "ads--CDockWidgetTab[activeTab=\"true\"] { background: palette(button); }"
                    "ads--CDockWidgetTab QLabel, #autoHideTitleLabel { color: palette(window-text); }"
@@ -2437,6 +2442,10 @@ void MainWindow::createCentralArea()
     QWidget *rangeTools = d->notePanel->takeRangeToolsWidget();
     QWidget *mirrorTools = d->notePanel->takeMirrorToolsWidget();
     QWidget *curveTools = d->notePanel->takeCurveToolsWidget();
+    timingTools->setObjectName(QStringLiteral("timingToolsRoot"));
+    rangeTools->setObjectName(QStringLiteral("rangeToolsRoot"));
+    mirrorTools->setObjectName(QStringLiteral("mirrorToolsRoot"));
+    curveTools->setObjectName(QStringLiteral("curveToolsRoot"));
 
     d->notePanelDock = new ads::CDockWidget(d->dockManager, tr("Note Input"));
     d->notePanelDock->setObjectName(QStringLiteral("dock.note"));
@@ -2450,6 +2459,7 @@ void MainWindow::createCentralArea()
     ads::CDockAreaWidget *timingArea = d->dockManager->addDockWidget(
         ads::BottomDockWidgetArea, d->timingToolsDock, editorArea);
     timingArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->timingToolsDock);
 
     d->rangeToolsDock = new ads::CDockWidget(d->dockManager, tr("Range Select"));
     d->rangeToolsDock->setObjectName(QStringLiteral("dock.note.range"));
@@ -2457,6 +2467,7 @@ void MainWindow::createCentralArea()
     ads::CDockAreaWidget *rangeArea = d->dockManager->addDockWidget(
         ads::BottomDockWidgetArea, d->rangeToolsDock, timingArea);
     rangeArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->rangeToolsDock);
 
     d->mirrorToolsDock = new ads::CDockWidget(d->dockManager, tr("Mirror Flip"));
     d->mirrorToolsDock->setObjectName(QStringLiteral("dock.note.mirror"));
@@ -2464,6 +2475,7 @@ void MainWindow::createCentralArea()
     ads::CDockAreaWidget *mirrorArea = d->dockManager->addDockWidget(
         ads::BottomDockWidgetArea, d->mirrorToolsDock, rangeArea);
     mirrorArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->mirrorToolsDock);
 
     d->curveToolsDock = new ads::CDockWidget(d->dockManager, tr("Curve Tools"));
     d->curveToolsDock->setObjectName(QStringLiteral("dock.note.curve"));
@@ -2471,6 +2483,7 @@ void MainWindow::createCentralArea()
     ads::CDockAreaWidget *curveArea = d->dockManager->addDockWidget(
         ads::BottomDockWidgetArea, d->curveToolsDock, mirrorArea);
     curveArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->curveToolsDock);
 
     d->pluginToolsDock = new ads::CDockWidget(d->dockManager, tr("Plugin Tools"));
     d->pluginToolsDock->setObjectName(QStringLiteral("dock.plugin.tools"));
@@ -2478,6 +2491,7 @@ void MainWindow::createCentralArea()
     ads::CDockAreaWidget *pluginArea = d->dockManager->addDockWidget(
         ads::BottomDockWidgetArea, d->pluginToolsDock, curveArea);
     pluginArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->pluginToolsDock);
 
     d->bpmPanelDock = new ads::CDockWidget(d->dockManager, tr("BPM & Timing"));
     d->bpmPanelDock->setObjectName(QStringLiteral("dock.bpm"));
@@ -2498,6 +2512,15 @@ void MainWindow::createCentralArea()
     d->dockManager->setSplitterSizes(leftArea, {150, 200});
     d->dockManager->setSplitterSizes(workspaceArea, {350, 650, 300});
     d->dockManager->setSplitterSizes(editorArea, {270, 130, 210, 170, 260, 260});
+
+    connect(d->dockManager, &ads::CDockManager::stateRestored, this, [this]()
+            {
+                const QList<ads::CDockWidget *> toolDocks = {
+                    d->timingToolsDock, d->rangeToolsDock, d->mirrorToolsDock,
+                    d->curveToolsDock, d->pluginToolsDock};
+                for (ads::CDockWidget *dock : toolDocks)
+                    configureCompactToolDock(dock);
+            });
 
     d->defaultDockLayoutState = d->dockManager->saveState(kDockLayoutVersion);
     restoreDockLayout();
@@ -3977,6 +4000,87 @@ void MainWindow::showDockPanel(ads::CDockWidget *dock)
     dock->activateWindow();
 }
 
+void MainWindow::configureCompactToolDock(ads::CDockWidget *dock)
+{
+    if (!dock)
+        return;
+
+    dock->setFeature(ads::CDockWidget::NoTab, true);
+    if (!dock->property("compactToolDockConfigured").toBool())
+    {
+        dock->setProperty("compactToolDockConfigured", true);
+        const QPointer<ads::CDockWidget> guardedDock(dock);
+        connect(dock, &ads::CDockWidget::topLevelChanged, this,
+                [this, guardedDock](bool)
+                {
+                    QTimer::singleShot(0, this, [this, guardedDock]()
+                                       {
+                        if (guardedDock)
+                            updateCompactToolDockHandle(guardedDock); });
+                });
+    }
+
+    updateCompactToolDockHandle(dock);
+}
+
+void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
+{
+    if (!dock || !dock->dockAreaWidget())
+        return;
+
+    ads::CDockAreaTitleBar *titleBar = dock->dockAreaWidget()->titleBar();
+    if (!titleBar)
+        return;
+
+    // A floating container already has a native window caption. Keep the ADS
+    // title bar only while docked, where it becomes a compact drag handle.
+    if (dock->isFloating())
+    {
+        titleBar->hide();
+        return;
+    }
+
+    titleBar->setProperty("compactToolHandle", true);
+    titleBar->setCursor(Qt::SizeAllCursor);
+    titleBar->setFixedHeight(12);
+    titleBar->style()->unpolish(titleBar);
+    titleBar->style()->polish(titleBar);
+    const ads::TitleBarButton hiddenButtons[] = {
+        ads::TitleBarButtonTabsMenu,
+        ads::TitleBarButtonUndock,
+        ads::TitleBarButtonClose,
+        ads::TitleBarButtonAutoHide,
+        ads::TitleBarButtonMinimize};
+    for (ads::TitleBarButton buttonId : hiddenButtons)
+    {
+        if (ads::CTitleBarButton *button = titleBar->button(buttonId))
+            button->setShowInTitleBar(false);
+    }
+
+    QLabel *grip = titleBar->findChild<QLabel *>(
+        QStringLiteral("compactToolDockGrip"), Qt::FindDirectChildrenOnly);
+    if (!grip)
+    {
+        // Hide the normal tab text and window buttons. The transparent label
+        // only paints the grip; mouse events continue to reach ADS' title bar.
+        const QList<QWidget *> titleItems = titleBar->findChildren<QWidget *>(
+            QString(), Qt::FindDirectChildrenOnly);
+        for (QWidget *item : titleItems)
+            item->hide();
+
+        grip = new QLabel(QStringLiteral("•••"), titleBar);
+        grip->setObjectName(QStringLiteral("compactToolDockGrip"));
+        grip->setAlignment(Qt::AlignCenter);
+        grip->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        grip->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        grip->setFixedHeight(12);
+        titleBar->insertWidget(0, grip);
+    }
+
+    grip->show();
+    titleBar->show();
+}
+
 void MainWindow::saveDockLayout()
 {
     Settings::instance().setMainWindowGeometry(saveGeometry());
@@ -4444,6 +4548,15 @@ void MainWindow::applySidebarTheme()
 
     applyPanelStyle(d->leftPanel, "leftPanelRoot");
     applyPanelStyle(d->notePanel, "notePanelRoot");
+    if (d->timingToolsDock)
+        applyPanelStyle(d->timingToolsDock->widget(), "timingToolsRoot");
+    if (d->rangeToolsDock)
+        applyPanelStyle(d->rangeToolsDock->widget(), "rangeToolsRoot");
+    if (d->mirrorToolsDock)
+        applyPanelStyle(d->mirrorToolsDock->widget(), "mirrorToolsRoot");
+    if (d->curveToolsDock)
+        applyPanelStyle(d->curveToolsDock->widget(), "curveToolsRoot");
+    applyPanelStyle(d->pluginActionPanel, "pluginActionPanelRoot");
     applyPanelStyle(d->bpmPanel, "bpmPanelRoot");
     applyPanelStyle(d->metaPanel, "metaPanelRoot");
 
