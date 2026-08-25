@@ -106,7 +106,7 @@
 
 namespace
 {
-    constexpr int kDockLayoutVersion = 2;
+    constexpr int kDockLayoutVersion = 3;
 
     PluginManager *activePluginManager()
     {
@@ -2447,28 +2447,37 @@ void MainWindow::createCentralArea()
     d->timingToolsDock = new ads::CDockWidget(d->dockManager, tr("Timing & Grid"));
     d->timingToolsDock->setObjectName(QStringLiteral("dock.note.timing"));
     d->timingToolsDock->setWidget(timingTools, ads::CDockWidget::ForceScrollArea);
-    ads::CDockAreaWidget *utilityArea = d->dockManager->addDockWidget(
+    ads::CDockAreaWidget *timingArea = d->dockManager->addDockWidget(
         ads::BottomDockWidgetArea, d->timingToolsDock, editorArea);
+    timingArea->setAllowedAreas(ads::OuterDockAreas);
 
     d->rangeToolsDock = new ads::CDockWidget(d->dockManager, tr("Range Select"));
     d->rangeToolsDock->setObjectName(QStringLiteral("dock.note.range"));
     d->rangeToolsDock->setWidget(rangeTools, ads::CDockWidget::ForceScrollArea);
-    d->dockManager->addDockWidgetTabToArea(d->rangeToolsDock, utilityArea);
+    ads::CDockAreaWidget *rangeArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->rangeToolsDock, timingArea);
+    rangeArea->setAllowedAreas(ads::OuterDockAreas);
 
     d->mirrorToolsDock = new ads::CDockWidget(d->dockManager, tr("Mirror Flip"));
     d->mirrorToolsDock->setObjectName(QStringLiteral("dock.note.mirror"));
     d->mirrorToolsDock->setWidget(mirrorTools, ads::CDockWidget::ForceScrollArea);
-    d->dockManager->addDockWidgetTabToArea(d->mirrorToolsDock, utilityArea);
+    ads::CDockAreaWidget *mirrorArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->mirrorToolsDock, rangeArea);
+    mirrorArea->setAllowedAreas(ads::OuterDockAreas);
 
     d->curveToolsDock = new ads::CDockWidget(d->dockManager, tr("Curve Tools"));
     d->curveToolsDock->setObjectName(QStringLiteral("dock.note.curve"));
     d->curveToolsDock->setWidget(curveTools, ads::CDockWidget::ForceScrollArea);
-    d->dockManager->addDockWidgetTabToArea(d->curveToolsDock, utilityArea);
+    ads::CDockAreaWidget *curveArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->curveToolsDock, mirrorArea);
+    curveArea->setAllowedAreas(ads::OuterDockAreas);
 
     d->pluginToolsDock = new ads::CDockWidget(d->dockManager, tr("Plugin Tools"));
     d->pluginToolsDock->setObjectName(QStringLiteral("dock.plugin.tools"));
     d->pluginToolsDock->setWidget(d->pluginActionPanel, ads::CDockWidget::ForceScrollArea);
-    d->dockManager->addDockWidgetTabToArea(d->pluginToolsDock, utilityArea);
+    ads::CDockAreaWidget *pluginArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->pluginToolsDock, curveArea);
+    pluginArea->setAllowedAreas(ads::OuterDockAreas);
 
     d->bpmPanelDock = new ads::CDockWidget(d->dockManager, tr("BPM & Timing"));
     d->bpmPanelDock->setObjectName(QStringLiteral("dock.bpm"));
@@ -2480,15 +2489,15 @@ void MainWindow::createCentralArea()
     d->metaPanelDock->setWidget(d->metaPanel, ads::CDockWidget::ForceScrollArea);
     d->dockManager->addDockWidgetTabToArea(d->metaPanelDock, editorArea);
     d->notePanelDock->setAsCurrentTab();
-    d->timingToolsDock->setAsCurrentTab();
     d->curveToolsDock->toggleView(false);
+    d->pluginToolsDock->toggleView(false);
 
-    // Match the former 150/200/700/300 proportions while retaining fully
-    // composable dock areas. Calls are ignored by ADS if a splitter shape
-    // changes in a future version.
+    // Keep the former Note editor reading order while allowing every medium-
+    // grained block to be detached. Docked blocks remain simultaneously
+    // visible in a vertical stack instead of turning into switching tabs.
     d->dockManager->setSplitterSizes(leftArea, {150, 200});
     d->dockManager->setSplitterSizes(workspaceArea, {350, 650, 300});
-    d->dockManager->setSplitterSizes(editorArea, {420, 260});
+    d->dockManager->setSplitterSizes(editorArea, {270, 130, 210, 170, 260, 260});
 
     d->defaultDockLayoutState = d->dockManager->saveState(kDockLayoutVersion);
     restoreDockLayout();

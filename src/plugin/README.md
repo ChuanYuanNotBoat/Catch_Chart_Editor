@@ -25,8 +25,9 @@ Plugin tool actions can be mounted to:
 All discovered tool actions are also grouped by plugin in the host-rendered,
 dockable `Plugin Tools` panel. Actions declaring `scope_selector: note_range`
 receive a persistent selected/range/all scope GUI with `LongRangeSelector`
-inputs. Native floating panels remain supported and are tabbed with Plugin
-Tools by default; both panel types can be detached or merged through ADS.
+inputs. Native floating panels remain supported and join the same vertically
+split tool column by default. Tool blocks detach into floating windows and
+return as simultaneously visible split sections instead of switching tabs.
 
 ## References
 

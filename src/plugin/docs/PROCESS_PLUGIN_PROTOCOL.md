@@ -189,9 +189,10 @@ selected-notes / beat-range / entire-chart GUI; the resulting context is passed
 to `runToolAction` as `format_scope`, `range_start_beat`, and
 `range_end_beat`. Other actions receive a normal host button.
 
-Native plugins may still return QWidget-based floating panels. The host merges
-those panels with `Plugin Tools` by default, while keeping every panel
-independently detachable, closable, and restorable.
+Native plugins may still return QWidget-based floating panels. The host inserts
+those panels into the same vertically split tool column by default, while
+keeping every panel independently detachable, closable, and restorable. Docked
+tool panels remain simultaneously visible rather than becoming switching tabs.
 
 ## 5. i18n Metadata Fallback
 

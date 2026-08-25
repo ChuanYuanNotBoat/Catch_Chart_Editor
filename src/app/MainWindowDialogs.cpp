@@ -860,9 +860,17 @@ void MainWindow::triggerPluginPanelAction()
     panel->setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
     dock->setWidget(panel, ads::CDockWidget::AutoScrollArea);
     if (d->pluginToolsDock && d->pluginToolsDock->dockAreaWidget())
-        d->dockManager->addDockWidgetTabToArea(dock, d->pluginToolsDock->dockAreaWidget());
+    {
+        ads::CDockAreaWidget *panelArea = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, dock, d->pluginToolsDock->dockAreaWidget());
+        panelArea->setAllowedAreas(ads::OuterDockAreas);
+    }
     else if (d->notePanelDock && d->notePanelDock->dockAreaWidget())
-        d->dockManager->addDockWidgetTabToArea(dock, d->notePanelDock->dockAreaWidget());
+    {
+        ads::CDockAreaWidget *panelArea = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, dock, d->notePanelDock->dockAreaWidget());
+        panelArea->setAllowedAreas(ads::OuterDockAreas);
+    }
     else
         d->dockManager->addDockWidget(ads::RightDockWidgetArea, dock);
 
