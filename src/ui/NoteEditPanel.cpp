@@ -146,25 +146,30 @@ void NoteEditPanel::setupUi()
     connect(m_copyButton, &QPushButton::clicked, this, &NoteEditPanel::copyRequested);
     mainLayout->addWidget(m_copyButton);
 
-    m_timeDivisionLabel = new QLabel(tr("Time Division:"), this);
-    mainLayout->addWidget(m_timeDivisionLabel);
-    m_timeDivisionCombo = new QComboBox(this);
+    m_timingToolsContainer = new QWidget(this);
+    QVBoxLayout *timingLayout = new QVBoxLayout(m_timingToolsContainer);
+    timingLayout->setContentsMargins(0, 0, 0, 0);
+    timingLayout->setSpacing(6);
+    m_timeDivisionLabel = new QLabel(tr("Time Division:"), m_timingToolsContainer);
+    timingLayout->addWidget(m_timeDivisionLabel);
+    m_timeDivisionCombo = new QComboBox(m_timingToolsContainer);
     QStringList divisions = {"1", "2", "3", "4", "6", "8", "12", "16", "24", "32"};
     for (const QString &d : divisions)
         m_timeDivisionCombo->addItem(d);
     m_timeDivisionCombo->setEditable(true);
     m_timeDivisionCombo->setCurrentText("4");
     connect(m_timeDivisionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &NoteEditPanel::onTimeDivisionChanged);
-    mainLayout->addWidget(m_timeDivisionCombo);
+    timingLayout->addWidget(m_timeDivisionCombo);
 
-    m_gridSnapCheck = new QCheckBox(tr("Grid Snap"), this);
+    m_gridSnapCheck = new QCheckBox(tr("Grid Snap"), m_timingToolsContainer);
     m_gridSnapCheck->setChecked(true);
     connect(m_gridSnapCheck, &QCheckBox::toggled, this, &NoteEditPanel::onGridSnapToggled);
-    mainLayout->addWidget(m_gridSnapCheck);
+    timingLayout->addWidget(m_gridSnapCheck);
 
-    m_gridSettingsBtn = new QPushButton(tr("Grid Settings..."), this);
+    m_gridSettingsBtn = new QPushButton(tr("Grid Settings..."), m_timingToolsContainer);
     connect(m_gridSettingsBtn, &QPushButton::clicked, this, &NoteEditPanel::onGridSettingsClicked);
-    mainLayout->addWidget(m_gridSettingsBtn);
+    timingLayout->addWidget(m_gridSettingsBtn);
+    mainLayout->addWidget(m_timingToolsContainer);
 
     // 长范围选择器
     m_longRangeSelector = new LongRangeSelector(this);
@@ -205,6 +210,36 @@ void NoteEditPanel::setupUi()
             this, &NoteEditPanel::rangeVisibilityChanged);
 
     mainLayout->addStretch();
+}
+
+QWidget *NoteEditPanel::takeSectionWidget(QWidget *widget)
+{
+    if (!widget || widget->parentWidget() != this)
+        return nullptr;
+    if (layout())
+        layout()->removeWidget(widget);
+    widget->setParent(nullptr);
+    return widget;
+}
+
+QWidget *NoteEditPanel::takeTimingToolsWidget()
+{
+    return takeSectionWidget(m_timingToolsContainer);
+}
+
+QWidget *NoteEditPanel::takeRangeToolsWidget()
+{
+    return takeSectionWidget(m_longRangeSelector);
+}
+
+QWidget *NoteEditPanel::takeMirrorToolsWidget()
+{
+    return takeSectionWidget(m_mirrorGroup);
+}
+
+QWidget *NoteEditPanel::takeCurveToolsWidget()
+{
+    return takeSectionWidget(m_ncPlaceholder);
 }
 
 

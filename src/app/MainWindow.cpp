@@ -9,6 +9,7 @@
 #include "ui/NoteEditPanel.h"
 #include "ui/BPMTimePanel.h"
 #include "ui/LongRangeSelector.h"
+#include "ui/PluginActionPanel.h"
 
 #include "ui/MetaEditPanel.h"
 #include "ui/LeftPanel.h"
@@ -105,6 +106,8 @@
 
 namespace
 {
+    constexpr int kDockLayoutVersion = 2;
+
     PluginManager *activePluginManager()
     {
         auto *app = qobject_cast<Application *>(QCoreApplication::instance());
@@ -1341,9 +1344,15 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->leftPanelDock = nullptr;
     d->previewDock = nullptr;
     d->notePanelDock = nullptr;
+    d->timingToolsDock = nullptr;
+    d->rangeToolsDock = nullptr;
+    d->mirrorToolsDock = nullptr;
+    d->curveToolsDock = nullptr;
+    d->pluginToolsDock = nullptr;
     d->bpmPanelDock = nullptr;
     d->metaPanelDock = nullptr;
     d->notePanel = nullptr;
+    d->pluginActionPanel = nullptr;
     d->bpmPanel = nullptr;
     d->metaPanel = nullptr;
     d->leftPanel = nullptr;
@@ -1645,7 +1654,10 @@ void MainWindow::createMenus()
     {
         QMenu *panelsMenu = viewMenu->addMenu(tr("Panels"));
         const QList<ads::CDockWidget *> docks = {
-            d->leftPanelDock, d->previewDock, d->notePanelDock, d->bpmPanelDock, d->metaPanelDock};
+            d->leftPanelDock, d->previewDock, d->notePanelDock,
+            d->timingToolsDock, d->rangeToolsDock, d->mirrorToolsDock,
+            d->curveToolsDock, d->pluginToolsDock,
+            d->bpmPanelDock, d->metaPanelDock};
         for (ads::CDockWidget *dock : docks)
         {
             if (dock)
@@ -1852,7 +1864,14 @@ void MainWindow::createMenus()
             }
         }
         if (checked)
+        {
             showEditorPanel(d->notePanel);
+            showDockPanel(d->curveToolsDock);
+        }
+        else if (d->curveToolsDock)
+        {
+            d->curveToolsDock->toggleView(false);
+        }
         if (d->pluginToolModeToolbarAction) { const QSignalBlocker b(d->pluginToolModeToolbarAction); d->pluginToolModeToolbarAction->setChecked(checked); }
         if (d->curvePanelAction) { const QSignalBlocker b(d->curvePanelAction); d->curvePanelAction->setChecked(checked); }
     });
@@ -2184,6 +2203,9 @@ void MainWindow::createCentralArea()
     d->notePanel = new NoteEditPanel(d->dockManager);
     d->notePanel->setObjectName(QStringLiteral("notePanelRoot"));
     d->notePanel->setAttribute(Qt::WA_StyledBackground, true);
+    d->pluginActionPanel = new PluginActionPanel(d->dockManager);
+    d->pluginActionPanel->setObjectName(QStringLiteral("pluginActionPanelRoot"));
+    d->pluginActionPanel->setAttribute(Qt::WA_StyledBackground, true);
     d->bpmPanel = new BPMTimePanel(d->dockManager);
     d->bpmPanel->setObjectName(QStringLiteral("bpmPanelRoot"));
     d->bpmPanel->setAttribute(Qt::WA_StyledBackground, true);
@@ -2194,6 +2216,18 @@ void MainWindow::createCentralArea()
     d->notePanel->setChartController(d->chartController);
     d->notePanel->setSelectionController(d->selectionController);
     d->notePanel->setPlaybackController(d->playbackController);
+    d->pluginActionPanel->setChartController(d->chartController);
+    d->pluginActionPanel->setSelectionController(d->selectionController);
+    d->pluginActionPanel->setPlaybackController(d->playbackController);
+    d->pluginActionPanel->setViewportRange(d->canvas->timeDivision(),
+                                           d->canvas->scrollBeat(),
+                                           d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+    connect(d->pluginActionPanel, &PluginActionPanel::actionRequested, this,
+            [this](QVariantMap meta, const QVariantMap &actionContext)
+            {
+                meta.insert(QStringLiteral("action_context"), actionContext);
+                runPluginActionWithMeta(meta);
+            });
     d->bpmPanel->setChartController(d->chartController);
     d->bpmPanel->setPlaybackController(d->playbackController);
     d->metaPanel->setChartController(d->chartController);
@@ -2399,11 +2433,42 @@ void MainWindow::createCentralArea()
     d->previewDock->setWidget(d->previewWidget, ads::CDockWidget::ForceNoScrollArea);
     d->dockManager->addDockWidget(ads::RightDockWidgetArea, d->previewDock, leftArea);
 
-    d->notePanelDock = new ads::CDockWidget(d->dockManager, tr("Note Editor"));
+    QWidget *timingTools = d->notePanel->takeTimingToolsWidget();
+    QWidget *rangeTools = d->notePanel->takeRangeToolsWidget();
+    QWidget *mirrorTools = d->notePanel->takeMirrorToolsWidget();
+    QWidget *curveTools = d->notePanel->takeCurveToolsWidget();
+
+    d->notePanelDock = new ads::CDockWidget(d->dockManager, tr("Note Input"));
     d->notePanelDock->setObjectName(QStringLiteral("dock.note"));
     d->notePanelDock->setWidget(d->notePanel, ads::CDockWidget::ForceScrollArea);
     ads::CDockAreaWidget *editorArea = d->dockManager->addDockWidget(
         ads::RightDockWidgetArea, d->notePanelDock, workspaceArea);
+
+    d->timingToolsDock = new ads::CDockWidget(d->dockManager, tr("Timing & Grid"));
+    d->timingToolsDock->setObjectName(QStringLiteral("dock.note.timing"));
+    d->timingToolsDock->setWidget(timingTools, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *utilityArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->timingToolsDock, editorArea);
+
+    d->rangeToolsDock = new ads::CDockWidget(d->dockManager, tr("Range Select"));
+    d->rangeToolsDock->setObjectName(QStringLiteral("dock.note.range"));
+    d->rangeToolsDock->setWidget(rangeTools, ads::CDockWidget::ForceScrollArea);
+    d->dockManager->addDockWidgetTabToArea(d->rangeToolsDock, utilityArea);
+
+    d->mirrorToolsDock = new ads::CDockWidget(d->dockManager, tr("Mirror Flip"));
+    d->mirrorToolsDock->setObjectName(QStringLiteral("dock.note.mirror"));
+    d->mirrorToolsDock->setWidget(mirrorTools, ads::CDockWidget::ForceScrollArea);
+    d->dockManager->addDockWidgetTabToArea(d->mirrorToolsDock, utilityArea);
+
+    d->curveToolsDock = new ads::CDockWidget(d->dockManager, tr("Curve Tools"));
+    d->curveToolsDock->setObjectName(QStringLiteral("dock.note.curve"));
+    d->curveToolsDock->setWidget(curveTools, ads::CDockWidget::ForceScrollArea);
+    d->dockManager->addDockWidgetTabToArea(d->curveToolsDock, utilityArea);
+
+    d->pluginToolsDock = new ads::CDockWidget(d->dockManager, tr("Plugin Tools"));
+    d->pluginToolsDock->setObjectName(QStringLiteral("dock.plugin.tools"));
+    d->pluginToolsDock->setWidget(d->pluginActionPanel, ads::CDockWidget::ForceScrollArea);
+    d->dockManager->addDockWidgetTabToArea(d->pluginToolsDock, utilityArea);
 
     d->bpmPanelDock = new ads::CDockWidget(d->dockManager, tr("BPM & Timing"));
     d->bpmPanelDock->setObjectName(QStringLiteral("dock.bpm"));
@@ -2415,14 +2480,17 @@ void MainWindow::createCentralArea()
     d->metaPanelDock->setWidget(d->metaPanel, ads::CDockWidget::ForceScrollArea);
     d->dockManager->addDockWidgetTabToArea(d->metaPanelDock, editorArea);
     d->notePanelDock->setAsCurrentTab();
+    d->timingToolsDock->setAsCurrentTab();
+    d->curveToolsDock->toggleView(false);
 
     // Match the former 150/200/700/300 proportions while retaining fully
     // composable dock areas. Calls are ignored by ADS if a splitter shape
     // changes in a future version.
     d->dockManager->setSplitterSizes(leftArea, {150, 200});
     d->dockManager->setSplitterSizes(workspaceArea, {350, 650, 300});
+    d->dockManager->setSplitterSizes(editorArea, {420, 260});
 
-    d->defaultDockLayoutState = d->dockManager->saveState(1);
+    d->defaultDockLayoutState = d->dockManager->saveState(kDockLayoutVersion);
     restoreDockLayout();
 
     d->mainToolBar = addToolBar(tr("Tools"));
@@ -2627,6 +2695,12 @@ void MainWindow::tryRecoverPreviousSession()
 
     d->isModified = true;
     d->canvas->update();
+    if (d->pluginActionPanel)
+    {
+        d->pluginActionPanel->setViewportRange(
+            d->canvas->timeDivision(), d->canvas->scrollBeat(),
+            d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+    }
     statusBar()->showMessage(tr("Recovered unsaved session"), 3000);
     cleanupSessionWorkingCopies(d->workingChartPath);
     persistRecoveryState();
@@ -3111,6 +3185,12 @@ void MainWindow::loadChartFile(const QString &filePath)
     d->playbackController->audioPlayer()->setAdjustedPosition(0);
 
     d->canvas->update();
+    if (d->pluginActionPanel)
+    {
+        d->pluginActionPanel->setViewportRange(
+            d->canvas->timeDivision(), d->canvas->scrollBeat(),
+            d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+    }
     d->isModified = false;
 
     persistRecoveryState();
@@ -3844,6 +3924,8 @@ void MainWindow::retranslateUi()
         d->leftPanel->retranslateUi();
     if (d->notePanel)
         d->notePanel->retranslateUi();
+    if (d->pluginActionPanel)
+        d->pluginActionPanel->retranslateUi();
     if (d->bpmPanel)
         d->bpmPanel->retranslateUi();
     if (d->metaPanel)
@@ -3872,6 +3954,14 @@ void MainWindow::showEditorPanel(QWidget *panel)
     if (!dock)
         return;
 
+    showDockPanel(dock);
+}
+
+void MainWindow::showDockPanel(ads::CDockWidget *dock)
+{
+    if (!dock)
+        return;
+
     dock->toggleView(true);
     dock->setAsCurrentTab();
     dock->raise();
@@ -3882,7 +3972,7 @@ void MainWindow::saveDockLayout()
 {
     Settings::instance().setMainWindowGeometry(saveGeometry());
     if (d->dockManager)
-        Settings::instance().setDockLayoutState(d->dockManager->saveState(1));
+        Settings::instance().setDockLayoutState(d->dockManager->saveState(kDockLayoutVersion));
 }
 
 void MainWindow::restoreDockLayout()
@@ -3894,12 +3984,12 @@ void MainWindow::restoreDockLayout()
     if (state.isEmpty())
         return;
 
-    if (!d->dockManager->restoreState(state, 1))
+    if (!d->dockManager->restoreState(state, kDockLayoutVersion))
     {
         Logger::warn("Failed to restore ADS panel layout; reverting to defaults.");
         Settings::instance().clearDockLayoutState();
         if (!d->defaultDockLayoutState.isEmpty())
-            d->dockManager->restoreState(d->defaultDockLayoutState, 1);
+            d->dockManager->restoreState(d->defaultDockLayoutState, kDockLayoutVersion);
     }
 }
 
@@ -3908,7 +3998,7 @@ void MainWindow::resetDockLayout()
     if (!d->dockManager || d->defaultDockLayoutState.isEmpty())
         return;
 
-    if (!d->dockManager->restoreState(d->defaultDockLayoutState, 1))
+    if (!d->dockManager->restoreState(d->defaultDockLayoutState, kDockLayoutVersion))
     {
         statusBar()->showMessage(tr("Failed to reset panel layout."), 3000);
         return;
@@ -3916,6 +4006,8 @@ void MainWindow::resetDockLayout()
 
     Settings::instance().clearDockLayoutState();
     d->notePanelDock->setAsCurrentTab();
+    if (d->timingToolsDock)
+        d->timingToolsDock->setAsCurrentTab();
     statusBar()->showMessage(tr("Panel layout reset."), 2000);
 }
 
@@ -3928,7 +4020,17 @@ void MainWindow::updateDockTitles()
     if (d->previewDock)
         d->previewDock->setWindowTitle(tr("Realtime Preview"));
     if (d->notePanelDock)
-        d->notePanelDock->setWindowTitle(tr("Note Editor"));
+        d->notePanelDock->setWindowTitle(tr("Note Input"));
+    if (d->timingToolsDock)
+        d->timingToolsDock->setWindowTitle(tr("Timing & Grid"));
+    if (d->rangeToolsDock)
+        d->rangeToolsDock->setWindowTitle(tr("Range Select"));
+    if (d->mirrorToolsDock)
+        d->mirrorToolsDock->setWindowTitle(tr("Mirror Flip"));
+    if (d->curveToolsDock)
+        d->curveToolsDock->setWindowTitle(tr("Curve Tools"));
+    if (d->pluginToolsDock)
+        d->pluginToolsDock->setWindowTitle(tr("Plugin Tools"));
     if (d->bpmPanelDock)
         d->bpmPanelDock->setWindowTitle(tr("BPM & Timing"));
     if (d->metaPanelDock)

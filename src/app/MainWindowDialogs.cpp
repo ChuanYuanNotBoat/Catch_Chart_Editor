@@ -12,6 +12,7 @@
 #include "ui/LeftPanel.h"
 #include "ui/NoteEditPanel.h"
 #include "ui/LongRangeSelector.h"
+#include "ui/PluginActionPanel.h"
 #include "file/ChartIO.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
@@ -281,12 +282,11 @@ void MainWindow::populatePluginPanelsMenu()
     }
 
     const QList<PluginManager::FloatingPanelEntry> entries = app->pluginManager()->floatingPanels();
-    if (entries.isEmpty())
-    {
-        QAction *none = d->pluginPanelsMenu->addAction(tr("(No plugin panels)"));
-        none->setEnabled(false);
-        return;
-    }
+    QAction *toolPanelAction = d->pluginPanelsMenu->addAction(tr("Plugin Tools"));
+    connect(toolPanelAction, &QAction::triggered, this, [this]()
+            { showDockPanel(d->pluginToolsDock); });
+    if (!entries.isEmpty())
+        d->pluginPanelsMenu->addSeparator();
 
     for (const PluginManager::FloatingPanelEntry &entry : entries)
     {
@@ -325,6 +325,7 @@ void MainWindow::refreshPluginUiExtensions()
 
     QList<LeftPanel::PluginQuickAction> sidebarActions;
     QList<NoteEditPanel::PluginPlacementAction> notePanelActions;
+    QList<PluginActionPanel::Action> panelActions;
     const QList<PluginManager::ToolActionEntry> entries = app->pluginManager()->toolActions();
     Logger::info(QString("refreshPluginUiExtensions: discovered %1 plugin tool actions.").arg(entries.size()));
     for (const PluginManager::ToolActionEntry &entry : entries)
@@ -354,17 +355,38 @@ void MainWindow::refreshPluginUiExtensions()
         const QString key = entry.pluginId + "::" + entry.action.actionId;
         d->pluginActionMeta.insert(key, meta);
 
+        PluginActionPanel::Action panelAction;
+        panelAction.pluginDisplayName = entry.pluginDisplayName;
+        panelAction.description = entry.action.description;
+        panelAction.meta = meta;
+        panelActions.append(panelAction);
+
         const QString placement = entry.action.placement.toLower();
         if (placement == QString(PluginInterface::kPlacementTopToolbar) && d->pluginToolBar)
         {
             QAction *act = d->pluginToolBar->addAction(title);
-            if (!entry.action.description.isEmpty())
+            if (entry.action.scopeSelector.trimmed().compare(QStringLiteral("note_range"), Qt::CaseInsensitive) == 0)
+                act->setToolTip(tr("Open dockable controls for %1").arg(title));
+            else if (!entry.action.description.isEmpty())
                 act->setToolTip(entry.action.description);
             act->setCheckable(entry.action.checkable);
             if (entry.action.checkable)
                 act->setChecked(entry.action.checked);
             act->setData(meta);
-            connect(act, &QAction::triggered, this, &MainWindow::triggerPluginToolAction);
+            if (entry.action.scopeSelector.trimmed().compare(QStringLiteral("note_range"), Qt::CaseInsensitive) == 0)
+            {
+                connect(act, &QAction::triggered, this,
+                        [this, pluginId = entry.pluginId, actionId = entry.action.actionId]()
+                        {
+                            showDockPanel(d->pluginToolsDock);
+                            if (d->pluginActionPanel)
+                                d->pluginActionPanel->focusAction(pluginId, actionId);
+                        });
+            }
+            else
+            {
+                connect(act, &QAction::triggered, this, &MainWindow::triggerPluginToolAction);
+            }
             d->pluginToolbarActions.append(act);
         }
         else if (placement == QString(PluginInterface::kPlacementLeftSidebar))
@@ -398,6 +420,8 @@ void MainWindow::refreshPluginUiExtensions()
         d->leftPanel->setPluginQuickActions(sidebarActions);
     if (d->notePanel)
         d->notePanel->setPluginPlacementActions(notePanelActions);
+    if (d->pluginActionPanel)
+        d->pluginActionPanel->setActions(panelActions);
 
     const QString interactionPluginId = firstCanvasInteractionPluginId(app->pluginManager());
     const bool hasInteractionPlugin = !interactionPluginId.isEmpty();
@@ -589,8 +613,9 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
         return false;
     }
 
-    QVariantMap actionContext;
-    if (scopeSelector == QLatin1String("note_range"))
+    const bool hasProvidedActionContext = meta.contains(QStringLiteral("action_context"));
+    QVariantMap actionContext = meta.value(QStringLiteral("action_context")).toMap();
+    if (scopeSelector == QLatin1String("note_range") && !hasProvidedActionContext)
     {
         QDialog scopeDialog(this);
         scopeDialog.setWindowTitle(tr("Format Note Colors"));
@@ -834,7 +859,9 @@ void MainWindow::triggerPluginPanelAction()
 
     panel->setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
     dock->setWidget(panel, ads::CDockWidget::AutoScrollArea);
-    if (d->notePanelDock && d->notePanelDock->dockAreaWidget())
+    if (d->pluginToolsDock && d->pluginToolsDock->dockAreaWidget())
+        d->dockManager->addDockWidgetTabToArea(dock, d->pluginToolsDock->dockAreaWidget());
+    else if (d->notePanelDock && d->notePanelDock->dockAreaWidget())
         d->dockManager->addDockWidgetTabToArea(dock, d->notePanelDock->dockAreaWidget());
     else
         d->dockManager->addDockWidget(ads::RightDockWidgetArea, dock);

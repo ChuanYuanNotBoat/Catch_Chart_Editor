@@ -44,6 +44,7 @@
     ui/CustomWidgets/RightPanel.cpp
     ui/CustomWidgets/RealtimePreviewWidget.cpp
     ui/LongRangeSelector.cpp
+    ui/PluginActionPanel.cpp
     ui/NoteEditPanel.cpp
     ui/BPMTimePanel.cpp
     ui/MetaEditPanel.cpp

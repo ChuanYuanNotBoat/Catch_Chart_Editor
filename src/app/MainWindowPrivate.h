@@ -28,6 +28,7 @@ class ChartCanvas;
 class QToolBar;
 class QTimer;
 class RealtimePreviewWidget;
+class PluginActionPanel;
 
 namespace ads
 {
@@ -50,10 +51,16 @@ public:
     ads::CDockWidget *leftPanelDock = nullptr;
     ads::CDockWidget *previewDock = nullptr;
     ads::CDockWidget *notePanelDock = nullptr;
+    ads::CDockWidget *timingToolsDock = nullptr;
+    ads::CDockWidget *rangeToolsDock = nullptr;
+    ads::CDockWidget *mirrorToolsDock = nullptr;
+    ads::CDockWidget *curveToolsDock = nullptr;
+    ads::CDockWidget *pluginToolsDock = nullptr;
     ads::CDockWidget *bpmPanelDock = nullptr;
     ads::CDockWidget *metaPanelDock = nullptr;
     QByteArray defaultDockLayoutState;
     NoteEditPanel *notePanel = nullptr;
+    PluginActionPanel *pluginActionPanel = nullptr;
     BPMTimePanel *bpmPanel = nullptr;
     MetaEditPanel *metaPanel = nullptr;
     LeftPanel *leftPanel = nullptr;

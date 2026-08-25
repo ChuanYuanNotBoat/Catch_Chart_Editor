@@ -89,7 +89,27 @@ int main(int argc, char **argv)
     auto *panelDock = new ads::CDockWidget(manager, QStringLiteral("Tall Panel"));
     panelDock->setObjectName(QStringLiteral("test.tall-panel"));
     panelDock->setWidget(tallContent, ads::CDockWidget::ForceScrollArea);
-    manager->addDockWidget(ads::RightDockWidgetArea, panelDock, workspaceArea);
+    ads::CDockAreaWidget *panelArea = manager->addDockWidget(
+        ads::RightDockWidgetArea, panelDock, workspaceArea);
+
+    // Model the editor's medium-grained tool blocks: utilities share a tab
+    // group by default, but every block remains independently detachable.
+    auto *rangeDock = new ads::CDockWidget(manager, QStringLiteral("Range Select"));
+    rangeDock->setObjectName(QStringLiteral("test.range"));
+    rangeDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *utilityArea = manager->addDockWidget(
+        ads::BottomDockWidgetArea, rangeDock, panelArea);
+
+    auto *mirrorDock = new ads::CDockWidget(manager, QStringLiteral("Mirror Flip"));
+    mirrorDock->setObjectName(QStringLiteral("test.mirror"));
+    mirrorDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
+    manager->addDockWidgetTabToArea(mirrorDock, utilityArea);
+
+    auto *pluginToolsDock = new ads::CDockWidget(manager, QStringLiteral("Plugin Tools"));
+    pluginToolsDock->setObjectName(QStringLiteral("test.plugin-tools"));
+    pluginToolsDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
+    manager->addDockWidgetTabToArea(pluginToolsDock, utilityArea);
+    rangeDock->setAsCurrentTab();
 
     window.show();
     app.processEvents();
@@ -99,6 +119,20 @@ int main(int argc, char **argv)
 
     const QByteArray initialState = manager->saveState(1);
     ok &= require(!initialState.isEmpty(), "ADS layout state must be serializable");
+    ok &= require(rangeDock->dockAreaWidget() == mirrorDock->dockAreaWidget()
+                      && rangeDock->dockAreaWidget() == pluginToolsDock->dockAreaWidget(),
+                  "medium-grained tools must support a merged tab layout");
+
+    rangeDock->setFloating();
+    app.processEvents();
+    ok &= require(rangeDock->isFloating(),
+                  "an individual tool block must detach from its merged group");
+    ok &= require(manager->restoreState(initialState, 1),
+                  "the merged tool layout must restore after detaching a block");
+    app.processEvents();
+    ok &= require(!rangeDock->isFloating()
+                      && rangeDock->dockAreaWidget() == mirrorDock->dockAreaWidget(),
+                  "restoring the layout must merge the detached block back into its group");
 
     QPointer<ads::CFloatingDockContainer> detachedWindow;
     QObject::connect(manager,

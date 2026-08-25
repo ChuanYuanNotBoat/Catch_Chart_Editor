@@ -23,6 +23,11 @@ class QAction;
 class QWidget;
 class QTabWidget;
 
+namespace ads
+{
+class CDockWidget;
+}
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -115,6 +120,7 @@ private:
     void showInfoCenter(int initialTab);
     void applySidebarTheme();
     void showEditorPanel(QWidget *panel);
+    void showDockPanel(ads::CDockWidget *dock);
     void saveDockLayout();
     void restoreDockLayout();
     void resetDockLayout();

@@ -53,6 +53,14 @@ public:
     void syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline,
                                          bool noteSnap, bool selAnchors, bool selSegments, bool selNotes);
 
+    // Transfer medium-grained tool sections into independent ADS docks.
+    // Each section can only be taken once; signal wiring remains owned by this
+    // panel so moving the widgets does not duplicate editor state.
+    QWidget *takeTimingToolsWidget();
+    QWidget *takeRangeToolsWidget();
+    QWidget *takeMirrorToolsWidget();
+    QWidget *takeCurveToolsWidget();
+
 
     LongRangeSelector *longRangeSelector() const { return m_longRangeSelector; }
 
@@ -100,6 +108,7 @@ private:
     void setupUi();
     void setMode(int mode);
     void refreshPluginToolsUi();
+    QWidget *takeSectionWidget(QWidget *widget);
 
     ChartController *m_chartController;
     SelectionController *m_selectionController;
@@ -116,6 +125,7 @@ private:
     QWidget *m_pluginToolsContainer;
     QVBoxLayout *m_pluginToolsLayout;
     QLabel *m_timeDivisionLabel;
+    QWidget *m_timingToolsContainer = nullptr;
     QComboBox *m_timeDivisionCombo;
     QCheckBox *m_gridSnapCheck;
     QPushButton *m_gridSettingsBtn;
