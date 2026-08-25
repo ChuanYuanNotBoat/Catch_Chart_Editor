@@ -418,6 +418,7 @@ private:
     int rightMargin() const;
     void invalidateChartCaches(bool includeBackground);
     void resetOverlayQueryState();
+    void advanceNoteSoundClock(double playbackTimeMs);
     void advancePlaybackVisual(bool scheduleRepaint, bool recordProbe = true);
 
 private slots:

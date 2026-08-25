@@ -3,6 +3,7 @@
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "audio/NoteSoundPlayer.h"
+#include "audio/PlaybackTiming.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackStutterProbe.h"
 #include "app/Application.h"
@@ -45,51 +46,77 @@ void ChartCanvas::playbackPositionChanged(double timeMs)
 
     const double clampedTimeMs = qMax(0.0, timeMs);
 
-    if (!m_playbackController || m_playbackController->state() != PlaybackController::Playing)
+    // During playback the high-resolution controller tick is the only clock
+    // for visuals and note sounds. QMediaPlayer position callbacks are sparse,
+    // especially at low rates, and are used only to re-anchor that clock.
+    if (m_playbackController && m_playbackController->state() == PlaybackController::Playing)
+        return;
+
+    const bool visualChanged = std::abs(m_currentPlayTime - clampedTimeMs) > kPlaybackVisualEpsilonMs;
+    m_currentPlayTime = clampedTimeMs;
+    m_lastNoteSoundTimeMs = clampedTimeMs;
+    m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
+                                                   m_playableNoteTimesMs.begin(),
+                                                   m_playableNoteTimesMs.end(),
+                                                   m_lastNoteSoundTimeMs) -
+                                               m_playableNoteTimesMs.begin());
+    if (visualChanged)
+        update();
+}
+
+void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
+{
+    constexpr double kComparisonEpsilonMs = 0.5;
+    constexpr double kOutputLeadWallMs = 8.0;
+
+    if (m_timesDirty || m_noteDataDirty)
+        rebuildNoteTimesCache();
+
+    if (!m_playbackController ||
+        !m_noteSoundPlayer ||
+        !m_noteSoundPlayer->isEnabled() ||
+        !m_noteSoundPlayer->hasValidSound() ||
+        m_playableNoteTimesMs.isEmpty())
     {
-        const bool visualChanged = std::abs(m_currentPlayTime - clampedTimeMs) > kPlaybackVisualEpsilonMs;
-        m_currentPlayTime = clampedTimeMs;
-        m_lastNoteSoundTimeMs = clampedTimeMs;
-        m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                                                       m_playableNoteTimesMs.begin(),
-                                                       m_playableNoteTimesMs.end(),
-                                                       m_lastNoteSoundTimeMs) -
-                                                   m_playableNoteTimesMs.begin());
-        if (visualChanged)
-            update();
+        m_lastNoteSoundTimeMs = qMax(0.0, playbackTimeMs);
         return;
     }
 
-    const double audioTimeMs = clampedTimeMs;
+    // QSoundEffect starts asynchronously. A small wall-time lead both offsets
+    // its output queue and centers the error of a 60 Hz controller pulse. The
+    // conversion by playback rate is essential: 8 ms wall time is only 0.8 ms
+    // on the media timeline at 0.1x.
+    const double schedulingTimeMs = qMax(
+        0.0,
+        playbackTimeMs + PlaybackTiming::wallDurationToMediaMs(
+                             kOutputLeadWallMs,
+                             m_playbackController->speed()));
 
-    if (m_noteSoundPlayer &&
-        m_noteSoundPlayer->isEnabled() &&
-        m_noteSoundPlayer->hasValidSound() &&
-        !m_playableNoteTimesMs.isEmpty())
+    if (schedulingTimeMs < m_lastNoteSoundTimeMs - 2.0)
     {
-        if (audioTimeMs < m_lastNoteSoundTimeMs - 2.0)
-        {
-            m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                                                           m_playableNoteTimesMs.begin(),
-                                                           m_playableNoteTimesMs.end(),
-                                                           audioTimeMs) -
-                                                       m_playableNoteTimesMs.begin());
-        }
-
-        bool hasHit = false;
-        while (m_nextPlayableNoteIndex < m_playableNoteTimesMs.size() &&
-               m_playableNoteTimesMs[m_nextPlayableNoteIndex] <= audioTimeMs + 0.5)
-        {
-            if (m_playableNoteTimesMs[m_nextPlayableNoteIndex] > m_lastNoteSoundTimeMs + 0.5)
-                hasHit = true;
-            ++m_nextPlayableNoteIndex;
-        }
-
-        if (hasHit)
-            m_noteSoundPlayer->playHitSound();
+        m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
+                                                       m_playableNoteTimesMs.begin(),
+                                                       m_playableNoteTimesMs.end(),
+                                                       schedulingTimeMs) -
+                                                   m_playableNoteTimesMs.begin());
     }
 
-    m_lastNoteSoundTimeMs = audioTimeMs;
+    double lastTriggeredTimeMs = -std::numeric_limits<double>::infinity();
+    while (m_nextPlayableNoteIndex < m_playableNoteTimesMs.size() &&
+           m_playableNoteTimesMs[m_nextPlayableNoteIndex] <=
+               schedulingTimeMs + kComparisonEpsilonMs)
+    {
+        const double noteTimeMs = m_playableNoteTimesMs[m_nextPlayableNoteIndex];
+        if (noteTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs &&
+            noteTimeMs > lastTriggeredTimeMs + kComparisonEpsilonMs)
+        {
+            m_noteSoundPlayer->playHitSound();
+            lastTriggeredTimeMs = noteTimeMs;
+        }
+        ++m_nextPlayableNoteIndex;
+    }
+
+    m_lastNoteSoundTimeMs = schedulingTimeMs;
 }
 
 void ChartCanvas::playFromReferenceLine()

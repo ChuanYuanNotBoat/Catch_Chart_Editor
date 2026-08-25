@@ -1,9 +1,13 @@
 #include "AudioPlayer.h"
+#include "audio/PlaybackTiming.h"
 #include "utils/Logger.h"
 #include "utils/PerformanceTimer.h"
 #include "utils/Settings.h"
 #include <QAudioOutput>
 #include <QMediaPlayer>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+#include <QPlaybackOptions>
+#endif
 #include <QDebug>
 #include <QFile>
 #include <QFileInfo>
@@ -25,6 +29,24 @@ AudioPlayer::AudioPlayer(QObject *parent) : QObject(parent),
     m_player = new QMediaPlayer(this);
     m_audioOutput = new QAudioOutput(this);
     m_player->setAudioOutput(m_audioOutput);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+    // The editor needs responsive local scrubbing and rate changes more than a
+    // large, glitch-resistant media buffer.  These are backend hints and are
+    // safely ignored by backends that do not support them.
+    QPlaybackOptions playbackOptions = m_player->playbackOptions();
+    playbackOptions.setPlaybackIntent(QPlaybackOptions::PlaybackIntent::LowLatencyStreaming);
+    m_player->setPlaybackOptions(playbackOptions);
+
+    // Pitch compensation adds a sizeable processing queue at very low rates.
+    // Editor playback favors timing accuracy; the corresponding pitch change
+    // also makes the selected playback rate audible to the mapper.
+    if (m_player->pitchCompensationAvailability() ==
+        QMediaPlayer::PitchCompensationAvailability::Available)
+    {
+        m_player->setPitchCompensation(false);
+    }
+#endif
 
     connect(m_player, &QMediaPlayer::positionChanged, this, &AudioPlayer::positionChanged);
     connect(m_player, &QMediaPlayer::durationChanged, this, &AudioPlayer::durationChanged);
@@ -357,12 +379,16 @@ qint64 AudioPlayer::adjustedPosition() const
 {
     if (!m_audioCorrectionEnabled)
         return position();
-    qint64 pos = position();
-    int totalOffset = m_audioLatency + m_userOffset;
+    const qint64 pos = position();
+    // Device latency is wall-clock time. Convert it to media-timeline time so
+    // a 50 ms device delay does not become a 500 ms audible offset at 0.1x.
+    // The user/chart offset is already expressed in media-timeline ms.
+    const double totalOffset = static_cast<double>(m_userOffset) +
+                               PlaybackTiming::wallDurationToMediaMs(m_audioLatency, speed());
     // 调整位置：实际听到的时间 = 音频位置 + 总偏移量
     // 注意：偏移量符号需要根据延迟定义确定
     // 假设正偏移量表示音频延迟（需要提前播放），因此调整后位置 = pos + totalOffset
-    return pos + totalOffset;
+    return qRound64(static_cast<double>(pos) + totalOffset);
 }
 
 void AudioPlayer::setAdjustedPosition(qint64 adjustedMs)
@@ -372,8 +398,9 @@ void AudioPlayer::setAdjustedPosition(qint64 adjustedMs)
         setPosition(adjustedMs);
         return;
     }
-    int totalOffset = m_audioLatency + m_userOffset;
+    const double totalOffset = static_cast<double>(m_userOffset) +
+                               PlaybackTiming::wallDurationToMediaMs(m_audioLatency, speed());
     // 调整位置：音频位置 = 调整后位置 - 总偏移量
-    qint64 pos = adjustedMs - totalOffset;
+    const qint64 pos = qRound64(static_cast<double>(adjustedMs) - totalOffset);
     setPosition(pos);
 }

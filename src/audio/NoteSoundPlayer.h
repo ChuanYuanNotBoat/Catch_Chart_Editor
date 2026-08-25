@@ -1,9 +1,10 @@
 #pragma once
 
 #include <QObject>
-#include <QSoundEffect>
 #include <QString>
-#include <QElapsedTimer>
+#include <QVector>
+
+class QSoundEffect;
 
 class NoteSoundPlayer : public QObject
 {
@@ -21,8 +22,8 @@ public:
     bool hasValidSound() const;
 
 private:
-    static constexpr qint64 kMinRetriggerIntervalMs = 12;
-    QSoundEffect *m_effect;
+    static constexpr int kVoiceCount = 6;
+    QVector<QSoundEffect *> m_voices;
     bool m_enabled;
-    QElapsedTimer m_retriggerTimer;
+    int m_nextVoice;
 };

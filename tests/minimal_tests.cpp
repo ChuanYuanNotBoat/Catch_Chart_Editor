@@ -16,6 +16,7 @@
 #include "file/ProjectIO.h"
 #include "file/ChartIO.h"
 #include "file/ChartFileSystem.h"
+#include "audio/PlaybackTiming.h"
 #include "controller/ChartController.h"
 #include "editor/NoteChain/NoteChainCurveSampler.h"
 #include "editor/NoteChain/NoteChainEditor.h"
@@ -499,6 +500,14 @@ namespace
                && nearlyEqual(PlaybackSpeed::sanitize(
                                   std::numeric_limits<double>::quiet_NaN()),
                               1.0);
+    }
+
+    bool testPlaybackWallTimeConversion()
+    {
+        return nearlyEqual(PlaybackTiming::wallDurationToMediaMs(50.0, 0.1), 5.0)
+               && nearlyEqual(PlaybackTiming::wallDurationToMediaMs(8.0, 0.25), 2.0)
+               && nearlyEqual(PlaybackTiming::wallDurationToMediaMs(-20.0, 2.0), -40.0)
+               && nearlyEqual(PlaybackTiming::wallDurationToMediaMs(12.0, 0.0), 12.0);
     }
 
     bool testMathUtilsQuantizeBeatTo288Division()
@@ -2504,6 +2513,7 @@ int main(int argc, char **argv)
 
     const Case cases[] = {
         {"Playback speed 0.1x-10x bounds", &testPlaybackSpeedBounds},
+        {"Playback wall time scales with rate", &testPlaybackWallTimeConversion},
         {"MathUtils round-trip", &testMathUtilsRoundTrip},
         {"MathUtils cache consistency", &testMathUtilsCacheConsistency},
         {"MathUtils empty BPM boundary", &testMathUtilsEmptyBpmBoundary},

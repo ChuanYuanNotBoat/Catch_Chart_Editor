@@ -53,14 +53,11 @@ private slots:
 
 private:
     static constexpr int kFramePulseIntervalMs = 16;
-    static constexpr double kAnchorDeadZoneMs = 2.0;
-    static constexpr double kAnchorModerateWindowMs = 48.0;
-    static constexpr double kAnchorModerateGain = 0.04;
-    static constexpr double kAnchorLargeWindowMs = 220.0;
-    static constexpr double kAnchorLargeGain = 0.10;
+    static constexpr double kAudioProgressEpsilonMs = 0.25;
 
     qint64 clampSeekTargetMs(qint64 timeMs) const;
     void applySeekNow(qint64 targetMs, const char *reason);
+    double predictedTimeAt(qint64 nowMs) const;
     void resetFrameAnchor(double timeMs, qint64 nowMs);
     void applyObservedTimeToAnchor(double observedMs, qint64 nowMs);
 
@@ -75,6 +72,8 @@ private:
     bool m_frameAnchorValid;
     double m_frameAnchorTimeMs;
     qint64 m_frameAnchorWallMs;
+    bool m_waitingForAudioProgress;
+    double m_audioProgressStartMs;
     qint64 m_frameSeq;
     double m_lastFrameTickMs;
 };
