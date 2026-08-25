@@ -1,4 +1,5 @@
 #include "Settings.h"
+#include "PlaybackSpeed.h"
 #include <QDir>
 #include <QCoreApplication>
 #include <QStandardPaths>
@@ -138,11 +139,12 @@ void Settings::setHyperfruitOutlineEnabled(bool enabled)
 
 double Settings::playbackSpeed() const
 {
-    return m_settings.value("playbackSpeed", 1.0).toDouble();
+    return PlaybackSpeed::sanitize(
+        m_settings.value("playbackSpeed", PlaybackSpeed::Default).toDouble());
 }
 void Settings::setPlaybackSpeed(double speed)
 {
-    m_settings.setValue("playbackSpeed", speed);
+    m_settings.setValue("playbackSpeed", PlaybackSpeed::sanitize(speed));
 }
 
 int Settings::audioLatency() const

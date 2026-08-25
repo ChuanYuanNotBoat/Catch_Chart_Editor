@@ -23,17 +23,17 @@
 - `Navigation` 面板：显示谱面密度曲线、播放按钮、纵向缩放，以及外部插件提供的快捷按钮。
 - `Realtime Preview` 面板：实时预览当前谱面效果。
 - `Chart Workspace`：不可关闭的中央谱面画布与时间密度导航条。
-- `Note Input`、`Timing & Grid`、`Range Select`、`Mirror Flip`、`Curve Tools`、`Plugin Tools`：按功能组成中等粒度工具块；`BPM & Timing` 和 `Metadata` 保持独立面板。
+- `Note Input`、`Timing & Grid`、`Playback Speed`、`Range Select`、`Mirror Flip`、`Curve Tools`、`Plugin Tools`：按功能组成中等粒度工具块；`BPM & Timing` 和 `Metadata` 保持独立面板。
 
 ### 可组合面板布局
 
 - `View -> Enable Floating Windows`：切换是否使用 ADS 可组合工作区，设置会在重启后保留。默认启用。
 - 关闭浮动窗口后，界面恢复为引入 ADS 前的固定四栏布局：Navigation、Realtime Preview、Chart Workspace 和最右侧单一编辑栏；顶部 `Note` / `BPM` / `Meta` 仍按旧方式切换右栏内容，不显示停靠标题、标签、拆分手柄或浮动入口。
-- 固定布局的右侧编辑栏只提供按需显示的纵向滚动条，可直接用滚轮上下浏览；横向滚动条始终禁用。Timing、Range、Mirror、Curve 和 Plugin Tools 回到 Note 栏的原顺序，格式化颜色快捷按钮会在同一栏内展开插件 GUI。
+- 固定布局的右侧编辑栏只提供按需显示的纵向滚动条，可直接用滚轮上下浏览；横向滚动条始终禁用。Timing、Playback Speed、Range、Mirror、Curve 和 Plugin Tools 回到 Note 栏的原顺序，格式化颜色快捷按钮会在同一栏内展开插件 GUI。
 - 重新启用浮动窗口后，会恢复关闭前保存的 ADS 停靠位置和面板开关状态；固定布局期间不会覆盖该布局快照。
 - 拖动普通面板标题或标签可以改变停靠位置；BPM、Meta 等完整面板仍可组合成标签页。
 - 将面板拖离主窗口即可变成独立浮动窗口；浮动面板仍可拖回主窗口或与其他浮动面板组合。
-- Note 输入、时间网格、范围、镜像、曲线和插件工具停靠时按原右侧栏顺序纵向展开，同时可见且不使用切换标签；只有拖离停靠区后才成为独立窗口。
+- Note 输入、时间网格、播放速度、范围、镜像、曲线和插件工具停靠时按原右侧栏顺序纵向展开，同时可见且不使用切换标签；只有拖离停靠区后才成为独立窗口。
 - 将工具块拖回其他工具块的边缘会恢复 splitter 组合，不会变成只能显示其中一个的切换标签。Curve Tools 和 Plugin Tools 默认关闭，分别由 Curve 开关和插件快捷按钮打开。
 - 工具块停靠在右侧栏时不显示完整窗口标题栏，只在右上角保留 `⠿` 小手柄；拖动手柄可将该工具块移出为带原生标题栏的浮动窗口。各块之间不绘制额外分隔线和外框，仍使用原侧栏的连续背景与 GroupBox 层级。
 - 面板关闭后可立即从 `View -> Panels` 或顶部 `Note` / `BPM` / `Meta` 按钮重新打开，无需重启程序。
@@ -88,7 +88,8 @@
 ### Playback 播放菜单
 
 - `Playback -> Play/Pause`：播放或暂停当前谱面音频。快捷键：`Space`。
-- `Playback -> Speed`：选择播放速度：`0.25x`、`0.5x`、`0.75x`、`1.0x`。
+- `Playback -> Speed`：快捷选择 `0.25×`、`0.5×`、`0.75×`、`1×`、`1.5×`、`2×`。
+- 右侧 `Playback Speed` 工具块提供相同的快捷按钮和 `0.1×–10×` 手动输入；倍速会立即应用并在重启后保留。
 
 播放时画布会跟随播放头自动滚动；手动滚动或拖动时间位置后会暂时关闭自动滚动。
 
@@ -112,6 +113,7 @@
 
 - `Note Input`：放置、删除、选择、复制以及插件提供的 Note 放置动作。
 - `Timing & Grid`：`Time Division`、横向网格吸附和网格设置。
+- `Playback Speed`：常用倍速快捷切换，以及 `0.1×–10×` 精确输入；可像范围和镜像工具一样拆分、拖动和浮动。
 - `Range Select`：大范围拍点输入、当前时间填入、范围覆盖层和范围选择。
 - `Mirror Flip`：镜像轴、参考线、预览和执行翻转。
 - `Curve Tools`：曲线锚点、选择目标、连接、提交和重置；启用顶部 `Curve` 时自动打开。

@@ -1,6 +1,7 @@
 #include "PlaybackController.h"
 #include "utils/MathUtils.h"
 #include "utils/Logger.h"
+#include "utils/PlaybackSpeed.h"
 #include "utils/Settings.h"
 #include "model/Chart.h"
 #include <QTimer>
@@ -132,10 +133,7 @@ void PlaybackController::stop()
 
 void PlaybackController::setSpeed(double speed)
 {
-    if (speed < 0.25)
-        speed = 0.25;
-    if (speed > 1.0)
-        speed = 1.0;
+    speed = PlaybackSpeed::sanitize(speed);
     m_speed = speed;
     m_audioPlayer->setSpeed(speed);
     if (m_state == Playing)

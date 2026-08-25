@@ -19,7 +19,7 @@ public:
     void setPosition(qint64 positionMs);
     qint64 position() const;
     qint64 duration() const;
-    void setSpeed(double speed); // 0.25 ~ 1.0
+    void setSpeed(double speed); // 0.1 ~ 10.0
     double speed() const;
 
     bool isPlaying() const;

@@ -126,6 +126,7 @@ private:
     void configureNotePanelScrollArea();
     void configureCompactToolDock(ads::CDockWidget *dock);
     void updateCompactToolDockHandle(ads::CDockWidget *dock);
+    void ensurePlaybackSpeedDockAssigned();
     void saveDockLayout();
     void restoreDockLayout();
     void resetDockLayout();

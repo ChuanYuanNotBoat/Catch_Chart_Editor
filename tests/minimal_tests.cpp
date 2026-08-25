@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 
 #include "file/ProjectIO.h"
 #include "file/ChartIO.h"
@@ -21,6 +22,7 @@
 #include "editor/NoteChain/NoteChainPersistence.h"
 #include "model/Chart.h"
 #include "utils/MathUtils.h"
+#include "utils/PlaybackSpeed.h"
 
 namespace
 {
@@ -485,6 +487,18 @@ namespace
         int den = 1;
         MathUtils::floatToBeat(7.0, beatNum, num, den, 64);
         return beatNum == 7 && num == 0 && den == 1;
+    }
+
+    bool testPlaybackSpeedBounds()
+    {
+        return nearlyEqual(PlaybackSpeed::sanitize(0.01), 0.1)
+               && nearlyEqual(PlaybackSpeed::sanitize(0.1), 0.1)
+               && nearlyEqual(PlaybackSpeed::sanitize(1.75), 1.75)
+               && nearlyEqual(PlaybackSpeed::sanitize(10.0), 10.0)
+               && nearlyEqual(PlaybackSpeed::sanitize(25.0), 10.0)
+               && nearlyEqual(PlaybackSpeed::sanitize(
+                                  std::numeric_limits<double>::quiet_NaN()),
+                              1.0);
     }
 
     bool testMathUtilsQuantizeBeatTo288Division()
@@ -2489,6 +2503,7 @@ int main(int argc, char **argv)
     };
 
     const Case cases[] = {
+        {"Playback speed 0.1x-10x bounds", &testPlaybackSpeedBounds},
         {"MathUtils round-trip", &testMathUtilsRoundTrip},
         {"MathUtils cache consistency", &testMathUtilsCacheConsistency},
         {"MathUtils empty BPM boundary", &testMathUtilsEmptyBpmBoundary},

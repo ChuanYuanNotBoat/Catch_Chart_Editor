@@ -1,7 +1,9 @@
 ﻿#include "NoteEditPanel.h"
 #include "controller/ChartController.h"
+#include "controller/PlaybackController.h"
 #include "controller/SelectionController.h"
 #include "ui/LongRangeSelector.h"
+#include "ui/PlaybackSpeedPanel.h"
 #include "utils/Logger.h"
 #include <QtGlobal>
 #include <QButtonGroup>
@@ -189,6 +191,11 @@ void NoteEditPanel::setupUi()
     timingLayout->addWidget(m_gridSettingsBtn);
     mainLayout->addWidget(m_timingToolsContainer);
 
+    m_playbackSpeedPanel = new PlaybackSpeedPanel(this);
+    connect(m_playbackSpeedPanel, &PlaybackSpeedPanel::speedChanged,
+            this, &NoteEditPanel::playbackSpeedChanged);
+    mainLayout->addWidget(m_playbackSpeedPanel);
+
     // 长范围选择器
     m_longRangeSelector = new LongRangeSelector(this);
     mainLayout->addWidget(m_longRangeSelector);
@@ -257,6 +264,11 @@ QWidget *NoteEditPanel::takeTimingToolsWidget()
     return takeSectionWidget(m_timingToolsContainer);
 }
 
+QWidget *NoteEditPanel::takePlaybackSpeedToolsWidget()
+{
+    return takeSectionWidget(m_playbackSpeedPanel);
+}
+
 QWidget *NoteEditPanel::takeRangeToolsWidget()
 {
     return takeSectionWidget(m_longRangeSelector);
@@ -281,6 +293,7 @@ QWidget *NoteEditPanel::takeEmbeddedPluginToolsWidget()
 }
 
 void NoteEditPanel::attachLegacyToolSections(QWidget *timingTools,
+                                             QWidget *playbackSpeedTools,
                                              QWidget *rangeTools,
                                              QWidget *mirrorTools,
                                              QWidget *curveTools,
@@ -302,7 +315,7 @@ void NoteEditPanel::attachLegacyToolSections(QWidget *timingTools,
     }
 
     QWidget *anchor = m_copyButton;
-    for (QWidget *section : {timingTools, rangeTools, mirrorTools})
+    for (QWidget *section : {timingTools, playbackSpeedTools, rangeTools, mirrorTools})
     {
         if (!section)
             continue;
@@ -411,8 +424,17 @@ void NoteEditPanel::setSelectionController(SelectionController *controller)
 
 void NoteEditPanel::setPlaybackController(PlaybackController *controller)
 {
+    if (m_playbackController && m_playbackSpeedPanel)
+        disconnect(m_playbackController, nullptr, m_playbackSpeedPanel, nullptr);
+    m_playbackController = controller;
     if (m_longRangeSelector)
         m_longRangeSelector->setPlaybackController(controller);
+    if (m_playbackController && m_playbackSpeedPanel)
+    {
+        connect(m_playbackController, &PlaybackController::speedChanged,
+                m_playbackSpeedPanel, &PlaybackSpeedPanel::setSpeed);
+        m_playbackSpeedPanel->setSpeed(m_playbackController->speed());
+    }
 }
 
 void NoteEditPanel::setModeFromHost(int mode)
@@ -581,4 +603,6 @@ void NoteEditPanel::retranslateUi()
 
     if (m_longRangeSelector)
         m_longRangeSelector->retranslateUi();
+    if (m_playbackSpeedPanel)
+        m_playbackSpeedPanel->retranslateUi();
 }

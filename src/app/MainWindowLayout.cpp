@@ -10,6 +10,7 @@
 #include "utils/Settings.h"
 
 #include <DockManager.h>
+#include <DockAreaWidget.h>
 #include <DockWidget.h>
 #include <QAbstractScrollArea>
 #include <QAction>
@@ -74,6 +75,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
             return dock ? !dock->isClosed() : fallback;
         };
         d->timingToolsWereVisible = isOpen(d->timingToolsDock, true);
+        d->playbackSpeedToolsWereVisible = isOpen(d->playbackSpeedToolsDock, true);
         d->rangeToolsWereVisible = isOpen(d->rangeToolsDock, true);
         d->mirrorToolsWereVisible = isOpen(d->mirrorToolsDock, true);
         d->pluginToolsWereVisible = isOpen(d->pluginToolsDock, false);
@@ -104,6 +106,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         };
 
         QWidget *timingTools = takeDockContent(d->timingToolsDock);
+        QWidget *playbackSpeedTools = takeDockContent(d->playbackSpeedToolsDock);
         QWidget *rangeTools = takeDockContent(d->rangeToolsDock);
         QWidget *mirrorTools = takeDockContent(d->mirrorToolsDock);
         QWidget *curveTools = takeDockContent(d->curveToolsDock);
@@ -123,7 +126,8 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         if (d->notePanel)
         {
             d->notePanel->attachLegacyToolSections(
-                timingTools, rangeTools, mirrorTools, curveTools, pluginTools,
+                timingTools, playbackSpeedTools, rangeTools, mirrorTools,
+                curveTools, pluginTools,
                 d->pluginToolsWereVisible);
             d->notePanel->setNoteChainControlsVisible(curveVisible);
         }
@@ -176,6 +180,9 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
     else
     {
         QWidget *timingTools = d->notePanel ? d->notePanel->takeTimingToolsWidget() : nullptr;
+        QWidget *playbackSpeedTools = d->notePanel
+                                          ? d->notePanel->takePlaybackSpeedToolsWidget()
+                                          : nullptr;
         QWidget *rangeTools = d->notePanel ? d->notePanel->takeRangeToolsWidget() : nullptr;
         QWidget *mirrorTools = d->notePanel ? d->notePanel->takeMirrorToolsWidget() : nullptr;
         QWidget *curveTools = d->notePanel ? d->notePanel->takeCurveToolsWidget() : nullptr;
@@ -219,6 +226,8 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         restoreDockContent(d->bpmPanelDock, d->bpmPanel, d->bpmPanelWasVisible);
         restoreDockContent(d->metaPanelDock, d->metaPanel, d->metaPanelWasVisible);
         restoreDockContent(d->timingToolsDock, timingTools, d->timingToolsWereVisible);
+        restoreDockContent(d->playbackSpeedToolsDock, playbackSpeedTools,
+                           d->playbackSpeedToolsWereVisible);
         restoreDockContent(d->rangeToolsDock, rangeTools, d->rangeToolsWereVisible);
         restoreDockContent(d->mirrorToolsDock, mirrorTools, d->mirrorToolsWereVisible);
         restoreDockContent(d->curveToolsDock, curveTools, curveVisible);
@@ -244,7 +253,8 @@ void MainWindow::updateToolDockActionVisibility()
 {
     const QList<ads::CDockWidget *> docks = {
         d->leftPanelDock, d->previewDock, d->notePanelDock,
-        d->timingToolsDock, d->rangeToolsDock, d->mirrorToolsDock,
+        d->timingToolsDock, d->playbackSpeedToolsDock,
+        d->rangeToolsDock, d->mirrorToolsDock,
         d->curveToolsDock, d->pluginToolsDock, d->bpmPanelDock,
         d->metaPanelDock};
     for (ads::CDockWidget *dock : docks)
@@ -254,6 +264,49 @@ void MainWindow::updateToolDockActionVisibility()
     }
     if (d->panelsMenu)
         d->panelsMenu->menuAction()->setVisible(d->floatingToolWindowsEnabled);
+}
+
+void MainWindow::ensurePlaybackSpeedDockAssigned()
+{
+    if (!d->dockManager || !d->playbackSpeedToolsDock
+        || d->playbackSpeedToolsDock->dockAreaWidget())
+    {
+        return;
+    }
+
+    ads::CDockAreaWidget *area = nullptr;
+    if (d->timingToolsDock && d->timingToolsDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, d->playbackSpeedToolsDock,
+            d->timingToolsDock->dockAreaWidget());
+    }
+    else if (d->rangeToolsDock && d->rangeToolsDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::TopDockWidgetArea, d->playbackSpeedToolsDock,
+            d->rangeToolsDock->dockAreaWidget());
+    }
+    else if (d->notePanelDock && d->notePanelDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, d->playbackSpeedToolsDock,
+            d->notePanelDock->dockAreaWidget());
+    }
+    else if (d->workspaceDock && d->workspaceDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::RightDockWidgetArea, d->playbackSpeedToolsDock,
+            d->workspaceDock->dockAreaWidget());
+    }
+
+    if (!area)
+        return;
+
+    area->setAllowedAreas(ads::OuterDockAreas);
+    d->playbackSpeedToolsDock->toggleView(true);
+    configureCompactToolDock(d->playbackSpeedToolsDock);
+    Logger::info("Added Playback Speed panel to an existing ADS layout.");
 }
 
 void MainWindow::configureNotePanelScrollArea()

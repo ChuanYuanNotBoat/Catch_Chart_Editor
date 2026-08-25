@@ -91,7 +91,8 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 - 曲线锚点/控制柄拖动、连接、段密度、整曲线/目标段提交、样式导入导出和 sidecar 重开；
 - 大谱面启用曲线工具后持续移动鼠标，确认 hover 不随 Note 数量明显卡顿，并验证主窗口级 `Delete` 可删除锚点/曲线段；
 - Note Color Formatter 在 `Plugin Tools` GUI 中分别验证已选 Note、拍点范围和整谱模式，确认顶部按钮聚焦面板、Sound Note 不变且单次撤销可完整恢复；
-- Note Input、Timing & Grid、Range Select、Mirror Flip、Curve Tools 和 Plugin Tools 分别验证纵向组合、拆分、拖动、浮动、关闭恢复和默认布局重置，并确认拖回后不变为切换标签；
+- Note Input、Timing & Grid、Playback Speed、Range Select、Mirror Flip、Curve Tools 和 Plugin Tools 分别验证纵向组合、拆分、拖动、浮动、关闭恢复和默认布局重置，并确认拖回后不变为切换标签；
+- 在新旧两种布局中验证 Playback Speed 的六个快捷按钮与 `0.1×–10×` 手动输入，确认输入边界、Playback 菜单双向同步、播放中切速和重启持久化；
 - 关闭 `View -> Enable Floating Windows`，确认界面恢复为引入 ADS 前的固定 Navigation / Preview / Workspace / 右编辑栏四栏布局，Note/BPM/Meta 只在同一右栏切换，没有任何 ADS 标题、标签或工具拆分块；右栏滚轮及纵向滚动条有效且始终没有横向滚动条；
 - 在两种模式间反复切换，确认当前 Note/BPM/Meta 页、曲线控件、范围输入和 Plugin Tools GUI 状态不丢失；重启后保持所选模式，重新启用 ADS 后恢复关闭前的停靠位置；
 - Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、浮动、关闭、无需重启恢复和重启持久化；BPM/Meta 等完整面板另验证标签组合；

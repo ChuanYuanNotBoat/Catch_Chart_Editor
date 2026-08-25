@@ -1,16 +1,20 @@
 #include <QApplication>
 #include <QAbstractScrollArea>
 #include <QColor>
+#include <QDoubleSpinBox>
 #include <QGuiApplication>
 #include <QMainWindow>
 #include <QPointer>
+#include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
+#include <QSizePolicy>
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <cstdio>
 
+#include "ui/PlaybackSpeedPanel.h"
 #include "utils/NativeWindowTheme.h"
 #include <DockAreaWidget.h>
 #include <FloatingDockContainer.h>
@@ -97,11 +101,19 @@ int main(int argc, char **argv)
 
     // Model the editor's medium-grained tool blocks: docked utilities keep the
     // original vertical reading order and remain visible at the same time.
+    auto *speedPanel = new PlaybackSpeedPanel;
+    auto *speedDock = new ads::CDockWidget(manager, QStringLiteral("Playback Speed"));
+    speedDock->setObjectName(QStringLiteral("test.playback-speed"));
+    speedDock->setWidget(speedPanel, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *speedArea = manager->addDockWidget(
+        ads::BottomDockWidgetArea, speedDock, panelArea);
+    speedArea->setAllowedAreas(ads::OuterDockAreas);
+
     auto *rangeDock = new ads::CDockWidget(manager, QStringLiteral("Range Select"));
     rangeDock->setObjectName(QStringLiteral("test.range"));
     rangeDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
     ads::CDockAreaWidget *rangeArea = manager->addDockWidget(
-        ads::BottomDockWidgetArea, rangeDock, panelArea);
+        ads::BottomDockWidgetArea, rangeDock, speedArea);
     rangeArea->setAllowedAreas(ads::OuterDockAreas);
 
     auto *mirrorDock = new ads::CDockWidget(manager, QStringLiteral("Mirror Flip"));
@@ -121,6 +133,39 @@ int main(int argc, char **argv)
     window.show();
     app.processEvents();
 
+    auto *speedInput = speedPanel->findChild<QDoubleSpinBox *>(
+        QStringLiteral("playbackSpeedInput"));
+    ok &= require(speedInput
+                      && qFuzzyCompare(speedInput->minimum(), PlaybackSpeedPanel::MinimumSpeed)
+                      && qFuzzyCompare(speedInput->maximum(), PlaybackSpeedPanel::MaximumSpeed),
+                  "playback speed input must expose the complete 0.1x-10x range");
+    int speedChangeCount = 0;
+    double requestedSpeed = 0.0;
+    QObject::connect(speedPanel, &PlaybackSpeedPanel::speedChanged,
+                     [&speedChangeCount, &requestedSpeed](double speed)
+                     {
+                         ++speedChangeCount;
+                         requestedSpeed = speed;
+                     });
+    if (speedInput)
+        speedInput->setValue(10.0);
+    ok &= require(speedChangeCount == 1 && qFuzzyCompare(requestedSpeed, 10.0),
+                  "manual playback speed input must emit the requested speed");
+    auto *quickButton = speedPanel->findChild<QPushButton *>(
+        QStringLiteral("playbackSpeedQuickButton150"));
+    ok &= require(quickButton
+                      && quickButton->sizePolicy().horizontalPolicy() == QSizePolicy::Maximum,
+                  "playback speed shortcuts must retain compact action-button sizing");
+    if (quickButton)
+        quickButton->click();
+    ok &= require(qFuzzyCompare(speedPanel->speed(), 1.5)
+                      && qFuzzyCompare(requestedSpeed, 1.5),
+                  "playback speed quick buttons must update the same speed control");
+    speedPanel->setSpeed(25.0);
+    ok &= require(qFuzzyCompare(speedPanel->speed(), PlaybackSpeedPanel::MaximumSpeed),
+                  "programmatic playback speed updates must clamp to 10x");
+    speedPanel->setSpeed(1.0);
+
     ok &= require(window.minimumSizeHint().height() < 1200,
                   "scroll-wrapped dock content must not force the top-level window to its 2400px minimum height");
     auto *panelScroll = panelDock->findChild<QAbstractScrollArea *>();
@@ -137,15 +182,18 @@ int main(int argc, char **argv)
 
     const QByteArray initialState = manager->saveState(1);
     ok &= require(!initialState.isEmpty(), "ADS layout state must be serializable");
-    ok &= require(rangeDock->dockAreaWidget() != mirrorDock->dockAreaWidget()
+    ok &= require(speedDock->dockAreaWidget() != rangeDock->dockAreaWidget()
+                      && rangeDock->dockAreaWidget() != mirrorDock->dockAreaWidget()
                       && mirrorDock->dockAreaWidget() != pluginToolsDock->dockAreaWidget(),
                   "docked tool blocks must remain simultaneously visible split sections");
     auto *toolSplitter = qobject_cast<QSplitter *>(rangeArea->parentWidget());
     ok &= require(toolSplitter && toolSplitter->orientation() == Qt::Vertical
+                      && speedArea->parentWidget() == toolSplitter
                       && mirrorArea->parentWidget() == toolSplitter
                       && pluginToolsArea->parentWidget() == toolSplitter,
                   "docked tool blocks must preserve the original vertical reading order");
-    ok &= require(!rangeArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
+    ok &= require(!speedArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
+                      && !rangeArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
                       && !mirrorArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
                       && !pluginToolsArea->allowedAreas().testFlag(ads::CenterDockWidgetArea),
                   "tool blocks must reject switching-tab merges");
@@ -164,35 +212,42 @@ int main(int argc, char **argv)
     // Floating tools can be disabled without replacing their widgets. Move
     // the same medium-grained sections into one legacy vertical sidebar, then
     // put them back into their existing ADS docks and verify their identities.
+    speedDock->toggleView(false);
     rangeDock->toggleView(false);
     mirrorDock->toggleView(false);
     pluginToolsDock->toggleView(false);
+    QWidget *speedContent = speedDock->takeWidget();
     QWidget *rangeContent = rangeDock->takeWidget();
     QWidget *mirrorContent = mirrorDock->takeWidget();
     QWidget *pluginToolsContent = pluginToolsDock->takeWidget();
     QWidget legacySidebar;
     QVBoxLayout legacyLayout(&legacySidebar);
+    legacyLayout.addWidget(speedContent);
     legacyLayout.addWidget(rangeContent);
     legacyLayout.addWidget(mirrorContent);
     legacyLayout.addWidget(pluginToolsContent);
-    ok &= require(rangeContent && rangeContent->parentWidget() == &legacySidebar
+    ok &= require(speedContent && speedContent->parentWidget() == &legacySidebar
+                      && rangeContent && rangeContent->parentWidget() == &legacySidebar
                       && mirrorContent && mirrorContent->parentWidget() == &legacySidebar
                       && pluginToolsContent && pluginToolsContent->parentWidget() == &legacySidebar,
                   "disabling floating tools must embed the existing widgets in one sidebar");
 
-    for (QWidget *content : {rangeContent, mirrorContent, pluginToolsContent})
+    for (QWidget *content : {speedContent, rangeContent, mirrorContent, pluginToolsContent})
     {
         legacyLayout.removeWidget(content);
         content->setParent(nullptr);
     }
+    speedDock->setWidget(speedContent, ads::CDockWidget::ForceScrollArea);
     rangeDock->setWidget(rangeContent, ads::CDockWidget::ForceScrollArea);
     mirrorDock->setWidget(mirrorContent, ads::CDockWidget::ForceScrollArea);
     pluginToolsDock->setWidget(pluginToolsContent, ads::CDockWidget::ForceScrollArea);
+    speedDock->toggleView(true);
     rangeDock->toggleView(true);
     mirrorDock->toggleView(true);
     pluginToolsDock->toggleView(true);
     app.processEvents();
-    ok &= require(rangeDock->widget() == rangeContent
+    ok &= require(speedDock->widget() == speedContent
+                      && rangeDock->widget() == rangeContent
                       && mirrorDock->widget() == mirrorContent
                       && pluginToolsDock->widget() == pluginToolsContent,
                   "re-enabling floating tools must restore the same widgets to their docks");

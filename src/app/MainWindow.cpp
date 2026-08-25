@@ -1353,6 +1353,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->previewDock = nullptr;
     d->notePanelDock = nullptr;
     d->timingToolsDock = nullptr;
+    d->playbackSpeedToolsDock = nullptr;
     d->rangeToolsDock = nullptr;
     d->mirrorToolsDock = nullptr;
     d->curveToolsDock = nullptr;
@@ -1487,13 +1488,19 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     }
     connect(d->playbackController, &PlaybackController::speedChanged, this, [this](double speed)
             {
-        if (!d->speedActionGroup)
-            return;
-        for (QAction *action : d->speedActionGroup->actions())
+        Settings::instance().setPlaybackSpeed(speed);
+        if (d->speedActionGroup)
         {
-            const double actionSpeed = action->data().toDouble();
-            action->setChecked(qFuzzyCompare(actionSpeed, speed));
+            const QSignalBlocker blocker(d->speedActionGroup);
+            d->speedActionGroup->setExclusive(false);
+            for (QAction *action : d->speedActionGroup->actions())
+            {
+                const double actionSpeed = action->data().toDouble();
+                action->setChecked(qAbs(actionSpeed - speed) < 0.0001);
+            }
+            d->speedActionGroup->setExclusive(true);
         } });
+    d->playbackController->setSpeed(Settings::instance().playbackSpeed());
     connect(d->leftPanel, &LeftPanel::pluginQuickActionTriggered, this, &MainWindow::triggerPluginQuickAction);
     QTimer::singleShot(0, this, [this]()
                        {
@@ -1677,7 +1684,8 @@ void MainWindow::createMenus()
         d->panelsMenu = viewMenu->addMenu(tr("Panels"));
         const QList<ads::CDockWidget *> docks = {
             d->leftPanelDock, d->previewDock, d->notePanelDock,
-            d->timingToolsDock, d->rangeToolsDock, d->mirrorToolsDock,
+            d->timingToolsDock, d->playbackSpeedToolsDock,
+            d->rangeToolsDock, d->mirrorToolsDock,
             d->curveToolsDock, d->pluginToolsDock,
             d->bpmPanelDock, d->metaPanelDock};
         for (ads::CDockWidget *dock : docks)
@@ -1817,12 +1825,11 @@ void MainWindow::createMenus()
     QMenu *speedMenu = playMenu->addMenu(tr("&Speed"));
     d->speedActionGroup = new QActionGroup(this);
     d->speedActionGroup->setExclusive(true);
-    for (double sp : {0.25, 0.5, 0.75, 1.0})
+    for (double sp : {0.25, 0.5, 0.75, 1.0, 1.5, 2.0})
     {
         QAction *act = speedMenu->addAction(tr("%1x").arg(sp), [this, sp]()
                                             {
             d->playbackController->setSpeed(sp);
-            Settings::instance().setPlaybackSpeed(sp);
             Logger::info(QString("Playback speed set to %1x").arg(sp)); });
         act->setCheckable(true);
         act->setData(sp);
@@ -2240,6 +2247,14 @@ void MainWindow::createCentralArea()
     d->notePanel->setChartController(d->chartController);
     d->notePanel->setSelectionController(d->selectionController);
     d->notePanel->setPlaybackController(d->playbackController);
+    connect(d->notePanel, &NoteEditPanel::playbackSpeedChanged, this,
+            [this](double speed)
+            {
+                if (!d->playbackController)
+                    return;
+                d->playbackController->setSpeed(speed);
+                Logger::info(QString("Playback speed set to %1x").arg(speed));
+            });
     d->pluginActionPanel->setChartController(d->chartController);
     d->pluginActionPanel->setSelectionController(d->selectionController);
     d->pluginActionPanel->setPlaybackController(d->playbackController);
@@ -2458,10 +2473,12 @@ void MainWindow::createCentralArea()
     d->dockManager->addDockWidget(ads::RightDockWidgetArea, d->previewDock, leftArea);
 
     QWidget *timingTools = d->notePanel->takeTimingToolsWidget();
+    QWidget *playbackSpeedTools = d->notePanel->takePlaybackSpeedToolsWidget();
     QWidget *rangeTools = d->notePanel->takeRangeToolsWidget();
     QWidget *mirrorTools = d->notePanel->takeMirrorToolsWidget();
     QWidget *curveTools = d->notePanel->takeCurveToolsWidget();
     timingTools->setObjectName(QStringLiteral("timingToolsRoot"));
+    playbackSpeedTools->setObjectName(QStringLiteral("playbackSpeedToolsRoot"));
     rangeTools->setObjectName(QStringLiteral("rangeToolsRoot"));
     mirrorTools->setObjectName(QStringLiteral("mirrorToolsRoot"));
     curveTools->setObjectName(QStringLiteral("curveToolsRoot"));
@@ -2481,11 +2498,19 @@ void MainWindow::createCentralArea()
     timingArea->setAllowedAreas(ads::OuterDockAreas);
     configureCompactToolDock(d->timingToolsDock);
 
+    d->playbackSpeedToolsDock = new ads::CDockWidget(d->dockManager, tr("Playback Speed"));
+    d->playbackSpeedToolsDock->setObjectName(QStringLiteral("dock.playback.speed"));
+    d->playbackSpeedToolsDock->setWidget(playbackSpeedTools, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *playbackSpeedArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->playbackSpeedToolsDock, timingArea);
+    playbackSpeedArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->playbackSpeedToolsDock);
+
     d->rangeToolsDock = new ads::CDockWidget(d->dockManager, tr("Range Select"));
     d->rangeToolsDock->setObjectName(QStringLiteral("dock.note.range"));
     d->rangeToolsDock->setWidget(rangeTools, ads::CDockWidget::ForceScrollArea);
     ads::CDockAreaWidget *rangeArea = d->dockManager->addDockWidget(
-        ads::BottomDockWidgetArea, d->rangeToolsDock, timingArea);
+        ads::BottomDockWidgetArea, d->rangeToolsDock, playbackSpeedArea);
     rangeArea->setAllowedAreas(ads::OuterDockAreas);
     configureCompactToolDock(d->rangeToolsDock);
 
@@ -2531,12 +2556,13 @@ void MainWindow::createCentralArea()
     // visible in a vertical stack instead of turning into switching tabs.
     d->dockManager->setSplitterSizes(leftArea, {150, 200});
     d->dockManager->setSplitterSizes(workspaceArea, {350, 650, 300});
-    d->dockManager->setSplitterSizes(editorArea, {270, 130, 210, 170, 260, 260});
+    d->dockManager->setSplitterSizes(editorArea, {270, 130, 145, 210, 170, 260, 260});
 
     connect(d->dockManager, &ads::CDockManager::stateRestored, this, [this]()
             {
                 const QList<ads::CDockWidget *> toolDocks = {
-                    d->timingToolsDock, d->rangeToolsDock, d->mirrorToolsDock,
+                    d->timingToolsDock, d->playbackSpeedToolsDock,
+                    d->rangeToolsDock, d->mirrorToolsDock,
                     d->curveToolsDock, d->pluginToolsDock};
                 for (ads::CDockWidget *dock : toolDocks)
                     configureCompactToolDock(dock);
@@ -2544,6 +2570,7 @@ void MainWindow::createCentralArea()
 
     d->defaultDockLayoutState = d->dockManager->saveState(kDockLayoutVersion);
     restoreDockLayout();
+    ensurePlaybackSpeedDockAssigned();
 
     d->mainToolBar = addToolBar(tr("Tools"));
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
@@ -4185,14 +4212,16 @@ void MainWindow::resetDockLayout()
     Settings::instance().clearDockLayoutState();
     if (!d->floatingToolWindowsEnabled)
     {
-        for (ads::CDockWidget *dock : {d->timingToolsDock, d->rangeToolsDock,
-                                       d->mirrorToolsDock, d->curveToolsDock,
+        for (ads::CDockWidget *dock : {d->timingToolsDock, d->playbackSpeedToolsDock,
+                                       d->rangeToolsDock, d->mirrorToolsDock,
+                                       d->curveToolsDock,
                                        d->pluginToolsDock})
         {
             if (dock)
                 dock->toggleView(false);
         }
         d->timingToolsWereVisible = true;
+        d->playbackSpeedToolsWereVisible = true;
         d->rangeToolsWereVisible = true;
         d->mirrorToolsWereVisible = true;
         d->pluginToolsWereVisible = false;
@@ -4216,6 +4245,8 @@ void MainWindow::updateDockTitles()
             d->floatingToolWindowsEnabled ? tr("Note Input") : tr("Note Editor"));
     if (d->timingToolsDock)
         d->timingToolsDock->setWindowTitle(tr("Timing & Grid"));
+    if (d->playbackSpeedToolsDock)
+        d->playbackSpeedToolsDock->setWindowTitle(tr("Playback Speed"));
     if (d->rangeToolsDock)
         d->rangeToolsDock->setWindowTitle(tr("Range Select"));
     if (d->mirrorToolsDock)
@@ -4616,6 +4647,7 @@ void MainWindow::applySidebarTheme()
                                 "QPushButton { background-color: %5; color: %2; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; }"
                                 "QPushButton:hover { background-color: %7; }"
                                 "QPushButton:pressed { background-color: %8; }"
+                                "QPushButton:checked { background-color: %7; }"
                                 "QPushButton:disabled { color: %6; }"
                                 "QToolButton { background-color: %5; color: %2; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; }"
                                 "QToolButton:hover { background-color: %7; }"
@@ -4636,6 +4668,8 @@ void MainWindow::applySidebarTheme()
         applyPanelStyle(d->notePanel, "notePanelRoot");
         if (d->timingToolsDock)
             applyPanelStyle(d->timingToolsDock->widget(), "timingToolsRoot", true);
+        if (d->playbackSpeedToolsDock)
+            applyPanelStyle(d->playbackSpeedToolsDock->widget(), "playbackSpeedToolsRoot", true);
         if (d->rangeToolsDock)
             applyPanelStyle(d->rangeToolsDock->widget(), "rangeToolsRoot", true);
         if (d->mirrorToolsDock)

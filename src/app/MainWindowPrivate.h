@@ -56,6 +56,7 @@ public:
     ads::CDockWidget *previewDock = nullptr;
     ads::CDockWidget *notePanelDock = nullptr;
     ads::CDockWidget *timingToolsDock = nullptr;
+    ads::CDockWidget *playbackSpeedToolsDock = nullptr;
     ads::CDockWidget *rangeToolsDock = nullptr;
     ads::CDockWidget *mirrorToolsDock = nullptr;
     ads::CDockWidget *curveToolsDock = nullptr;
@@ -116,6 +117,7 @@ public:
     bool floatingToolWindowsEnabled = true;
     bool floatingToolWindowsInitialized = false;
     bool timingToolsWereVisible = true;
+    bool playbackSpeedToolsWereVisible = true;
     bool rangeToolsWereVisible = true;
     bool mirrorToolsWereVisible = true;
     bool pluginToolsWereVisible = false;

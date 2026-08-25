@@ -16,6 +16,7 @@ class QGroupBox;
 class QToolButton;
 class LongRangeSelector;
 class PlaybackController;
+class PlaybackSpeedPanel;
 
 class NoteEditPanel : public RightPanel
 {
@@ -57,11 +58,13 @@ public:
     // Each section can only be taken once; signal wiring remains owned by this
     // panel so moving the widgets does not duplicate editor state.
     QWidget *takeTimingToolsWidget();
+    QWidget *takePlaybackSpeedToolsWidget();
     QWidget *takeRangeToolsWidget();
     QWidget *takeMirrorToolsWidget();
     QWidget *takeCurveToolsWidget();
     QWidget *takeEmbeddedPluginToolsWidget();
     void attachLegacyToolSections(QWidget *timingTools,
+                                  QWidget *playbackSpeedTools,
                                   QWidget *rangeTools,
                                   QWidget *mirrorTools,
                                   QWidget *curveTools,
@@ -84,6 +87,7 @@ signals:
     void mirrorPreviewVisibilityChanged(bool visible);
     void rangeChanged(double startBeat, double endBeat);
     void rangeVisibilityChanged(bool visible);
+    void playbackSpeedChanged(double speed);
 
     void mirrorFlipRequested();
     void pluginPlacementActionTriggered(const QString &pluginId, const QString &actionId);
@@ -121,6 +125,7 @@ private:
 
     ChartController *m_chartController;
     SelectionController *m_selectionController;
+    PlaybackController *m_playbackController = nullptr;
     QLabel *m_modeLabel;
     QButtonGroup *m_modeGroup;
     QRadioButton *m_noteRadio;
@@ -135,6 +140,7 @@ private:
     QVBoxLayout *m_pluginToolsLayout;
     QLabel *m_timeDivisionLabel;
     QWidget *m_timingToolsContainer = nullptr;
+    PlaybackSpeedPanel *m_playbackSpeedPanel = nullptr;
     QComboBox *m_timeDivisionCombo;
     QCheckBox *m_gridSnapCheck;
     QPushButton *m_gridSettingsBtn;
