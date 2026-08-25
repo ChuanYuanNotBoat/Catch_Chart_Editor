@@ -23,12 +23,13 @@
 - `Navigation` 面板：显示谱面密度曲线、播放按钮、纵向缩放，以及外部插件提供的快捷按钮。
 - `Realtime Preview` 面板：实时预览当前谱面效果。
 - `Chart Workspace`：不可关闭的中央谱面画布与时间密度导航条。
-- `Note Editor`、`BPM & Timing`、`Metadata`：默认以标签页组合在右侧，也可独立停靠或浮动。
+- `Note Input`、`Timing & Grid`、`Range Select`、`Mirror Flip`、`Curve Tools`、`Plugin Tools`：按功能组成中等粒度工具块；`BPM & Timing` 和 `Metadata` 保持独立面板。
 
 ### 可组合面板布局
 
 - 拖动面板标题或标签可以改变停靠位置；拖到另一个面板中央会组合成标签页，拖到边缘会形成横向或纵向拆分。
 - 将面板拖离主窗口即可变成独立浮动窗口；浮动面板仍可拖回主窗口或与其他浮动面板组合。
+- 默认将 Note 输入与实用工具分区，并把时间网格、范围、镜像、曲线和插件工具合并为标签组；任何工具块都能拖到边缘形成拆分，也能拖回中央恢复标签组合。
 - 面板关闭后可立即从 `View -> Panels` 或顶部 `Note` / `BPM` / `Meta` 按钮重新打开，无需重启程序。
 - `View -> Panels -> Reset Panel Layout`：恢复默认工作区、导航、预览和编辑器布局。
 - 主窗口大小、面板停靠关系、标签组合和浮动位置会在正常退出时保存，并在下次启动时恢复。
@@ -56,7 +57,7 @@
 
 ### View 视图菜单
 
-- `View -> Panels`：显示或隐藏 `Navigation`、`Realtime Preview`、`Note Editor`、`BPM & Timing` 和 `Metadata` 面板，也可恢复默认面板布局。
+- `View -> Panels`：显示或隐藏导航、预览、Note 输入、时间网格、范围、镜像、曲线、插件、BPM 和 Meta 面板，也可恢复默认面板布局。
 - `View -> Color Notes`：按音符拍型/分度给音符上色，便于检查节奏密度。
 - `View -> Color Timeline Divisions`：按时间轴分度给网格线着色。
 - `View -> Timeline Division Color Advanced Settings...`：设置分度线颜色规则。可选择 `Classic`、`All` 或自定义常见分度/额外分度。
@@ -98,7 +99,16 @@
 - `Help -> Version Information...`：查看版本信息与更新说明。
 - `Help -> Logs...`：查看日志列表，支持刷新、打开选中日志、打开当前日志和打开日志文件夹。
 
-### Note Editor 面板
+### Note 工具面板
+
+以下功能块可以独立停靠、拆分、浮动或与其他面板合并为标签：
+
+- `Note Input`：放置、删除、选择、复制以及插件提供的 Note 放置动作。
+- `Timing & Grid`：`Time Division`、横向网格吸附和网格设置。
+- `Range Select`：大范围拍点输入、当前时间填入、范围覆盖层和范围选择。
+- `Mirror Flip`：镜像轴、参考线、预览和执行翻转。
+- `Curve Tools`：曲线锚点、选择目标、连接、提交和重置；启用顶部 `Curve` 时自动打开。
+- `Plugin Tools`：由插件动作元数据生成的宿主 GUI；原生插件面板也默认合并到该区域。
 
 - `Place Note`：普通音符放置模式。左键空白处放置音符；左键已有音符可选中并拖动。
 - `Place Rain`：雨音符放置模式。第一次左键设置起点，第二次左键设置终点；终点必须晚于起点。
@@ -160,14 +170,14 @@ Note Chain Assist 已由主程序内部的 C++ 模块实现，不依赖 Python �
 
 - `Plugins -> Plugin Manager...`：打开插件管理器。可查看插件启用状态、加载状态、名称、ID、版本、作者和能力；勾选 `Enabled` 后点击 `Reload Plugins` 应用；`Open Plugins Folder` 可打开插件目录。
 - `Plugins -> Plugin Actions`：显示外部插件提供的菜单动作，例如颜色格式化。
-- `Plugins -> Plugin Panels`：打开插件提供的 ADS 面板。插件面板可与内置面板组合、拆分或浮动；如果当前没有插件面板，会显示空项。
+- `Plugins -> Plugin Panels`：打开通用 `Plugin Tools` 或插件提供的原生 ADS 面板。两者都可与内置工具组合、拆分或浮动。
 - `Plugins -> Curve Edit Tool`：启动或关闭原生曲线编辑工具，与顶部工具栏的 `Curve` 状态同步。
 - `Plugins -> Export Curve Style...` / `Import Curve Style...`：导出或导入原生曲线的密度样式预设。
 - `Plugins -> Plugin Overlay Elements`：控制插件叠加层显示内容，包括 `Enable Overlay`、`Preview Notes`、`Control Points`、`Handles`、`Sample Points`、`Labels`。
 
 ### 插件工具栏与侧栏入口
 
-- 顶部主工具栏：`Curve` 启动/关闭原生曲线工具；`Plugins` 按钮打开插件管理器。
+- 顶部主工具栏：`Curve` 启动/关闭原生曲线工具；`Plugins` 按钮打开插件管理器；带范围选择器的插件快捷动作会打开并聚焦 `Plugin Tools` GUI。
 - 左侧 `Plugin Shortcuts`：显示外部插件提供的快捷按钮。不同插件会按分组显示，点击按钮执行对应动作。
 - 右侧 `Note` 面板：原生曲线工具启用时显示曲线控制项。
 
@@ -245,14 +255,18 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 位置：
 
 - 顶部插件工具栏：`Format Note Colors` 快捷按钮。
+- `View -> Panels -> Plugin Tools` / `Plugins -> Plugin Panels -> Plugin Tools`。
 - `Plugins -> Plugin Actions`。
 
 使用方法：
 
 1. 打开谱面。
-2. 点击 `Format Note Colors`，在宿主原生对话框中选择 `Selected Notes`、`Beat Range` 或 `Entire Chart`。
-3. 选择拍点范围时，按大范围选择器相同的 `整数 分子/分母` 格式填写起止点，也可用 `Now` 读取当前播放时间。
-4. 执行后只格式化普通和 Rain 音符的起点颜色分度，不修改 Sound Note；整次修改作为一个可撤销动作写入主程序历史。
+2. 点击顶部 `Format Note Colors`，打开并聚焦可停靠的 `Plugin Tools` 面板。
+3. 在常驻 GUI 中选择 `Selected Notes`、`Beat Range` 或 `Entire Chart`；选中范围会实时显示数量。
+4. 选择拍点范围时，按大范围选择器相同的 `整数 分子/分母` 格式填写起止点，也可用 `Now` 读取当前播放时间。
+5. 点击面板内的 `Format Note Colors` 执行。只格式化普通和 Rain 音符的起点颜色分度，不修改 Sound Note；整次修改作为一个可撤销动作写入主程序历史。
+
+`Plugins -> Plugin Actions` 仍保留一次性范围对话框，适合不希望常驻面板时使用。
 
 ### 插件使用注意
 

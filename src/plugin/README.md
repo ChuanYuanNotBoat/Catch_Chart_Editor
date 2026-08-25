@@ -22,6 +22,12 @@ Plugin tool actions can be mounted to:
 - `top_toolbar`
 - `left_sidebar`
 
+All discovered tool actions are also grouped by plugin in the host-rendered,
+dockable `Plugin Tools` panel. Actions declaring `scope_selector: note_range`
+receive a persistent selected/range/all scope GUI with `LongRangeSelector`
+inputs. Native floating panels remain supported and are tabbed with Plugin
+Tools by default; both panel types can be detached or merged through ADS.
+
 ## References
 
 - [Plugin docs index](docs/README.md)

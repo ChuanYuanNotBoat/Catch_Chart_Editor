@@ -37,6 +37,7 @@ CTest 名称：`ui_docking_layout_tests`
 - Windows DWM 边框颜色；
 - 2400px 长内容不会强制拉高主窗口；
 - ADS 布局序列化和恢复；
+- 中等粒度工具块支持标签合并、单块拆出浮动，以及恢复后重新合并；
 - 实际非透明拖动预览到浮动容器的交接；
 - 浮动窗口保持预览的全局屏幕位置；
 - `ForceScrollArea` 和 viewport 在浮动首帧可见且尺寸有效；
@@ -87,7 +88,8 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 - 默认粘贴优先保持原分母；无法精确表达时允许自动约分；仅在手动启用时把预览和最终 Note 统一量化为 `/288`；
 - 曲线锚点/控制柄拖动、连接、段密度、整曲线/目标段提交、样式导入导出和 sidecar 重开；
 - 大谱面启用曲线工具后持续移动鼠标，确认 hover 不随 Note 数量明显卡顿，并验证主窗口级 `Delete` 可删除锚点/曲线段；
-- Note Color Formatter 分别验证已选 Note、拍点范围和整谱模式，确认 Sound Note 不变且单次撤销可完整恢复；
+- Note Color Formatter 在 `Plugin Tools` GUI 中分别验证已选 Note、拍点范围和整谱模式，确认顶部按钮聚焦面板、Sound Note 不变且单次撤销可完整恢复；
+- Note Input、Timing & Grid、Range Select、Mirror Flip、Curve Tools 和 Plugin Tools 分别验证拆分、拖动、浮动、关闭恢复、标签合并和默认布局重置；
 - Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、标签化、浮动、关闭、无需重启恢复和重启持久化；
 - 关闭主窗口后确认 GUI、日志终端、外部插件子进程和主进程均结束；
 - 深色/浅色主题下主窗口与浮动窗口标题栏、文字、边框和首帧内容；

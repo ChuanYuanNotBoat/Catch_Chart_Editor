@@ -180,10 +180,18 @@ Optional chart-space coordinates (for note-like scrolling stability):
 
 When `coord_space` is `chart`, host converts `(lane_x, beat)` to canvas each frame using current scroll/playback state.
 
-### 4.6 Optional Request: Floating Panel (process plugin)
+### 4.6 Dockable Tool UI and Floating Panels
 
-Process plugins cannot return embedded QWidget directly.  
-Recommended pattern: expose a normal tool action and open your own external floating window.
+Process plugins cannot return an embedded QWidget directly. Every discovered
+tool action is therefore also rendered in the host-owned, ADS-compatible
+`Plugin Tools` panel. Use `scope_selector: "note_range"` to request the standard
+selected-notes / beat-range / entire-chart GUI; the resulting context is passed
+to `runToolAction` as `format_scope`, `range_start_beat`, and
+`range_end_beat`. Other actions receive a normal host button.
+
+Native plugins may still return QWidget-based floating panels. The host merges
+those panels with `Plugin Tools` by default, while keeping every panel
+independently detachable, closable, and restorable.
 
 ## 5. i18n Metadata Fallback
 
