@@ -51,6 +51,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QSlider>
+#include <QSplitter>
 #include <QSpinBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -174,9 +175,10 @@ namespace
         return QString(
                    "ads--CDockContainerWidget, ads--CDockAreaWidget, ads--CDockWidget { background: palette(window); }"
                    "ads--CDockSplitter::handle { background: palette(mid); }"
+                   "ads--CDockSplitter[compactToolStack=\"true\"]::handle { background: transparent; }"
                    "ads--CDockAreaTitleBar { background: palette(window); border-bottom: 1px solid palette(mid); }"
-                   "ads--CDockAreaTitleBar[compactToolHandle=\"true\"] { border: none; background: palette(window); }"
-                   "QLabel#compactToolDockGrip { color: palette(mid); background: transparent; border: none; padding: 0; font-size: 7px; }"
+                   "ads--CDockAreaTitleBar[compactToolHandle=\"true\"] { border: none; background: transparent; }"
+                   "QLabel#compactToolDockGrip { color: palette(mid); background: transparent; border: none; padding: 0 7px 0 0; font-size: 10px; }"
                    "ads--CDockWidgetTab { background: palette(window); border-right: 1px solid palette(mid); padding: 0; }"
                    "ads--CDockWidgetTab[activeTab=\"true\"] { background: palette(button); }"
                    "ads--CDockWidgetTab QLabel, #autoHideTitleLabel { color: palette(window-text); }"
@@ -4042,7 +4044,8 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
 
     titleBar->setProperty("compactToolHandle", true);
     titleBar->setCursor(Qt::SizeAllCursor);
-    titleBar->setFixedHeight(12);
+    titleBar->setToolTip(titleBar->titleBarButtonToolTip(ads::TitleBarButtonUndock));
+    titleBar->setFixedHeight(14);
     titleBar->style()->unpolish(titleBar);
     titleBar->style()->polish(titleBar);
     const ads::TitleBarButton hiddenButtons[] = {
@@ -4068,13 +4071,22 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
         for (QWidget *item : titleItems)
             item->hide();
 
-        grip = new QLabel(QStringLiteral("•••"), titleBar);
+        grip = new QLabel(QStringLiteral("⠿"), titleBar);
         grip->setObjectName(QStringLiteral("compactToolDockGrip"));
-        grip->setAlignment(Qt::AlignCenter);
+        grip->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         grip->setAttribute(Qt::WA_TransparentForMouseEvents, true);
         grip->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        grip->setFixedHeight(12);
+        grip->setFixedHeight(14);
+        grip->setToolTip(titleBar->titleBarButtonToolTip(ads::TitleBarButtonUndock));
         titleBar->insertWidget(0, grip);
+    }
+
+    if (auto *splitter = qobject_cast<QSplitter *>(dock->dockAreaWidget()->parentWidget()))
+    {
+        splitter->setProperty("compactToolStack", true);
+        splitter->setHandleWidth(3);
+        splitter->style()->unpolish(splitter);
+        splitter->style()->polish(splitter);
     }
 
     grip->show();
@@ -4517,13 +4529,16 @@ void MainWindow::applySidebarTheme()
     const QColor panelBorder = darkTheme ? panelBg.lighter(165) : panelBg.darker(145);
     const QColor panelDisabledText = darkTheme ? QColor("#9A9A9A") : QColor("#707070");
 
-    auto applyPanelStyle = [&](QWidget *panel, const QString &rootName)
+    auto applyPanelStyle = [&](QWidget *panel, const QString &rootName, bool flatRoot = false)
     {
         if (!panel)
             return;
 
+        const QString rootBorder = flatRoot
+                                       ? QStringLiteral("border: none;")
+                                       : QStringLiteral("border: 1px solid %1;").arg(panelBorder.name());
         const QString css = QString(
-                                "QWidget#%9 { background-color: %1; color: %2; border: 1px solid %4; }"
+                                "QWidget#%9 { background-color: %1; color: %2; %10 }"
                                 "QLabel, QCheckBox, QRadioButton, QGroupBox { color: %2; }"
                                 "QGroupBox { border: 1px solid %4; border-radius: 6px; margin-top: 8px; padding-top: 10px; }"
                                 "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: %2; }"
@@ -4541,7 +4556,8 @@ void MainWindow::applySidebarTheme()
                                 "QToolButton:disabled { color: %6; }"
                                 "QScrollBar:vertical, QScrollBar:horizontal { background-color: %1; }")
                                 .arg(panelBg.name(), fg.name(), panelInputBg.name(), panelBorder.name(), panelButtonBg.name(),
-                                     panelDisabledText.name(), panelButtonHoverBg.name(), panelButtonPressedBg.name(), rootName);
+                                     panelDisabledText.name(), panelButtonHoverBg.name(), panelButtonPressedBg.name(), rootName,
+                                     rootBorder);
 
         panel->setStyleSheet(css);
     };
@@ -4549,14 +4565,14 @@ void MainWindow::applySidebarTheme()
     applyPanelStyle(d->leftPanel, "leftPanelRoot");
     applyPanelStyle(d->notePanel, "notePanelRoot");
     if (d->timingToolsDock)
-        applyPanelStyle(d->timingToolsDock->widget(), "timingToolsRoot");
+        applyPanelStyle(d->timingToolsDock->widget(), "timingToolsRoot", true);
     if (d->rangeToolsDock)
-        applyPanelStyle(d->rangeToolsDock->widget(), "rangeToolsRoot");
+        applyPanelStyle(d->rangeToolsDock->widget(), "rangeToolsRoot", true);
     if (d->mirrorToolsDock)
-        applyPanelStyle(d->mirrorToolsDock->widget(), "mirrorToolsRoot");
+        applyPanelStyle(d->mirrorToolsDock->widget(), "mirrorToolsRoot", true);
     if (d->curveToolsDock)
-        applyPanelStyle(d->curveToolsDock->widget(), "curveToolsRoot");
-    applyPanelStyle(d->pluginActionPanel, "pluginActionPanelRoot");
+        applyPanelStyle(d->curveToolsDock->widget(), "curveToolsRoot", true);
+    applyPanelStyle(d->pluginActionPanel, "pluginActionPanelRoot", true);
     applyPanelStyle(d->bpmPanel, "bpmPanelRoot");
     applyPanelStyle(d->metaPanel, "metaPanelRoot");
 
