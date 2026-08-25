@@ -15,6 +15,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QTimer>
+#include <QSizePolicy>
 
 MetaEditPanel::MetaEditPanel(QWidget *parent)
     : RightPanel(parent),
@@ -110,6 +111,7 @@ void MetaEditPanel::setupUi()
     mainLayout->addLayout(m_formLayout);
 
     m_saveBtn = new QPushButton(tr("Save"), this);
+    m_saveBtn->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     connect(m_saveBtn, &QPushButton::clicked, this, &MetaEditPanel::onSaveClicked);
     mainLayout->addWidget(m_saveBtn);
     mainLayout->addStretch();

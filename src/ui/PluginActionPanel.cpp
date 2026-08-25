@@ -13,6 +13,7 @@
 #include <QSet>
 #include <QStandardItemModel>
 #include <QVBoxLayout>
+#include <QSizePolicy>
 
 #include <algorithm>
 #include <utility>
@@ -200,6 +201,7 @@ void PluginActionPanel::rebuildUi()
 
             QPushButton *button = new QPushButton(
                 action.meta.value(QStringLiteral("title")).toString(), this);
+            button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
             groupLayout->addWidget(button);
             m_actionButtons.insert(actionKey(action.meta), button);
             m_scopeControls.append({scopeCombo, range, validation});
@@ -245,6 +247,7 @@ void PluginActionPanel::rebuildUi()
         else
         {
             button = new QPushButton(action.meta.value(QStringLiteral("title")).toString(), this);
+            button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
         }
         groupLayout->addWidget(button);
         m_actionButtons.insert(actionKey(action.meta), button);

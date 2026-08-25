@@ -13,6 +13,7 @@
 #include <QWheelEvent>
 #include <QKeyEvent>
 #include <QEvent>
+#include <QSizePolicy>
 #include <cmath>
 #include <algorithm>
 
@@ -130,6 +131,7 @@ void LongRangeSelector::setupUi()
 
     // 选择按钮
     m_selectBtn = new QPushButton(tr("Select"), m_group);
+    m_selectBtn->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     layout->addWidget(m_selectBtn);
 
     // 连接信号

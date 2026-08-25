@@ -19,6 +19,7 @@
 #include <QStringList>
 #include <QTextStream>
 #include <QApplication>
+#include <QSizePolicy>
 #include <QtMath>
 
 BPMTimePanel::BPMTimePanel(QWidget *parent)
@@ -58,12 +59,15 @@ void BPMTimePanel::setupUi()
     QHBoxLayout *btnLayout = new QHBoxLayout;
     m_addBtn = new QPushButton(tr("Add/Update"), this);
     m_removeBtn = new QPushButton(tr("Remove"), this);
+    m_addBtn->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    m_removeBtn->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     btnLayout->addWidget(m_addBtn);
     btnLayout->addWidget(m_removeBtn);
     mainLayout->addLayout(btnLayout);
 
     // Measure BPM button
     m_measureBtn = new QPushButton(tr("Measure BPM..."), this);
+    m_measureBtn->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     mainLayout->addWidget(m_measureBtn);
 
     mainLayout->addStretch();

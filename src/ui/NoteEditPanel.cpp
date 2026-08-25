@@ -22,6 +22,16 @@
 #include <QMessageBox>
 #include <QDebug>
 #include <QSignalBlocker>
+#include <QSizePolicy>
+
+namespace
+{
+void keepActionButtonCompact(QPushButton *button)
+{
+    if (button)
+        button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+}
+}
 
 NoteEditPanel::NoteEditPanel(QWidget *parent)
     : RightPanel(parent), m_chartController(nullptr), m_selectionController(nullptr), m_currentMode(0), m_gridDivision(20), m_pluginToolsExpanded(false)
@@ -124,18 +134,23 @@ void NoteEditPanel::setupUi()
     connect(m_ncSelectNotesCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainSelectNotesToggled);
     ncLayout->addWidget(m_ncSelectNotesCheck);
     m_ncCommitBtn = new QPushButton(tr("Commit Curve → Notes"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncCommitBtn);
     connect(m_ncCommitBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainCommitRequested);
     ncLayout->addWidget(m_ncCommitBtn);
     m_ncConnectBtn = new QPushButton(tr("Connect Selected"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncConnectBtn);
     connect(m_ncConnectBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainConnectRequested);
     ncLayout->addWidget(m_ncConnectBtn);
     m_ncDisconnectBtn = new QPushButton(tr("Disconnect Selected"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncDisconnectBtn);
     connect(m_ncDisconnectBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainDisconnectRequested);
     ncLayout->addWidget(m_ncDisconnectBtn);
     m_ncDeleteBtn = new QPushButton(tr("Delete Selected"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncDeleteBtn);
     connect(m_ncDeleteBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainDeleteRequested);
     ncLayout->addWidget(m_ncDeleteBtn);
     m_ncResetBtn = new QPushButton(tr("Reset Curve"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncResetBtn);
     connect(m_ncResetBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainResetRequested);
     ncLayout->addWidget(m_ncResetBtn);
     m_ncPlaceholder->setVisible(false);
@@ -143,6 +158,7 @@ void NoteEditPanel::setupUi()
 
     // Copy button.
     m_copyButton = new QPushButton(tr("Copy"), this);
+    keepActionButtonCompact(m_copyButton);
     connect(m_copyButton, &QPushButton::clicked, this, &NoteEditPanel::copyRequested);
     mainLayout->addWidget(m_copyButton);
 
@@ -167,6 +183,7 @@ void NoteEditPanel::setupUi()
     timingLayout->addWidget(m_gridSnapCheck);
 
     m_gridSettingsBtn = new QPushButton(tr("Grid Settings..."), m_timingToolsContainer);
+    keepActionButtonCompact(m_gridSettingsBtn);
     connect(m_gridSettingsBtn, &QPushButton::clicked, this, &NoteEditPanel::onGridSettingsClicked);
     timingLayout->addWidget(m_gridSettingsBtn);
     mainLayout->addWidget(m_timingToolsContainer);
@@ -195,6 +212,7 @@ void NoteEditPanel::setupUi()
     mirrorLayout->addWidget(m_mirrorPreviewCheck);
 
     m_mirrorFlipButton = new QPushButton(tr("Flip Selected"), m_mirrorGroup);
+    keepActionButtonCompact(m_mirrorFlipButton);
     mirrorLayout->addWidget(m_mirrorFlipButton);
     mainLayout->addWidget(m_mirrorGroup);
 
@@ -396,6 +414,7 @@ void NoteEditPanel::setPluginPlacementActions(const QList<PluginPlacementAction>
         }
 
         QPushButton *btn = new QPushButton(a.title, m_pluginToolsContainer);
+        keepActionButtonCompact(btn);
         if (!a.tooltip.isEmpty())
             btn->setToolTip(a.tooltip);
         connect(btn, &QPushButton::clicked, this, [this, a](bool)
