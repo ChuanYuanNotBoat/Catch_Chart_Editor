@@ -5,7 +5,9 @@
 #include <QMainWindow>
 #include <QPointer>
 #include <QScreen>
+#include <QScrollArea>
 #include <QSplitter>
+#include <QVBoxLayout>
 #include <QWidget>
 #include <cstdio>
 
@@ -121,6 +123,17 @@ int main(int argc, char **argv)
 
     ok &= require(window.minimumSizeHint().height() < 1200,
                   "scroll-wrapped dock content must not force the top-level window to its 2400px minimum height");
+    auto *panelScroll = panelDock->findChild<QAbstractScrollArea *>();
+    ok &= require(panelScroll, "ForceScrollArea dock must create a scroll area");
+    if (panelScroll)
+    {
+        panelScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        panelScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        ok &= require(panelScroll->horizontalScrollBarPolicy() == Qt::ScrollBarAlwaysOff,
+                      "legacy Note sidebar must never expose a horizontal scrollbar");
+        ok &= require(panelScroll->verticalScrollBarPolicy() == Qt::ScrollBarAsNeeded,
+                      "legacy Note sidebar must retain vertical scrolling");
+    }
 
     const QByteArray initialState = manager->saveState(1);
     ok &= require(!initialState.isEmpty(), "ADS layout state must be serializable");
@@ -147,6 +160,104 @@ int main(int argc, char **argv)
     ok &= require(!rangeDock->isFloating()
                       && rangeDock->dockAreaWidget() != mirrorDock->dockAreaWidget(),
                   "restoring the layout must return the block without creating a tab group");
+
+    // Floating tools can be disabled without replacing their widgets. Move
+    // the same medium-grained sections into one legacy vertical sidebar, then
+    // put them back into their existing ADS docks and verify their identities.
+    rangeDock->toggleView(false);
+    mirrorDock->toggleView(false);
+    pluginToolsDock->toggleView(false);
+    QWidget *rangeContent = rangeDock->takeWidget();
+    QWidget *mirrorContent = mirrorDock->takeWidget();
+    QWidget *pluginToolsContent = pluginToolsDock->takeWidget();
+    QWidget legacySidebar;
+    QVBoxLayout legacyLayout(&legacySidebar);
+    legacyLayout.addWidget(rangeContent);
+    legacyLayout.addWidget(mirrorContent);
+    legacyLayout.addWidget(pluginToolsContent);
+    ok &= require(rangeContent && rangeContent->parentWidget() == &legacySidebar
+                      && mirrorContent && mirrorContent->parentWidget() == &legacySidebar
+                      && pluginToolsContent && pluginToolsContent->parentWidget() == &legacySidebar,
+                  "disabling floating tools must embed the existing widgets in one sidebar");
+
+    for (QWidget *content : {rangeContent, mirrorContent, pluginToolsContent})
+    {
+        legacyLayout.removeWidget(content);
+        content->setParent(nullptr);
+    }
+    rangeDock->setWidget(rangeContent, ads::CDockWidget::ForceScrollArea);
+    mirrorDock->setWidget(mirrorContent, ads::CDockWidget::ForceScrollArea);
+    pluginToolsDock->setWidget(pluginToolsContent, ads::CDockWidget::ForceScrollArea);
+    rangeDock->toggleView(true);
+    mirrorDock->toggleView(true);
+    pluginToolsDock->toggleView(true);
+    app.processEvents();
+    ok &= require(rangeDock->widget() == rangeContent
+                      && mirrorDock->widget() == mirrorContent
+                      && pluginToolsDock->widget() == pluginToolsContent,
+                  "re-enabling floating tools must restore the same widgets to their docks");
+
+    // Exercise the complete pre-ADS workspace switch used when floating
+    // windows are disabled: fixed four-column splitter plus one switchable,
+    // vertically scrollable right sidebar.
+    panelDock->toggleView(false);
+    rangeDock->toggleView(false);
+    mirrorDock->toggleView(false);
+    QWidget *workspaceContent = workspaceDock->takeWidget();
+    QWidget *legacyRightContent = panelDock->takeWidget();
+    rangeContent = rangeDock->takeWidget();
+    mirrorContent = mirrorDock->takeWidget();
+
+    auto *fixedSplitter = new QSplitter(Qt::Horizontal);
+    auto *rightScroll = new QScrollArea(fixedSplitter);
+    auto *rightContainer = new QWidget;
+    auto *rightLayout = new QVBoxLayout(rightContainer);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->addWidget(legacyRightContent);
+    rightScroll->setWidget(rightContainer);
+    rightScroll->setWidgetResizable(true);
+    rightScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    rightScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    fixedSplitter->addWidget(rangeContent);
+    fixedSplitter->addWidget(mirrorContent);
+    fixedSplitter->addWidget(workspaceContent);
+    fixedSplitter->addWidget(rightScroll);
+
+    QWidget *dockCentral = window.takeCentralWidget();
+    dockCentral->hide();
+    window.setCentralWidget(fixedSplitter);
+    fixedSplitter->show();
+    app.processEvents();
+    ok &= require(window.centralWidget() == fixedSplitter && fixedSplitter->count() == 4,
+                  "disabled floating mode must use the pre-ADS fixed four-column splitter");
+    ok &= require(!manager->isVisible()
+                      && rightScroll->horizontalScrollBarPolicy() == Qt::ScrollBarAlwaysOff
+                      && rightScroll->verticalScrollBarPolicy() == Qt::ScrollBarAsNeeded,
+                  "fixed mode must hide ADS and expose only vertical right-sidebar scrolling");
+
+    window.takeCentralWidget();
+    rangeContent->setParent(nullptr);
+    mirrorContent->setParent(nullptr);
+    workspaceContent->setParent(nullptr);
+    rightLayout->removeWidget(legacyRightContent);
+    legacyRightContent->setParent(nullptr);
+    rightScroll->takeWidget();
+    delete rightContainer;
+    delete fixedSplitter;
+    window.setCentralWidget(manager);
+    manager->show();
+    workspaceDock->setWidget(workspaceContent, ads::CDockWidget::ForceNoScrollArea);
+    panelDock->setWidget(legacyRightContent, ads::CDockWidget::ForceScrollArea);
+    rangeDock->setWidget(rangeContent, ads::CDockWidget::ForceScrollArea);
+    mirrorDock->setWidget(mirrorContent, ads::CDockWidget::ForceScrollArea);
+    panelDock->toggleView(true);
+    rangeDock->toggleView(true);
+    mirrorDock->toggleView(true);
+    app.processEvents();
+    ok &= require(window.centralWidget() == manager
+                      && workspaceDock->widget() == workspaceContent
+                      && panelDock->widget() == legacyRightContent,
+                  "re-enabling floating mode must restore ADS and the original panel widgets");
 
     QPointer<ads::CFloatingDockContainer> detachedWindow;
     QObject::connect(manager,

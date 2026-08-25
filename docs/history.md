@@ -10,6 +10,7 @@
 - **重构**：引入 Qt Advanced Docking System 5.1.1，工作区、导航、实时预览、Note、BPM、Meta 与插件面板支持自由停靠、标签组合、拆分和浮动。
 - **重构**：将 Note 区按中等粒度拆为 `Note Input`、`Timing & Grid`、`Range Select`、`Mirror Flip`、`Curve Tools` 与 `Plugin Tools`；停靠时保持原右侧栏的纵向同时展开布局，仅在拖出后成为独立窗口，不以切换标签代替原布局。
 - **新增**：面板布局和主窗口位置自动持久化，`View -> Panels` 可控制面板显隐并恢复默认布局。
+- **新增**：`View -> Enable Floating Windows` 可持久化切换工作区模式；关闭后完全恢复引入 ADS 前的固定四栏 splitter、顶部 Note/BPM/Meta 切换和单一右侧栏样式，仅在右侧栏增加按需显示的纵向滚动条，并永久禁用横向滚动条。重新启用后恢复关闭前的 ADS 停靠位置与面板状态。
 - **新增**：宿主根据插件 tool-action 元数据生成通用可停靠 `Plugin Tools` 面板；Note Color Formatter 1.3.0 提供常驻范围选择、拍点输入、选中计数和执行按钮，顶部快捷入口改为聚焦该 GUI。
 - **兼容**：插件工具和原生插件面板遵循相同的纵向 splitter / 拖出浮动规则；旧 ADS 标签式工具布局自动迁移到保持原排列的新布局版本。
 - **优化**：右侧工具块停靠时隐藏窗口式标题与按钮，仅保留右上角紧凑拖拽手柄；移除 splitter 灰线和工具块外框，使停靠态恢复连续侧栏背景与原 GroupBox 层级，拖出后改用浮动窗口的原生标题栏。

@@ -1,7 +1,7 @@
 # Testing Guide
 
 > 适用版本：Beta v1.11.0 开发周期
-> 最后核对：2026-08-24
+> 最后核对：2026-08-26
 
 ## 测试目标
 
@@ -42,6 +42,7 @@ CTest 名称：`ui_docking_layout_tests`
 - 实际非透明拖动预览到浮动容器的交接；
 - 浮动窗口保持预览的全局屏幕位置；
 - `ForceScrollArea` 和 viewport 在浮动首帧可见且尺寸有效；
+- 工具 QWidget 可在 ADS dock 与旧式单一纵向栏之间往返转移且对象身份不变；旧式右栏保留按需纵向滚动并强制关闭横向滚动；
 - 关闭浮动窗口会同步面板动作，动作可立即恢复面板，后续普通隐藏事件不会再次误关面板。
 
 ## 本地命令
@@ -91,6 +92,8 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 - 大谱面启用曲线工具后持续移动鼠标，确认 hover 不随 Note 数量明显卡顿，并验证主窗口级 `Delete` 可删除锚点/曲线段；
 - Note Color Formatter 在 `Plugin Tools` GUI 中分别验证已选 Note、拍点范围和整谱模式，确认顶部按钮聚焦面板、Sound Note 不变且单次撤销可完整恢复；
 - Note Input、Timing & Grid、Range Select、Mirror Flip、Curve Tools 和 Plugin Tools 分别验证纵向组合、拆分、拖动、浮动、关闭恢复和默认布局重置，并确认拖回后不变为切换标签；
+- 关闭 `View -> Enable Floating Windows`，确认界面恢复为引入 ADS 前的固定 Navigation / Preview / Workspace / 右编辑栏四栏布局，Note/BPM/Meta 只在同一右栏切换，没有任何 ADS 标题、标签或工具拆分块；右栏滚轮及纵向滚动条有效且始终没有横向滚动条；
+- 在两种模式间反复切换，确认当前 Note/BPM/Meta 页、曲线控件、范围输入和 Plugin Tools GUI 状态不丢失；重启后保持所选模式，重新启用 ADS 后恢复关闭前的停靠位置；
 - Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、浮动、关闭、无需重启恢复和重启持久化；BPM/Meta 等完整面板另验证标签组合；
 - 关闭主窗口后确认 GUI、日志终端、外部插件子进程和主进程均结束；
 - 深色/浅色主题下主窗口与浮动窗口标题栏、文字、边框和首帧内容；

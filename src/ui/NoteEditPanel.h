@@ -60,6 +60,14 @@ public:
     QWidget *takeRangeToolsWidget();
     QWidget *takeMirrorToolsWidget();
     QWidget *takeCurveToolsWidget();
+    QWidget *takeEmbeddedPluginToolsWidget();
+    void attachLegacyToolSections(QWidget *timingTools,
+                                  QWidget *rangeTools,
+                                  QWidget *mirrorTools,
+                                  QWidget *curveTools,
+                                  QWidget *pluginTools,
+                                  bool showPluginTools);
+    void setEmbeddedPluginToolsVisible(bool visible);
 
 
     LongRangeSelector *longRangeSelector() const { return m_longRangeSelector; }
@@ -109,6 +117,7 @@ private:
     void setMode(int mode);
     void refreshPluginToolsUi();
     QWidget *takeSectionWidget(QWidget *widget);
+    void insertSectionAfter(QWidget *widget, QWidget *after);
 
     ChartController *m_chartController;
     SelectionController *m_selectionController;
@@ -130,6 +139,8 @@ private:
     QCheckBox *m_gridSnapCheck;
     QPushButton *m_gridSettingsBtn;
     QPushButton *m_copyButton;
+    QVBoxLayout *m_mainLayout = nullptr;
+    QWidget *m_embeddedPluginTools = nullptr;
     QGroupBox *m_mirrorGroup;
     QLabel *m_mirrorAxisLabel;
     QSpinBox *m_mirrorAxisSpin;

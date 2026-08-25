@@ -2,6 +2,7 @@
     main.cpp
     app/Application.cpp
     app/MainWindow.cpp
+    app/MainWindowLayout.cpp
     app/MainWindowDialogs.cpp
     app/MainWindowSkinAudio.cpp
     model/Note.cpp

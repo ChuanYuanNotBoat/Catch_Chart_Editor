@@ -52,6 +52,7 @@
 #include <QDir>
 #include <QSlider>
 #include <QSplitter>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -1526,6 +1527,7 @@ MainWindow::~MainWindow()
 {
     saveDockLayout();
     clearWorkingCopySession(true);
+    closePluginPanels();
     if (d->dockManager)
     {
         // Destroy ADS while Private is still alive: floating dock destruction
@@ -1659,7 +1661,20 @@ void MainWindow::createMenus()
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     if (d->dockManager)
     {
-        QMenu *panelsMenu = viewMenu->addMenu(tr("Panels"));
+        if (!d->floatingToolWindowsAction)
+        {
+            d->floatingToolWindowsAction = new QAction(this);
+            d->floatingToolWindowsAction->setCheckable(true);
+            connect(d->floatingToolWindowsAction, &QAction::toggled, this,
+                    [this](bool enabled) { setFloatingToolWindowsEnabled(enabled); });
+        }
+        d->floatingToolWindowsAction->setText(tr("Enable Floating Windows"));
+        {
+            const QSignalBlocker blocker(d->floatingToolWindowsAction);
+            d->floatingToolWindowsAction->setChecked(d->floatingToolWindowsEnabled);
+        }
+        viewMenu->addAction(d->floatingToolWindowsAction);
+        d->panelsMenu = viewMenu->addMenu(tr("Panels"));
         const QList<ads::CDockWidget *> docks = {
             d->leftPanelDock, d->previewDock, d->notePanelDock,
             d->timingToolsDock, d->rangeToolsDock, d->mirrorToolsDock,
@@ -1668,10 +1683,11 @@ void MainWindow::createMenus()
         for (ads::CDockWidget *dock : docks)
         {
             if (dock)
-                panelsMenu->addAction(dock->toggleViewAction());
+                d->panelsMenu->addAction(dock->toggleViewAction());
         }
-        panelsMenu->addSeparator();
-        panelsMenu->addAction(tr("Reset Panel Layout"), this, &MainWindow::resetDockLayout);
+        d->panelsMenu->addSeparator();
+        d->panelsMenu->addAction(tr("Reset Panel Layout"), this, &MainWindow::resetDockLayout);
+        updateToolDockActionVisibility();
         viewMenu->addSeparator();
     }
     d->colorAction = viewMenu->addAction(tr("&Color Notes"));
@@ -2151,9 +2167,9 @@ void MainWindow::createCentralArea()
     d->rightDensityBar->setPlaybackController(d->playbackController);
     d->rightDensityBar->setCanvas(d->canvas);
 
-    QWidget *canvasContainer = new QWidget(d->dockManager);
-    canvasContainer->setObjectName(QStringLiteral("chartWorkspaceRoot"));
-    QHBoxLayout *canvasLayout = new QHBoxLayout(canvasContainer);
+    d->workspaceContainer = new QWidget(d->dockManager);
+    d->workspaceContainer->setObjectName(QStringLiteral("chartWorkspaceRoot"));
+    QHBoxLayout *canvasLayout = new QHBoxLayout(d->workspaceContainer);
     canvasLayout->setContentsMargins(0, 0, 0, 0);
     canvasLayout->setSpacing(0);
     canvasLayout->addWidget(d->canvas, 1);
@@ -2219,6 +2235,7 @@ void MainWindow::createCentralArea()
     d->metaPanel = new MetaEditPanel(d->dockManager);
     d->metaPanel->setObjectName(QStringLiteral("metaPanelRoot"));
     d->metaPanel->setAttribute(Qt::WA_StyledBackground, true);
+    d->currentRightPanel = d->notePanel;
 
     d->notePanel->setChartController(d->chartController);
     d->notePanel->setSelectionController(d->selectionController);
@@ -2426,7 +2443,7 @@ void MainWindow::createCentralArea()
 
     d->workspaceDock = new ads::CDockWidget(d->dockManager, tr("Chart Workspace"));
     d->workspaceDock->setObjectName(QStringLiteral("dock.workspace"));
-    d->workspaceDock->setWidget(canvasContainer, ads::CDockWidget::ForceNoScrollArea);
+    d->workspaceDock->setWidget(d->workspaceContainer, ads::CDockWidget::ForceNoScrollArea);
     ads::CDockAreaWidget *workspaceArea = d->dockManager->setCentralWidget(d->workspaceDock);
 
     d->leftPanelDock = new ads::CDockWidget(d->dockManager, tr("Navigation"));
@@ -2452,6 +2469,7 @@ void MainWindow::createCentralArea()
     d->notePanelDock = new ads::CDockWidget(d->dockManager, tr("Note Input"));
     d->notePanelDock->setObjectName(QStringLiteral("dock.note"));
     d->notePanelDock->setWidget(d->notePanel, ads::CDockWidget::ForceScrollArea);
+    configureNotePanelScrollArea();
     ads::CDockAreaWidget *editorArea = d->dockManager->addDockWidget(
         ads::RightDockWidgetArea, d->notePanelDock, workspaceArea);
 
@@ -2565,6 +2583,7 @@ void MainWindow::createCentralArea()
     addToolBarBreak(Qt::TopToolBarArea);
     d->pluginToolBar = addToolBar(tr("Plugins"));
     d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
+    setFloatingToolWindowsEnabled(Settings::instance().floatingToolWindowsEnabled());
     Logger::debug("Central area created with LeftPanel.");
 }
 
@@ -3973,6 +3992,22 @@ void MainWindow::showEditorPanel(QWidget *panel)
     if (!panel)
         return;
 
+    if (panel == d->notePanel || panel == d->bpmPanel || panel == d->metaPanel)
+        d->currentRightPanel = panel;
+
+    if (!d->floatingToolWindowsEnabled)
+    {
+        if (d->notePanel)
+            d->notePanel->setVisible(panel == d->notePanel);
+        if (d->bpmPanel)
+            d->bpmPanel->setVisible(panel == d->bpmPanel);
+        if (d->metaPanel)
+            d->metaPanel->setVisible(panel == d->metaPanel);
+        if (d->legacyRightScrollArea)
+            d->legacyRightScrollArea->show();
+        return;
+    }
+
     ads::CDockWidget *dock = nullptr;
     if (panel == d->notePanel)
         dock = d->notePanelDock;
@@ -3995,6 +4030,24 @@ void MainWindow::showDockPanel(ads::CDockWidget *dock)
 {
     if (!dock)
         return;
+
+    if (!d->floatingToolWindowsEnabled
+        && (dock == d->pluginToolsDock || dock == d->curveToolsDock))
+    {
+        if (dock == d->pluginToolsDock)
+        {
+            d->pluginToolsWereVisible = true;
+            if (d->notePanel)
+                d->notePanel->setEmbeddedPluginToolsVisible(true);
+        }
+
+        showEditorPanel(d->notePanel);
+        if (dock == d->pluginToolsDock && d->legacyRightScrollArea)
+        {
+            d->legacyRightScrollArea->ensureWidgetVisible(d->pluginActionPanel);
+        }
+        return;
+    }
 
     dock->toggleView(true);
     dock->setAsCurrentTab();
@@ -4096,7 +4149,7 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
 void MainWindow::saveDockLayout()
 {
     Settings::instance().setMainWindowGeometry(saveGeometry());
-    if (d->dockManager)
+    if (d->dockManager && d->floatingToolWindowsEnabled)
         Settings::instance().setDockLayoutState(d->dockManager->saveState(kDockLayoutVersion));
 }
 
@@ -4130,6 +4183,20 @@ void MainWindow::resetDockLayout()
     }
 
     Settings::instance().clearDockLayoutState();
+    if (!d->floatingToolWindowsEnabled)
+    {
+        for (ads::CDockWidget *dock : {d->timingToolsDock, d->rangeToolsDock,
+                                       d->mirrorToolsDock, d->curveToolsDock,
+                                       d->pluginToolsDock})
+        {
+            if (dock)
+                dock->toggleView(false);
+        }
+        d->timingToolsWereVisible = true;
+        d->rangeToolsWereVisible = true;
+        d->mirrorToolsWereVisible = true;
+        d->pluginToolsWereVisible = false;
+    }
     d->notePanelDock->setAsCurrentTab();
     if (d->timingToolsDock)
         d->timingToolsDock->setAsCurrentTab();
@@ -4145,7 +4212,8 @@ void MainWindow::updateDockTitles()
     if (d->previewDock)
         d->previewDock->setWindowTitle(tr("Realtime Preview"));
     if (d->notePanelDock)
-        d->notePanelDock->setWindowTitle(tr("Note Input"));
+        d->notePanelDock->setWindowTitle(
+            d->floatingToolWindowsEnabled ? tr("Note Input") : tr("Note Editor"));
     if (d->timingToolsDock)
         d->timingToolsDock->setWindowTitle(tr("Timing & Grid"));
     if (d->rangeToolsDock)
@@ -4563,18 +4631,35 @@ void MainWindow::applySidebarTheme()
     };
 
     applyPanelStyle(d->leftPanel, "leftPanelRoot");
-    applyPanelStyle(d->notePanel, "notePanelRoot");
-    if (d->timingToolsDock)
-        applyPanelStyle(d->timingToolsDock->widget(), "timingToolsRoot", true);
-    if (d->rangeToolsDock)
-        applyPanelStyle(d->rangeToolsDock->widget(), "rangeToolsRoot", true);
-    if (d->mirrorToolsDock)
-        applyPanelStyle(d->mirrorToolsDock->widget(), "mirrorToolsRoot", true);
-    if (d->curveToolsDock)
-        applyPanelStyle(d->curveToolsDock->widget(), "curveToolsRoot", true);
-    applyPanelStyle(d->pluginActionPanel, "pluginActionPanelRoot", true);
-    applyPanelStyle(d->bpmPanel, "bpmPanelRoot");
-    applyPanelStyle(d->metaPanel, "metaPanelRoot");
+    if (d->floatingToolWindowsEnabled)
+    {
+        applyPanelStyle(d->notePanel, "notePanelRoot");
+        if (d->timingToolsDock)
+            applyPanelStyle(d->timingToolsDock->widget(), "timingToolsRoot", true);
+        if (d->rangeToolsDock)
+            applyPanelStyle(d->rangeToolsDock->widget(), "rangeToolsRoot", true);
+        if (d->mirrorToolsDock)
+            applyPanelStyle(d->mirrorToolsDock->widget(), "mirrorToolsRoot", true);
+        if (d->curveToolsDock)
+            applyPanelStyle(d->curveToolsDock->widget(), "curveToolsRoot", true);
+        applyPanelStyle(d->pluginActionPanel, "pluginActionPanelRoot", true);
+        applyPanelStyle(d->bpmPanel, "bpmPanelRoot");
+        applyPanelStyle(d->metaPanel, "metaPanelRoot");
+    }
+    else
+    {
+        // Match the pre-ADS stylesheet boundary: the whole switchable right
+        // sidebar is one styled surface, rather than several panel windows.
+        if (d->notePanel)
+            d->notePanel->setStyleSheet(QString());
+        if (d->bpmPanel)
+            d->bpmPanel->setStyleSheet(QString());
+        if (d->metaPanel)
+            d->metaPanel->setStyleSheet(QString());
+        if (d->pluginActionPanel)
+            d->pluginActionPanel->setStyleSheet(QString());
+        applyPanelStyle(d->legacyRightPanelContainer, "rightPanelRoot");
+    }
 
     if (d->dockManager)
     {
@@ -4596,8 +4681,11 @@ void MainWindow::applySidebarTheme()
         if (d->dockManager->styleSheet() != dockStyle)
             d->dockManager->setStyleSheet(dockStyle);
 
-        for (ads::CFloatingDockContainer *floatingWindow : d->dockManager->floatingWidgets())
-            NativeWindowTheme::apply(floatingWindow, panelBg, fg, panelBorder, true);
+        if (d->floatingToolWindowsEnabled)
+        {
+            for (ads::CFloatingDockContainer *floatingWindow : d->dockManager->floatingWidgets())
+                NativeWindowTheme::apply(floatingWindow, panelBg, fg, panelBorder, true);
+        }
     }
 
     NativeWindowTheme::apply(this, panelBg, fg, panelBorder);
@@ -4635,6 +4723,13 @@ void MainWindow::applySidebarTheme()
     {
         statusBar()->setStyleSheet(QString("QStatusBar { background-color: %1; color: %2; border-top: 1px solid %3; }")
                                        .arg(panelBg.name(), fg.name(), panelBorder.name()));
+    }
+
+    if (d->legacySplitter)
+    {
+        d->legacySplitter->setStyleSheet(
+            QStringLiteral("QSplitter::handle { background-color: %1; }")
+                .arg(panelBorder.name()));
     }
 
     if (d->rightDensityBar)

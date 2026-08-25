@@ -41,7 +41,8 @@ NoteEditPanel::NoteEditPanel(QWidget *parent)
 
 void NoteEditPanel::setupUi()
 {
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    m_mainLayout = new QVBoxLayout(this);
+    QVBoxLayout *mainLayout = m_mainLayout;
 
     m_modeLabel = new QLabel(tr("Mode:"), this);
     mainLayout->addWidget(m_modeLabel);
@@ -234,10 +235,21 @@ QWidget *NoteEditPanel::takeSectionWidget(QWidget *widget)
 {
     if (!widget || widget->parentWidget() != this)
         return nullptr;
-    if (layout())
-        layout()->removeWidget(widget);
+    if (m_mainLayout)
+        m_mainLayout->removeWidget(widget);
     widget->setParent(nullptr);
     return widget;
+}
+
+void NoteEditPanel::insertSectionAfter(QWidget *widget, QWidget *after)
+{
+    if (!widget || !m_mainLayout)
+        return;
+
+    const int afterIndex = m_mainLayout->indexOf(after);
+    const int insertIndex = afterIndex >= 0 ? afterIndex + 1 : m_mainLayout->count() - 1;
+    widget->setParent(this);
+    m_mainLayout->insertWidget(qMax(0, insertIndex), widget);
 }
 
 QWidget *NoteEditPanel::takeTimingToolsWidget()
@@ -258,6 +270,59 @@ QWidget *NoteEditPanel::takeMirrorToolsWidget()
 QWidget *NoteEditPanel::takeCurveToolsWidget()
 {
     return takeSectionWidget(m_ncPlaceholder);
+}
+
+QWidget *NoteEditPanel::takeEmbeddedPluginToolsWidget()
+{
+    QWidget *pluginTools = takeSectionWidget(m_embeddedPluginTools);
+    if (pluginTools)
+        m_embeddedPluginTools = nullptr;
+    return pluginTools;
+}
+
+void NoteEditPanel::attachLegacyToolSections(QWidget *timingTools,
+                                             QWidget *rangeTools,
+                                             QWidget *mirrorTools,
+                                             QWidget *curveTools,
+                                             QWidget *pluginTools,
+                                             bool showPluginTools)
+{
+    if (!m_mainLayout)
+        return;
+
+    // Rebuild the original Note Editor reading order. The sections remain the
+    // same widgets, so controller connections and in-progress input survive
+    // repeated switches between embedded and dockable modes.
+    if (curveTools)
+    {
+        const int copyIndex = m_mainLayout->indexOf(m_copyButton);
+        curveTools->setParent(this);
+        m_mainLayout->insertWidget(qMax(0, copyIndex), curveTools);
+        curveTools->setVisible(m_noteChainControlsVisible);
+    }
+
+    QWidget *anchor = m_copyButton;
+    for (QWidget *section : {timingTools, rangeTools, mirrorTools})
+    {
+        if (!section)
+            continue;
+        insertSectionAfter(section, anchor);
+        section->show();
+        anchor = section;
+    }
+
+    if (pluginTools)
+    {
+        insertSectionAfter(pluginTools, anchor);
+        m_embeddedPluginTools = pluginTools;
+        pluginTools->setVisible(showPluginTools);
+    }
+}
+
+void NoteEditPanel::setEmbeddedPluginToolsVisible(bool visible)
+{
+    if (m_embeddedPluginTools)
+        m_embeddedPluginTools->setVisible(visible);
 }
 
 

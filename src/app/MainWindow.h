@@ -121,6 +121,9 @@ private:
     void applySidebarTheme();
     void showEditorPanel(QWidget *panel);
     void showDockPanel(ads::CDockWidget *dock);
+    void setFloatingToolWindowsEnabled(bool enabled);
+    void updateToolDockActionVisibility();
+    void configureNotePanelScrollArea();
     void configureCompactToolDock(ads::CDockWidget *dock);
     void updateCompactToolDockHandle(ads::CDockWidget *dock);
     void saveDockLayout();

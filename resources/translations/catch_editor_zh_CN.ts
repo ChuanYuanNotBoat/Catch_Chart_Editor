@@ -4,158 +4,158 @@
 <context>
     <name>BPMTimePanel</name>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="41"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="393"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="42"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="397"/>
         <source>Time:</source>
         <translation>时间:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="44"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="403"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="45"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="407"/>
         <source>e.g. 0:1/1</source>
         <translation>例如: 0:1/1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="49"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="395"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="50"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="399"/>
         <source>BPM:</source>
         <translation>BPM:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="59"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="397"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="60"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="401"/>
         <source>Add/Update</source>
         <translation>添加/更新</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="60"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="399"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="61"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="403"/>
         <source>Remove</source>
         <translation>移除</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="66"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="401"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="69"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="405"/>
         <source>Measure BPM...</source>
         <translation>测量 BPM...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="190"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="194"/>
         <source>%1 ms</source>
         <translation>%1 毫秒</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="193"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="197"/>
         <source>Ready to measure.</source>
         <translation>准备测量。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="197"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="201"/>
         <source>Measuring audio...</source>
         <translation>正在测量音频...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="205"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="209"/>
         <source>Measurement failed.</source>
         <translation>测量失败。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="206"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="210"/>
         <source>Measurement Failed</source>
         <translation>测量失败</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="207"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="211"/>
         <source>Failed to measure BPM from audio.</source>
         <translation>无法从音频中测量 BPM。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="237"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="241"/>
         <source>Mode: </source>
         <translation>模式: </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="238"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
         <source>From Song Start</source>
         <translation>从歌曲开头</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="238"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
         <source>From Current Time</source>
         <translation>从当前时间</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="239"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="243"/>
         <source>Estimated BPM: </source>
         <translation>估计 BPM: </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="240"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="244"/>
         <source>Uncertainty (segment stddev): </source>
         <translation>不确定度 (段标准差): </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="246"/>
         <source>Estimated offset: </source>
         <translation>估计偏移: </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="246"/>
         <source> ms</source>
         <translation> 毫秒</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="243"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="247"/>
         <source>Segments:</source>
         <translation>段:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="251"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="255"/>
         <source>bpm=</source>
         <translation>bpm=</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="251"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="255"/>
         <source>, score=</source>
         <translation>, 得分=</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="253"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="257"/>
         <source>invalid</source>
         <translation>无效</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="257"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="261"/>
         <source>Measurement complete.</source>
         <translation>测量完成。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="286"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="290"/>
         <source>Write BPM</source>
         <translation>写入 BPM</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="288"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="292"/>
         <source>Write measured BPM %1 at chart start (0:0/1)?</source>
         <translation>是否将测量到的 BPM %1 写入谱面开头 (0:0/1)？</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="289"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="293"/>
         <source>Write measured BPM %1 at current time?</source>
         <translation>是否将测量到的 BPM %1 写入当前时间？</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="339"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="343"/>
         <source>Duration must be greater than 0.</source>
         <translation>持续时间必须大于 0。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="346"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="350"/>
         <source>No audio file is linked to this chart.</source>
         <translation>此谱面未关联音频文件。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="359"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="363"/>
         <source>Audio BPM detection failed.</source>
         <translation>音频 BPM 检测失败。</translation>
     </message>
@@ -757,40 +757,40 @@
 <context>
     <name>LongRangeSelector</name>
     <message>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="92"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="182"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="93"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="184"/>
         <source>Range Select</source>
         <translation>范围选择</translation>
     </message>
     <message>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="100"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="198"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="101"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="200"/>
         <source>Show Range</source>
         <translation>显示范围</translation>
     </message>
     <message>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="107"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="187"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="108"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="189"/>
         <source>Start:</source>
         <translation>开始:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="111"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="124"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="192"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="112"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="125"/>
         <location filename="../../src/ui/LongRangeSelector.cpp" line="194"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="196"/>
         <source>Now</source>
         <translation>现在</translation>
     </message>
     <message>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="120"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="189"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="121"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="191"/>
         <source>End:</source>
         <translation>结束:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="132"/>
-        <location filename="../../src/ui/LongRangeSelector.cpp" line="196"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="133"/>
+        <location filename="../../src/ui/LongRangeSelector.cpp" line="198"/>
         <source>Select</source>
         <translation>选择</translation>
     </message>
@@ -798,88 +798,88 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1536"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3892"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1545"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3957"/>
         <source>Catch Chart Editor</source>
         <translation>Catch Chart Editor</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1562"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1571"/>
         <source>&amp;File</source>
         <translation>文件(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1566"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1575"/>
         <source>&amp;Open Chart...</source>
         <translation>打开谱面(&amp;O)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1568"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1577"/>
         <source>Open &amp;Folder...</source>
         <translation>打开文件夹(&amp;F)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1569"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1578"/>
         <source>Open &amp;Imported Charts...</source>
         <translation>打开已导入谱面(&amp;I)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1570"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1579"/>
         <source>Ctrl+Shift+O</source>
         <translation>Ctrl+Shift+O</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1571"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1580"/>
         <source>&amp;Save</source>
         <translation>保存(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1573"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1582"/>
         <source>Save &amp;As...</source>
         <translation>另存为(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1575"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1584"/>
         <source>&amp;Export .mcz...</source>
         <translation>导出 .mcz(&amp;E)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1578"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1587"/>
         <source>Switch &amp;Difficulty...</source>
         <translation>切换难度(&amp;D)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1580"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1589"/>
         <source>E&amp;xit</source>
         <translation>退出(&amp;X)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1583"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1592"/>
         <source>&amp;Edit</source>
         <translation>编辑(&amp;E)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1584"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1593"/>
         <source>&amp;Undo</source>
         <translation>撤销(&amp;U)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1587"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1596"/>
         <source>&amp;Redo</source>
         <translation>重做(&amp;R)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1591"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1600"/>
         <source>&amp;Copy</source>
         <translation>复制(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1594"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1603"/>
         <source>&amp;Paste</source>
         <translation>粘贴(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1597"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1606"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
@@ -888,412 +888,413 @@
         <translation type="vanished">以 288 分度粘贴</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1652"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1661"/>
         <source>&amp;View</source>
         <translation>视图(&amp;V)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1670"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1693"/>
         <source>&amp;Color Notes</source>
         <translation>彩色音符(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1674"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1697"/>
         <source>Color Timeline Divisions</source>
         <translation>时间分度着色</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1678"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1701"/>
         <source>Timeline Division Color Advanced Settings...</source>
         <translation>时间分度着色高级设置...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1680"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1703"/>
         <source>&amp;Hyperfruit Outline</source>
         <translation>Hyperfruit 轮廓(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1684"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1707"/>
         <source>&amp;Vertical Flip</source>
         <translation>垂直翻转(&amp;V)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1690"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1713"/>
         <source>Show Background Image</source>
         <translation>显示背景图片</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1719"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1742"/>
         <source>Background Color</source>
         <translation>背景颜色</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1720"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1743"/>
         <source>Black</source>
         <translation>黑色</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1726"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1749"/>
         <source>White</source>
         <translation>白色</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1731"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1754"/>
         <source>Gray</source>
         <translation>灰色</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1736"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1759"/>
         <source>Custom...</source>
         <translation>自定义...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1739"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1762"/>
         <source>Select Background Color</source>
         <translation>选择背景颜色</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1746"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1769"/>
         <source>&amp;Settings</source>
         <translation>设置(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1747"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1770"/>
         <source>Note Size...</source>
         <translation>音符大小...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1749"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1772"/>
         <source>Calibrate Skin...</source>
         <translation>校准皮肤...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1751"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1774"/>
         <source>Outline Settings...</source>
         <translation>轮廓设置...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1753"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1776"/>
         <source>Note Sound Volume...</source>
         <translation>音符音量...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1763"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1786"/>
         <source>Keyboard Shortcuts...</source>
         <translation>快捷键设置...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1766"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4054"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1789"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4259"/>
         <source>Language</source>
         <translation>语言(Language)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1782"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1805"/>
         <source>&amp;Playback</source>
         <translation>播放(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1783"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1806"/>
         <source>&amp;Play/Pause</source>
         <translation>播放/暂停(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1794"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1817"/>
         <source>&amp;Speed</source>
         <translation>速度(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1799"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1822"/>
         <source>%1x</source>
         <translation>%1x</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1835"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1858"/>
         <source>&amp;Tools</source>
         <translation>工具(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1837"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1860"/>
         <source>&amp;Plugin Manager...</source>
         <translation>插件管理器(&amp;P)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1839"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1862"/>
         <source>Plugin &amp;Actions</source>
         <translation>插件动作(&amp;A)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1841"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1864"/>
         <source>Plugin &amp;Panels</source>
         <translation>插件面板(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1935"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1958"/>
         <source>&amp;Grid Settings...</source>
         <translation>网格设置(&amp;G)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1937"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1960"/>
         <source>&amp;Log Settings...</source>
         <translation>日志设置(&amp;L)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1939"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1962"/>
         <source>&amp;Export Diagnostics Report...</source>
         <translation>导出诊断报告(&amp;E)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1758"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1781"/>
         <source>&amp;Skin</source>
         <translation>皮肤(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1469"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3169"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1477"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3228"/>
         <source>Audio Load Error</source>
         <translation>音频加载错误</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1563"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1572"/>
         <source>&amp;New Chart...</source>
         <translation>新建谱面(&amp;N)...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1641"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1650"/>
         <source>Quantize Paste to 1/288</source>
         <translation>将粘贴量化为 1/288</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1643"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1652"/>
         <source>Round pasted Normal/Rain note start and end beats to 1/288 and store denominator 288.</source>
         <translation>将粘贴的普通/Rain 音符起止拍点舍入到 1/288，并以分母 288 保存。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1655"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1677"/>
         <source>Panels</source>
         <translation>面板</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1667"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1689"/>
         <source>Reset Panel Layout</source>
         <translation>重置面板布局</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1760"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1783"/>
         <source>Note &amp;Sound</source>
         <translation>音符声音(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1836"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1859"/>
         <source>&amp;Plugins</source>
         <translation>插件(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1843"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1866"/>
         <source>Curve Edit Tool</source>
         <translation>曲线编辑工具</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1878"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1901"/>
         <source>Export Curve Style...</source>
         <translation>导出曲线样式...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1888"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1893"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1911"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1916"/>
         <source>Export Curve Style</source>
         <translation>导出曲线样式</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1889"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1912"/>
         <source>Curve Style (*.curve_style.json);;JSON Files (*.json)</source>
         <translation>曲线样式 (*.curve_style.json);;JSON 文件 (*.json)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1895"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1918"/>
         <source>Import Curve Style...</source>
         <translation>导入曲线样式...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1905"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1910"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1928"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1933"/>
         <source>Import Curve Style</source>
         <translation>导入曲线样式</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1906"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1929"/>
         <source>Curve Style (*.curve_style.json *.json);;All Files (*.*)</source>
         <translation>曲线样式 (*.curve_style.json *.json);;所有文件 (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1941"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1964"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1942"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1965"/>
         <source>Check for Updates...</source>
         <translation>检查更新...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1944"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1967"/>
         <source>Help Documentation...</source>
         <translation>帮助文档...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1945"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1968"/>
         <source>About...</source>
         <translation>关于...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1946"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1969"/>
         <source>Version Information...</source>
         <translation>版本信息...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1947"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1970"/>
         <source>Logs...</source>
         <translation>日志...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1971"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1976"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2044"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1994"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1999"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2067"/>
         <source>Keyboard Shortcuts</source>
         <translation>快捷键</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1971"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1994"/>
         <source>No configurable shortcuts are available.</source>
         <translation>当前没有可配置的快捷键。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1980"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2003"/>
         <source>Rebind shortcuts. Clear a field to disable a shortcut.</source>
         <translation>重新绑定快捷键。清空某项可禁用对应快捷键。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1981"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2004"/>
         <source>Note: currently only 2-key combos using Shift/Ctrl are reliably supported. More complex combos and multi-main-key single-step bindings are not supported yet.</source>
         <translation>提示：当前仅稳定支持使用 Shift/Ctrl 的双键组合。更复杂组合和多主键单步绑定暂不支持。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2001"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2024"/>
         <source>Reset</source>
         <translation>重置</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2017"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2040"/>
         <source>Reset All</source>
         <translation>全部重置</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2045"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2068"/>
         <source>Shortcut conflict detected. Please assign unique shortcuts.</source>
         <translation>检测到快捷键冲突，请为每项设置唯一快捷键。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2063"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2086"/>
         <source>Keyboard shortcuts updated.</source>
         <translation>快捷键已更新。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2259"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2688"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3167"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2283"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2741"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3226"/>
         <source>Audio file not found: %1</source>
         <translation>音频文件未找到: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2267"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2291"/>
         <source>Audio reloaded: %1</source>
         <translation>音频已重新加载: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2420"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4005"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2444"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4209"/>
         <source>Chart Workspace</source>
         <translation>谱面工作区</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2425"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4007"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2449"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4211"/>
         <source>Navigation</source>
         <translation>导航</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2431"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4009"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2455"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4213"/>
         <source>Realtime Preview</source>
         <translation>实时预览</translation>
     </message>
     <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4216"/>
         <source>Note Editor</source>
-        <translation type="vanished">音符编辑</translation>
+        <translation>音符编辑</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2473"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4023"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2516"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4228"/>
         <source>BPM &amp; Timing</source>
         <translation>BPM 与时序</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2478"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4025"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2521"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4230"/>
         <source>Metadata</source>
         <translation>元数据</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2496"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3896"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2548"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3961"/>
         <source>Tools</source>
         <translation>工具</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2497"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3900"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2549"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3965"/>
         <source>Note</source>
         <translation>音符</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2499"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3902"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2551"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3967"/>
         <source>BPM</source>
         <translation>BPM</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2501"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3904"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2553"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3969"/>
         <source>Meta</source>
         <translation>元数据</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2503"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3906"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2555"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3971"/>
         <source>Curve</source>
         <translation>曲线</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2532"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2533"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3898"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3908"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2584"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2585"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3963"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3973"/>
         <source>Plugins</source>
         <translation>插件</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2617"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2670"/>
         <source>Auto-saved: %1</source>
         <translation>已自动保存: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2643"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2696"/>
         <source>Recover Unsaved Session</source>
         <translation>恢复未保存的会话</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2644"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2697"/>
         <source>Detected that the previous session may not have exited normally.
 Unsaved edits were found in a recovery working copy.
 Do you want to recover them now?</source>
@@ -1302,37 +1303,37 @@ Do you want to recover them now?</source>
 是否立即恢复？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2659"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2712"/>
         <source>Recovery Failed</source>
         <translation>恢复失败</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2659"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2712"/>
         <source>Failed to load the recovery working copy.</source>
         <translation>无法加载恢复工作副本。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2698"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2757"/>
         <source>Recovered unsaved session</source>
         <translation>已恢复未保存的会话</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2705"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2764"/>
         <source>Closing the application will end this editing session.</source>
         <translation>关闭应用程序将结束此编辑会话。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2757"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2816"/>
         <source>Importing MCZ: %1</source>
         <translation>正在导入 MCZ: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2768"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2827"/>
         <source>Unsaved Changes</source>
         <translation>未保存的更改</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2769"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2828"/>
         <source>Current chart has unsaved changes.
 %1
 Do you want to save before continuing?</source>
@@ -1341,518 +1342,523 @@ Do you want to save before continuing?</source>
 是否在继续前保存？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2791"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3464"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3506"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2850"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3529"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3571"/>
         <source>Save Chart As</source>
         <translation>谱面另存为</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2793"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3466"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3507"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2852"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3531"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3572"/>
         <source>Malody Catch Chart (*.mc);;All Files (*.*)</source>
         <translation>Malody Catch 谱面 (*.mc);;所有文件 (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2800"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2891"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2900"/>
-        <location filename="../../src/app/MainWindow.cpp" line="2923"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3103"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3110"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3128"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3137"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3499"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3537"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3610"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3616"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3621"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1192"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2859"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2950"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2959"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2982"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3162"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3169"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3187"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3196"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3564"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3602"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3675"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3681"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3686"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1247"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2800"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3499"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3537"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2859"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3564"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3602"/>
         <source>Failed to save chart.</source>
         <translation>保存谱面失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2819"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3491"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3529"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2878"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3556"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3594"/>
         <source>Saved: %1</source>
         <translation>已保存: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2830"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2889"/>
         <source>Creating a new chart will replace the current one in editor.</source>
         <translation>新建谱面将替换编辑器中的当前谱面。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2835"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2894"/>
         <source>Select Audio File</source>
         <translation>选择音频文件</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2836"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2895"/>
         <source>OGG Files (*.ogg);;All Files (*.*)</source>
         <translation>OGG 文件 (*.ogg);;所有文件 (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2891"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2950"/>
         <source>Failed to create directory:
 %1</source>
         <translation>创建目录失败:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2901"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2960"/>
         <source>Failed to copy audio file to:
 %1</source>
         <translation>复制音频文件到以下位置失败:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2923"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2982"/>
         <source>Failed to create chart file:
 %1</source>
         <translation>创建谱面文件失败:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2928"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2987"/>
         <source>Measuring BPM, please wait...</source>
         <translation>正在测量 BPM，请稍候...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2929"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2988"/>
         <source>Auto Timing</source>
         <translation>自动对时</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2964"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3023"/>
         <source>BPM detected: %1, offset: %2 ms</source>
         <translation>检测到 BPM: %1，偏移: %2 毫秒</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2971"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3030"/>
         <source>Auto-timing skipped (detection failed). Default BPM=120.</source>
         <translation>跳过自动对时（检测失败）。默认 BPM=120。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2990"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3049"/>
         <source>Open Chart</source>
         <translation>打开谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2991"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3050"/>
         <source>Malody Catch Chart (*.mc *.mcz);;All Files (*.*)</source>
         <translation>Malody Catch 谱面 (*.mc *.mcz);;所有文件 (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3007"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3066"/>
         <source>Open Folder</source>
         <translation>打开文件夹</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3017"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3297"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3389"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3076"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3362"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3454"/>
         <source>No Charts</source>
         <translation>无谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3017"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3297"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3076"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3362"/>
         <source>No .mc files found in the selected folder.</source>
         <translation>所选文件夹中未找到 .mc 文件。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3021"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3080"/>
         <source>Select Chart in Folder</source>
         <translation>在文件夹中选择谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3045"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3104"/>
         <source>Opening another chart will replace the current one in editor.</source>
         <translation>打开另一个谱面将替换编辑器中的当前谱面。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3066"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3125"/>
         <source>Chart Already Imported</source>
         <translation>谱面已导入</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3067"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3126"/>
         <source>This song appears to be imported already.</source>
         <translation>这首歌看起来已经导入过了。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3068"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3127"/>
         <source>Open an imported chart from the local library, or import this MCZ again into a new folder?</source>
         <translation>要从本地谱面库打开已导入谱面，还是将此 MCZ 再次导入到新文件夹？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3070"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3129"/>
         <source>Open Imported</source>
         <translation>打开已导入</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3071"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3130"/>
         <source>Import Again</source>
         <translation>再次导入</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3103"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3162"/>
         <source>Failed to extract MCZ file.</source>
         <translation>提取 MCZ 文件失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3110"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3169"/>
         <source>No .mc files found in the extracted content.</source>
         <translation>在提取的内容中未找到 .mc 文件。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3114"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3173"/>
         <source>Select Chart from MCZ</source>
         <translation>从 MCZ 中选择谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3122"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3181"/>
         <source>Plugin panels were closed after chart switch.</source>
         <translation>切换谱面后，插件面板已关闭。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3138"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3197"/>
         <source>Failed to load chart.</source>
         <translation>加载谱面失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3185"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3250"/>
         <source>Loaded: %1</source>
         <translation>已加载: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3194"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3259"/>
         <source>Select a chart:</source>
         <translation>选择一个谱面:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3226"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3291"/>
         <source>Select a chart (grouped by song):</source>
         <translation>选择谱面（按歌曲分组）:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3230"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3295"/>
         <source>Song / Folder / Chart</source>
         <translation>歌曲 / 文件夹 / 谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3258"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3323"/>
         <source>(Root)</source>
         <translation>(根)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3323"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3388"/>
         <source>Please select a chart item, not a song or folder group.</source>
         <translation>请选择谱面项，而不是歌曲或文件夹组。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3337"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3402"/>
         <source>Imported Chart Library</source>
         <translation>已导入谱面库</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3341"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3406"/>
         <source>Select a chart from imported songs:</source>
         <translation>从已导入歌曲中选择谱面：</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3345"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3410"/>
         <source>Song / Chart</source>
         <translation>歌曲 / 谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3230"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3345"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3295"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3410"/>
         <source>Difficulty</source>
         <translation>难度</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3389"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3454"/>
         <source>No imported .mc files were found in the local library.</source>
         <translation>在本地谱面库中未找到已导入的 .mc 文件。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3323"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3412"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3388"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3477"/>
         <source>Select Chart</source>
         <translation>选择谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2441"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4011"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1671"/>
+        <source>Enable Floating Windows</source>
+        <translation>启用浮动窗口</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2469"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4216"/>
         <source>Note Input</source>
         <translation>音符输入</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2447"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4013"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2476"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4218"/>
         <source>Timing &amp; Grid</source>
         <translation>时值与网格</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2453"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4015"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2484"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4220"/>
         <source>Range Select</source>
         <translation>范围选择</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2458"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4017"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2492"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4222"/>
         <source>Mirror Flip</source>
         <translation>镜像翻转</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2463"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4019"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2500"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4224"/>
         <source>Curve Tools</source>
         <translation>曲线工具</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2468"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4021"/>
+        <location filename="../../src/app/MainWindow.cpp" line="2508"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4226"/>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="285"/>
         <source>Plugin Tools</source>
         <translation>插件工具</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3412"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3477"/>
         <source>Please select a chart item, not a song folder.</source>
         <translation>请选择谱面项，而不是歌曲文件夹。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3423"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3558"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="618"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3488"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3623"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="612"/>
         <source>No Chart</source>
         <translation>无谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3423"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3488"/>
         <source>No chart is currently open.</source>
         <translation>当前未打开任何谱面。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3431"/>
-        <location filename="../../src/app/MainWindow.cpp" line="3443"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3496"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3508"/>
         <source>No Other Charts</source>
         <translation>无其他谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3431"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3496"/>
         <source>No other difficulties found in this directory.</source>
         <translation>在此目录中未找到其他难度。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3443"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3508"/>
         <source>No other difficulties found.</source>
         <translation>未找到其他难度。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3447"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3512"/>
         <source>Switch Difficulty</source>
         <translation>切换难度</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3558"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3623"/>
         <source>Please open a chart first before exporting.</source>
         <translation>请先打开一个谱面再导出。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3584"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3649"/>
         <source>Export .mcz</source>
         <translation>导出 .mcz</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3586"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3651"/>
         <source>Malody Catch Pack (*.mcz);;All Files (*.*)</source>
         <translation>Malody Catch 压缩包 (*.mcz);;所有文件 (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3603"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3668"/>
         <source>Exported: %1</source>
         <translation>已导出: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3605"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3670"/>
         <source>Success</source>
         <translation>成功</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3605"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3670"/>
         <source>Chart exported successfully to:
 %1</source>
         <translation>谱面成功导出至:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3610"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3675"/>
         <source>Failed to export chart to MCZ format.</source>
         <translation>导出谱面为 MCZ 格式失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3616"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3681"/>
         <source>Exception during export: %1</source>
         <translation>导出时发生异常: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3621"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3686"/>
         <source>Unknown exception during export.</source>
         <translation>导出时发生未知异常。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3674"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3739"/>
         <source>Timeline Division Color Advanced Settings</source>
         <translation>时间分度着色高级设置</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3696"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3761"/>
         <source>Enable Timeline Division Coloring</source>
         <translation>启用时间分度着色</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3702"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3767"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3703"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3768"/>
         <source>Classic</source>
         <translation>经典</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3704"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3769"/>
         <source>All</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3708"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3773"/>
         <source>Preset:</source>
         <translation>预设:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3711"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3776"/>
         <source>Custom Rules</source>
         <translation>自定义规则</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3714"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3779"/>
         <source>Common divisions:</source>
         <translation>常用分度:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3735"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3800"/>
         <source>Extra divisions (manual):</source>
         <translation>额外分度（手动）:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3748"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3813"/>
         <source>Enter denominator, e.g. 48</source>
         <translation>输入分母，例如 48</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3749"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3814"/>
         <source>Add</source>
         <translation>添加</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3750"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3815"/>
         <source>Remove Selected</source>
         <translation>移除选中</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3773"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3838"/>
         <source>Invalid Division</source>
         <translation>无效分度</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3773"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3838"/>
         <source>Please enter a positive integer denominator.</source>
         <translation>请输入正整数分母。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3778"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3843"/>
         <source>Already In Common List</source>
         <translation>已在常用列表中</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3778"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3843"/>
         <source>This division is already in common rules. Please use its checkbox.</source>
         <translation>该分度已在常用规则中，请使用对应复选框。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3991"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4181"/>
         <source>Failed to reset panel layout.</source>
         <translation>重置面板布局失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3999"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4203"/>
         <source>Panel layout reset.</source>
         <translation>面板布局已重置。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4034"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4239"/>
         <source>Paste timing: quantize to 1/288</source>
         <translation>粘贴时值：量化为 1/288</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4035"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4240"/>
         <source>Paste timing: preserve normal timing</source>
         <translation>粘贴时值：保持常规分度</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4054"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4259"/>
         <source>Failed to load language pack: %1</source>
         <translation>加载语言包失败: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4068"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4273"/>
         <source>Language changed to %1</source>
         <translation>语言已更改为 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4073"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4278"/>
         <source>Checking for updates...</source>
         <translation>正在检查更新...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4087"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4119"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4125"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4292"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4324"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4330"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4088"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4293"/>
         <source>Update check failed: %1</source>
         <translation>更新检查失败: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4106"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4311"/>
         <source>Update Available</source>
         <translation>有可用更新</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4107"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4312"/>
         <source>A newer version is available.</source>
         <translation>有新版本可用。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4108"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4313"/>
         <source>Current: %1
 Latest: %2
 
@@ -1863,19 +1869,19 @@ Open release page?</source>
 打开发布页面？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4110"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4315"/>
         <source>Open Release Page</source>
         <translation>打开发布页面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4120"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4325"/>
         <source>You are using the latest version.
 Current: %1</source>
         <translation>您正在使用最新版本。
 当前: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4126"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4331"/>
         <source>Current version appears newer than latest release.
 Current: %1
 Latest: %2</source>
@@ -1884,12 +1890,12 @@ Latest: %2</source>
 最新: %2</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4157"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4362"/>
         <source>Help Center</source>
         <translation>帮助中心</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4173"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4378"/>
         <source># Help Documentation
 
 Create a `docs/help.md` file to customize this page.
@@ -1908,7 +1914,7 @@ Quick start:
 3. 编辑音符并保存/导出 `.mcz`。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4187"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4392"/>
         <source># About
 
 Create a `docs/about.md` file to customize this page.</source>
@@ -1917,7 +1923,7 @@ Create a `docs/about.md` file to customize this page.</source>
 创建 `docs/about.md` 文件以自定义此页面。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4218"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4423"/>
         <source>## History Updates
 
 Open the **History** tab for collapsible long update notes.</source>
@@ -1926,47 +1932,47 @@ Open the **History** tab for collapsible long update notes.</source>
 打开**历史**标签页查看可折叠的长更新说明。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4226"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4431"/>
         <source>Long update notes are grouped by prefix and version and can be collapsed.</source>
         <translation>长更新说明按前缀和版本分组，可以折叠。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4179"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4384"/>
         <source>Help</source>
         <translation>帮助</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3854"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3919"/>
         <source>Audio is not ready. Please reload a valid audio file.</source>
         <translation>音频未就绪。请重新加载有效的音频文件。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4189"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4394"/>
         <source>About</source>
         <translation>关于</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4204"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4409"/>
         <source>Application Version:</source>
         <translation>应用程序版本:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4206"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4411"/>
         <source>Qt Runtime:</source>
         <translation>Qt 运行时:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4208"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4413"/>
         <source>Build ABI:</source>
         <translation>构建 ABI:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4210"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4415"/>
         <source>Operating System:</source>
         <translation>操作系统:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4214"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4419"/>
         <source>## Version Notes
 
 </source>
@@ -1975,85 +1981,85 @@ Open the **History** tab for collapsible long update notes.</source>
 </translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4221"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4426"/>
         <source>Version</source>
         <translation>版本</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4235"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4440"/>
         <source>Expand All</source>
         <translation>全部展开</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4236"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4441"/>
         <source>Collapse All</source>
         <translation>全部折叠</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4247"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4452"/>
         <source>No history document found. Put one in `docs/history.md` or `docs/changelog.md`.</source>
         <translation>未找到历史文档。请将文档放在 `docs/history.md` 或 `docs/changelog.md` 中。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4275"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4480"/>
         <source>History</source>
         <translation>历史</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4280"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4485"/>
         <source>Logs are generated in the application &apos;logs&apos; directory.</source>
         <translation>日志生成在应用程序的 logs 目录中。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4286"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4491"/>
         <source>File</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4286"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4491"/>
         <source>Size (KB)</source>
         <translation>大小 (KB)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4286"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4491"/>
         <source>Modified</source>
         <translation>修改时间</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4296"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4501"/>
         <source>Refresh</source>
         <translation>刷新</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4297"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4502"/>
         <source>Open Selected Log</source>
         <translation>打开选中日志</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4298"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4503"/>
         <source>Open Current Log</source>
         <translation>打开当前日志</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4306"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4350"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4356"/>
-        <location filename="../../src/app/MainWindow.cpp" line="4365"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4511"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4555"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4561"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4570"/>
         <source>Logs</source>
         <translation>日志</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4350"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4555"/>
         <source>No log file selected.</source>
         <translation>未选中日志文件。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4356"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4561"/>
         <source>Current log file is not available yet.</source>
         <translation>当前日志文件尚不可用。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4365"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4570"/>
         <source>Log folder does not exist yet.</source>
         <translation>日志文件夹尚不存在。</translation>
     </message>
@@ -2074,36 +2080,36 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>(无菜单动作)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="585"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="579"/>
         <source>Confirm Plugin Action</source>
         <translation>确认插件动作</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="618"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="612"/>
         <source>Please open a chart first.</source>
         <translation>请先打开一个谱面。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="702"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="741"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="762"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="769"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="696"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="735"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="756"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="763"/>
         <source>Plugin Action</source>
         <translation>插件动作</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="762"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="756"/>
         <source>Plugin action failed: %1</source>
         <translation>插件动作失败: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="769"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="763"/>
         <source>Plugin action finished, but failed to reload chart.</source>
         <translation>插件动作已完成，但重新加载谱面失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="735"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="774"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="729"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="768"/>
         <source>Plugin Action: %1</source>
         <translation>插件动作: %1</translation>
     </message>
@@ -2112,15 +2118,15 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation type="vanished">(无插件面板)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="741"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="735"/>
         <source>Plugin batch edit is empty or invalid: %1</source>
         <translation>插件批量编辑为空或无效: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="600"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="608"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="744"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="778"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="594"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="602"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="738"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="772"/>
         <source>Plugin action completed: %1</source>
         <translation>插件动作已完成: %1</translation>
     </message>
@@ -2130,239 +2136,242 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>打开 %1 的可停靠控制面板</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="627"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="685"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="621"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="679"/>
         <source>Format Note Colors</source>
         <translation>格式化音符颜色</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="637"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="631"/>
         <source>Selected Notes (%1)</source>
         <translation>已选音符（%1）</translation>
     </message>
     <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="632"/>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="638"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="644"/>
         <source>Beat Range</source>
         <translation>拍点范围</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="639"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="633"/>
         <source>Entire Chart</source>
         <translation>整个谱面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="640"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="634"/>
         <source>Format Scope:</source>
         <translation>格式化范围：</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="656"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="650"/>
         <source>Only Normal and Rain note start colors are formatted. Sound notes are not changed.</source>
         <translation>仅格式化普通和 Rain 音符起点的颜色；不会修改音效音符。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="664"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="658"/>
         <source>Format</source>
         <translation>格式化</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="685"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="679"/>
         <source>Enter a valid beat range.</source>
         <translation>请输入有效的拍点范围。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="702"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="696"/>
         <source>Failed to sync working copy before plugin action.</source>
         <translation>插件动作前同步工作副本失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="848"/>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="862"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="876"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="893"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="907"/>
         <source>Plugin Panel</source>
         <translation>插件面板</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="862"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="876"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="907"/>
         <source>Failed to create plugin panel.</source>
         <translation>创建插件面板失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="886"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="941"/>
         <source>Plugin Manager</source>
         <translation>插件管理器</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="886"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="941"/>
         <source>Plugin manager is not available.</source>
         <translation>插件管理器不可用。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="893"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="948"/>
         <source>Plugin panels were closed after plugin reload.</source>
         <translation>插件重新加载后，插件面板已关闭。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="918"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="973"/>
         <source>Log Settings</source>
         <translation>日志设置</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="923"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="978"/>
         <source>Enable JSON Logging</source>
         <translation>启用 JSON 日志记录</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="927"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="982"/>
         <source>Enable Verbose Logging</source>
         <translation>启用详细日志记录</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="931"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="986"/>
         <source>Enable Qt Noise Filter</source>
         <translation>启用 Qt 噪音过滤器</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="935"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="990"/>
         <source>Qt Categories (comma-separated):</source>
         <translation>Qt 类别 (逗号分隔):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="942"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="997"/>
         <source>Message Prefixes (comma-separated):</source>
         <translation>消息前缀 (逗号分隔):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="950"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1005"/>
         <source>Log File:</source>
         <translation>日志文件:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="4299"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="954"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4504"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1009"/>
         <source>Open Log Folder</source>
         <translation>打开日志文件夹</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="966"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1021"/>
         <source>JSON Log File:</source>
         <translation>JSON 日志文件:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1051"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1106"/>
         <source>Grid Beat Number</source>
         <translation>网格节拍号</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1064"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1119"/>
         <source> pt</source>
         <translation> pt</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1065"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1120"/>
         <source>Font size for beat numbers on the left side of the grid</source>
         <translation>网格左侧节拍号的字体大小</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1099"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1154"/>
         <source>Size:</source>
         <translation>大小:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1138"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1193"/>
         <source>Export Diagnostics Report</source>
         <translation>导出诊断报告</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1140"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1195"/>
         <source>Text Files (*.txt);;JSON Files (*.json);;All Files (*.*)</source>
         <translation>文本文件 (*.txt);;JSON 文件 (*.json);;所有文件 (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1161"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1179"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1216"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1234"/>
         <source>Export Successful</source>
         <translation>导出成功</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1162"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1180"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1217"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1235"/>
         <source>Diagnostics report exported to:
 %1</source>
         <translation>诊断报告已导出至:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1167"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1185"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1222"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1240"/>
         <source>Export Failed</source>
         <translation>导出失败</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1167"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1185"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1222"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1240"/>
         <source>Failed to open file for writing.</source>
         <translation>打开文件写入失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1192"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1247"/>
         <source>Exception during export:
 %1</source>
         <translation>导出时发生异常:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1199"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1254"/>
         <source>Note Size</source>
         <translation>音符大小</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1204"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1259"/>
         <source>Size (pixels):</source>
         <translation>大小 (像素):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1212"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1267"/>
         <source>Note: This setting affects fallback circle notes. When a skin is loaded, note size is controlled by skin calibration.</source>
         <translation>备注：此设置仅影响后备圆形音符。加载皮肤后，音符大小由皮肤校准控制。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1278"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1333"/>
         <source>No Skin</source>
         <translation>无皮肤</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1278"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1333"/>
         <source>No skin loaded, cannot calibrate.</source>
         <translation>未加载皮肤，无法校准。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1283"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1338"/>
         <source>Calibrate Skin: %1</source>
         <translation>校准皮肤: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1295"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1350"/>
         <source>Scale Factor:</source>
         <translation>缩放比例:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1365"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1420"/>
         <source>Outline Settings</source>
         <translation>轮廓设置</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1371"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1426"/>
         <source>Outline Width (px):</source>
         <translation>轮廓宽度 (像素):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1383"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1438"/>
         <source>Outline Color:</source>
         <translation>轮廓颜色:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1402"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1457"/>
         <source>Note Sound Volume</source>
         <translation>音符音量</translation>
     </message>
@@ -2408,132 +2417,132 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>加载皮肤失败: %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1016"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1071"/>
         <source>Session Settings</source>
         <translation>会话设置</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1021"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1076"/>
         <source>Editing Session</source>
         <translation>编辑会话</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1024"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1079"/>
         <source>Enable Auto Save</source>
         <translation>启用自动保存</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1028"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1083"/>
         <source> s</source>
         <translation> 秒</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1046"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1101"/>
         <source>Auto Save Interval:</source>
         <translation>自动保存间隔:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1128"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1183"/>
         <source>Session settings updated</source>
         <translation>会话设置已更新</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1032"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1087"/>
         <source>Enable Audio Correction (Testing)</source>
         <translation>启用音频校正（测试）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1813"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1035"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1836"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1090"/>
         <source>Lock 60 FPS</source>
         <translation>锁定 60 FPS</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1814"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1036"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1837"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1091"/>
         <source>Lock 90 FPS</source>
         <translation>锁定 90 FPS</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1815"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1037"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1838"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1092"/>
         <source>Lock 120 FPS</source>
         <translation>锁定 120 FPS</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1816"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1832"/>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1038"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1839"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1855"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1093"/>
         <source>Unlimited</source>
         <translation>无限制</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1048"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1103"/>
         <source>Playback FPS Cap:</source>
         <translation>播放帧率上限:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1576"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1585"/>
         <source>Export .mcz (&amp;Pure)...</source>
         <translation>导出 .mcz（&amp;纯净）...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1697"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1720"/>
         <source>Background Image Brightness...</source>
         <translation>背景图片亮度...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1704"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1727"/>
         <source>Background Image Brightness</source>
         <translation>背景图片亮度</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1705"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1728"/>
         <source>Brightness (%):</source>
         <translation>亮度 (%):</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1717"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1740"/>
         <source>Background image brightness: %1%</source>
         <translation>背景图片亮度: %1%</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3584"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3649"/>
         <source>Export .mcz (Pure)</source>
         <translation>导出 .mcz（纯净）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="3910"/>
+        <location filename="../../src/app/MainWindow.cpp" line="3975"/>
         <source>Launch Curve Tool</source>
         <translation>启动曲线工具</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="524"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="518"/>
         <source>No plugin supports canvas interaction.</source>
         <translation>没有支持画布交互的插件。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="548"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="542"/>
         <source>Plugin enhanced tool mode ON</source>
         <translation>插件增强工具模式：开启</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="549"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="543"/>
         <source>Plugin enhanced tool mode OFF</source>
         <translation>插件增强工具模式：关闭</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1786"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1809"/>
         <source>Mark Playback Jerk</source>
         <translation>标记播放卡顿</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1809"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1832"/>
         <source>Playback FPS Cap</source>
         <translation>播放帧率上限</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1833"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1856"/>
         <source>Playback FPS cap: %1</source>
         <translation>播放帧率上限: %1</translation>
     </message>
@@ -2542,42 +2551,42 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation type="vanished">插件增强工具模式</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1913"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1936"/>
         <source>Plugin Overlay Elements</source>
         <translation>插件覆盖元素</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1927"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1950"/>
         <source>Enable Overlay</source>
         <translation>启用覆盖</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1928"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1951"/>
         <source>Preview Notes</source>
         <translation>预览音符</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1929"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1952"/>
         <source>Control Points</source>
         <translation>控制点</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1930"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1953"/>
         <source>Handles</source>
         <translation>手柄</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1931"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1954"/>
         <source>Sample Points</source>
         <translation>采样点</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1932"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1955"/>
         <source>Labels</source>
         <translation>标签</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1755"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1778"/>
         <source>Session Settings...</source>
         <translation>会话设置...</translation>
     </message>
@@ -2585,122 +2594,122 @@ Open the **History** tab for collapsible long update notes.</source>
 <context>
     <name>MetaEditPanel</name>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="38"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="211"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="39"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="213"/>
         <source>Title:</source>
         <translation>标题:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="41"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="213"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="42"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="215"/>
         <source>Original Title:</source>
         <translation>原标题:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="44"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="215"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="45"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="217"/>
         <source>Artist:</source>
         <translation>艺术家:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="47"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="217"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="48"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="219"/>
         <source>Original Artist:</source>
         <translation>原艺术家:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="50"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="219"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="51"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="221"/>
         <source>Difficulty:</source>
         <translation>难度:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="53"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="221"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="54"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="223"/>
         <source>Chart Author:</source>
         <translation>谱面作者:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="56"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="223"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="57"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="225"/>
         <source>Audio File:</source>
         <translation>音频文件:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="58"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="70"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="237"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="59"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="71"/>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="239"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="241"/>
         <source>Browse...</source>
         <translation>浏览...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="62"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="225"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="63"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="227"/>
         <source>Audio (ogg):</source>
         <translation>音频 (ogg):</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="66"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="67"/>
         <source>Select Audio</source>
         <translation>选择音频</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="66"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="67"/>
         <source>OGG Files (*.ogg)</source>
         <translation>OGG 文件 (*.ogg)</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="74"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="227"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="75"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="229"/>
         <source>Background (jpg):</source>
         <translation>背景 (jpg):</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="78"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="79"/>
         <source>Select Background</source>
         <translation>选择背景</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="78"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="79"/>
         <source>JPEG Files (*.jpg)</source>
         <translation>JPEG 文件 (*.jpg)</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="89"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="101"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="243"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="90"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="102"/>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="245"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="247"/>
         <source> ms</source>
         <translation> 毫秒</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="90"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="229"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="91"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="231"/>
         <source>Preview Time:</source>
         <translation>预览时间:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="96"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="231"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="97"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="233"/>
         <source>First BPM:</source>
         <translation>初始 BPM:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="102"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="233"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="103"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="235"/>
         <source>Offset:</source>
         <translation>偏移:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="107"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="235"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="108"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="237"/>
         <source>Fall Speed:</source>
         <translation>下落速度:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="112"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="241"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="113"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="243"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
@@ -2840,206 +2849,206 @@ Open the **History** tab for collapsible long update notes.</source>
 <context>
     <name>NoteEditPanel</name>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="178"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="465"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="196"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="549"/>
         <source>Mirror Flip</source>
         <translation>镜像翻转</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="181"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="467"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="199"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="551"/>
         <source>Axis X:</source>
         <translation>对称轴 X:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="189"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="469"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="207"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="553"/>
         <source>Show Guide</source>
         <translation>显示参考线</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="193"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="471"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="211"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="555"/>
         <source>Show Preview</source>
         <translation>显示预览</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="197"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="473"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="215"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="557"/>
         <source>Flip Selected</source>
         <translation>翻转选中音符</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="36"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="437"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="47"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="521"/>
         <source>Mode:</source>
         <translation>模式:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="40"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="439"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="51"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="523"/>
         <source>Place Note</source>
         <translation>放置音符</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="41"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="441"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="52"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="525"/>
         <source>Place Rain</source>
         <translation>放置雨滴</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="42"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="443"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="53"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="527"/>
         <source>Delete Mode</source>
         <translation>删除模式</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="43"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="450"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="54"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="534"/>
         <source>Select Mode</source>
         <translation>选择模式</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="44"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="452"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="55"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="536"/>
         <source>Place Anchor</source>
         <translation>放置锚点</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="45"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="446"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="56"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="530"/>
         <source>Del</source>
         <translation>Del</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="47"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="447"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="58"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="531"/>
         <source>Delete selected notes once</source>
         <translation>删除选中的音符（一次）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="82"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="454"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="93"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="538"/>
         <source>Note Placement Tools:</source>
         <translation>音符放置工具:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="98"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="476"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="109"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="560"/>
         <source>Anchor Placement</source>
         <translation>放置锚点</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="102"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="478"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="113"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="562"/>
         <source>Show Curve</source>
         <translation>显示曲线</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="106"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="480"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="117"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="564"/>
         <source>Polyline Mode</source>
         <translation>折线模式</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="110"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="482"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="121"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="566"/>
         <source>Snap Notes to Curve</source>
         <translation>音符吸附到曲线</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="114"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="484"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="125"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="568"/>
         <source>Select: Anchors</source>
         <translation>选择：锚点</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="118"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="486"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="129"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="570"/>
         <source>Select: Segments</source>
         <translation>选择：分段</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="122"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="133"/>
         <source>Select: Notes</source>
         <translation>选择：音符</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="126"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="488"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="137"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="572"/>
         <source>Commit Curve → Notes</source>
         <translation>提交曲线到音符</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="129"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="490"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="141"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="574"/>
         <source>Connect Selected</source>
         <translation>连接所选项</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="132"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="492"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="145"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="576"/>
         <source>Disconnect Selected</source>
         <translation>断开所选项</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="135"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="494"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="149"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="578"/>
         <source>Delete Selected</source>
         <translation>删除所选项</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="138"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="496"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="153"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="580"/>
         <source>Reset Curve</source>
         <translation>重置曲线</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="145"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="457"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="161"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="541"/>
         <source>Copy</source>
         <translation>复制</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="153"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="459"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="170"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="543"/>
         <source>Time Division:</source>
         <translation>时间分度:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="164"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="461"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="181"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="545"/>
         <source>Grid Snap</source>
         <translation>网格吸附</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="169"/>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="463"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="186"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="547"/>
         <source>Grid Settings...</source>
         <translation>网格设置...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="262"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="345"/>
         <source>Grid Settings</source>
         <translation>网格设置</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="265"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="348"/>
         <source>Enable Grid Snap</source>
         <translation>启用网格吸附</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="272"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="355"/>
         <source>Snap to Grid:</source>
         <translation>吸附到网格:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="273"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="356"/>
         <source>Grid Divisions (4-64):</source>
         <translation>网格分度数 (4-64):</translation>
     </message>
     <message>
-        <location filename="../../src/ui/NoteEditPanel.cpp" line="417"/>
+        <location filename="../../src/ui/NoteEditPanel.cpp" line="501"/>
         <source>Curve Plugin Options</source>
         <translation>曲线插件选项</translation>
     </message>
@@ -3047,44 +3056,44 @@ Open the **History** tab for collapsible long update notes.</source>
 <context>
     <name>PluginActionPanel</name>
     <message>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="126"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="127"/>
         <source>No plugin actions available.</source>
         <translation>暂无可用的插件动作。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="164"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="165"/>
         <source>Format Scope:</source>
         <translation>格式化范围：</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="166"/>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="266"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="167"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="269"/>
         <source>Selected Notes (%1)</source>
         <translation>已选音符（%1）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="167"/>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="174"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="168"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="175"/>
         <source>Beat Range</source>
         <translation>拍点范围</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="168"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="169"/>
         <source>Entire Chart</source>
         <translation>整个谱面</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="183"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="184"/>
         <source>Only Normal and Rain note start colors are formatted. Sound notes are not changed.</source>
         <translation>仅格式化普通和 Rain 音符起点的颜色；不会修改音效音符。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="213"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="215"/>
         <source>Select at least one note first.</source>
         <translation>请先选择至少一个音符。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PluginActionPanel.cpp" line="222"/>
+        <location filename="../../src/ui/PluginActionPanel.cpp" line="224"/>
         <source>Enter a valid beat range.</source>
         <translation>请输入有效的拍点范围。</translation>
     </message>
@@ -3283,158 +3292,158 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>插件动作</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1427"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1482"/>
         <source>Volume: %1%</source>
         <translation>音量: %1%</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="211"/>
+        <location filename="../../src/app/MainWindow.cpp" line="219"/>
         <source>Ctrl</source>
         <translation>Ctrl</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="213"/>
+        <location filename="../../src/app/MainWindow.cpp" line="221"/>
         <source>Alt</source>
         <translation>Alt</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="215"/>
+        <location filename="../../src/app/MainWindow.cpp" line="223"/>
         <source>Shift</source>
         <translation>Shift</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="217"/>
+        <location filename="../../src/app/MainWindow.cpp" line="225"/>
         <source>Meta</source>
         <translation>Meta</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="336"/>
+        <location filename="../../src/app/MainWindow.cpp" line="344"/>
         <source>History</source>
         <translation>历史</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="361"/>
+        <location filename="../../src/app/MainWindow.cpp" line="369"/>
         <source>Other</source>
         <translation>其他</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="700"/>
+        <location filename="../../src/app/MainWindow.cpp" line="708"/>
         <source>Source directory does not exist:
 %1</source>
         <translation>源目录不存在:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="707"/>
+        <location filename="../../src/app/MainWindow.cpp" line="715"/>
         <source>Failed to create working directory:
 %1</source>
         <translation>创建工作目录失败:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="745"/>
-        <location filename="../../src/app/MainWindow.cpp" line="764"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1218"/>
+        <location filename="../../src/app/MainWindow.cpp" line="753"/>
+        <location filename="../../src/app/MainWindow.cpp" line="772"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1226"/>
         <source>Copy cancelled by user.</source>
         <translation>用户取消了复制。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="754"/>
+        <location filename="../../src/app/MainWindow.cpp" line="762"/>
         <source>Failed to create working subdirectory:
 %1</source>
         <translation>创建工作子目录失败:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="773"/>
+        <location filename="../../src/app/MainWindow.cpp" line="781"/>
         <source>Failed to prepare working file path:
 %1</source>
         <translation>准备工作文件路径失败:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="783"/>
+        <location filename="../../src/app/MainWindow.cpp" line="791"/>
         <source>Failed to copy required file:
 %1</source>
         <translation>复制所需文件失败:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1055"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1111"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1063"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1119"/>
         <source>Source chart path is empty.</source>
         <translation>源谱面路径为空。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1063"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1119"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1071"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1127"/>
         <source>Failed to create working copy directory:
 %1</source>
         <translation>创建工作副本目录失败:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1071"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1127"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1079"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1135"/>
         <source>Source chart does not exist:
 %1</source>
         <translation>源谱面不存在:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1086"/>
-        <location filename="../../src/app/MainWindow.cpp" line="1154"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1094"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1162"/>
         <source>Working copy chart file is missing:
 %1</source>
         <translation>工作副本谱面文件缺失:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1163"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1171"/>
         <source>Preparing working copy...</source>
         <translation>正在准备工作副本...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1164"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1172"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1181"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1189"/>
         <source>Preparing working copy...
 %1/%2 files, %3/%4 MB</source>
         <translation>正在准备工作副本...
 %1/%2 个文件，%3/%4 MB</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1227"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1235"/>
         <source>Failed to create working copy.</source>
         <translation>创建工作副本失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1247"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1255"/>
         <source>Chart controller is not available.</source>
         <translation>谱面控制器不可用。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1265"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1273"/>
         <source>Failed to parse chart data:
 %1</source>
         <translation>解析谱面数据失败:
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1278"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1286"/>
         <source>Loading chart data...</source>
         <translation>正在加载谱面数据...</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1312"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1320"/>
         <source>Failed to parse chart data.</source>
         <translation>解析谱面数据失败。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="1320"/>
+        <location filename="../../src/app/MainWindow.cpp" line="1328"/>
         <source>Failed to apply loaded chart.</source>
         <translation>应用已加载谱面失败。</translation>
     </message>

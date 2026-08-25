@@ -106,6 +106,8 @@ public:
     QByteArray dockLayoutState() const;
     void setDockLayoutState(const QByteArray &state);
     void clearDockLayoutState();
+    bool floatingToolWindowsEnabled() const;
+    void setFloatingToolWindowsEnabled(bool enabled);
 
 private:
     Settings();

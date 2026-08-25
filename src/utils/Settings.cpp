@@ -440,3 +440,13 @@ void Settings::clearDockLayoutState()
 {
     m_settings.remove("ui/dockLayoutState");
 }
+
+bool Settings::floatingToolWindowsEnabled() const
+{
+    return m_settings.value("ui/floatingToolWindowsEnabled", true).toBool();
+}
+
+void Settings::setFloatingToolWindowsEnabled(bool enabled)
+{
+    m_settings.setValue("ui/floatingToolWindowsEnabled", enabled);
+}

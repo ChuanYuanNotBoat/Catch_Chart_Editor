@@ -27,6 +27,10 @@
 
 ### 可组合面板布局
 
+- `View -> Enable Floating Windows`：切换是否使用 ADS 可组合工作区，设置会在重启后保留。默认启用。
+- 关闭浮动窗口后，界面恢复为引入 ADS 前的固定四栏布局：Navigation、Realtime Preview、Chart Workspace 和最右侧单一编辑栏；顶部 `Note` / `BPM` / `Meta` 仍按旧方式切换右栏内容，不显示停靠标题、标签、拆分手柄或浮动入口。
+- 固定布局的右侧编辑栏只提供按需显示的纵向滚动条，可直接用滚轮上下浏览；横向滚动条始终禁用。Timing、Range、Mirror、Curve 和 Plugin Tools 回到 Note 栏的原顺序，格式化颜色快捷按钮会在同一栏内展开插件 GUI。
+- 重新启用浮动窗口后，会恢复关闭前保存的 ADS 停靠位置和面板开关状态；固定布局期间不会覆盖该布局快照。
 - 拖动普通面板标题或标签可以改变停靠位置；BPM、Meta 等完整面板仍可组合成标签页。
 - 将面板拖离主窗口即可变成独立浮动窗口；浮动面板仍可拖回主窗口或与其他浮动面板组合。
 - Note 输入、时间网格、范围、镜像、曲线和插件工具停靠时按原右侧栏顺序纵向展开，同时可见且不使用切换标签；只有拖离停靠区后才成为独立窗口。
@@ -59,7 +63,8 @@
 
 ### View 视图菜单
 
-- `View -> Panels`：显示或隐藏导航、预览、Note 输入、时间网格、范围、镜像、曲线、插件、BPM 和 Meta 面板，也可恢复默认面板布局。
+- `View -> Enable Floating Windows`：启用 ADS 停靠、拆分和浮动；关闭时使用引入 ADS 前的固定四栏布局和单一可纵向滚动的右栏。
+- `View -> Panels`：仅在启用浮动窗口时显示；可显示或隐藏导航、预览、Note 输入、时间网格、范围、镜像、曲线、插件、BPM 和 Meta 面板，也可恢复默认面板布局。
 - `View -> Color Notes`：按音符拍型/分度给音符上色，便于检查节奏密度。
 - `View -> Color Timeline Divisions`：按时间轴分度给网格线着色。
 - `View -> Timeline Division Color Advanced Settings...`：设置分度线颜色规则。可选择 `Classic`、`All` 或自定义常见分度/额外分度。
@@ -261,7 +266,7 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 位置：
 
 - 顶部插件工具栏：`Format Note Colors` 快捷按钮。
-- `View -> Panels -> Plugin Tools` / `Plugins -> Plugin Panels -> Plugin Tools`。
+- 启用浮动窗口时：`View -> Panels -> Plugin Tools` / `Plugins -> Plugin Panels -> Plugin Tools`；关闭时同一 GUI 嵌入 Note 右栏。
 - `Plugins -> Plugin Actions`。
 
 使用方法：

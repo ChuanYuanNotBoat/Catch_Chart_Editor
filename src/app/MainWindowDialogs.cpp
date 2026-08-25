@@ -777,7 +777,7 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
 
 void MainWindow::closePluginPanels(const QString &reasonText)
 {
-    if (d->pluginPanelDocks.isEmpty())
+    if (d->pluginPanelDocks.isEmpty() && d->pluginPanelDialogs.isEmpty())
         return;
 
     const auto docks = d->pluginPanelDocks;
@@ -787,6 +787,17 @@ void MainWindow::closePluginPanels(const QString &reasonText)
             it.value()->closeDockWidget();
     }
     d->pluginPanelDocks.clear();
+
+    const auto dialogs = d->pluginPanelDialogs;
+    for (auto it = dialogs.constBegin(); it != dialogs.constEnd(); ++it)
+    {
+        if (it.value())
+        {
+            QObject::disconnect(it.value(), nullptr, this, nullptr);
+            it.value()->close();
+        }
+    }
+    d->pluginPanelDialogs.clear();
 
     if (!reasonText.isEmpty())
         statusBar()->showMessage(reasonText, 2000);
@@ -806,6 +817,14 @@ void MainWindow::triggerPluginPanelAction()
         return;
 
     const QString key = pluginId + "::" + panelId;
+    if (d->pluginPanelDialogs.contains(key) && d->pluginPanelDialogs[key])
+    {
+        QDialog *existing = d->pluginPanelDialogs[key];
+        existing->show();
+        existing->raise();
+        existing->activateWindow();
+        return;
+    }
     if (d->pluginPanelDocks.contains(key) && d->pluginPanelDocks[key])
     {
         ads::CDockWidget *existing = d->pluginPanelDocks[key];
@@ -836,6 +855,41 @@ void MainWindow::triggerPluginPanelAction()
     if (!workspaceConfig.isEmpty())
         context.insert("workspace", workspaceConfig);
 
+    if (!d->floatingToolWindowsEnabled)
+    {
+        // Preserve the pre-ADS plugin contract in legacy layout mode: native
+        // plugin panels are ordinary tool dialogs and never enter a hidden
+        // docking container.
+        QDialog *dialog = new QDialog(this, Qt::Tool);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->setWindowTitle(title.isEmpty() ? tr("Plugin Panel") : title);
+        dialog->setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
+        if (workspaceConfig.value("default_layout").toString().toLower() == "advanced")
+            dialog->resize(680, 520);
+        else if (workspaceConfig.value("default_layout").toString().toLower() == "dual")
+            dialog->resize(580, 460);
+        QVBoxLayout *layout = new QVBoxLayout(dialog);
+        layout->setContentsMargins(0, 0, 0, 0);
+
+        QWidget *panel = app->pluginManager()->createFloatingPanel(
+            pluginId, panelId, dialog, context);
+        if (!panel)
+        {
+            delete dialog;
+            QMessageBox::warning(this, tr("Plugin Panel"), tr("Failed to create plugin panel."));
+            return;
+        }
+
+        layout->addWidget(panel);
+        if (dialog->size().isEmpty())
+            dialog->resize(520, 420);
+        d->pluginPanelDialogs.insert(key, dialog);
+        connect(dialog, &QDialog::destroyed, this, [this, key]()
+                { d->pluginPanelDialogs.remove(key); });
+        dialog->show();
+        return;
+    }
+
     if (!d->dockManager)
         return;
 
@@ -859,7 +913,8 @@ void MainWindow::triggerPluginPanelAction()
 
     panel->setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
     dock->setWidget(panel, ads::CDockWidget::AutoScrollArea);
-    if (d->pluginToolsDock && d->pluginToolsDock->dockAreaWidget())
+    if (d->floatingToolWindowsEnabled
+        && d->pluginToolsDock && d->pluginToolsDock->dockAreaWidget())
     {
         ads::CDockAreaWidget *panelArea = d->dockManager->addDockWidget(
             ads::BottomDockWidgetArea, dock, d->pluginToolsDock->dockAreaWidget());
