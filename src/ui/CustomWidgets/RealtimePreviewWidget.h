@@ -37,6 +37,7 @@ protected:
 private:
     static constexpr int kLaneWidth = 512;
     static constexpr int kMinFrameIntervalMs = 16;
+    static constexpr int kPlaybackFrameIntervalMs = 30;
 
     struct BpmSegment
     {

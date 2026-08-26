@@ -4,6 +4,8 @@
 
 namespace PlaybackStutterProbe
 {
+    bool enabled();
+
     struct LiveMetrics
     {
         bool valid = false;

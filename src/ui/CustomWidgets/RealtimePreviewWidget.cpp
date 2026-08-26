@@ -249,10 +249,14 @@ void RealtimePreviewWidget::handlePlaybackFrameTick(double predictedTimeMs, qint
     if (frameSeq <= m_lastPlaybackFrameSeq)
         return;
     m_lastPlaybackFrameSeq = frameSeq;
+    m_currentTimeMs = qMax(0.0, predictedTimeMs);
+    if (!isVisible())
+        return;
+    if (m_frameTimer.isValid() && m_frameTimer.elapsed() < kPlaybackFrameIntervalMs)
+        return;
     if (m_deferredUpdateTimer->isActive())
         m_deferredUpdateTimer->stop();
     m_updateScheduled = false;
-    m_currentTimeMs = qMax(0.0, predictedTimeMs);
     update();
     m_frameTimer.restart();
 }

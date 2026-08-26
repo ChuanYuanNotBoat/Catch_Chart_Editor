@@ -169,7 +169,7 @@ namespace
         return seq;
     }
 
-    bool isEnabled()
+    bool probeEnabled()
     {
         static std::atomic<int> cached{-1};
         static std::atomic<qint64> lastRefreshMs{0};
@@ -540,9 +540,14 @@ namespace
 
 namespace PlaybackStutterProbe
 {
+    bool enabled()
+    {
+        return probeEnabled();
+    }
+
     void recordDuration(const QString &key, double elapsedMs, double budgetMs, bool playing)
     {
-        if (!isEnabled())
+        if (!enabled())
         {
             ProbeState &s = state();
             clearState(s);
@@ -577,7 +582,7 @@ namespace PlaybackStutterProbe
 
     void recordCounter(const QString &key, qint64 delta, bool playing)
     {
-        if (!isEnabled())
+        if (!enabled())
         {
             ProbeState &s = state();
             clearState(s);
@@ -601,7 +606,7 @@ namespace PlaybackStutterProbe
 
     void markPlaybackState(bool playing)
     {
-        if (!isEnabled())
+        if (!enabled())
         {
             ProbeState &s = state();
             clearState(s);
@@ -631,7 +636,7 @@ namespace PlaybackStutterProbe
 
     void markUiHeartbeat(bool playing)
     {
-        if (!playing || !isEnabled())
+        if (!playing || !enabled())
             return;
 
         ensureMonitorWorkerStarted();
@@ -650,7 +655,7 @@ namespace PlaybackStutterProbe
 
     void markManualJerk(double playbackTimeMs, qint64 frameSeq)
     {
-        if (!isEnabled())
+        if (!enabled())
             return;
 
         ProbeState &s = state();
@@ -701,7 +706,7 @@ namespace PlaybackStutterProbe
 
     void forceFlush()
     {
-        if (!isEnabled())
+        if (!enabled())
             return;
         flushIfNeeded(true);
     }
