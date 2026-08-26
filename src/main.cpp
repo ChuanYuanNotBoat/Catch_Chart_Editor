@@ -1,4 +1,5 @@
 ﻿#include "app/Application.h"
+#include "app/MainWindow.h"
 #include "app/PlaybackBenchmarkRunner.h"
 #include "utils/Logger.h"
 #include <QCommandLineParser>
@@ -20,6 +21,10 @@ int main(int argc, char *argv[])
         parser.setApplicationDescription("Malody Catch Chart Editor");
         parser.addHelpOption();
         parser.addVersionOption();
+        parser.addOption(QCommandLineOption(
+            QStringLiteral("open-chart"),
+            QStringLiteral("Open an extracted .mc chart in the ordinary interactive editor."),
+            QStringLiteral("path")));
         PlaybackBenchmarkRunner::addCommandLineOptions(parser);
         parser.process(app);
 
@@ -40,6 +45,18 @@ int main(int argc, char *argv[])
             Logger::error("Failed to initialize application.");
             Logger::shutdown();
             return 1;
+        }
+
+        if (!benchmarkRequested && parser.isSet(QStringLiteral("open-chart")))
+        {
+            QString loadError;
+            if (!app.mainWindow()->loadChartForAutomation(
+                    parser.value(QStringLiteral("open-chart")), &loadError))
+            {
+                std::cerr << loadError.toStdString() << std::endl;
+                Logger::shutdown();
+                return 7;
+            }
         }
 
         int result = 0;

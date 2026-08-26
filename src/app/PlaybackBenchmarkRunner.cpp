@@ -206,7 +206,7 @@ void PlaybackBenchmarkRunner::start()
     QCoreApplication::processEvents();
 
     QString loadError;
-    if (!window->loadChartForBenchmark(m_options.chartPath, &loadError))
+    if (!window->loadChartForAutomation(m_options.chartPath, &loadError))
     {
         fail(loadError.isEmpty() ? QStringLiteral("Failed to load benchmark chart.") : loadError);
         return;

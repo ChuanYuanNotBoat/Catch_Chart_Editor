@@ -3,17 +3,22 @@
 #include "Logger.h"
 #include "Settings.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QMetaObject>
 #include <QVector>
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <condition_variable>
+#include <deque>
 #include <limits>
+#include <mutex>
 #include <thread>
 
 namespace
@@ -67,6 +72,16 @@ namespace
         SessionState session;
     };
 
+    struct LiveWindowSnapshot
+    {
+        qint64 elapsedMs = 0;
+        QHash<QString, DurationBucket> durations;
+        QHash<QString, DurationBucket> values;
+        QHash<QString, qint64> counters;
+    };
+
+    void processLiveWindow(LiveWindowSnapshot snapshot);
+
     qint64 steadyNowMs()
     {
         using namespace std::chrono;
@@ -83,11 +98,15 @@ namespace
         std::atomic<qint64> hitchEventsPending{0};
         std::atomic<qint64> stallEventsPending{0};
         std::atomic<qint64> generation{0};
+        std::mutex wakeMutex;
+        std::condition_variable wakeCondition;
+        std::deque<LiveWindowSnapshot> pendingLiveWindows;
         std::thread worker;
 
         ~IndependentMonitor()
         {
             stopRequested.store(true);
+            wakeCondition.notify_all();
             if (worker.joinable())
                 worker.join();
         }
@@ -106,72 +125,105 @@ namespace
             return;
 
         m.worker = std::thread([]()
-                               {
-        IndependentMonitor &shared = monitor();
-        qint64 lastHitchLevel = -1;
-        qint64 lastStallLevel = -1;
-        qint64 lastGeneration = -1;
-        while (!shared.stopRequested.load())
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(kMonitorPollMs));
-
-            if (!shared.playing.load())
+            IndependentMonitor &shared = monitor();
+            qint64 lastHitchLevel = -1;
+            qint64 lastStallLevel = -1;
+            qint64 lastGeneration = -1;
+            while (true)
             {
-                lastHitchLevel = -1;
-                lastStallLevel = -1;
-                lastGeneration = shared.generation.load();
-                continue;
-            }
-
-            const qint64 currentGen = shared.generation.load();
-            if (currentGen != lastGeneration)
-            {
-                lastGeneration = currentGen;
-                lastHitchLevel = -1;
-                lastStallLevel = -1;
-            }
-
-            const qint64 hb = shared.lastUiHeartbeatSteadyMs.load();
-            if (hb <= 0)
-                continue;
-
-            const qint64 gapMs = steadyNowMs() - hb;
-            if (gapMs <= 0)
-                continue;
-
-            qint64 peak = shared.peakUiGapMs.load();
-            while (gapMs > peak && !shared.peakUiGapMs.compare_exchange_weak(peak, gapMs))
-            {
-            }
-
-            if (gapMs >= kUiHitchThresholdMs)
-            {
-                const qint64 hitchLevel = gapMs / 4;
-                if (hitchLevel != lastHitchLevel)
+                LiveWindowSnapshot pendingWindow;
+                bool hasPendingWindow = false;
                 {
-                    shared.hitchEventsPending.fetch_add(1);
-                    lastHitchLevel = hitchLevel;
+                    std::unique_lock<std::mutex> lock(shared.wakeMutex);
+                    shared.wakeCondition.wait_for(
+                        lock,
+                        std::chrono::milliseconds(kMonitorPollMs),
+                        [&shared]()
+                        {
+                            return shared.stopRequested.load() ||
+                                   !shared.pendingLiveWindows.empty();
+                        });
+                    if (!shared.pendingLiveWindows.empty())
+                    {
+                        pendingWindow = std::move(shared.pendingLiveWindows.front());
+                        shared.pendingLiveWindows.pop_front();
+                        hasPendingWindow = true;
+                    }
+                    else if (shared.stopRequested.load())
+                    {
+                        break;
+                    }
+                }
+
+                if (hasPendingWindow)
+                    processLiveWindow(std::move(pendingWindow));
+
+                if (shared.stopRequested.load())
+                {
+                    std::lock_guard<std::mutex> lock(shared.wakeMutex);
+                    if (shared.pendingLiveWindows.empty())
+                        break;
+                }
+
+                if (!shared.playing.load())
+                {
+                    lastHitchLevel = -1;
+                    lastStallLevel = -1;
+                    lastGeneration = shared.generation.load();
+                    continue;
+                }
+
+                const qint64 currentGen = shared.generation.load();
+                if (currentGen != lastGeneration)
+                {
+                    lastGeneration = currentGen;
+                    lastHitchLevel = -1;
+                    lastStallLevel = -1;
+                }
+
+                const qint64 hb = shared.lastUiHeartbeatSteadyMs.load();
+                if (hb <= 0)
+                    continue;
+
+                const qint64 gapMs = steadyNowMs() - hb;
+                if (gapMs <= 0)
+                    continue;
+
+                qint64 peak = shared.peakUiGapMs.load();
+                while (gapMs > peak && !shared.peakUiGapMs.compare_exchange_weak(peak, gapMs))
+                {
+                }
+
+                if (gapMs >= kUiHitchThresholdMs)
+                {
+                    const qint64 hitchLevel = gapMs / 4;
+                    if (hitchLevel != lastHitchLevel)
+                    {
+                        shared.hitchEventsPending.fetch_add(1);
+                        lastHitchLevel = hitchLevel;
+                    }
+                }
+                else
+                {
+                    lastHitchLevel = -1;
+                }
+
+                if (gapMs >= kUiStallThresholdMs)
+                {
+                    const qint64 stallLevel = gapMs / kUiStallStepMs;
+                    if (stallLevel != lastStallLevel)
+                    {
+                        shared.stallEventsPending.fetch_add(1);
+                        lastStallLevel = stallLevel;
+                    }
+                }
+                else
+                {
+                    lastStallLevel = -1;
                 }
             }
-            else
-            {
-                lastHitchLevel = -1;
-            }
-
-            if (gapMs >= kUiStallThresholdMs)
-            {
-                const qint64 stallLevel = gapMs / kUiStallStepMs;
-                if (stallLevel != lastStallLevel)
-                {
-                    shared.stallEventsPending.fetch_add(1);
-                    lastStallLevel = stallLevel;
-                }
-            }
-            else
-            {
-                lastStallLevel = -1;
-            }
-        } });
+        });
     }
 
     ProbeState &state()
@@ -514,11 +566,12 @@ namespace
         return out;
     }
 
-    void refreshLiveMetrics(ProbeState &s, qint64 elapsedMs)
+    void refreshLiveMetrics(ProbeState &s,
+                            qint64 elapsedMs,
+                            const DerivedWindowMetrics &m)
     {
         if (elapsedMs <= 0)
             return;
-        const DerivedWindowMetrics m = deriveWindowMetrics(s, elapsedMs);
         s.live.valid = true;
         s.live.windowMs = elapsedMs;
         s.live.fpsTick = m.fpsTick;
@@ -545,6 +598,99 @@ namespace
         s.live.uiStallEvents = m.uiStallEvents;
         s.live.topHotspot = m.topList.isEmpty() ? QString() : m.topList.first();
         s.live.lastUpdateMs = nowMs();
+    }
+
+    void logLiveWindow(qint64 elapsedMs, const DerivedWindowMetrics &metrics)
+    {
+        Logger::info(QString("PERF_PLAYBACK window_ms=%1 fps_tick=%2 fps_canvas=%3 fps_preview=%4 jitter_p95_ms=%5 pacing_std_ms=%6 pacing_jerk_p95_ms=%7 step_jerk_p95_ms=%8 ui_gap_p95_ms=%9 scroll_velocity_change_p95_pct=%10 jank_events=%11 step_jank_events=%12 manual_jerk_marks=%13 ui_hitch_events=%14 ui_stall_events=%15 jitter_slow_pct=%16 canvas_slow_pct=%17 top=[%18] counters=[%19]")
+                         .arg(elapsedMs)
+                         .arg(metrics.fpsTick, 0, 'f', 1)
+                         .arg(metrics.fpsCanvas, 0, 'f', 1)
+                         .arg(metrics.fpsPreview, 0, 'f', 1)
+                         .arg(metrics.jitterP95Ms, 0, 'f', 2)
+                         .arg(metrics.pacingStdMs, 0, 'f', 2)
+                         .arg(metrics.pacingJerkP95Ms, 0, 'f', 2)
+                         .arg(metrics.stepJerkP95Ms, 0, 'f', 2)
+                         .arg(metrics.uiGapP95Ms, 0, 'f', 2)
+                         .arg(metrics.visualScrollVelocityChangeP95Pct, 0, 'f', 3)
+                         .arg(metrics.jankEvents)
+                         .arg(metrics.stepJankEvents)
+                         .arg(metrics.manualJerkMarks)
+                         .arg(metrics.uiHitchEvents)
+                         .arg(metrics.uiStallEvents)
+                         .arg(metrics.jitterSlowPct, 0, 'f', 1)
+                         .arg(metrics.canvasSlowPct, 0, 'f', 1)
+                         .arg(metrics.topList.join("; "))
+                         .arg(metrics.counters.join(", ")));
+
+        if (!Logger::isJsonLoggingEnabled())
+            return;
+
+        QMap<QString, QString> context;
+        context.insert("window_ms", QString::number(elapsedMs));
+        context.insert("fps_tick", QString::number(metrics.fpsTick, 'f', 1));
+        context.insert("fps_canvas", QString::number(metrics.fpsCanvas, 'f', 1));
+        context.insert("fps_preview", QString::number(metrics.fpsPreview, 'f', 1));
+        context.insert("jitter_p95_ms", QString::number(metrics.jitterP95Ms, 'f', 2));
+        context.insert("pacing_std_ms", QString::number(metrics.pacingStdMs, 'f', 2));
+        context.insert("pacing_jerk_p95_ms", QString::number(metrics.pacingJerkP95Ms, 'f', 2));
+        context.insert("step_jerk_p95_ms", QString::number(metrics.stepJerkP95Ms, 'f', 2));
+        context.insert("ui_gap_p95_ms", QString::number(metrics.uiGapP95Ms, 'f', 2));
+        context.insert("scroll_velocity_change_p95_pct",
+                       QString::number(metrics.visualScrollVelocityChangeP95Pct, 'f', 3));
+        context.insert("jank_events", QString::number(metrics.jankEvents));
+        context.insert("step_jank_events", QString::number(metrics.stepJankEvents));
+        context.insert("manual_jerk_marks", QString::number(metrics.manualJerkMarks));
+        context.insert("ui_hitch_events", QString::number(metrics.uiHitchEvents));
+        context.insert("ui_stall_events", QString::number(metrics.uiStallEvents));
+        context.insert("jitter_slow_pct", QString::number(metrics.jitterSlowPct, 'f', 1));
+        context.insert("canvas_slow_pct", QString::number(metrics.canvasSlowPct, 'f', 1));
+        context.insert("top", metrics.topList.join("; "));
+        context.insert("counters", metrics.counters.join(", "));
+        Logger::logStructured(Logger::DEBUG, "PERF_PLAYBACK_WINDOW", "PlaybackStutterProbe", context);
+    }
+
+    void processLiveWindow(LiveWindowSnapshot snapshot)
+    {
+        ProbeState snapshotState;
+        snapshotState.durations = std::move(snapshot.durations);
+        snapshotState.values = std::move(snapshot.values);
+        snapshotState.counters = std::move(snapshot.counters);
+
+        const DerivedWindowMetrics metrics =
+            deriveWindowMetrics(snapshotState, snapshot.elapsedMs);
+        refreshLiveMetrics(snapshotState, snapshot.elapsedMs, metrics);
+        logLiveWindow(snapshot.elapsedMs, metrics);
+
+        const PlaybackStutterProbe::LiveMetrics live = snapshotState.live;
+        if (QCoreApplication *application = QCoreApplication::instance())
+        {
+            QMetaObject::invokeMethod(
+                application,
+                [live]()
+                {
+                    state().live = live;
+                },
+                Qt::QueuedConnection);
+        }
+    }
+
+    void enqueueLiveWindow(ProbeState &s, qint64 elapsedMs, qint64 nextWindowStartMs)
+    {
+        LiveWindowSnapshot snapshot;
+        snapshot.elapsedMs = elapsedMs;
+        snapshot.durations.swap(s.durations);
+        snapshot.values.swap(s.values);
+        snapshot.counters.swap(s.counters);
+        s.windowStartMs = nextWindowStartMs;
+
+        ensureMonitorWorkerStarted();
+        IndependentMonitor &m = monitor();
+        {
+            std::lock_guard<std::mutex> lock(m.wakeMutex);
+            m.pendingLiveWindows.push_back(std::move(snapshot));
+        }
+        m.wakeCondition.notify_one();
     }
 
     void recordIndependentMonitorSamples(bool playing)
@@ -589,56 +735,15 @@ namespace
             return;
         }
 
-        const DerivedWindowMetrics metrics = deriveWindowMetrics(s, elapsedMs);
-        refreshLiveMetrics(s, elapsedMs);
-
-        Logger::info(QString("PERF_PLAYBACK window_ms=%1 fps_tick=%2 fps_canvas=%3 fps_preview=%4 jitter_p95_ms=%5 pacing_std_ms=%6 pacing_jerk_p95_ms=%7 step_jerk_p95_ms=%8 ui_gap_p95_ms=%9 scroll_velocity_change_p95_pct=%10 jank_events=%11 step_jank_events=%12 manual_jerk_marks=%13 ui_hitch_events=%14 ui_stall_events=%15 jitter_slow_pct=%16 canvas_slow_pct=%17 top=[%18] counters=[%19]")
-                         .arg(elapsedMs)
-                         .arg(metrics.fpsTick, 0, 'f', 1)
-                         .arg(metrics.fpsCanvas, 0, 'f', 1)
-                         .arg(metrics.fpsPreview, 0, 'f', 1)
-                         .arg(metrics.jitterP95Ms, 0, 'f', 2)
-                         .arg(metrics.pacingStdMs, 0, 'f', 2)
-                         .arg(metrics.pacingJerkP95Ms, 0, 'f', 2)
-                         .arg(metrics.stepJerkP95Ms, 0, 'f', 2)
-                         .arg(metrics.uiGapP95Ms, 0, 'f', 2)
-                         .arg(metrics.visualScrollVelocityChangeP95Pct, 0, 'f', 3)
-                         .arg(metrics.jankEvents)
-                         .arg(metrics.stepJankEvents)
-                         .arg(metrics.manualJerkMarks)
-                         .arg(metrics.uiHitchEvents)
-                         .arg(metrics.uiStallEvents)
-                         .arg(metrics.jitterSlowPct, 0, 'f', 1)
-                         .arg(metrics.canvasSlowPct, 0, 'f', 1)
-                         .arg(metrics.topList.join("; "))
-                         .arg(metrics.counters.join(", ")));
-
-        if (Logger::isJsonLoggingEnabled())
+        if (!force)
         {
-            QMap<QString, QString> context;
-            context.insert("window_ms", QString::number(elapsedMs));
-            context.insert("fps_tick", QString::number(metrics.fpsTick, 'f', 1));
-            context.insert("fps_canvas", QString::number(metrics.fpsCanvas, 'f', 1));
-            context.insert("fps_preview", QString::number(metrics.fpsPreview, 'f', 1));
-            context.insert("jitter_p95_ms", QString::number(metrics.jitterP95Ms, 'f', 2));
-            context.insert("pacing_std_ms", QString::number(metrics.pacingStdMs, 'f', 2));
-            context.insert("pacing_jerk_p95_ms", QString::number(metrics.pacingJerkP95Ms, 'f', 2));
-            context.insert("step_jerk_p95_ms", QString::number(metrics.stepJerkP95Ms, 'f', 2));
-            context.insert("ui_gap_p95_ms", QString::number(metrics.uiGapP95Ms, 'f', 2));
-            context.insert("scroll_velocity_change_p95_pct",
-                           QString::number(metrics.visualScrollVelocityChangeP95Pct, 'f', 3));
-            context.insert("jank_events", QString::number(metrics.jankEvents));
-            context.insert("step_jank_events", QString::number(metrics.stepJankEvents));
-            context.insert("manual_jerk_marks", QString::number(metrics.manualJerkMarks));
-            context.insert("ui_hitch_events", QString::number(metrics.uiHitchEvents));
-            context.insert("ui_stall_events", QString::number(metrics.uiStallEvents));
-            context.insert("jitter_slow_pct", QString::number(metrics.jitterSlowPct, 'f', 1));
-            context.insert("canvas_slow_pct", QString::number(metrics.canvasSlowPct, 'f', 1));
-            context.insert("top", metrics.topList.join("; "));
-            context.insert("counters", metrics.counters.join(", "));
-            Logger::logStructured(Logger::DEBUG, "PERF_PLAYBACK_WINDOW", "PlaybackStutterProbe", context);
+            enqueueLiveWindow(s, elapsedMs, tsMs);
+            return;
         }
 
+        const DerivedWindowMetrics metrics = deriveWindowMetrics(s, elapsedMs);
+        refreshLiveMetrics(s, elapsedMs, metrics);
+        logLiveWindow(elapsedMs, metrics);
         resetWindow(s, tsMs);
     }
 } // namespace

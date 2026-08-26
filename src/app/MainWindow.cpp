@@ -3163,7 +3163,7 @@ void MainWindow::openImportedLibrary()
 }
 
 // ==================== Load chart core logic ====================
-bool MainWindow::loadChartForBenchmark(const QString &filePath, QString *errorMessage)
+bool MainWindow::loadChartForAutomation(const QString &filePath, QString *errorMessage)
 {
     if (errorMessage)
         errorMessage->clear();
@@ -3172,19 +3172,19 @@ bool MainWindow::loadChartForBenchmark(const QString &filePath, QString *errorMe
     if (!requestedInfo.isFile())
     {
         if (errorMessage)
-            *errorMessage = tr("Benchmark chart does not exist: %1").arg(filePath);
+            *errorMessage = tr("Chart does not exist: %1").arg(filePath);
         return false;
     }
     if (requestedInfo.suffix().compare(QStringLiteral("mc"), Qt::CaseInsensitive) != 0)
     {
         if (errorMessage)
-            *errorMessage = tr("Automated benchmarks require an extracted .mc chart.");
+            *errorMessage = tr("Automated chart loading requires an extracted .mc chart.");
         return false;
     }
     if (d->isModified)
     {
         if (errorMessage)
-            *errorMessage = tr("Cannot start an automated benchmark while the current chart has unsaved changes.");
+            *errorMessage = tr("Cannot load an automated test chart while the current chart has unsaved changes.");
         return false;
     }
 
@@ -3194,7 +3194,7 @@ bool MainWindow::loadChartForBenchmark(const QString &filePath, QString *errorMe
                                             Qt::CaseInsensitive) != 0)
     {
         if (errorMessage)
-            *errorMessage = tr("The benchmark chart could not be loaded.");
+            *errorMessage = tr("The automated test chart could not be loaded.");
         return false;
     }
     return true;

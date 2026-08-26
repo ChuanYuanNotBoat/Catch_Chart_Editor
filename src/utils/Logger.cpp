@@ -141,6 +141,19 @@ void Logger::init(const QString &logsDir)
 #ifdef Q_OS_WIN
     SetConsoleCP(CP_UTF8);
     SetConsoleOutputCP(CP_UTF8);
+
+    // QuickEdit/select mode suspends a console writer while text is selected.
+    // Keep stdout available for benchmark automation without allowing a click
+    // in the developer console to freeze the editor's GUI and playback clocks.
+    const HANDLE consoleInput = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD consoleMode = 0;
+    if (consoleInput && consoleInput != INVALID_HANDLE_VALUE &&
+        GetConsoleMode(consoleInput, &consoleMode))
+    {
+        consoleMode |= ENABLE_EXTENDED_FLAGS;
+        consoleMode &= ~ENABLE_QUICK_EDIT_MODE;
+        SetConsoleMode(consoleInput, consoleMode);
+    }
 #endif
 
     s_logsDir = logsDir;
