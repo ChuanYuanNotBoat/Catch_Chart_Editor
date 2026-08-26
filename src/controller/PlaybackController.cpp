@@ -7,9 +7,14 @@
 #include "utils/Settings.h"
 #include "model/Chart.h"
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QEvent>
 #include <algorithm>
 #include <cmath>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace
 {
@@ -33,11 +38,14 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
       m_noteSoundEnabled(true),
       m_autoPausedAtEnd(false),
       m_frameScheduler(nullptr),
+      m_originalUiThreadPriority(0),
+      m_uiPriorityRaised(false),
       m_frameRateCap(60),
       m_displayRefreshRateHz(60.0),
       m_frameInFlight(false),
       m_schedulerReadySteadyNs(0),
       m_schedulerIntervalNs(0),
+      m_schedulerPresentationSteadyNs(0),
       m_schedulerSkippedFrames(0),
       m_pendingPaintFrameSeq(0),
       m_frameAnchorValid(false),
@@ -58,14 +66,29 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
     m_frameScheduler = std::make_unique<DisplayFrameScheduler>(
         [this](const DisplayFrameScheduler::Pulse &pulse)
         {
+            // Always publish the newest display phase. If a previous Qt event
+            // is still queued, it can then coalesce to the latest presentable
+            // frame instead of rendering a target that is already one refresh
+            // old when the UI thread finally becomes available.
+            m_schedulerReadySteadyNs.store(pulse.readySteadyNs, std::memory_order_release);
+            m_schedulerIntervalNs.store(pulse.intervalNs, std::memory_order_release);
+            m_schedulerPresentationSteadyNs.store(
+                pulse.presentationSteadyNs,
+                std::memory_order_release);
             if (m_frameInFlight.exchange(true, std::memory_order_acq_rel))
             {
-                m_schedulerSkippedFrames.fetch_add(1, std::memory_order_relaxed);
+                m_schedulerSkippedFrames.fetch_add(
+                    1 + pulse.missedTargetFrames,
+                    std::memory_order_relaxed);
                 return;
             }
 
-            m_schedulerReadySteadyNs.store(pulse.readySteadyNs, std::memory_order_release);
-            m_schedulerIntervalNs.store(pulse.intervalNs, std::memory_order_release);
+            if (pulse.missedTargetFrames > 0)
+            {
+                m_schedulerSkippedFrames.fetch_add(
+                    pulse.missedTargetFrames,
+                    std::memory_order_relaxed);
+            }
             QCoreApplication::postEvent(
                 this,
                 new QEvent(scheduledFrameEventType()),
@@ -79,6 +102,7 @@ PlaybackController::~PlaybackController()
     if (m_frameScheduler)
         m_frameScheduler->setActive(false);
     m_frameScheduler.reset();
+    endPlaybackUiPriority();
 }
 
 PlaybackController::State PlaybackController::state() const
@@ -124,6 +148,7 @@ void PlaybackController::play()
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_schedulerSkippedFrames.store(0, std::memory_order_release);
         updateFrameScheduler();
+        beginPlaybackUiPriority();
         m_frameScheduler->setActive(true);
         Logger::debug(QString("PlaybackController::play - Playing from position %1ms").arg(m_audioPlayer->position()));
         PlaybackStutterProbe::markPlaybackState(true);
@@ -161,6 +186,7 @@ void PlaybackController::pause()
         m_autoPausedAtEnd = false;
         m_state = Paused;
         m_frameScheduler->setActive(false);
+        endPlaybackUiPriority();
         m_frameInFlight.store(false, std::memory_order_release);
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_frameAnchorValid = false;
@@ -183,6 +209,7 @@ void PlaybackController::stop()
         m_autoPausedAtEnd = false;
         m_state = Stopped;
         m_frameScheduler->setActive(false);
+        endPlaybackUiPriority();
         m_frameInFlight.store(false, std::memory_order_release);
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_frameAnchorValid = false;
@@ -337,6 +364,22 @@ double PlaybackController::currentTime() const
     return static_cast<double>(m_audioPlayer->adjustedPosition());
 }
 
+double PlaybackController::visualTime() const
+{
+    if (m_state != Playing || !m_frameAnchorValid)
+        return currentTime();
+
+    const qint64 nowFrameClockNs = m_frameClock.nsecsElapsed();
+    const qint64 nowSteadyNs = DisplayFrameScheduler::steadyNowNs();
+    const qint64 presentationSteadyNs =
+        m_schedulerPresentationSteadyNs.load(std::memory_order_acquire);
+    const qint64 presentationFrameClockNs =
+        presentationSteadyNs > nowSteadyNs
+            ? nowFrameClockNs + (presentationSteadyNs - nowSteadyNs)
+            : nowFrameClockNs;
+    return predictedTimeAt(presentationFrameClockNs);
+}
+
 void PlaybackController::acknowledgeFramePainted(qint64 frameSeq)
 {
     qint64 expectedFrameSeq = frameSeq;
@@ -364,8 +407,21 @@ bool PlaybackController::autoPausedAtEnd() const
 void PlaybackController::onAudioPositionChanged(qint64 position)
 {
     Q_UNUSED(position);
+    const bool probeFanout =
+        m_state == Playing && PlaybackStutterProbe::enabled();
+    QElapsedTimer fanoutTimer;
+    if (probeFanout)
+        fanoutTimer.start();
     const double observedMs = static_cast<double>(m_audioPlayer->adjustedPosition());
     emit positionChanged(observedMs);
+    if (probeFanout)
+    {
+        PlaybackStutterProbe::recordDuration(
+            "audio.position_ui_fanout",
+            static_cast<double>(fanoutTimer.nsecsElapsed()) / 1000000.0,
+            1.0,
+            true);
+    }
     if (m_state == Playing)
     {
         const qint64 nowNs = m_frameClock.nsecsElapsed();
@@ -392,6 +448,7 @@ void PlaybackController::onAudioStateChanged(QMediaPlayer::PlaybackState state)
         m_autoPausedAtEnd = true;
         m_state = Paused;
         m_frameScheduler->setActive(false);
+        endPlaybackUiPriority();
         m_frameInFlight.store(false, std::memory_order_release);
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_frameAnchorValid = false;
@@ -417,6 +474,7 @@ void PlaybackController::onAudioError(const QString &error)
     {
         m_state = Stopped;
         m_frameScheduler->setActive(false);
+        endPlaybackUiPriority();
         m_frameInFlight.store(false, std::memory_order_release);
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_frameAnchorValid = false;
@@ -463,6 +521,40 @@ void PlaybackController::updateFrameScheduler()
         m_frameScheduler->setRates(m_displayRefreshRateHz, effectiveFrameRate());
 }
 
+void PlaybackController::beginPlaybackUiPriority()
+{
+#ifdef _WIN32
+    if (m_uiPriorityRaised)
+        return;
+
+    HANDLE threadHandle = GetCurrentThread();
+    const int currentPriority = GetThreadPriority(threadHandle);
+    if (currentPriority == THREAD_PRIORITY_ERROR_RETURN)
+    {
+        Logger::warn("PlaybackController - Could not read UI playback thread priority");
+        return;
+    }
+
+    if (!SetThreadPriority(threadHandle, THREAD_PRIORITY_HIGHEST))
+    {
+        Logger::warn("PlaybackController - Could not raise UI playback thread priority");
+        return;
+    }
+    m_originalUiThreadPriority = currentPriority;
+    m_uiPriorityRaised = true;
+#endif
+}
+
+void PlaybackController::endPlaybackUiPriority()
+{
+#ifdef _WIN32
+    if (!m_uiPriorityRaised)
+        return;
+    SetThreadPriority(GetCurrentThread(), m_originalUiThreadPriority);
+    m_uiPriorityRaised = false;
+#endif
+}
+
 void PlaybackController::dispatchScheduledFrame()
 {
     if (m_state != Playing)
@@ -474,6 +566,8 @@ void PlaybackController::dispatchScheduledFrame()
 
     const qint64 readySteadyNs = m_schedulerReadySteadyNs.load(std::memory_order_acquire);
     const qint64 displayIntervalNs = m_schedulerIntervalNs.load(std::memory_order_acquire);
+    const qint64 presentationSteadyNs =
+        m_schedulerPresentationSteadyNs.load(std::memory_order_acquire);
     const qint64 skippedRefreshes = m_schedulerSkippedFrames.exchange(0, std::memory_order_acq_rel);
     if (PlaybackStutterProbe::enabled())
     {
@@ -505,7 +599,13 @@ void PlaybackController::dispatchScheduledFrame()
         }
     }
 
-    if (!emitFramePulse(m_frameClock.nsecsElapsed()))
+    const qint64 dispatchFrameClockNs = m_frameClock.nsecsElapsed();
+    const qint64 dispatchSteadyNs = DisplayFrameScheduler::steadyNowNs();
+    const qint64 presentationFrameClockNs =
+        presentationSteadyNs > 0
+            ? dispatchFrameClockNs + (presentationSteadyNs - dispatchSteadyNs)
+            : dispatchFrameClockNs;
+    if (!emitFramePulse(presentationFrameClockNs))
     {
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_frameInFlight.store(false, std::memory_order_release);

@@ -18,6 +18,8 @@ public:
     {
         std::int64_t readySteadyNs = 0;
         std::int64_t intervalNs = 0;
+        std::int64_t presentationSteadyNs = 0;
+        std::int64_t missedTargetFrames = 0;
     };
 
     using Callback = std::function<void(const Pulse &)>;

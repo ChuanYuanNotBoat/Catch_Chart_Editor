@@ -10,7 +10,6 @@
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
-#include "utils/DiagnosticCollector.h"
 #include "model/Chart.h"
 #include <QPainter>
 #include <QMouseEvent>

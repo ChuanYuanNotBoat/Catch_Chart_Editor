@@ -41,6 +41,7 @@ public:
     void seekToBeat(int beat, int num, int den);
 
     double currentTime() const;
+    double visualTime() const;
     void acknowledgeFramePainted(qint64 frameSeq);
 
     void setNoteSoundEnabled(bool enabled);
@@ -69,6 +70,8 @@ private:
     void applySeekNow(qint64 targetMs, const char *reason);
     void updateFrameScheduler();
     void dispatchScheduledFrame();
+    void beginPlaybackUiPriority();
+    void endPlaybackUiPriority();
     bool emitFramePulse(qint64 nowNs);
     double predictedTimeAt(qint64 nowNs) const;
     void resetFrameAnchor(double timeMs, qint64 nowNs);
@@ -80,11 +83,14 @@ private:
     bool m_noteSoundEnabled;
     bool m_autoPausedAtEnd;
     std::unique_ptr<DisplayFrameScheduler> m_frameScheduler;
+    int m_originalUiThreadPriority;
+    bool m_uiPriorityRaised;
     int m_frameRateCap;
     double m_displayRefreshRateHz;
     std::atomic<bool> m_frameInFlight;
     std::atomic<qint64> m_schedulerReadySteadyNs;
     std::atomic<qint64> m_schedulerIntervalNs;
+    std::atomic<qint64> m_schedulerPresentationSteadyNs;
     std::atomic<qint64> m_schedulerSkippedFrames;
     std::atomic<qint64> m_pendingPaintFrameSeq;
     QElapsedTimer m_frameClock;

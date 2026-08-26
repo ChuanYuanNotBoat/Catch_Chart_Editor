@@ -37,7 +37,6 @@ protected:
 private:
     static constexpr int kLaneWidth = 512;
     static constexpr int kMinFrameIntervalMs = 16;
-    static constexpr int kPlaybackFrameIntervalMs = 30;
 
     struct BpmSegment
     {
@@ -86,6 +85,8 @@ private:
     bool m_hyperCacheValid = false;
     QTimer *m_deferredUpdateTimer = nullptr;
     QElapsedTimer m_frameTimer;
+    QElapsedTimer m_probeClock;
     bool m_updateScheduled = false;
     qint64 m_lastPlaybackFrameSeq = -1;
+    qint64 m_lastPaintProbeNs = 0;
 };

@@ -10,7 +10,6 @@
 #include "plugin/PluginManager.h"
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
-#include "utils/DiagnosticCollector.h"
 #include "utils/Logger.h"
 #include "utils/PlaybackStutterProbe.h"
 #include "model/Chart.h"
@@ -19,7 +18,6 @@
 #include <QDir>
 #include <QFileInfo>
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <QCoreApplication>
 
@@ -122,7 +120,7 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         // Re-anchoring a second canvas-local clock on every frame tick turns
         // signal-handler latency into a small position jump once per tick.
         // The tick should schedule the paint; it should not be a second clock.
-        double visualTimeMs = m_playbackController->currentTime();
+        double visualTimeMs = m_playbackController->visualTime();
         if (m_lastPlaybackTargetTimeMs >= 0.0)
             visualTimeMs = qMax(visualTimeMs, m_lastPlaybackTargetTimeMs);
         m_currentPlayTime = qMax(0.0, visualTimeMs);
@@ -232,8 +230,6 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     painter.setClipRect(rect());
 
-    int renderedNotesCount = 0;
-
     auto renderNoteAtIndex = [&](int i)
     {
         if (i < 0 || i >= notes.size())
@@ -271,7 +267,6 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             QRectF rainRect(lmargin, rectTop, availableWidth, rectHeight);
             bool selected = selectedSet.contains(i);
             m_noteRenderer->drawRain(painter, notes[i], rainRect, selected);
-            renderedNotesCount++;
         }
         else
         {
@@ -279,7 +274,6 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             QPointF pos(x, y);
             bool selected = selectedSet.contains(i);
             m_noteRenderer->drawNote(painter, notes[i], pos, selected, i);
-            renderedNotesCount++;
         }
     };
 
@@ -402,15 +396,6 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             "canvas.paint.overlays", toMs(overlaysEndNs - notesEndNs), 2.0, true);
         PlaybackStutterProbe::recordDuration(
             "canvas.paint_total", toMs(overlaysEndNs), 8.0, true);
-    }
-
-    auto now = std::chrono::high_resolution_clock::now();
-    static auto lastRecord = now;
-    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastRecord).count();
-    if (elapsedMs > 500)
-    {
-        DiagnosticCollector::instance().recordRenderMetrics(elapsedMs, renderedNotesCount);
-        lastRecord = now;
     }
 
 }

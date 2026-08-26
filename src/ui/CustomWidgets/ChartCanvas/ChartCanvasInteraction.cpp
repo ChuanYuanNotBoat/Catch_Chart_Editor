@@ -11,7 +11,6 @@
 #include "utils/Settings.h"
 #include "utils/Logger.h"
 #include "utils/PlaybackStutterProbe.h"
-#include "utils/DiagnosticCollector.h"
 #include "model/Chart.h"
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
@@ -318,7 +317,13 @@ void ChartCanvas::onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq)
         return;
     }
 
-    advanceNoteSoundClock(predictedTimeMs);
+    // The visual target is sampled for the upcoming presentation refresh and
+    // is intentionally a little ahead of wall time. Note sounds must follow
+    // the current audio clock instead of that future visual sample.
+    const double noteSoundTimeMs = m_playbackController
+                                       ? m_playbackController->currentTime()
+                                       : predictedTimeMs;
+    advanceNoteSoundClock(noteSoundTimeMs);
 
     double previousScrollBeat = 0.0;
     double previousPlayheadYPx = -1.0;
@@ -372,8 +377,19 @@ void ChartCanvas::onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq)
     if (m_lastPlaybackScrollStepPx >= 0.0)
     {
         const double scrollJerkPx = std::abs(scrollStepPx - m_lastPlaybackScrollStepPx);
+        const double averageScrollStepPx =
+            qMax(0.01, 0.5 * (scrollStepPx + m_lastPlaybackScrollStepPx));
+        const double scrollStepChangePercent =
+            scrollJerkPx * 100.0 / averageScrollStepPx;
         if (lightProbeSample)
+        {
             PlaybackStutterProbe::recordDuration("visual.scroll_step_jerk_px", scrollJerkPx, kVisualScrollJerkBudgetPx, true);
+            PlaybackStutterProbe::recordValue(
+                "visual.scroll_step_change_pct",
+                scrollStepChangePercent,
+                1.0,
+                true);
+        }
         if (lightProbeSample && scrollJerkPx > kVisualScrollStepJankThresholdPx)
             PlaybackStutterProbe::recordCounter("visual.scroll_step_jank_events", 1, true);
     }
