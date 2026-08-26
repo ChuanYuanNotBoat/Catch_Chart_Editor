@@ -1182,7 +1182,7 @@ void MainWindow::openSessionSettings()
             d->playbackController->setFrameRateCap(fpsCap);
         setupAutoSaveTimer();
         if (d->canvas)
-            d->canvas->update();
+            d->canvas->refreshRenderSettings();
         statusBar()->showMessage(tr("Session settings updated"), 2000);
         dialog.accept(); });
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -1449,7 +1449,9 @@ void MainWindow::configureOutline()
     {
         Settings::instance().setOutlineWidth(widthSpin->value());
         Settings::instance().setOutlineColor(outlineColor);
-        d->canvas->update();
+        d->canvas->refreshRenderSettings();
+        if (d->previewWidget)
+            d->previewWidget->refreshRenderSettings();
         Logger::info("Outline settings updated");
     }
 }

@@ -128,6 +128,12 @@ void RealtimePreviewWidget::setNoteSize(int size)
     scheduleUpdate();
 }
 
+void RealtimePreviewWidget::refreshRenderSettings()
+{
+    m_noteRenderer->refreshSettings();
+    scheduleUpdate();
+}
+
 void RealtimePreviewWidget::setCurrentBeat(double beat)
 {
     if (!m_chartController || !m_chartController->chart())

@@ -259,27 +259,8 @@ void ChartCanvas::advancePlaybackVisual(bool scheduleRepaint, bool recordProbe)
 
     if (m_autoScrollEnabled)
     {
-        const QVector<MathUtils::BpmCacheEntry> &cache = bpmTimeCache();
-        if (cache.isEmpty())
+        if (bpmTimeCache().isEmpty())
             return;
-
-        auto beatFromTimeMs = [&cache](double timeMs) -> double
-        {
-            int lo = 0;
-            int hi = cache.size() - 1;
-            while (lo < hi)
-            {
-                const int mid = (lo + hi + 1) / 2;
-                if (cache[mid].accumulatedMs <= timeMs)
-                    lo = mid;
-                else
-                    hi = mid - 1;
-            }
-            const auto &seg = cache[lo];
-            if (seg.bpm <= 0.0)
-                return seg.beatPos;
-            return seg.beatPos + (timeMs - seg.accumulatedMs) * (seg.bpm / 60000.0);
-        };
         const double beat = beatFromTimeMs(m_currentPlayTime);
 
         const double baselineRatio = kReferenceLineRatio;

@@ -53,6 +53,7 @@ public:
     void setGridSnap(bool snap);
     void setScrollPos(double timeMs);
     void setNoteSize(int size);
+    void refreshRenderSettings();
     void setMode(Mode mode);
     void setNoteSoundFile(const QString &filePath);
     void setNoteSoundEnabled(bool enabled);
@@ -233,8 +234,9 @@ private:
     double getNoteTimeMs(const Note &note) const;
     void confirmPaste();
 
-    void rebuildBpmTimeCache();
-    const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache();
+    void rebuildBpmTimeCache() const;
+    const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache() const;
+    double beatFromTimeMs(double timeMs) const;
 
     void rebuildNoteTimesCache();
     const Chart *chart() const;
@@ -295,8 +297,8 @@ private:
     QVector<int> m_sortedRainNoteIndicesByBeat;
     bool m_noteDataDirty;
     bool m_timesDirty;
-    QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
-    bool m_bpmCacheDirty;
+    mutable QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
+    mutable bool m_bpmCacheDirty;
 
     ChartController *m_chartController;
     SelectionController *m_selectionController;

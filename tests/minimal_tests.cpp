@@ -18,6 +18,7 @@
 #include "file/ChartFileSystem.h"
 #include "audio/PlaybackTiming.h"
 #include "controller/ChartController.h"
+#include "controller/SelectionController.h"
 #include "editor/NoteChain/NoteChainCurveSampler.h"
 #include "editor/NoteChain/NoteChainEditor.h"
 #include "editor/NoteChain/NoteChainPersistence.h"
@@ -202,6 +203,29 @@ namespace
         if (chart.bpmList()[1].beatNum != 4 || chart.bpmList()[1].numerator != 1)
             return false;
         return chart.bpmList()[2].beatNum == 8;
+    }
+
+    bool testSelectionControllerRefreshesCachedIndices()
+    {
+        QVector<Note> notes = {
+            makeNormalNote(0, 0, 1, 64, "selection-a"),
+            makeNormalNote(1, 0, 1, 128, "selection-b"),
+            makeNormalNote(2, 0, 1, 256, "selection-c"),
+        };
+
+        SelectionController selection;
+        selection.setNotes(&notes);
+        selection.select(QSet<int>{0, 2});
+        if (selection.selectedIndices() != QSet<int>({0, 2}))
+            return false;
+
+        std::swap(notes[0], notes[1]);
+        selection.updateSelectionFromNotes();
+        if (selection.selectedIndices() != QSet<int>({1, 2}))
+            return false;
+
+        selection.removeFromSelection(1);
+        return selection.selectedIndices() == QSet<int>({2});
     }
 
     bool writeTextFile(const QString &path, const QByteArray &content)
@@ -2522,6 +2546,7 @@ int main(int argc, char **argv)
         {"MathUtils cross-segment round-trip boundary", &testMathUtilsCrossSegmentRoundTripBoundary},
         {"Chart removeNote by id", &testChartRemoveById},
         {"Chart BPM sorting", &testChartBpmSort},
+        {"SelectionController cached indices refresh", &testSelectionControllerRefreshesCachedIndices},
         {"ProjectIO scan + difficulty", &testProjectIoReadDifficultyAndScan},
         {"ProjectIO invalid difficulty json", &testProjectIoGetDifficultyInvalidJsonReturnsEmpty},
         {"ProjectIO find charts missing dir", &testProjectIoFindChartsMissingDirReturnsEmpty},

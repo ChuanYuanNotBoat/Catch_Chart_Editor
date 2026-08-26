@@ -239,7 +239,7 @@ QVector<Note> *ChartCanvas::mutableNotes()
     return c ? &c->notes() : nullptr;
 }
 
-void ChartCanvas::rebuildBpmTimeCache()
+void ChartCanvas::rebuildBpmTimeCache() const
 {
     m_bpmTimeCache.clear();
     if (!chart())
@@ -260,11 +260,34 @@ void ChartCanvas::rebuildBpmTimeCache()
     m_bpmCacheDirty = false;
 }
 
-const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache()
+const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache() const
 {
     if (m_bpmCacheDirty)
         rebuildBpmTimeCache();
     return m_bpmTimeCache;
+}
+
+double ChartCanvas::beatFromTimeMs(double timeMs) const
+{
+    const QVector<MathUtils::BpmCacheEntry> &cache = bpmTimeCache();
+    if (cache.isEmpty())
+        return 0.0;
+
+    int lo = 0;
+    int hi = cache.size() - 1;
+    while (lo < hi)
+    {
+        const int mid = (lo + hi + 1) / 2;
+        if (cache[mid].accumulatedMs <= timeMs)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+
+    const MathUtils::BpmCacheEntry &segment = cache[lo];
+    if (segment.bpm <= 0.0)
+        return segment.beatPos;
+    return segment.beatPos + (timeMs - segment.accumulatedMs) * (segment.bpm / 60000.0);
 }
 
 void ChartCanvas::rebuildNoteTimesCache()
@@ -656,6 +679,13 @@ void ChartCanvas::setNoteSize(int size)
     if (m_noteRenderer->getNoteSize() == size)
         return;
     m_noteRenderer->setNoteSize(size);
+    update();
+}
+
+void ChartCanvas::refreshRenderSettings()
+{
+    m_noteRenderer->refreshSettings();
+    invalidateGridCache();
     update();
 }
 

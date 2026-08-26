@@ -25,6 +25,7 @@ public:
     void setColorMode(bool enabled);
     void setHyperfruitEnabled(bool enabled);
     void setNoteSize(int size);
+    void refreshRenderSettings();
 
 public slots:
     void setCurrentBeat(double beat);

@@ -48,6 +48,7 @@ if(BUILD_TESTING)
         src/utils/DiagnosticCollector.cpp
         src/utils/CalcHash.cpp
         src/controller/ChartController.cpp
+        src/controller/SelectionController.cpp
         src/file/ChartIO.cpp
         src/file/ProjectIO.cpp
         src/file/ChartFileSystem.cpp

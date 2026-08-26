@@ -3788,7 +3788,7 @@ void MainWindow::toggleTimelineDivisionColorMode(bool on)
     Logger::info(QString("Timeline division color mode toggled to %1").arg(on));
     Settings::instance().setTimelineDivisionColorEnabled(on);
     if (d->canvas)
-        d->canvas->update();
+        d->canvas->refreshRenderSettings();
 }
 
 void MainWindow::openTimelineDivisionColorSettings()
@@ -3944,7 +3944,7 @@ void MainWindow::openTimelineDivisionColorSettings()
     if (d->timelineDivisionColorAction)
         d->timelineDivisionColorAction->setChecked(enabled);
     if (d->canvas)
-        d->canvas->update();
+        d->canvas->refreshRenderSettings();
 }
 
 void MainWindow::toggleHyperfruitMode(bool on)

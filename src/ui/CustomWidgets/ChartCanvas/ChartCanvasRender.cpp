@@ -24,6 +24,8 @@
 
 namespace
 {
+constexpr double kGridCacheScrollChunkPx = 96.0;
+
 PluginManager *activePluginManager()
 {
     auto *app = qobject_cast<Application *>(QCoreApplication::instance());
@@ -90,14 +92,14 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     
 
-    if (m_hyperfruitEnabled && !bpmList.isEmpty())
+    if (m_hyperfruitEnabled && !m_hyperCacheValid)
     {
-        if (!m_hyperCacheValid)
-        {
+        if (bpmList.isEmpty())
+            m_cachedHyperSet.clear();
+        else
             m_cachedHyperSet = m_hyperfruitDetector->detect(notes, bpmList, 0);
-            m_hyperCacheValid = true;
-        }
         m_noteRenderer->setHyperfruitIndices(m_cachedHyperSet);
+        m_hyperCacheValid = true;
     }
 
     const int canvasWidth = width();
@@ -597,7 +599,7 @@ void ChartCanvas::drawGrid(QPainter &painter)
         const double beatsPerPixel = totalBeats / viewportHeight;
         // Quantize the backing cache in larger vertical chunks and compensate
         // draw position per-frame so playback scrolling can mostly reuse cache.
-        const double quantStepBeat = qMax(1e-6, beatsPerPixel * 24.0);
+        const double quantStepBeat = qMax(1e-6, beatsPerPixel * kGridCacheScrollChunkPx);
         const auto quantizeDown = [quantStepBeat](double value) -> double
         {
             return std::floor(value / quantStepBeat) * quantStepBeat;
@@ -611,18 +613,28 @@ void ChartCanvas::drawGrid(QPainter &painter)
         const double cacheEndBeat = renderEndBeat + cachePadBeat;
         const QSize cacheSize(rect.width(), viewportHeight + cachePadPx * 2);
 
-        const bool colorEnabled = Settings::instance().timelineDivisionColorEnabled();
-        const QString colorPreset = Settings::instance().timelineDivisionColorPreset();
-        const QList<int> colorCustom = Settings::instance().timelineDivisionColorCustomDivisions();
-        const int beatNumberFontSize = Settings::instance().beatNumberFontSize();
+        // Rendering preferences change only through explicit UI actions. Read
+        // QSettings once per invalidation instead of parsing them every frame.
+        if (!m_gridCacheValid)
+        {
+            m_gridCacheColorEnabled = Settings::instance().timelineDivisionColorEnabled();
+            m_gridCacheColorPreset = Settings::instance().timelineDivisionColorPreset();
+            m_gridCacheColorCustomDivisions = Settings::instance().timelineDivisionColorCustomDivisions();
+            m_gridCacheBeatNumberFontSize = Settings::instance().beatNumberFontSize();
 
-        // 计算节拍编号所需的左侧留白宽度
-        QFont tempFont;
-        tempFont.setPointSize(beatNumberFontSize);
-        QFontMetrics tempFm(tempFont);
-        // 为最大节拍号预留空间（假设最多 6 位数字）
-        const int maxBeatNumberWidth = tempFm.horizontalAdvance("999999");
-        const int beatNumberLeftMargin = beatNumberFontSize > 0 ? maxBeatNumberWidth + 4 : 0;
+            QFont beatNumberFont;
+            beatNumberFont.setPointSize(m_gridCacheBeatNumberFontSize);
+            const QFontMetrics metrics(beatNumberFont);
+            m_gridCacheBeatNumberLeftMargin = m_gridCacheBeatNumberFontSize > 0
+                                                  ? metrics.horizontalAdvance("999999") + 4
+                                                  : 0;
+        }
+
+        const bool colorEnabled = m_gridCacheColorEnabled;
+        const QString &colorPreset = m_gridCacheColorPreset;
+        const QList<int> &colorCustom = m_gridCacheColorCustomDivisions;
+        const int beatNumberFontSize = m_gridCacheBeatNumberFontSize;
+        const int beatNumberLeftMargin = m_gridCacheBeatNumberLeftMargin;
 
         const bool needRebuild =
             !m_gridCacheValid ||
@@ -631,12 +643,7 @@ void ChartCanvas::drawGrid(QPainter &painter)
             m_gridCacheDivision != m_gridDivision ||
             m_gridCacheTimeDivision != m_timeDivision ||
             m_gridCacheVerticalFlip != m_verticalFlip ||
-            m_gridCacheColorEnabled != colorEnabled ||
-            m_gridCacheColorPreset != colorPreset ||
-            m_gridCacheColorCustomDivisions != colorCustom ||
             m_gridCachePadPx != cachePadPx ||
-            m_gridCacheBeatNumberFontSize != beatNumberFontSize ||
-            m_gridCacheBeatNumberLeftMargin != beatNumberLeftMargin ||
             std::abs(m_gridCacheStartBeat - cacheStartBeat) > 1e-6 ||
             std::abs(m_gridCacheEndBeat - cacheEndBeat) > 1e-6;
 
@@ -710,12 +717,7 @@ double ChartCanvas::getNoteTimeMs(const Note &note) const
 
 double ChartCanvas::yPosFromTime(double timeMs) const
 {
-    int beatNum, numerator, denominator;
-    MathUtils::msToBeat(timeMs, chart()->bpmList(),
-                        chart()->meta().offset,
-                        beatNum, numerator, denominator);
-    double beat = beatNum + static_cast<double>(numerator) / denominator;
-    return beatToY(beat);
+    return beatToY(beatFromTimeMs(timeMs));
 }
 
 double ChartCanvas::beatToY(double beat) const
