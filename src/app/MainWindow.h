@@ -40,6 +40,7 @@ public:
     ~MainWindow();
 
     void setSkin(Skin *skin);
+    bool loadChartForBenchmark(const QString &filePath, QString *errorMessage = nullptr);
 
 protected:
     void changeEvent(QEvent *event) override;

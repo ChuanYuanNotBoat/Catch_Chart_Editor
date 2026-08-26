@@ -3156,6 +3156,43 @@ void MainWindow::openImportedLibrary()
 }
 
 // ==================== Load chart core logic ====================
+bool MainWindow::loadChartForBenchmark(const QString &filePath, QString *errorMessage)
+{
+    if (errorMessage)
+        errorMessage->clear();
+
+    const QFileInfo requestedInfo(filePath);
+    if (!requestedInfo.isFile())
+    {
+        if (errorMessage)
+            *errorMessage = tr("Benchmark chart does not exist: %1").arg(filePath);
+        return false;
+    }
+    if (requestedInfo.suffix().compare(QStringLiteral("mc"), Qt::CaseInsensitive) != 0)
+    {
+        if (errorMessage)
+            *errorMessage = tr("Automated benchmarks require an extracted .mc chart.");
+        return false;
+    }
+    if (d->isModified)
+    {
+        if (errorMessage)
+            *errorMessage = tr("Cannot start an automated benchmark while the current chart has unsaved changes.");
+        return false;
+    }
+
+    loadChartFile(requestedInfo.absoluteFilePath());
+    const QString loadedPath = QFileInfo(d->currentChartPath).absoluteFilePath();
+    if (QDir::cleanPath(loadedPath).compare(QDir::cleanPath(requestedInfo.absoluteFilePath()),
+                                            Qt::CaseInsensitive) != 0)
+    {
+        if (errorMessage)
+            *errorMessage = tr("The benchmark chart could not be loaded.");
+        return false;
+    }
+    return true;
+}
+
 void MainWindow::loadChartFile(const QString &filePath)
 {
     Logger::info(QString("Loading chart file: %1").arg(filePath));

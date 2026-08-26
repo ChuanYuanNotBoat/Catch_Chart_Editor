@@ -1,6 +1,9 @@
 ﻿#include "app/Application.h"
+#include "app/PlaybackBenchmarkRunner.h"
 #include "utils/Logger.h"
+#include <QCommandLineParser>
 #include <QDebug>
+#include <QTimer>
 #include <iostream>
 
 int main(int argc, char *argv[])
@@ -13,6 +16,25 @@ int main(int argc, char *argv[])
 
         Application app(argc, argv);
 
+        QCommandLineParser parser;
+        parser.setApplicationDescription("Malody Catch Chart Editor");
+        parser.addHelpOption();
+        parser.addVersionOption();
+        PlaybackBenchmarkRunner::addCommandLineOptions(parser);
+        parser.process(app);
+
+        const bool benchmarkRequested = PlaybackBenchmarkRunner::isRequested(parser);
+        PlaybackBenchmarkOptions benchmarkOptions;
+        if (benchmarkRequested)
+        {
+            QString optionError;
+            if (!PlaybackBenchmarkRunner::optionsFromParser(parser, &benchmarkOptions, &optionError))
+            {
+                std::cerr << optionError.toStdString() << std::endl;
+                return 4;
+            }
+        }
+
         if (!app.initialize())
         {
             Logger::error("Failed to initialize application.");
@@ -20,7 +42,22 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        int result = app.exec();
+        int result = 0;
+        if (benchmarkRequested)
+        {
+            PlaybackBenchmarkRunner benchmarkRunner(&app, benchmarkOptions);
+            QObject::connect(&benchmarkRunner, &PlaybackBenchmarkRunner::finished,
+                             &app, [&app](int exitCode)
+                             {
+                                 app.exit(exitCode);
+                             });
+            QTimer::singleShot(0, &benchmarkRunner, &PlaybackBenchmarkRunner::start);
+            result = app.exec();
+        }
+        else
+        {
+            result = app.exec();
+        }
 
         Logger::info("Application exiting with code: " + QString::number(result));
         Logger::shutdown();

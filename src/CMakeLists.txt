@@ -1,6 +1,7 @@
 ﻿set(SOURCES
     main.cpp
     app/Application.cpp
+    app/PlaybackBenchmarkRunner.cpp
     app/MainWindow.cpp
     app/MainWindowLayout.cpp
     app/MainWindowDialogs.cpp

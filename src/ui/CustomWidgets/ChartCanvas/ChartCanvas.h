@@ -467,6 +467,8 @@ private:
     bool m_playbackVisualFramePending;
     qint64 m_lastPlaybackTickNs;
     qint64 m_lastPlaybackVisualAdvanceNs;
+    qint64 m_lastPaintProbeNs;
+    double m_lastPaintIntervalMs;
     int m_overlayPlaybackIntervalMs;
     QPointer<QWindow> m_displayFrameWindow;
     QPointer<QScreen> m_displayFrameScreen;

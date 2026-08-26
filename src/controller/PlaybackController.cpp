@@ -2,6 +2,7 @@
 #include "utils/MathUtils.h"
 #include "utils/Logger.h"
 #include "utils/PlaybackSpeed.h"
+#include "utils/PlaybackStutterProbe.h"
 #include "utils/Settings.h"
 #include "model/Chart.h"
 #include <QTimer>
@@ -33,7 +34,9 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
       m_waitingForAudioProgress(false),
       m_audioProgressStartMs(0.0),
       m_frameSeq(0),
-      m_lastFrameTickMs(0.0)
+      m_lastFrameTickMs(0.0),
+      m_lastPulseProbeNs(0),
+      m_lastPulseIntervalMs(-1.0)
 {
     connect(m_audioPlayer, &AudioPlayer::positionChanged, this, &PlaybackController::onAudioPositionChanged);
     connect(m_audioPlayer, &AudioPlayer::stateChanged, this, &PlaybackController::onAudioStateChanged);
@@ -75,6 +78,8 @@ void PlaybackController::play()
         m_audioPlayer->play();
         m_state = Playing;
         m_frameSeq = 0;
+        m_lastPulseProbeNs = 0;
+        m_lastPulseIntervalMs = -1.0;
         m_lastFrameTickMs = static_cast<double>(m_audioPlayer->adjustedPosition());
         resetFrameAnchor(m_lastFrameTickMs, m_frameClock.elapsed());
         // QMediaPlayer can report PlayingState before decoded audio reaches the
@@ -83,6 +88,7 @@ void PlaybackController::play()
         m_audioProgressStartMs = m_lastFrameTickMs;
         startFramePulse();
         Logger::debug(QString("PlaybackController::play - Playing from position %1ms").arg(m_audioPlayer->position()));
+        PlaybackStutterProbe::markPlaybackState(true);
         emit stateChanged(m_state);
     }
     else
@@ -120,9 +126,12 @@ void PlaybackController::pause()
             m_framePulseTimer->stop();
         m_frameAnchorValid = false;
         m_waitingForAudioProgress = false;
+        m_lastPulseProbeNs = 0;
+        m_lastPulseIntervalMs = -1.0;
         m_audioPlayer->pause();
         Logger::debug(QString("PlaybackController::pause - Paused at position %1ms").arg(m_audioPlayer->position()));
         emit positionChanged(static_cast<double>(m_audioPlayer->adjustedPosition()));
+        PlaybackStutterProbe::markPlaybackState(false);
         emit stateChanged(m_state);
     }
 }
@@ -138,9 +147,12 @@ void PlaybackController::stop()
         m_frameAnchorValid = false;
         m_waitingForAudioProgress = false;
         m_frameSeq = 0;
+        m_lastPulseProbeNs = 0;
+        m_lastPulseIntervalMs = -1.0;
         m_audioPlayer->stop();
         Logger::debug("PlaybackController::stop - Playback stopped");
         emit positionChanged(static_cast<double>(m_audioPlayer->adjustedPosition()));
+        PlaybackStutterProbe::markPlaybackState(false);
         emit stateChanged(m_state);
     }
 }
@@ -348,9 +360,12 @@ void PlaybackController::onAudioStateChanged(QMediaPlayer::PlaybackState state)
         m_waitingForAudioProgress = false;
         m_frameSeq = 0;
         m_lastFrameTickMs = 0.0;
+        m_lastPulseProbeNs = 0;
+        m_lastPulseIntervalMs = -1.0;
         m_audioPlayer->setAdjustedPosition(0);
         Logger::info("PlaybackController::onAudioStateChanged - Reached end of media, auto-paused at beginning");
         emit positionChanged(static_cast<double>(m_audioPlayer->adjustedPosition()));
+        PlaybackStutterProbe::markPlaybackState(false);
         emit stateChanged(m_state);
     }
 }
@@ -367,6 +382,9 @@ void PlaybackController::onAudioError(const QString &error)
         m_frameAnchorValid = false;
         m_waitingForAudioProgress = false;
         m_frameSeq = 0;
+        m_lastPulseProbeNs = 0;
+        m_lastPulseIntervalMs = -1.0;
+        PlaybackStutterProbe::markPlaybackState(false);
         emit stateChanged(m_state);
     }
     emit errorOccurred(error);
@@ -412,6 +430,27 @@ void PlaybackController::emitFramePulse(qint64 nowNs)
 {
     if (m_waitingForAudioProgress)
         return;
+
+    if (PlaybackStutterProbe::enabled())
+    {
+        if (m_lastPulseProbeNs > 0 && nowNs > m_lastPulseProbeNs)
+        {
+            const double intervalMs = static_cast<double>(nowNs - m_lastPulseProbeNs) / 1000000.0;
+            const double targetIntervalMs = 1000.0 / qMax(1.0, effectiveFrameRate());
+            PlaybackStutterProbe::recordDuration(
+                "playback.pulse_interval", intervalMs, targetIntervalMs * 1.35, true);
+            if (m_lastPulseIntervalMs >= 0.0)
+            {
+                PlaybackStutterProbe::recordDuration(
+                    "playback.pulse_interval_jerk",
+                    std::abs(intervalMs - m_lastPulseIntervalMs),
+                    2.0,
+                    true);
+            }
+            m_lastPulseIntervalMs = intervalMs;
+        }
+        m_lastPulseProbeNs = nowNs;
+    }
 
     const qint64 nowMs = nowNs / 1000000LL;
     if (!m_frameAnchorValid)

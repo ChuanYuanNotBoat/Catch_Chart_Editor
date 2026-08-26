@@ -12,6 +12,7 @@
 #include "utils/Settings.h"
 #include "utils/DiagnosticCollector.h"
 #include "utils/Logger.h"
+#include "utils/PlaybackStutterProbe.h"
 #include "model/Chart.h"
 #include <QPainter>
 #include <QPen>
@@ -38,6 +39,36 @@ PluginManager *activePluginManager()
 void ChartCanvas::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
+
+    const bool probeFrame = m_isPlaying && PlaybackStutterProbe::enabled();
+    const qint64 paintStartNs = probeFrame ? m_playbackVisualClock.nsecsElapsed() : 0;
+    if (probeFrame)
+    {
+        if (m_lastPaintProbeNs > 0 && paintStartNs > m_lastPaintProbeNs)
+        {
+            const double intervalMs = static_cast<double>(paintStartNs - m_lastPaintProbeNs) / 1000000.0;
+            const double targetIntervalMs = 1000.0 / qMax(1.0, m_playbackController->effectiveFrameRate());
+            PlaybackStutterProbe::recordDuration(
+                "canvas.paint_interval", intervalMs, targetIntervalMs * 1.35, true);
+            if (m_lastPaintIntervalMs >= 0.0)
+            {
+                PlaybackStutterProbe::recordDuration(
+                    "canvas.paint_interval_jerk",
+                    std::abs(intervalMs - m_lastPaintIntervalMs),
+                    2.0,
+                    true);
+            }
+            m_lastPaintIntervalMs = intervalMs;
+        }
+        m_lastPaintProbeNs = paintStartNs;
+    }
+    QElapsedTimer paintTimer;
+    if (probeFrame)
+        paintTimer.start();
+    const auto paintMarkNs = [&paintTimer, probeFrame]() -> qint64
+    {
+        return probeFrame ? paintTimer.nsecsElapsed() : 0;
+    };
 
     m_frameCount++;
     qint64 elapsed = m_fpsTimer.elapsed();
@@ -70,6 +101,7 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         m_currentPlayTime = qMax(0.0, visualTimeMs);
         advancePlaybackVisual(false, false);
     }
+    const qint64 preparationEndNs = paintMarkNs();
 
     const Chart *currentChart = chart();
     const auto &bpmList = currentChart->bpmList();
@@ -83,8 +115,10 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         else if (!m_backgroundCache.isNull())
             painter.drawPixmap(0, 0, m_backgroundCache);
     }
+    const qint64 backgroundEndNs = paintMarkNs();
 
     drawGrid(painter);
+    const qint64 gridEndNs = paintMarkNs();
 
     double startBeat = m_scrollBeat;
     double visibleRange = effectiveVisibleBeatRange();
@@ -101,6 +135,7 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         m_noteRenderer->setHyperfruitIndices(m_cachedHyperSet);
         m_hyperCacheValid = true;
     }
+    const qint64 cacheEndNs = paintMarkNs();
 
     const int canvasWidth = width();
     const int canvasHeight = height();
@@ -215,6 +250,7 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             renderNoteAtIndex(idx);
         }
     }
+    const qint64 notesEndNs = paintMarkNs();
 
     if (m_isPasting && !m_pasteNotes.isEmpty())
         drawPastePreview(painter, canvasHeight, lmargin, availableWidth, invVisibleRange, baseY, sign);
@@ -264,6 +300,29 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     QRect fpsRect(10, canvasHeight - 30, 80, 20);
     painter.fillRect(fpsRect, QColor(0, 0, 0, 128));
     painter.drawText(fpsRect, Qt::AlignCenter, fpsText);
+
+    const qint64 overlaysEndNs = paintMarkNs();
+    if (probeFrame)
+    {
+        const auto toMs = [](qint64 nanoseconds) -> double
+        {
+            return static_cast<double>(nanoseconds) / 1000000.0;
+        };
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.prepare", toMs(preparationEndNs), 1.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.background", toMs(backgroundEndNs - preparationEndNs), 1.5, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.grid", toMs(gridEndNs - backgroundEndNs), 2.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.cache", toMs(cacheEndNs - gridEndNs), 1.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.notes", toMs(notesEndNs - cacheEndNs), 3.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.overlays", toMs(overlaysEndNs - notesEndNs), 2.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint_total", toMs(overlaysEndNs), 8.0, true);
+    }
 
     auto now = std::chrono::high_resolution_clock::now();
     static auto lastRecord = now;

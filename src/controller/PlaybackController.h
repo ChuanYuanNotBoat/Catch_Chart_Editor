@@ -91,4 +91,6 @@ private:
     double m_audioProgressStartMs;
     qint64 m_frameSeq;
     double m_lastFrameTickMs;
+    qint64 m_lastPulseProbeNs;
+    double m_lastPulseIntervalMs;
 };

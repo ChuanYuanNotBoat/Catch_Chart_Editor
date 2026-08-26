@@ -5,12 +5,14 @@
 
 #include <QDateTime>
 #include <QHash>
+#include <QJsonObject>
 #include <QVector>
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <limits>
 #include <thread>
 
 namespace
@@ -29,8 +31,21 @@ namespace
         qint64 count = 0;
         double totalMs = 0.0;
         double maxMs = 0.0;
+        double minMs = std::numeric_limits<double>::max();
+        double budgetMs = 0.0;
         qint64 overBudgetCount = 0;
         QVector<double> samples;
+    };
+
+    struct SessionState
+    {
+        bool active = false;
+        QString name;
+        QString startedAtUtc;
+        qint64 startSteadyMs = 0;
+        QJsonObject metadata;
+        QHash<QString, DurationBucket> durations;
+        QHash<QString, qint64> counters;
     };
 
     struct TimedSample
@@ -48,6 +63,7 @@ namespace
         QHash<QString, QVector<TimedSample>> recentDurations;
         PlaybackStutterProbe::LiveMetrics live;
         qint64 lastLiveRefreshMs = 0;
+        SessionState session;
     };
 
     qint64 steadyNowMs()
@@ -169,8 +185,17 @@ namespace
         return seq;
     }
 
+    std::atomic<bool> &processOverrideEnabled()
+    {
+        static std::atomic<bool> value{false};
+        return value;
+    }
+
     bool probeEnabled()
     {
+        if (processOverrideEnabled().load(std::memory_order_relaxed))
+            return true;
+
         static std::atomic<int> cached{-1};
         static std::atomic<qint64> lastRefreshMs{0};
         const qint64 tsMs = QDateTime::currentMSecsSinceEpoch();
@@ -204,6 +229,7 @@ namespace
         s.recentDurations.clear();
         s.live = PlaybackStutterProbe::LiveMetrics{};
         s.lastLiveRefreshMs = 0;
+        s.session = SessionState{};
     }
 
     void pruneRecentSamples(QVector<TimedSample> *samples, qint64 minTsMs)
@@ -274,6 +300,42 @@ namespace
         }
         var /= static_cast<double>(bucket.samples.size());
         return std::sqrt(var);
+    }
+
+    void addDurationSample(DurationBucket &bucket, double elapsedMs, double budgetMs)
+    {
+        bucket.count += 1;
+        bucket.totalMs += elapsedMs;
+        bucket.maxMs = qMax(bucket.maxMs, elapsedMs);
+        bucket.minMs = qMin(bucket.minMs, elapsedMs);
+        bucket.budgetMs = budgetMs;
+        if (elapsedMs > budgetMs)
+            bucket.overBudgetCount += 1;
+        bucket.samples.append(elapsedMs);
+    }
+
+    QJsonObject durationBucketJson(DurationBucket bucket)
+    {
+        QJsonObject result;
+        if (bucket.count <= 0)
+            return result;
+
+        std::sort(bucket.samples.begin(), bucket.samples.end());
+        result.insert("count", bucket.count);
+        result.insert("average_ms", bucket.totalMs / static_cast<double>(bucket.count));
+        result.insert("minimum_ms",
+                      bucket.minMs == std::numeric_limits<double>::max() ? 0.0 : bucket.minMs);
+        result.insert("p50_ms", percentile(bucket.samples, 0.50));
+        result.insert("p95_ms", percentile(bucket.samples, 0.95));
+        result.insert("p99_ms", percentile(bucket.samples, 0.99));
+        result.insert("maximum_ms", bucket.maxMs);
+        result.insert("standard_deviation_ms", bucketStdDev(bucket));
+        result.insert("budget_ms", bucket.budgetMs);
+        result.insert("over_budget_count", bucket.overBudgetCount);
+        result.insert("over_budget_percent",
+                      static_cast<double>(bucket.overBudgetCount) * 100.0 /
+                          static_cast<double>(bucket.count));
+        return result;
     }
 
     double recentMaxMs(const ProbeState &s, const QString &key, qint64 sinceTsMs)
@@ -545,6 +607,17 @@ namespace PlaybackStutterProbe
         return probeEnabled();
     }
 
+    void setProcessOverrideEnabled(bool forceEnabled)
+    {
+        processOverrideEnabled().store(forceEnabled, std::memory_order_relaxed);
+        if (!PlaybackStutterProbe::enabled() && !forceEnabled)
+        {
+            ProbeState &s = state();
+            clearState(s);
+            monitor().playing.store(false);
+        }
+    }
+
     void recordDuration(const QString &key, double elapsedMs, double budgetMs, bool playing)
     {
         if (!enabled())
@@ -562,13 +635,9 @@ namespace PlaybackStutterProbe
         if (s.windowStartMs == 0)
             s.windowStartMs = tsMs;
 
-        DurationBucket &bucket = s.durations[key];
-        bucket.count += 1;
-        bucket.totalMs += elapsedMs;
-        bucket.maxMs = qMax(bucket.maxMs, elapsedMs);
-        if (elapsedMs > budgetMs)
-            bucket.overBudgetCount += 1;
-        bucket.samples.append(elapsedMs);
+        addDurationSample(s.durations[key], elapsedMs, budgetMs);
+        if (s.session.active)
+            addDurationSample(s.session.durations[key], elapsedMs, budgetMs);
 
         QVector<TimedSample> &recent = s.recentDurations[key];
         recent.append(TimedSample{tsMs, elapsedMs});
@@ -597,6 +666,8 @@ namespace PlaybackStutterProbe
             s.windowStartMs = nowMs();
 
         s.counters[key] += delta;
+        if (s.session.active)
+            s.session.counters[key] += delta;
         const qint64 tsMs = nowMs();
         const qint64 elapsedWindowMs = tsMs - s.windowStartMs;
         if (s.lastLiveRefreshMs == 0 || tsMs - s.lastLiveRefreshMs >= kLiveRefreshIntervalMs)
@@ -715,5 +786,87 @@ namespace PlaybackStutterProbe
     {
         const ProbeState &s = state();
         return s.live;
+    }
+
+    void beginSession(const QString &name, const QJsonObject &metadata)
+    {
+        ProbeState &s = state();
+        s.session = SessionState{};
+        s.session.active = true;
+        s.session.name = name.trimmed().isEmpty() ? QStringLiteral("playback") : name.trimmed();
+        s.session.startedAtUtc = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
+        s.session.startSteadyMs = steadyNowMs();
+        s.session.metadata = metadata;
+    }
+
+    QJsonObject endSession()
+    {
+        ProbeState &s = state();
+        if (!s.session.active)
+            return QJsonObject{{"error", QStringLiteral("No active performance session.")}};
+
+        const qint64 elapsedMs = qMax<qint64>(1, steadyNowMs() - s.session.startSteadyMs);
+        QJsonObject durationResults;
+        QStringList durationKeys = s.session.durations.keys();
+        std::sort(durationKeys.begin(), durationKeys.end());
+        for (const QString &key : durationKeys)
+            durationResults.insert(key, durationBucketJson(s.session.durations.value(key)));
+
+        QJsonObject counterResults;
+        QStringList counterKeys = s.session.counters.keys();
+        std::sort(counterKeys.begin(), counterKeys.end());
+        for (const QString &key : counterKeys)
+            counterResults.insert(key, static_cast<double>(s.session.counters.value(key)));
+
+        const auto sampleCount = [&s](const QString &key) -> qint64
+        {
+            const auto it = s.session.durations.constFind(key);
+            return it == s.session.durations.constEnd() ? 0 : it->count;
+        };
+        const auto samplesPerSecond = [elapsedMs, &sampleCount](const QString &key) -> double
+        {
+            return static_cast<double>(sampleCount(key)) * 1000.0 / static_cast<double>(elapsedMs);
+        };
+        const auto p95 = [&s](const QString &key) -> double
+        {
+            const auto it = s.session.durations.constFind(key);
+            return it == s.session.durations.constEnd() ? 0.0 : bucketP95(it.value());
+        };
+
+        QJsonObject summary;
+        summary.insert("fps_tick", samplesPerSecond(QStringLiteral("playback.pulse_interval")));
+        summary.insert("fps_canvas", samplesPerSecond(QStringLiteral("canvas.paint_total")));
+        summary.insert("fps_preview", samplesPerSecond(QStringLiteral("preview.paint_total")));
+        summary.insert("pulse_interval_p95_ms", p95(QStringLiteral("playback.pulse_interval")));
+        summary.insert("paint_interval_p95_ms", p95(QStringLiteral("canvas.paint_interval")));
+        summary.insert("paint_time_p95_ms", p95(QStringLiteral("canvas.paint_total")));
+        summary.insert("ui_gap_p95_ms", p95(QStringLiteral("monitor.ui_heartbeat_gap")));
+        summary.insert("pulse_over_budget_count",
+                       static_cast<double>(s.session.durations.value(QStringLiteral("playback.pulse_interval")).overBudgetCount));
+        summary.insert("paint_over_budget_count",
+                       static_cast<double>(s.session.durations.value(QStringLiteral("canvas.paint_total")).overBudgetCount));
+        summary.insert("ui_hitch_events",
+                       static_cast<double>(s.session.counters.value(QStringLiteral("monitor.ui_hitch_events"))));
+        summary.insert("ui_stall_events",
+                       static_cast<double>(s.session.counters.value(QStringLiteral("monitor.ui_stall_events"))));
+
+        QJsonObject report;
+        report.insert("schema_version", 1);
+        report.insert("session", s.session.name);
+        report.insert("started_at_utc", s.session.startedAtUtc);
+        report.insert("finished_at_utc", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+        report.insert("duration_ms", static_cast<double>(elapsedMs));
+        report.insert("metadata", s.session.metadata);
+        report.insert("summary", summary);
+        report.insert("durations", durationResults);
+        report.insert("counters", counterResults);
+
+        s.session.active = false;
+        return report;
+    }
+
+    bool sessionActive()
+    {
+        return state().session.active;
     }
 } // namespace PlaybackStutterProbe

@@ -1,10 +1,12 @@
 #pragma once
 
+#include <QJsonObject>
 #include <QString>
 
 namespace PlaybackStutterProbe
 {
     bool enabled();
+    void setProcessOverrideEnabled(bool enabled);
 
     struct LiveMetrics
     {
@@ -42,4 +44,7 @@ namespace PlaybackStutterProbe
     void markManualJerk(double playbackTimeMs, qint64 frameSeq);
     void forceFlush();
     LiveMetrics latestMetrics();
+    void beginSession(const QString &name, const QJsonObject &metadata = QJsonObject());
+    QJsonObject endSession();
+    bool sessionActive();
 }
