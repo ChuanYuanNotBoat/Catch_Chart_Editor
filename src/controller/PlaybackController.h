@@ -80,7 +80,6 @@ private:
     std::atomic<bool> m_frameInFlight;
     std::atomic<qint64> m_schedulerReadySteadyNs;
     std::atomic<qint64> m_schedulerIntervalNs;
-    std::atomic<qint64> m_schedulerSequence;
     std::atomic<qint64> m_schedulerSkippedFrames;
     std::atomic<qint64> m_pendingPaintFrameSeq;
     QElapsedTimer m_frameClock;

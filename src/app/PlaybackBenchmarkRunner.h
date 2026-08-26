@@ -15,6 +15,7 @@ struct PlaybackBenchmarkOptions
     int frameRate = 120;
     int durationMs = 15000;
     int warmupMs = 3000;
+    int injectedUiStallMs = 0;
     qint64 startMs = -1;
     double speed = 1.0;
 };

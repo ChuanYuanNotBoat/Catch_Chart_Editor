@@ -90,7 +90,6 @@ void DisplayFrameScheduler::run()
 {
     double frameAccumulator = 0.0;
     std::int64_t lastSelectedPulseNs = 0;
-    std::int64_t sequence = 0;
     bool wasActive = false;
 
     while (!m_shutdown.load(std::memory_order_acquire))
@@ -134,8 +133,7 @@ void DisplayFrameScheduler::run()
                                             ? readyNs - lastSelectedPulseNs
                                             : 0;
         lastSelectedPulseNs = readyNs;
-        ++sequence;
         if (m_callback)
-            m_callback(Pulse{readyNs, intervalNs, sequence});
+            m_callback(Pulse{readyNs, intervalNs});
     }
 }

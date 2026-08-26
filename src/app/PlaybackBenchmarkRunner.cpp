@@ -27,7 +27,9 @@
 #include <QWindow>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <thread>
 
 namespace
 {
@@ -35,6 +37,7 @@ namespace
     constexpr auto kFpsOption = "benchmark-fps";
     constexpr auto kDurationOption = "benchmark-duration-ms";
     constexpr auto kWarmupOption = "benchmark-warmup-ms";
+    constexpr auto kInjectUiStallOption = "benchmark-inject-ui-stall-ms";
     constexpr auto kStartOption = "benchmark-start-ms";
     constexpr auto kSpeedOption = "benchmark-speed";
     constexpr auto kOutputOption = "benchmark-output";
@@ -98,6 +101,11 @@ void PlaybackBenchmarkRunner::addCommandLineOptions(QCommandLineParser &parser)
         QStringLiteral("ms"),
         QStringLiteral("3000")));
     parser.addOption(QCommandLineOption(
+        kInjectUiStallOption,
+        QStringLiteral("Inject one UI-thread stall during measurement to self-test hitch detection."),
+        QStringLiteral("ms"),
+        QStringLiteral("0")));
+    parser.addOption(QCommandLineOption(
         kStartOption,
         QStringLiteral("Measurement start on the media timeline. Omit to select the densest chart section."),
         QStringLiteral("ms")));
@@ -147,6 +155,10 @@ bool PlaybackBenchmarkRunner::optionsFromParser(const QCommandLineParser &parser
     if (!parseInteger(parser.value(kWarmupOption), 0, 60000, &value, kWarmupOption, errorMessage))
         return false;
     parsed.warmupMs = static_cast<int>(value);
+    if (!parseInteger(parser.value(kInjectUiStallOption), 0, 2000, &value,
+                      kInjectUiStallOption, errorMessage))
+        return false;
+    parsed.injectedUiStallMs = static_cast<int>(value);
 
     if (parser.isSet(kStartOption))
     {
@@ -329,6 +341,7 @@ void PlaybackBenchmarkRunner::beginMeasurement()
     metadata.insert("display_refresh_hz", screen ? screen->refreshRate() : 0.0);
     metadata.insert("playback_speed", m_options.speed);
     metadata.insert("warmup_ms", m_options.warmupMs);
+    metadata.insert("injected_ui_stall_ms", m_options.injectedUiStallMs);
     metadata.insert("requested_duration_ms", m_options.durationMs);
     metadata.insert("requested_measurement_start_ms", static_cast<double>(m_measurementStartMs));
     metadata.insert("actual_measurement_start_ms", static_cast<double>(m_audioPositionAtMeasurementStart));
@@ -339,6 +352,19 @@ void PlaybackBenchmarkRunner::beginMeasurement()
     QTextStream(stdout) << "BENCHMARK_BEGIN fps=" << m_options.frameRate
                         << " duration_ms=" << m_options.durationMs
                         << " audio_ms=" << m_audioPositionAtMeasurementStart << Qt::endl;
+
+    if (m_options.injectedUiStallMs > 0)
+    {
+        const int selfTestDelayMs = qMax(250, m_options.durationMs / 2);
+        QTimer::singleShot(selfTestDelayMs, this, [this]()
+                           {
+            if (m_finished || !PlaybackStutterProbe::sessionActive())
+                return;
+            QTextStream(stdout) << "BENCHMARK_INJECT_UI_STALL duration_ms="
+                                << m_options.injectedUiStallMs << Qt::endl;
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(m_options.injectedUiStallMs)); });
+    }
 
     connect(m_phaseTimer, &QTimer::timeout, this, &PlaybackBenchmarkRunner::finishMeasurement,
             Qt::SingleShotConnection);
@@ -396,26 +422,33 @@ void PlaybackBenchmarkRunner::finishMeasurement()
 
     const QJsonObject summary = report.value("summary").toObject();
     const bool passed = report.value("verdict").toObject().value("passed").toBool();
-    Logger::info(QStringLiteral("BENCHMARK_END output=%1 passed=%2 fps_tick=%3 fps_canvas=%4 paint_p95_ms=%5 pulse_p95_ms=%6 scroll_velocity_change_p95_pct=%7")
+    Logger::info(QStringLiteral("BENCHMARK_END output=%1 passed=%2 fps_tick=%3 fps_canvas=%4 paint_p95_ms=%5 display_p95_ms=%6 ui_dispatch_p95_ms=%7 skipped_refresh_pct=%8 scroll_velocity_change_p95_pct=%9")
                      .arg(outputPath)
                      .arg(passed ? QStringLiteral("true") : QStringLiteral("false"))
                      .arg(summary.value("fps_tick").toDouble(), 0, 'f', 2)
                      .arg(summary.value("fps_canvas").toDouble(), 0, 'f', 2)
                      .arg(summary.value("paint_time_p95_ms").toDouble(), 0, 'f', 3)
-                     .arg(summary.value("pulse_interval_p95_ms").toDouble(), 0, 'f', 3)
+                     .arg(summary.value("display_interval_p95_ms").toDouble(), 0, 'f', 3)
+                     .arg(summary.value("ui_dispatch_delay_p95_ms").toDouble(), 0, 'f', 3)
+                     .arg(summary.value("skipped_display_refresh_percent").toDouble(), 0, 'f', 3)
                      .arg(summary.value("scroll_velocity_change_p95_percent").toDouble(), 0, 'f', 3));
     QTextStream(stdout) << "BENCHMARK_END output=\"" << outputPath
                         << "\" passed=" << (passed ? "true" : "false")
                         << " fps_tick=" << QString::number(summary.value("fps_tick").toDouble(), 'f', 2)
                         << " fps_canvas=" << QString::number(summary.value("fps_canvas").toDouble(), 'f', 2)
                         << " paint_p95_ms=" << QString::number(summary.value("paint_time_p95_ms").toDouble(), 'f', 3)
+                        << " display_p95_ms=" << QString::number(summary.value("display_interval_p95_ms").toDouble(), 'f', 3)
+                        << " ui_dispatch_p95_ms=" << QString::number(summary.value("ui_dispatch_delay_p95_ms").toDouble(), 'f', 3)
+                        << " skipped_refresh_pct=" << QString::number(summary.value("skipped_display_refresh_percent").toDouble(), 'f', 3)
                         << " scroll_velocity_change_p95_pct="
                         << QString::number(summary.value("scroll_velocity_change_p95_percent").toDouble(), 'f', 3)
                         << Qt::endl;
 
     m_finished = true;
     m_watchdogTimer->stop();
-    emit finished(0);
+    // Make the runner useful in scripts and CI: a completed benchmark whose
+    // automatic verdict failed must not look like a successful process.
+    emit finished(passed ? 0 : 7);
 }
 
 void PlaybackBenchmarkRunner::fail(const QString &message, int exitCode)

@@ -31,7 +31,6 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
       m_frameInFlight(false),
       m_schedulerReadySteadyNs(0),
       m_schedulerIntervalNs(0),
-      m_schedulerSequence(0),
       m_schedulerSkippedFrames(0),
       m_pendingPaintFrameSeq(0),
       m_frameAnchorValid(false),
@@ -60,7 +59,6 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
 
             m_schedulerReadySteadyNs.store(pulse.readySteadyNs, std::memory_order_release);
             m_schedulerIntervalNs.store(pulse.intervalNs, std::memory_order_release);
-            m_schedulerSequence.store(pulse.sequence, std::memory_order_release);
             QMetaObject::invokeMethod(
                 this,
                 [this]() { dispatchScheduledFrame(); },

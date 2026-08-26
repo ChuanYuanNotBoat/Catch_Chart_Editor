@@ -940,6 +940,12 @@ namespace PlaybackStutterProbe
         summary.insert("fps_tick", samplesPerSecond(QStringLiteral("playback.pulse_interval")));
         summary.insert("fps_canvas", samplesPerSecond(QStringLiteral("canvas.paint_total")));
         summary.insert("fps_preview", samplesPerSecond(QStringLiteral("preview.paint_total")));
+        summary.insert("display_interval_p95_ms",
+                       p95(QStringLiteral("frame_scheduler.display_interval")));
+        summary.insert("ui_dispatch_delay_p95_ms",
+                       p95(QStringLiteral("frame_scheduler.ui_dispatch_delay")));
+        summary.insert("ui_dispatch_delay_max_ms",
+                       s.session.durations.value(QStringLiteral("frame_scheduler.ui_dispatch_delay")).maxMs);
         summary.insert("pulse_interval_p95_ms", p95(QStringLiteral("playback.pulse_interval")));
         summary.insert("paint_interval_p95_ms", p95(QStringLiteral("canvas.paint_interval")));
         summary.insert("paint_time_p95_ms", p95(QStringLiteral("canvas.paint_total")));
@@ -957,6 +963,18 @@ namespace PlaybackStutterProbe
                        static_cast<double>(s.session.counters.value(QStringLiteral("monitor.ui_hitch_events"))));
         summary.insert("ui_stall_events",
                        static_cast<double>(s.session.counters.value(QStringLiteral("monitor.ui_stall_events"))));
+        const qint64 displaySamples =
+            sampleCount(QStringLiteral("frame_scheduler.display_interval"));
+        const qint64 skippedDisplayRefreshes =
+            s.session.counters.value(QStringLiteral("frame_scheduler.skipped_display_refreshes"));
+        const qint64 observedDisplayRefreshes = displaySamples + skippedDisplayRefreshes;
+        summary.insert("display_refresh_samples", static_cast<double>(displaySamples));
+        summary.insert("skipped_display_refreshes", static_cast<double>(skippedDisplayRefreshes));
+        summary.insert("skipped_display_refresh_percent",
+                       observedDisplayRefreshes > 0
+                           ? static_cast<double>(skippedDisplayRefreshes) * 100.0 /
+                                 static_cast<double>(observedDisplayRefreshes)
+                           : 0.0);
 
         QJsonObject verdict;
         const double targetFps = s.session.metadata.value(QStringLiteral("effective_fps")).toDouble();
@@ -964,8 +982,17 @@ namespace PlaybackStutterProbe
         {
             const double frameBudgetMs = 1000.0 / targetFps;
             const double canvasFps = summary.value(QStringLiteral("fps_canvas")).toDouble();
-            const double pulseP95Ms = summary.value(QStringLiteral("pulse_interval_p95_ms")).toDouble();
+            const double displayP95Ms =
+                summary.value(QStringLiteral("display_interval_p95_ms")).toDouble();
+            const double uiDispatchP95Ms =
+                summary.value(QStringLiteral("ui_dispatch_delay_p95_ms")).toDouble();
+            const double uiDispatchMaxMs =
+                summary.value(QStringLiteral("ui_dispatch_delay_max_ms")).toDouble();
+            const double paintIntervalP95Ms =
+                summary.value(QStringLiteral("paint_interval_p95_ms")).toDouble();
             const double paintP95Ms = summary.value(QStringLiteral("paint_time_p95_ms")).toDouble();
+            const double skippedDisplayPercent =
+                summary.value(QStringLiteral("skipped_display_refresh_percent")).toDouble();
             const double velocityChangeP95Percent =
                 summary.value(QStringLiteral("scroll_velocity_change_p95_percent")).toDouble();
             const qint64 uiStalls = s.session.counters.value(QStringLiteral("monitor.ui_stall_events"));
@@ -974,7 +1001,14 @@ namespace PlaybackStutterProbe
             const int bpmCount = s.session.metadata.value(QStringLiteral("bpm_count")).toInt(-1);
             const bool motionStabilityApplicable = bpmCount == 1 && velocitySamples >= 30;
             const bool fpsPass = canvasFps >= targetFps * 0.95;
-            const bool cadencePass = pulseP95Ms > 0.0 && pulseP95Ms <= frameBudgetMs * 1.35;
+            const bool displayCadencePass =
+                displayP95Ms > 0.0 && displayP95Ms <= frameBudgetMs * 1.35;
+            const bool uiDispatchPass =
+                uiDispatchP95Ms > 0.0 && uiDispatchP95Ms <= frameBudgetMs * 0.35;
+            const bool uiDispatchHitchPass = uiDispatchMaxMs <= frameBudgetMs;
+            const bool visibleCadencePass =
+                paintIntervalP95Ms > 0.0 && paintIntervalP95Ms <= frameBudgetMs * 1.35;
+            const bool skippedRefreshPass = skippedDisplayPercent <= 0.5;
             const bool paintPass = paintP95Ms > 0.0 && paintP95Ms <= frameBudgetMs;
             const bool stallsPass = uiStalls == 0;
             const bool motionStabilityPass =
@@ -982,7 +1016,11 @@ namespace PlaybackStutterProbe
 
             QJsonObject criteria;
             criteria.insert("canvas_fps_at_least_95_percent", fpsPass);
-            criteria.insert("pulse_p95_within_135_percent_budget", cadencePass);
+            criteria.insert("display_p95_within_135_percent_budget", displayCadencePass);
+            criteria.insert("ui_dispatch_p95_within_35_percent_budget", uiDispatchPass);
+            criteria.insert("ui_dispatch_max_within_frame_budget", uiDispatchHitchPass);
+            criteria.insert("paint_interval_p95_within_135_percent_budget", visibleCadencePass);
+            criteria.insert("skipped_display_refreshes_at_most_0_5_percent", skippedRefreshPass);
             criteria.insert("paint_p95_within_frame_budget", paintPass);
             criteria.insert("no_ui_stalls", stallsPass);
             if (motionStabilityApplicable)
@@ -992,8 +1030,16 @@ namespace PlaybackStutterProbe
             QJsonArray failures;
             if (!fpsPass)
                 failures.append(QStringLiteral("canvas_fps_below_target"));
-            if (!cadencePass)
-                failures.append(QStringLiteral("pulse_cadence_over_budget"));
+            if (!displayCadencePass)
+                failures.append(QStringLiteral("display_cadence_over_budget"));
+            if (!uiDispatchPass)
+                failures.append(QStringLiteral("ui_dispatch_delay_over_budget"));
+            if (!uiDispatchHitchPass)
+                failures.append(QStringLiteral("ui_dispatch_hitch_detected"));
+            if (!visibleCadencePass)
+                failures.append(QStringLiteral("visible_paint_cadence_over_budget"));
+            if (!skippedRefreshPass)
+                failures.append(QStringLiteral("display_refreshes_skipped"));
             if (!paintPass)
                 failures.append(QStringLiteral("paint_time_over_budget"));
             if (!stallsPass)
@@ -1011,7 +1057,7 @@ namespace PlaybackStutterProbe
         }
 
         QJsonObject report;
-        report.insert("schema_version", 2);
+        report.insert("schema_version", 3);
         report.insert("session", s.session.name);
         report.insert("started_at_utc", s.session.startedAtUtc);
         report.insert("finished_at_utc", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));

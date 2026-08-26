@@ -18,7 +18,6 @@ public:
     {
         std::int64_t readySteadyNs = 0;
         std::int64_t intervalNs = 0;
-        std::int64_t sequence = 0;
     };
 
     using Callback = std::function<void(const Pulse &)>;
