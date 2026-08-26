@@ -153,7 +153,6 @@ ChartCanvas::ChartCanvas(QWidget *parent)
     setMouseTracking(true);
     setMinimumSize(800, 400);
     setAttribute(Qt::WA_OpaquePaintEvent, true);
-    setAttribute(Qt::WA_NativeWindow);
 
     m_noteRenderer->setNoteSize(Settings::instance().noteSize());
     m_noteSoundPlayer = new NoteSoundPlayer(this);
