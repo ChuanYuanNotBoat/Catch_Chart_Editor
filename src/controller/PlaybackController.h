@@ -52,11 +52,13 @@ private slots:
     void onFramePulseTimeout();
 
 private:
-    static constexpr int kFramePulseIntervalMs = 16;
+    static constexpr qint64 kNanosecondsPerSecond = 1000000000LL;
     static constexpr double kAudioProgressEpsilonMs = 0.25;
 
     qint64 clampSeekTargetMs(qint64 timeMs) const;
     void applySeekNow(qint64 targetMs, const char *reason);
+    void startFramePulse();
+    void scheduleNextFramePulse(qint64 nowNs);
     double predictedTimeAt(qint64 nowMs) const;
     void resetFrameAnchor(double timeMs, qint64 nowMs);
     void applyObservedTimeToAnchor(double observedMs, qint64 nowMs);
@@ -68,6 +70,8 @@ private:
     bool m_autoPausedAtEnd;
     QTimer *m_framePulseTimer;
     int m_frameRateCap;
+    qint64 m_framePulseIntervalNs;
+    qint64 m_nextFramePulseDeadlineNs;
     QElapsedTimer m_frameClock;
     bool m_frameAnchorValid;
     double m_frameAnchorTimeMs;

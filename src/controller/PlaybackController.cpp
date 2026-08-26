@@ -22,6 +22,8 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
       m_autoPausedAtEnd(false),
       m_framePulseTimer(new QTimer(this)),
       m_frameRateCap(60),
+      m_framePulseIntervalNs(kNanosecondsPerSecond / 60),
+      m_nextFramePulseDeadlineNs(0),
       m_frameAnchorValid(false),
       m_frameAnchorTimeMs(0.0),
       m_frameAnchorWallMs(0),
@@ -33,7 +35,7 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
     connect(m_audioPlayer, &AudioPlayer::positionChanged, this, &PlaybackController::onAudioPositionChanged);
     connect(m_audioPlayer, &AudioPlayer::stateChanged, this, &PlaybackController::onAudioStateChanged);
     connect(m_audioPlayer, &AudioPlayer::errorOccurred, this, &PlaybackController::onAudioError);
-    m_framePulseTimer->setInterval(kFramePulseIntervalMs);
+    m_framePulseTimer->setSingleShot(true);
     m_framePulseTimer->setTimerType(Qt::PreciseTimer);
     connect(m_framePulseTimer, &QTimer::timeout, this, &PlaybackController::onFramePulseTimeout);
     m_frameClock.start();
@@ -76,8 +78,7 @@ void PlaybackController::play()
         // output. Hold the editor clock until the media position really moves.
         m_waitingForAudioProgress = true;
         m_audioProgressStartMs = m_lastFrameTickMs;
-        if (!m_framePulseTimer->isActive())
-            m_framePulseTimer->start();
+        startFramePulse();
         Logger::debug(QString("PlaybackController::play - Playing from position %1ms").arg(m_audioPlayer->position()));
         emit stateChanged(m_state);
     }
@@ -190,13 +191,10 @@ void PlaybackController::setFrameRateCap(int fpsCap)
         break;
     }
 
-    int intervalMs = kFramePulseIntervalMs;
-    if (m_frameRateCap == 120 || m_frameRateCap == 0)
-        intervalMs = 8;
-    else if (m_frameRateCap == 90)
-        intervalMs = 11;
-
-    m_framePulseTimer->setInterval(intervalMs);
+    const int targetFps = (m_frameRateCap <= 0) ? 120 : m_frameRateCap;
+    m_framePulseIntervalNs = kNanosecondsPerSecond / qMax(1, targetFps);
+    if (m_framePulseTimer->isActive())
+        startFramePulse();
 }
 
 int PlaybackController::frameRateCap() const
@@ -327,7 +325,12 @@ void PlaybackController::applySeekNow(qint64 targetMs, const char *reason)
 
 void PlaybackController::onFramePulseTimeout()
 {
-    if (m_state != Playing || m_waitingForAudioProgress)
+    if (m_state != Playing)
+        return;
+
+    const qint64 nowNs = m_frameClock.nsecsElapsed();
+    scheduleNextFramePulse(nowNs);
+    if (m_waitingForAudioProgress)
         return;
 
     const qint64 nowMs = m_frameClock.elapsed();
@@ -342,6 +345,27 @@ void PlaybackController::onFramePulseTimeout()
     m_lastFrameTickMs = predictedMs;
     ++m_frameSeq;
     emit playbackFrameTick(predictedMs, m_frameSeq);
+}
+
+void PlaybackController::startFramePulse()
+{
+    const qint64 nowNs = m_frameClock.nsecsElapsed();
+    m_nextFramePulseDeadlineNs = nowNs + m_framePulseIntervalNs;
+    const int delayMs = qMax(1, static_cast<int>(qRound64(
+                                  static_cast<double>(m_framePulseIntervalNs) / 1000000.0)));
+    m_framePulseTimer->start(delayMs);
+}
+
+void PlaybackController::scheduleNextFramePulse(qint64 nowNs)
+{
+    m_nextFramePulseDeadlineNs += m_framePulseIntervalNs;
+    while (m_nextFramePulseDeadlineNs <= nowNs)
+        m_nextFramePulseDeadlineNs += m_framePulseIntervalNs;
+
+    const qint64 remainingNs = m_nextFramePulseDeadlineNs - nowNs;
+    const int delayMs = qMax(1, static_cast<int>(qRound64(
+                                  static_cast<double>(remainingNs) / 1000000.0)));
+    m_framePulseTimer->start(delayMs);
 }
 
 void PlaybackController::resetFrameAnchor(double timeMs, qint64 nowMs)
