@@ -7,6 +7,7 @@
 #include "audio/AudioPlayer.h"
 
 class DisplayFrameScheduler;
+class QEvent;
 
 class PlaybackController : public QObject
 {
@@ -52,6 +53,10 @@ signals:
     void speedChanged(double speed);
     void beatReached(int beatNum, int num, int den);
     void errorOccurred(const QString &error);
+
+protected:
+    bool event(QEvent *event) override;
+
 private slots:
     void onAudioPositionChanged(qint64 position);
     void onAudioStateChanged(QMediaPlayer::PlaybackState state);

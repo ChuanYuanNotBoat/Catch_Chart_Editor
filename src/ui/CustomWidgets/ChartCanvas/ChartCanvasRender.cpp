@@ -775,6 +775,29 @@ void ChartCanvas::drawGrid(QPainter &painter)
         const int beatNumberFontSize = m_gridCacheBeatNumberFontSize;
         const int beatNumberLeftMargin = m_gridCacheBeatNumberLeftMargin;
 
+        // During playback the grid moves every frame. Blending a full-height
+        // transparent pixmap costs more than drawing the small set of visible
+        // lines directly, and rebuilding that pixmap at each scroll chunk
+        // creates a periodic multi-millisecond spike. Keep the cache for the
+        // stationary editor, but use constant-cost direct rendering in motion.
+        if (m_isPlaying)
+        {
+            m_gridRenderer->drawGrid(painter, rect, m_gridDivision,
+                                     startBeat, endBeat,
+                                     m_timeDivision,
+                                     m_verticalFlip,
+                                     colorEnabled,
+                                     colorPreset,
+                                     colorCustom,
+                                     beatNumberFontSize,
+                                     beatNumberLeftMargin);
+            // Preferences were refreshed above. Leaving the old pixmap
+            // metadata intact makes the first paused frame rebuild it only if
+            // the viewport has actually moved to a different chunk.
+            m_gridCacheValid = true;
+            return;
+        }
+
         const bool needRebuild =
             !m_gridCacheValid ||
             m_gridCacheRect.size() != rect.size() ||

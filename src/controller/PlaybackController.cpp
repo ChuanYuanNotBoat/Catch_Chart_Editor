@@ -6,7 +6,8 @@
 #include "utils/PlaybackStutterProbe.h"
 #include "utils/Settings.h"
 #include "model/Chart.h"
-#include <QMetaObject>
+#include <QCoreApplication>
+#include <QEvent>
 #include <algorithm>
 #include <cmath>
 
@@ -16,6 +17,12 @@ namespace
     constexpr double kClockSlewConvergenceWallMs = 1500.0;
     constexpr double kClockSlewMaxRateFraction = 0.005;
     constexpr double kClockSlewFilterGain = 0.15;
+
+    QEvent::Type scheduledFrameEventType()
+    {
+        static const auto type = static_cast<QEvent::Type>(QEvent::registerEventType());
+        return type;
+    }
 }
 
 PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent)
@@ -59,10 +66,10 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
 
             m_schedulerReadySteadyNs.store(pulse.readySteadyNs, std::memory_order_release);
             m_schedulerIntervalNs.store(pulse.intervalNs, std::memory_order_release);
-            QMetaObject::invokeMethod(
+            QCoreApplication::postEvent(
                 this,
-                [this]() { dispatchScheduledFrame(); },
-                Qt::QueuedConnection);
+                new QEvent(scheduledFrameEventType()),
+                Qt::HighEventPriority);
         });
     setFrameRateCap(Settings::instance().playbackFrameRateCap());
 }
@@ -243,6 +250,16 @@ void PlaybackController::setFrameRateCap(int fpsCap)
     }
 
     updateFrameScheduler();
+}
+
+bool PlaybackController::event(QEvent *event)
+{
+    if (event && event->type() == scheduledFrameEventType())
+    {
+        dispatchScheduledFrame();
+        return true;
+    }
+    return QObject::event(event);
 }
 
 int PlaybackController::frameRateCap() const
