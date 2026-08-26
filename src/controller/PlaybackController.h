@@ -2,9 +2,11 @@
 
 #include <QObject>
 #include <QElapsedTimer>
+#include <atomic>
+#include <memory>
 #include "audio/AudioPlayer.h"
 
-class QTimer;
+class DisplayFrameScheduler;
 
 class PlaybackController : public QObject
 {
@@ -18,6 +20,7 @@ public:
     };
 
     explicit PlaybackController(AudioPlayer *audioPlayer, QObject *parent = nullptr);
+    ~PlaybackController() override;
 
     State state() const;
     AudioPlayer *audioPlayer() const { return m_audioPlayer; }
@@ -37,6 +40,7 @@ public:
     void seekToBeat(int beat, int num, int den);
 
     double currentTime() const;
+    void acknowledgeFramePainted(qint64 frameSeq);
 
     void setNoteSoundEnabled(bool enabled);
     bool autoPausedAtEnd() const;
@@ -52,18 +56,15 @@ private slots:
     void onAudioPositionChanged(qint64 position);
     void onAudioStateChanged(QMediaPlayer::PlaybackState state);
     void onAudioError(const QString &error);
-    void onFramePulseTimeout();
 
 private:
-    static constexpr qint64 kNanosecondsPerSecond = 1000000000LL;
     static constexpr double kAudioProgressEpsilonMs = 0.25;
 
     qint64 clampSeekTargetMs(qint64 timeMs) const;
     void applySeekNow(qint64 targetMs, const char *reason);
-    void startFramePulse();
-    void scheduleNextFramePulse(qint64 nowNs);
-    void updateFramePulseInterval();
-    void emitFramePulse(qint64 nowNs);
+    void updateFrameScheduler();
+    void dispatchScheduledFrame();
+    bool emitFramePulse(qint64 nowNs);
     double predictedTimeAt(qint64 nowNs) const;
     void resetFrameAnchor(double timeMs, qint64 nowNs);
     void applyObservedTimeToAnchor(double observedMs, qint64 nowNs);
@@ -73,11 +74,15 @@ private:
     double m_speed;
     bool m_noteSoundEnabled;
     bool m_autoPausedAtEnd;
-    QTimer *m_framePulseTimer;
+    std::unique_ptr<DisplayFrameScheduler> m_frameScheduler;
     int m_frameRateCap;
     double m_displayRefreshRateHz;
-    qint64 m_framePulseIntervalNs;
-    qint64 m_nextFramePulseDeadlineNs;
+    std::atomic<bool> m_frameInFlight;
+    std::atomic<qint64> m_schedulerReadySteadyNs;
+    std::atomic<qint64> m_schedulerIntervalNs;
+    std::atomic<qint64> m_schedulerSequence;
+    std::atomic<qint64> m_schedulerSkippedFrames;
+    std::atomic<qint64> m_pendingPaintFrameSeq;
     QElapsedTimer m_frameClock;
     bool m_frameAnchorValid;
     double m_frameAnchorTimeMs;

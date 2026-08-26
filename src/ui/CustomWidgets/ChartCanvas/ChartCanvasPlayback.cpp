@@ -606,6 +606,8 @@ void ChartCanvas::resizeEvent(QResizeEvent *event)
 void ChartCanvas::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
+    if (m_playbackController)
+        m_playbackController->acknowledgeFramePainted(m_lastPlaybackFrameSeq);
     attachDisplayFrameWindow();
     if (m_isPlaying)
         requestNextFrame();
@@ -613,6 +615,8 @@ void ChartCanvas::showEvent(QShowEvent *event)
 
 void ChartCanvas::hideEvent(QHideEvent *event)
 {
+    if (m_playbackController)
+        m_playbackController->acknowledgeFramePainted(m_lastPlaybackFrameSeq);
     QWidget::hideEvent(event);
 }
 

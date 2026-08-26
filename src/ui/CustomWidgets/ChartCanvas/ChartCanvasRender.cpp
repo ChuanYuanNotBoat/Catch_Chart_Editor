@@ -34,11 +34,37 @@ PluginManager *activePluginManager()
         return nullptr;
     return app->pluginManager();
 }
+
+class PlaybackPaintAcknowledgement final
+{
+public:
+    PlaybackPaintAcknowledgement(PlaybackController *controller, qint64 frameSeq)
+        : m_controller(controller), m_frameSeq(frameSeq)
+    {
+    }
+
+    ~PlaybackPaintAcknowledgement()
+    {
+        if (m_controller)
+            m_controller->acknowledgeFramePainted(m_frameSeq);
+    }
+
+private:
+    PlaybackController *m_controller;
+    qint64 m_frameSeq;
+};
 }
 
 void ChartCanvas::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
+
+    // Frame scheduling is back-pressured by the main canvas. A scope-bound
+    // acknowledgement covers empty charts and any future early return without
+    // allowing an unrelated paint to release a newer queued frame.
+    PlaybackPaintAcknowledgement frameAcknowledgement(
+        m_playbackController,
+        m_lastPlaybackFrameSeq);
 
     const bool probeFrame = m_isPlaying && PlaybackStutterProbe::enabled();
     const qint64 paintStartNs = probeFrame ? m_playbackVisualClock.nsecsElapsed() : 0;

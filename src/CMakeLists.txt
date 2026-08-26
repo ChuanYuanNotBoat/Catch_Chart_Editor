@@ -35,6 +35,7 @@
     audio/autotiming/util.cpp
     controller/ChartController.cpp
     controller/SelectionController.cpp
+    controller/DisplayFrameScheduler.cpp
     controller/PlaybackController.cpp
     render/NoteRenderer.cpp
     render/BeatDivisionColor.cpp
