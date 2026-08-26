@@ -102,6 +102,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QElapsedTimer>
+#include <QScopedValueRollback>
 #include <QUuid>
 #include <QDirIterator>
 #include <algorithm>
@@ -1414,20 +1415,26 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
     connect(d->chartController, &ChartController::chartChanged, this, [this]()
             {
-        d->isModified = true;
+        const bool userEdit = !d->isLoadingChart;
+        if (userEdit)
+            d->isModified = true;
         d->canvas->update();
-        persistRecoveryState();
-        if (d->undoAction)
-            d->undoAction->setEnabled(true);
-        if (d->redoAction)
-            d->redoAction->setEnabled(true);
+        if (userEdit)
+        {
+            persistRecoveryState();
+            if (d->undoAction)
+                d->undoAction->setEnabled(true);
+            if (d->redoAction)
+                d->redoAction->setEnabled(true);
+        }
         if (d->selectionController) {
             d->selectionController->setNotes(&(d->chartController->chart()->notes()));
             d->selectionController->updateSelectionFromNotes();
         }
 
         // Detect resource file changes (e.g. undo/redo on meta) and reload.
-        if (d->chartController && d->chartController->chart() && d->playbackController && d->playbackController->audioPlayer())
+        if (userEdit && d->chartController && d->chartController->chart() &&
+            d->playbackController && d->playbackController->audioPlayer())
         {
             const MetaData &meta = d->chartController->chart()->meta();
             const QString chartPath = d->workingChartPath.isEmpty()
@@ -3284,7 +3291,13 @@ void MainWindow::loadChartFile(const QString &filePath)
     }
 
     QString loadChartError;
-    if (!loadWorkingChartWithProgress(this, d->chartController, workingChartPath, &loadChartError))
+    bool chartLoaded = false;
+    {
+        QScopedValueRollback<bool> loadingGuard(d->isLoadingChart, true);
+        chartLoaded = loadWorkingChartWithProgress(
+            this, d->chartController, workingChartPath, &loadChartError);
+    }
+    if (!chartLoaded)
     {
         removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
         QMessageBox::critical(this,

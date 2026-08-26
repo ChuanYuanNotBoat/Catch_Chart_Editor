@@ -142,6 +142,7 @@ public:
     QString sourceChartPath;
     QString workingChartPath;
     bool isModified = false;
+    bool isLoadingChart = false;
     bool audioPlaybackReady = false;
 
     // Cached resource paths for detecting changes after undo/redo/plugin edits.
