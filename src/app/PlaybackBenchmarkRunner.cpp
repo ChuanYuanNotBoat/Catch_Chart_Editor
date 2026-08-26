@@ -323,6 +323,7 @@ void PlaybackBenchmarkRunner::beginMeasurement()
     metadata.insert("chart_path", m_options.chartPath);
     metadata.insert("chart_title", chart ? chart->meta().title : QString());
     metadata.insert("note_count", chart ? chart->notes().size() : 0);
+    metadata.insert("bpm_count", chart ? chart->bpmList().size() : 0);
     metadata.insert("fps_cap", m_options.frameRate);
     metadata.insert("effective_fps", controller->effectiveFrameRate());
     metadata.insert("display_refresh_hz", screen ? screen->refreshRate() : 0.0);
@@ -395,18 +396,21 @@ void PlaybackBenchmarkRunner::finishMeasurement()
 
     const QJsonObject summary = report.value("summary").toObject();
     const bool passed = report.value("verdict").toObject().value("passed").toBool();
-    Logger::info(QStringLiteral("BENCHMARK_END output=%1 passed=%2 fps_tick=%3 fps_canvas=%4 paint_p95_ms=%5 pulse_p95_ms=%6")
+    Logger::info(QStringLiteral("BENCHMARK_END output=%1 passed=%2 fps_tick=%3 fps_canvas=%4 paint_p95_ms=%5 pulse_p95_ms=%6 scroll_velocity_change_p95_pct=%7")
                      .arg(outputPath)
                      .arg(passed ? QStringLiteral("true") : QStringLiteral("false"))
                      .arg(summary.value("fps_tick").toDouble(), 0, 'f', 2)
                      .arg(summary.value("fps_canvas").toDouble(), 0, 'f', 2)
                      .arg(summary.value("paint_time_p95_ms").toDouble(), 0, 'f', 3)
-                     .arg(summary.value("pulse_interval_p95_ms").toDouble(), 0, 'f', 3));
+                     .arg(summary.value("pulse_interval_p95_ms").toDouble(), 0, 'f', 3)
+                     .arg(summary.value("scroll_velocity_change_p95_percent").toDouble(), 0, 'f', 3));
     QTextStream(stdout) << "BENCHMARK_END output=\"" << outputPath
                         << "\" passed=" << (passed ? "true" : "false")
                         << " fps_tick=" << QString::number(summary.value("fps_tick").toDouble(), 'f', 2)
                         << " fps_canvas=" << QString::number(summary.value("fps_canvas").toDouble(), 'f', 2)
                         << " paint_p95_ms=" << QString::number(summary.value("paint_time_p95_ms").toDouble(), 'f', 3)
+                        << " scroll_velocity_change_p95_pct="
+                        << QString::number(summary.value("scroll_velocity_change_p95_percent").toDouble(), 'f', 3)
                         << Qt::endl;
 
     m_finished = true;

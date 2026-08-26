@@ -330,12 +330,19 @@ void ChartCanvas::onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq)
         if (m_lastPlaybackPredictedTimeMs >= 0.0)
         {
             const double stepMs = qMax(0.0, predictedTimeMs - m_lastPlaybackPredictedTimeMs);
-            PlaybackStutterProbe::recordDuration("playback.time_step_ms", stepMs, 20.0, true);
+            const double expectedMediaStepMs =
+                1000.0 / qMax(1.0, m_playbackController->effectiveFrameRate()) *
+                m_playbackController->speed();
+            const double stepBudgetMs = qMax(0.05, expectedMediaStepMs * 1.35);
+            const double stepJerkBudgetMs = qMax(0.05, expectedMediaStepMs * 0.20);
+            PlaybackStutterProbe::recordDuration(
+                "playback.time_step_ms", stepMs, stepBudgetMs, true);
             if (m_lastPlaybackStepMs >= 0.0)
             {
                 const double stepJerkMs = std::abs(stepMs - m_lastPlaybackStepMs);
-                PlaybackStutterProbe::recordDuration("playback.time_step_jerk", stepJerkMs, 4.0, true);
-                if (stepJerkMs > 8.0)
+                PlaybackStutterProbe::recordDuration(
+                    "playback.time_step_jerk", stepJerkMs, stepJerkBudgetMs, true);
+                if (stepJerkMs > expectedMediaStepMs * 0.5)
                     PlaybackStutterProbe::recordCounter("playback.time_step_jank_events", 1, true);
             }
             m_lastPlaybackStepMs = stepMs;
@@ -347,12 +354,10 @@ void ChartCanvas::onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq)
 
     m_lastPlaybackPredictedTimeMs = predictedTimeMs;
     m_lastPlaybackFrameSeq = frameSeq;
-    m_lastPlaybackTickNs = m_playbackVisualClock.nsecsElapsed();
     m_lastPlaybackTargetTimeMs = qMax(0.0, predictedTimeMs);
     m_currentPlayTime = m_lastPlaybackTargetTimeMs;
     if (probeEnabled)
         PlaybackStutterProbe::markUiHeartbeat(true);
-    m_playbackVisualFramePending = false;
     advancePlaybackVisual(true, lightProbeSample);
 
     if (!probeEnabled)

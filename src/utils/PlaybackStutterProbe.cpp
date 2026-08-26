@@ -19,7 +19,6 @@
 namespace
 {
     constexpr qint64 kWindowMs = 3000;
-    constexpr qint64 kLiveRefreshIntervalMs = 120;
     constexpr qint64 kMonitorPollMs = 5;
     constexpr qint64 kUiHitchThresholdMs = 22;
     constexpr qint64 kUiStallThresholdMs = 34;
@@ -46,6 +45,7 @@ namespace
         qint64 startSteadyMs = 0;
         QJsonObject metadata;
         QHash<QString, DurationBucket> durations;
+        QHash<QString, DurationBucket> values;
         QHash<QString, qint64> counters;
     };
 
@@ -60,10 +60,10 @@ namespace
         qint64 windowStartMs = 0;
         bool lastPlaybackState = false;
         QHash<QString, DurationBucket> durations;
+        QHash<QString, DurationBucket> values;
         QHash<QString, qint64> counters;
         QHash<QString, QVector<TimedSample>> recentDurations;
         PlaybackStutterProbe::LiveMetrics live;
-        qint64 lastLiveRefreshMs = 0;
         SessionState session;
     };
 
@@ -220,6 +220,7 @@ namespace
     {
         s.windowStartMs = tsMs;
         s.durations.clear();
+        s.values.clear();
         s.counters.clear();
     }
 
@@ -229,7 +230,6 @@ namespace
         s.lastPlaybackState = false;
         s.recentDurations.clear();
         s.live = PlaybackStutterProbe::LiveMetrics{};
-        s.lastLiveRefreshMs = 0;
         s.session = SessionState{};
     }
 
@@ -310,7 +310,7 @@ namespace
         bucket.maxMs = qMax(bucket.maxMs, elapsedMs);
         bucket.minMs = qMin(bucket.minMs, elapsedMs);
         bucket.budgetMs = budgetMs;
-        if (elapsedMs > budgetMs)
+        if (budgetMs >= 0.0 && elapsedMs > budgetMs)
             bucket.overBudgetCount += 1;
         bucket.samples.append(elapsedMs);
     }
@@ -336,6 +336,33 @@ namespace
         result.insert("over_budget_percent",
                       static_cast<double>(bucket.overBudgetCount) * 100.0 /
                           static_cast<double>(bucket.count));
+        return result;
+    }
+
+    QJsonObject valueBucketJson(DurationBucket bucket)
+    {
+        QJsonObject result;
+        if (bucket.count <= 0)
+            return result;
+
+        std::sort(bucket.samples.begin(), bucket.samples.end());
+        result.insert("count", bucket.count);
+        result.insert("average", bucket.totalMs / static_cast<double>(bucket.count));
+        result.insert("minimum",
+                      bucket.minMs == std::numeric_limits<double>::max() ? 0.0 : bucket.minMs);
+        result.insert("p50", percentile(bucket.samples, 0.50));
+        result.insert("p95", percentile(bucket.samples, 0.95));
+        result.insert("p99", percentile(bucket.samples, 0.99));
+        result.insert("maximum", bucket.maxMs);
+        result.insert("standard_deviation", bucketStdDev(bucket));
+        if (bucket.budgetMs >= 0.0)
+        {
+            result.insert("budget", bucket.budgetMs);
+            result.insert("over_budget_count", bucket.overBudgetCount);
+            result.insert("over_budget_percent",
+                          static_cast<double>(bucket.overBudgetCount) * 100.0 /
+                              static_cast<double>(bucket.count));
+        }
         return result;
     }
 
@@ -395,6 +422,7 @@ namespace
         double uiGapP95Ms = 0.0;
         double visualScrollStepP95Px = 0.0;
         double visualScrollJerkP95Px = 0.0;
+        double visualScrollVelocityChangeP95Pct = 0.0;
         double visualPlayheadDriftP95Px = 0.0;
         double visualPlayheadStepJerkP95Px = 0.0;
         double jitterSlowPct = 0.0;
@@ -444,6 +472,7 @@ namespace
         const auto uiGapIt = s.durations.constFind("monitor.ui_heartbeat_gap");
         const auto visualScrollStepIt = s.durations.constFind("visual.scroll_step_px");
         const auto visualScrollJerkIt = s.durations.constFind("visual.scroll_step_jerk_px");
+        const auto visualScrollVelocityChangeIt = s.values.constFind("visual.scroll_velocity_change_pct");
         const auto visualPlayheadDriftIt = s.durations.constFind("visual.playhead_drift_px");
         const auto visualPlayheadStepJerkIt = s.durations.constFind("visual.playhead_step_jerk_px");
         const auto canvasIt = s.durations.constFind("canvas.paint_total");
@@ -465,6 +494,10 @@ namespace
         out.uiGapP95Ms = (uiGapIt != s.durations.constEnd()) ? bucketP95(uiGapIt.value()) : 0.0;
         out.visualScrollStepP95Px = (visualScrollStepIt != s.durations.constEnd()) ? bucketP95(visualScrollStepIt.value()) : 0.0;
         out.visualScrollJerkP95Px = (visualScrollJerkIt != s.durations.constEnd()) ? bucketP95(visualScrollJerkIt.value()) : 0.0;
+        out.visualScrollVelocityChangeP95Pct =
+            (visualScrollVelocityChangeIt != s.values.constEnd())
+                ? bucketP95(visualScrollVelocityChangeIt.value())
+                : 0.0;
         out.visualPlayheadDriftP95Px = (visualPlayheadDriftIt != s.durations.constEnd()) ? bucketP95(visualPlayheadDriftIt.value()) : 0.0;
         out.visualPlayheadStepJerkP95Px = (visualPlayheadStepJerkIt != s.durations.constEnd()) ? bucketP95(visualPlayheadStepJerkIt.value()) : 0.0;
         out.jitterSlowPct = (tickIt != s.durations.constEnd()) ? bucketSlowRatio(tickIt.value()) : 0.0;
@@ -498,6 +531,7 @@ namespace
         s.live.uiGapP95Ms = m.uiGapP95Ms;
         s.live.visualScrollStepP95Px = m.visualScrollStepP95Px;
         s.live.visualScrollJerkP95Px = m.visualScrollJerkP95Px;
+        s.live.visualScrollVelocityChangeP95Pct = m.visualScrollVelocityChangeP95Pct;
         s.live.visualPlayheadDriftP95Px = m.visualPlayheadDriftP95Px;
         s.live.visualPlayheadStepJerkP95Px = m.visualPlayheadStepJerkP95Px;
         s.live.jitterSlowPct = m.jitterSlowPct;
@@ -511,7 +545,6 @@ namespace
         s.live.uiStallEvents = m.uiStallEvents;
         s.live.topHotspot = m.topList.isEmpty() ? QString() : m.topList.first();
         s.live.lastUpdateMs = nowMs();
-        s.lastLiveRefreshMs = s.live.lastUpdateMs;
     }
 
     void recordIndependentMonitorSamples(bool playing)
@@ -536,6 +569,12 @@ namespace
     void flushIfNeeded(bool force)
     {
         ProbeState &s = state();
+        // Benchmark sessions need raw samples, not live percentile sorting.
+        // Sorting growing vectors on the UI thread every few frames makes the
+        // profiler manufacture the pulse delays it is intended to measure.
+        if (s.session.active && !force)
+            return;
+
         const qint64 tsMs = nowMs();
         if (s.windowStartMs == 0)
             s.windowStartMs = tsMs;
@@ -544,7 +583,7 @@ namespace
         if (!force && elapsedMs < kWindowMs)
             return;
 
-        if (s.durations.isEmpty() && s.counters.isEmpty())
+        if (s.durations.isEmpty() && s.values.isEmpty() && s.counters.isEmpty())
         {
             resetWindow(s, tsMs);
             return;
@@ -553,7 +592,7 @@ namespace
         const DerivedWindowMetrics metrics = deriveWindowMetrics(s, elapsedMs);
         refreshLiveMetrics(s, elapsedMs);
 
-        Logger::info(QString("PERF_PLAYBACK window_ms=%1 fps_tick=%2 fps_canvas=%3 fps_preview=%4 jitter_p95_ms=%5 pacing_std_ms=%6 pacing_jerk_p95_ms=%7 step_jerk_p95_ms=%8 ui_gap_p95_ms=%9 jank_events=%10 step_jank_events=%11 manual_jerk_marks=%12 ui_hitch_events=%13 ui_stall_events=%14 jitter_slow_pct=%15 canvas_slow_pct=%16 top=[%17] counters=[%18]")
+        Logger::info(QString("PERF_PLAYBACK window_ms=%1 fps_tick=%2 fps_canvas=%3 fps_preview=%4 jitter_p95_ms=%5 pacing_std_ms=%6 pacing_jerk_p95_ms=%7 step_jerk_p95_ms=%8 ui_gap_p95_ms=%9 scroll_velocity_change_p95_pct=%10 jank_events=%11 step_jank_events=%12 manual_jerk_marks=%13 ui_hitch_events=%14 ui_stall_events=%15 jitter_slow_pct=%16 canvas_slow_pct=%17 top=[%18] counters=[%19]")
                          .arg(elapsedMs)
                          .arg(metrics.fpsTick, 0, 'f', 1)
                          .arg(metrics.fpsCanvas, 0, 'f', 1)
@@ -563,6 +602,7 @@ namespace
                          .arg(metrics.pacingJerkP95Ms, 0, 'f', 2)
                          .arg(metrics.stepJerkP95Ms, 0, 'f', 2)
                          .arg(metrics.uiGapP95Ms, 0, 'f', 2)
+                         .arg(metrics.visualScrollVelocityChangeP95Pct, 0, 'f', 3)
                          .arg(metrics.jankEvents)
                          .arg(metrics.stepJankEvents)
                          .arg(metrics.manualJerkMarks)
@@ -585,6 +625,8 @@ namespace
             context.insert("pacing_jerk_p95_ms", QString::number(metrics.pacingJerkP95Ms, 'f', 2));
             context.insert("step_jerk_p95_ms", QString::number(metrics.stepJerkP95Ms, 'f', 2));
             context.insert("ui_gap_p95_ms", QString::number(metrics.uiGapP95Ms, 'f', 2));
+            context.insert("scroll_velocity_change_p95_pct",
+                           QString::number(metrics.visualScrollVelocityChangeP95Pct, 'f', 3));
             context.insert("jank_events", QString::number(metrics.jankEvents));
             context.insert("step_jank_events", QString::number(metrics.stepJankEvents));
             context.insert("manual_jerk_marks", QString::number(metrics.manualJerkMarks));
@@ -632,21 +674,50 @@ namespace PlaybackStutterProbe
             return;
 
         ProbeState &s = state();
+        if (s.session.active)
+        {
+            addDurationSample(s.session.durations[key], elapsedMs, budgetMs);
+            return;
+        }
+
         const qint64 tsMs = nowMs();
         if (s.windowStartMs == 0)
             s.windowStartMs = tsMs;
 
         addDurationSample(s.durations[key], elapsedMs, budgetMs);
-        if (s.session.active)
-            addDurationSample(s.session.durations[key], elapsedMs, budgetMs);
 
         QVector<TimedSample> &recent = s.recentDurations[key];
         recent.append(TimedSample{tsMs, elapsedMs});
         pruneRecentSamples(&recent, tsMs - kRecentSampleKeepMs);
 
-        const qint64 elapsedWindowMs = tsMs - s.windowStartMs;
-        if (s.lastLiveRefreshMs == 0 || tsMs - s.lastLiveRefreshMs >= kLiveRefreshIntervalMs)
-            refreshLiveMetrics(s, elapsedWindowMs);
+        flushIfNeeded(false);
+    }
+
+    void recordValue(const QString &key, double value, double budget, bool playing)
+    {
+        if (!enabled())
+        {
+            ProbeState &s = state();
+            clearState(s);
+            monitor().playing.store(false);
+            return;
+        }
+        if (!playing || !std::isfinite(value) || value < 0.0)
+            return;
+
+        ProbeState &s = state();
+        if (s.session.active)
+        {
+            addDurationSample(s.session.values[key], value, budget);
+            return;
+        }
+
+        const qint64 tsMs = nowMs();
+        if (s.windowStartMs == 0)
+            s.windowStartMs = tsMs;
+
+        addDurationSample(s.values[key], value, budget);
+
         flushIfNeeded(false);
     }
 
@@ -663,16 +734,16 @@ namespace PlaybackStutterProbe
             return;
 
         ProbeState &s = state();
+        if (s.session.active)
+        {
+            s.session.counters[key] += delta;
+            return;
+        }
+
         if (s.windowStartMs == 0)
             s.windowStartMs = nowMs();
 
         s.counters[key] += delta;
-        if (s.session.active)
-            s.session.counters[key] += delta;
-        const qint64 tsMs = nowMs();
-        const qint64 elapsedWindowMs = tsMs - s.windowStartMs;
-        if (s.lastLiveRefreshMs == 0 || tsMs - s.lastLiveRefreshMs >= kLiveRefreshIntervalMs)
-            refreshLiveMetrics(s, elapsedWindowMs);
         flushIfNeeded(false);
     }
 
@@ -792,12 +863,23 @@ namespace PlaybackStutterProbe
     void beginSession(const QString &name, const QJsonObject &metadata)
     {
         ProbeState &s = state();
+        resetWindow(s, nowMs());
+        s.recentDurations.clear();
         s.session = SessionState{};
         s.session.active = true;
         s.session.name = name.trimmed().isEmpty() ? QStringLiteral("playback") : name.trimmed();
         s.session.startedAtUtc = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
         s.session.startSteadyMs = steadyNowMs();
         s.session.metadata = metadata;
+
+        // A benchmark session begins after warmup. Do not attribute monitor
+        // gaps accumulated during chart/audio startup to the measured window.
+        IndependentMonitor &m = monitor();
+        m.peakUiGapMs.store(0);
+        m.hitchEventsPending.store(0);
+        m.stallEventsPending.store(0);
+        m.lastUiHeartbeatSteadyMs.store(steadyNowMs());
+        m.generation.fetch_add(1);
     }
 
     QJsonObject endSession()
@@ -812,6 +894,12 @@ namespace PlaybackStutterProbe
         std::sort(durationKeys.begin(), durationKeys.end());
         for (const QString &key : durationKeys)
             durationResults.insert(key, durationBucketJson(s.session.durations.value(key)));
+
+        QJsonObject valueResults;
+        QStringList valueKeys = s.session.values.keys();
+        std::sort(valueKeys.begin(), valueKeys.end());
+        for (const QString &key : valueKeys)
+            valueResults.insert(key, valueBucketJson(s.session.values.value(key)));
 
         QJsonObject counterResults;
         QStringList counterKeys = s.session.counters.keys();
@@ -833,6 +921,20 @@ namespace PlaybackStutterProbe
             const auto it = s.session.durations.constFind(key);
             return it == s.session.durations.constEnd() ? 0.0 : bucketP95(it.value());
         };
+        const auto valueSampleCount = [&s](const QString &key) -> qint64
+        {
+            const auto it = s.session.values.constFind(key);
+            return it == s.session.values.constEnd() ? 0 : it->count;
+        };
+        const auto valuePercentile = [&s](const QString &key, double percentileValue) -> double
+        {
+            const auto it = s.session.values.constFind(key);
+            if (it == s.session.values.constEnd() || it->samples.isEmpty())
+                return 0.0;
+            DurationBucket bucket = it.value();
+            std::sort(bucket.samples.begin(), bucket.samples.end());
+            return percentile(bucket.samples, percentileValue);
+        };
 
         QJsonObject summary;
         summary.insert("fps_tick", samplesPerSecond(QStringLiteral("playback.pulse_interval")));
@@ -842,6 +944,11 @@ namespace PlaybackStutterProbe
         summary.insert("paint_interval_p95_ms", p95(QStringLiteral("canvas.paint_interval")));
         summary.insert("paint_time_p95_ms", p95(QStringLiteral("canvas.paint_total")));
         summary.insert("ui_gap_p95_ms", p95(QStringLiteral("monitor.ui_heartbeat_gap")));
+        summary.insert("time_step_jerk_p95_ms", p95(QStringLiteral("playback.time_step_jerk")));
+        summary.insert("scroll_velocity_change_p95_percent",
+                       valuePercentile(QStringLiteral("visual.scroll_velocity_change_pct"), 0.95));
+        summary.insert("scroll_velocity_change_p99_percent",
+                       valuePercentile(QStringLiteral("visual.scroll_velocity_change_pct"), 0.99));
         summary.insert("pulse_over_budget_count",
                        static_cast<double>(s.session.durations.value(QStringLiteral("playback.pulse_interval")).overBudgetCount));
         summary.insert("paint_over_budget_count",
@@ -859,17 +966,28 @@ namespace PlaybackStutterProbe
             const double canvasFps = summary.value(QStringLiteral("fps_canvas")).toDouble();
             const double pulseP95Ms = summary.value(QStringLiteral("pulse_interval_p95_ms")).toDouble();
             const double paintP95Ms = summary.value(QStringLiteral("paint_time_p95_ms")).toDouble();
+            const double velocityChangeP95Percent =
+                summary.value(QStringLiteral("scroll_velocity_change_p95_percent")).toDouble();
             const qint64 uiStalls = s.session.counters.value(QStringLiteral("monitor.ui_stall_events"));
+            const qint64 velocitySamples =
+                valueSampleCount(QStringLiteral("visual.scroll_velocity_change_pct"));
+            const int bpmCount = s.session.metadata.value(QStringLiteral("bpm_count")).toInt(-1);
+            const bool motionStabilityApplicable = bpmCount == 1 && velocitySamples >= 30;
             const bool fpsPass = canvasFps >= targetFps * 0.95;
             const bool cadencePass = pulseP95Ms > 0.0 && pulseP95Ms <= frameBudgetMs * 1.35;
             const bool paintPass = paintP95Ms > 0.0 && paintP95Ms <= frameBudgetMs;
             const bool stallsPass = uiStalls == 0;
+            const bool motionStabilityPass =
+                !motionStabilityApplicable || velocityChangeP95Percent <= 1.0;
 
             QJsonObject criteria;
             criteria.insert("canvas_fps_at_least_95_percent", fpsPass);
             criteria.insert("pulse_p95_within_135_percent_budget", cadencePass);
             criteria.insert("paint_p95_within_frame_budget", paintPass);
             criteria.insert("no_ui_stalls", stallsPass);
+            if (motionStabilityApplicable)
+                criteria.insert("scroll_velocity_change_p95_at_most_1_percent",
+                                motionStabilityPass);
 
             QJsonArray failures;
             if (!fpsPass)
@@ -880,17 +998,20 @@ namespace PlaybackStutterProbe
                 failures.append(QStringLiteral("paint_time_over_budget"));
             if (!stallsPass)
                 failures.append(QStringLiteral("ui_stalls_detected"));
+            if (!motionStabilityPass)
+                failures.append(QStringLiteral("scroll_velocity_unstable"));
 
             verdict.insert("passed", failures.isEmpty());
             verdict.insert("target_fps", targetFps);
             verdict.insert("frame_budget_ms", frameBudgetMs);
             verdict.insert("fps_achievement_percent", canvasFps * 100.0 / targetFps);
+            verdict.insert("motion_stability_applicable", motionStabilityApplicable);
             verdict.insert("criteria", criteria);
             verdict.insert("failures", failures);
         }
 
         QJsonObject report;
-        report.insert("schema_version", 1);
+        report.insert("schema_version", 2);
         report.insert("session", s.session.name);
         report.insert("started_at_utc", s.session.startedAtUtc);
         report.insert("finished_at_utc", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
@@ -899,6 +1020,7 @@ namespace PlaybackStutterProbe
         report.insert("summary", summary);
         report.insert("verdict", verdict);
         report.insert("durations", durationResults);
+        report.insert("measurements", valueResults);
         report.insert("counters", counterResults);
 
         s.session.active = false;

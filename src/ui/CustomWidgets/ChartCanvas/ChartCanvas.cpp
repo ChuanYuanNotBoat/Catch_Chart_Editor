@@ -139,11 +139,11 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_lastPlaybackScrollStepPx(-1.0),
       m_lastPlaybackPlayheadYPx(-1.0),
       m_lastPlaybackPlayheadStepPx(-1.0),
-      m_playbackVisualFramePending(false),
-      m_lastPlaybackTickNs(0),
-      m_lastPlaybackVisualAdvanceNs(0),
       m_lastPaintProbeNs(0),
       m_lastPaintIntervalMs(-1.0),
+      m_paintMotionProbeValid(false),
+      m_lastPaintScrollBeat(0.0),
+      m_lastPaintScrollVelocityPxPerSecond(-1.0),
       m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying),
       m_overlayQueryTimer(new QTimer(this)),
       m_overlayQueryScheduled(false),
@@ -511,11 +511,11 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 m_lastPlaybackScrollStepPx = -1.0;
                 m_lastPlaybackPlayheadYPx = -1.0;
                 m_lastPlaybackPlayheadStepPx = -1.0;
-                m_playbackVisualFramePending = false;
-                m_lastPlaybackTickNs = 0;
-                m_lastPlaybackVisualAdvanceNs = 0;
                 m_lastPaintProbeNs = 0;
                 m_lastPaintIntervalMs = -1.0;
+                m_paintMotionProbeValid = false;
+                m_lastPaintScrollBeat = 0.0;
+                m_lastPaintScrollVelocityPxPerSecond = -1.0;
                 const double startMs = m_playbackController ? m_playbackController->currentTime() : m_currentPlayTime;
                 m_currentPlayTime = qMax(0.0, startMs);
                 m_lastNoteSoundTimeMs = m_currentPlayTime;
@@ -533,11 +533,11 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 m_lastPlaybackScrollStepPx = -1.0;
                 m_lastPlaybackPlayheadYPx = -1.0;
                 m_lastPlaybackPlayheadStepPx = -1.0;
-                m_playbackVisualFramePending = false;
-                m_lastPlaybackTickNs = 0;
-                m_lastPlaybackVisualAdvanceNs = 0;
                 m_lastPaintProbeNs = 0;
                 m_lastPaintIntervalMs = -1.0;
+                m_paintMotionProbeValid = false;
+                m_lastPaintScrollBeat = 0.0;
+                m_lastPaintScrollVelocityPxPerSecond = -1.0;
                 m_lastNoteSoundTimeMs = m_currentPlayTime;
                 snapPlayheadToGrid();
                 update();

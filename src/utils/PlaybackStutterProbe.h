@@ -22,6 +22,7 @@ namespace PlaybackStutterProbe
         double uiGapP95Ms = 0.0;
         double visualScrollStepP95Px = 0.0;
         double visualScrollJerkP95Px = 0.0;
+        double visualScrollVelocityChangeP95Pct = 0.0;
         double visualPlayheadDriftP95Px = 0.0;
         double visualPlayheadStepJerkP95Px = 0.0;
         double jitterSlowPct = 0.0;
@@ -38,6 +39,7 @@ namespace PlaybackStutterProbe
     };
 
     void recordDuration(const QString &key, double elapsedMs, double budgetMs, bool playing);
+    void recordValue(const QString &key, double value, double budget, bool playing);
     void recordCounter(const QString &key, qint64 delta, bool playing);
     void markPlaybackState(bool playing);
     void markUiHeartbeat(bool playing);

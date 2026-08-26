@@ -42,23 +42,24 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     const bool probeFrame = m_isPlaying && PlaybackStutterProbe::enabled();
     const qint64 paintStartNs = probeFrame ? m_playbackVisualClock.nsecsElapsed() : 0;
+    double paintIntervalMs = -1.0;
     if (probeFrame)
     {
         if (m_lastPaintProbeNs > 0 && paintStartNs > m_lastPaintProbeNs)
         {
-            const double intervalMs = static_cast<double>(paintStartNs - m_lastPaintProbeNs) / 1000000.0;
+            paintIntervalMs = static_cast<double>(paintStartNs - m_lastPaintProbeNs) / 1000000.0;
             const double targetIntervalMs = 1000.0 / qMax(1.0, m_playbackController->effectiveFrameRate());
             PlaybackStutterProbe::recordDuration(
-                "canvas.paint_interval", intervalMs, targetIntervalMs * 1.35, true);
+                "canvas.paint_interval", paintIntervalMs, targetIntervalMs * 1.35, true);
             if (m_lastPaintIntervalMs >= 0.0)
             {
                 PlaybackStutterProbe::recordDuration(
                     "canvas.paint_interval_jerk",
-                    std::abs(intervalMs - m_lastPaintIntervalMs),
+                    std::abs(paintIntervalMs - m_lastPaintIntervalMs),
                     2.0,
                     true);
             }
-            m_lastPaintIntervalMs = intervalMs;
+            m_lastPaintIntervalMs = paintIntervalMs;
         }
         m_lastPaintProbeNs = paintStartNs;
     }
@@ -89,17 +90,70 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     if (m_timesDirty || m_noteDataDirty)
         rebuildNoteTimesCache();
 
-    if (m_isPlaying && m_playbackController && m_lastPlaybackTargetTimeMs >= 0.0)
+    if (m_isPlaying && m_playbackController)
     {
-        const qint64 nowNs = m_playbackVisualClock.nsecsElapsed();
-        double visualTimeMs = m_lastPlaybackTargetTimeMs;
-        if (m_lastPlaybackTickNs > 0 && nowNs > m_lastPlaybackTickNs)
-        {
-            const double dtMs = static_cast<double>(nowNs - m_lastPlaybackTickNs) / 1000000.0;
-            visualTimeMs += dtMs * m_playbackController->speed();
-        }
+        // Render from the controller's authoritative high-resolution clock.
+        // Re-anchoring a second canvas-local clock on every frame tick turns
+        // signal-handler latency into a small position jump once per tick.
+        // The tick should schedule the paint; it should not be a second clock.
+        double visualTimeMs = m_playbackController->currentTime();
+        if (m_lastPlaybackTargetTimeMs >= 0.0)
+            visualTimeMs = qMax(visualTimeMs, m_lastPlaybackTargetTimeMs);
         m_currentPlayTime = qMax(0.0, visualTimeMs);
         advancePlaybackVisual(false, false);
+    }
+
+    // Measure motion at the point actually painted. Tick-to-tick displacement
+    // is not a speed metric: a correctly paced 8/9 ms timer cadence naturally
+    // produces different per-frame steps at 120 Hz. Normalizing the scroll
+    // delta by the real paint interval isolates visible speed changes instead.
+    if (probeFrame && m_autoScrollEnabled && paintIntervalMs > 0.0)
+    {
+        const double visibleRange = qMax(1e-6, effectiveVisibleBeatRange());
+        const double pixelsPerBeat = height() > 0
+                                         ? static_cast<double>(height()) / visibleRange
+                                         : 0.0;
+        if (m_paintMotionProbeValid)
+        {
+            const double velocityPxPerSecond =
+                std::abs(m_scrollBeat - m_lastPaintScrollBeat) *
+                pixelsPerBeat * 1000.0 / paintIntervalMs;
+            PlaybackStutterProbe::recordValue(
+                "visual.scroll_velocity_px_s",
+                velocityPxPerSecond,
+                -1.0,
+                true);
+
+            if (m_lastPaintScrollVelocityPxPerSecond >= 0.0)
+            {
+                const double velocityDeltaPxPerSecond =
+                    std::abs(velocityPxPerSecond - m_lastPaintScrollVelocityPxPerSecond);
+                const double velocityReferencePxPerSecond =
+                    qMax(1.0,
+                         0.5 * (velocityPxPerSecond +
+                                m_lastPaintScrollVelocityPxPerSecond));
+                const double velocityChangePercent =
+                    velocityDeltaPxPerSecond * 100.0 / velocityReferencePxPerSecond;
+                PlaybackStutterProbe::recordValue(
+                    "visual.scroll_velocity_delta_px_s",
+                    velocityDeltaPxPerSecond,
+                    -1.0,
+                    true);
+                PlaybackStutterProbe::recordValue(
+                    "visual.scroll_velocity_change_pct",
+                    velocityChangePercent,
+                    1.0,
+                    true);
+            }
+            m_lastPaintScrollVelocityPxPerSecond = velocityPxPerSecond;
+        }
+        m_lastPaintScrollBeat = m_scrollBeat;
+        m_paintMotionProbeValid = true;
+    }
+    else if (probeFrame)
+    {
+        m_paintMotionProbeValid = false;
+        m_lastPaintScrollVelocityPxPerSecond = -1.0;
     }
     const qint64 preparationEndNs = paintMarkNs();
 
