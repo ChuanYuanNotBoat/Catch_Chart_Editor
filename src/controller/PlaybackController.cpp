@@ -26,8 +26,6 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
       m_displayRefreshRateHz(60.0),
       m_framePulseIntervalNs(kNanosecondsPerSecond / 60),
       m_nextFramePulseDeadlineNs(0),
-      m_externalFramePulseEnabled(false),
-      m_externalFrameAccumulator(0.0),
       m_frameAnchorValid(false),
       m_frameAnchorTimeMs(0.0),
       m_frameAnchorWallMs(0),
@@ -207,7 +205,6 @@ void PlaybackController::setFrameRateCap(int fpsCap)
     }
 
     updateFramePulseInterval();
-    resetExternalFrameAccumulator();
     if (m_framePulseTimer->isActive())
         startFramePulse();
 }
@@ -234,7 +231,6 @@ void PlaybackController::setDisplayRefreshRate(double refreshRateHz)
 
     m_displayRefreshRateHz = refreshRateHz;
     updateFramePulseInterval();
-    resetExternalFrameAccumulator();
     if (m_framePulseTimer->isActive())
         startFramePulse();
 }
@@ -249,44 +245,6 @@ double PlaybackController::effectiveFrameRate() const
     return (m_frameRateCap <= 0)
                ? m_displayRefreshRateHz
                : static_cast<double>(m_frameRateCap);
-}
-
-void PlaybackController::setExternalFramePulseEnabled(bool enabled)
-{
-    if (m_externalFramePulseEnabled == enabled)
-        return;
-
-    m_externalFramePulseEnabled = enabled;
-    resetExternalFrameAccumulator();
-    if (enabled)
-    {
-        m_framePulseTimer->stop();
-    }
-    else if (m_state == Playing)
-    {
-        startFramePulse();
-    }
-}
-
-void PlaybackController::advanceExternalFramePulse()
-{
-    if (!m_externalFramePulseEnabled || m_state != Playing)
-        return;
-
-    const double targetFps = effectiveFrameRate();
-    const double displayFps = qMax(1.0, m_displayRefreshRateHz);
-    // Treat near-equal nominal rates (for example 60 vs 59.94/60.75 Hz) as
-    // one pulse per refresh. Downsampling them creates a periodic skipped
-    // frame even though the requested cap and the display mode are equivalent.
-    if (targetFps < displayFps * 0.98)
-    {
-        m_externalFrameAccumulator += targetFps;
-        if (m_externalFrameAccumulator + 0.001 < displayFps)
-            return;
-        m_externalFrameAccumulator -= displayFps;
-    }
-
-    emitFramePulse(m_frameClock.nsecsElapsed());
 }
 
 void PlaybackController::seekTo(double timeMs)
@@ -343,6 +301,11 @@ void PlaybackController::onAudioPositionChanged(qint64 position)
             if (std::abs(observedMs - m_audioProgressStartMs) <= kAudioProgressEpsilonMs)
                 return;
             m_waitingForAudioProgress = false;
+            resetFrameAnchor(observedMs, nowMs);
+            m_lastFrameTickMs = qMax(m_lastFrameTickMs, observedMs);
+            if (PlaybackStutterProbe::enabled())
+                PlaybackStutterProbe::recordCounter("playback.anchor_startup_resync", 1, true);
+            return;
         }
         applyObservedTimeToAnchor(observedMs, nowMs);
     }
@@ -418,7 +381,7 @@ void PlaybackController::applySeekNow(qint64 targetMs, const char *reason)
 
 void PlaybackController::onFramePulseTimeout()
 {
-    if (m_state != Playing || m_externalFramePulseEnabled)
+    if (m_state != Playing)
         return;
 
     const qint64 nowNs = m_frameClock.nsecsElapsed();
@@ -468,13 +431,13 @@ void PlaybackController::emitFramePulse(qint64 nowNs)
 
 void PlaybackController::startFramePulse()
 {
-    if (m_externalFramePulseEnabled || m_state != Playing)
+    if (m_state != Playing)
         return;
 
     const qint64 nowNs = m_frameClock.nsecsElapsed();
     m_nextFramePulseDeadlineNs = nowNs + m_framePulseIntervalNs;
-    const int delayMs = qMax(1, static_cast<int>(qRound64(
-                                  static_cast<double>(m_framePulseIntervalNs) / 1000000.0)));
+    const int delayMs = qMax(1, static_cast<int>(
+                                  (m_framePulseIntervalNs + 999999LL) / 1000000LL));
     m_framePulseTimer->start(delayMs);
 }
 
@@ -485,8 +448,8 @@ void PlaybackController::scheduleNextFramePulse(qint64 nowNs)
         m_nextFramePulseDeadlineNs += m_framePulseIntervalNs;
 
     const qint64 remainingNs = m_nextFramePulseDeadlineNs - nowNs;
-    const int delayMs = qMax(1, static_cast<int>(qRound64(
-                                  static_cast<double>(remainingNs) / 1000000.0)));
+    const int delayMs = qMax(1, static_cast<int>(
+                                  (remainingNs + 999999LL) / 1000000LL));
     m_framePulseTimer->start(delayMs);
 }
 
@@ -496,13 +459,6 @@ void PlaybackController::updateFramePulseInterval()
     m_framePulseIntervalNs = qMax<qint64>(
         1,
         qRound64(static_cast<double>(kNanosecondsPerSecond) / targetFps));
-}
-
-void PlaybackController::resetExternalFrameAccumulator()
-{
-    const double displayFps = qMax(1.0, m_displayRefreshRateHz);
-    const double targetFps = qMax(1.0, effectiveFrameRate());
-    m_externalFrameAccumulator = qMax(0.0, displayFps - qMin(displayFps, targetFps));
 }
 
 void PlaybackController::resetFrameAnchor(double timeMs, qint64 nowMs)
@@ -531,8 +487,55 @@ double PlaybackController::predictedTimeAt(qint64 nowMs) const
 void PlaybackController::applyObservedTimeToAnchor(double observedMs, qint64 nowMs)
 {
     const double clampedObserved = qMax(0.0, observedMs);
-    // Media position is the authoritative audio clock. Anchor directly to it;
-    // gentle percentage corrections retain a large wall-clock error for much
-    // too long at 0.1x. Emitted frame ticks remain monotonic in the caller.
-    resetFrameAnchor(clampedObserved, nowMs);
+    if (!m_frameAnchorValid)
+    {
+        resetFrameAnchor(clampedObserved, nowMs);
+        return;
+    }
+
+    const double predictedMs = predictedTimeAt(nowMs);
+    const double errorMs = clampedObserved - predictedMs;
+    const double absoluteErrorMs = std::abs(errorMs);
+    const double mediaFrameMs = (1000.0 / qMax(1.0, effectiveFrameRate())) * m_speed;
+    const double deadZoneMs = qMax(0.15, 0.75 * m_speed);
+    const double moderateWindowMs = qMax(4.0, 32.0 * m_speed);
+    const double hardResyncMs = qMax(12.0, 120.0 * m_speed);
+
+    if (PlaybackStutterProbe::enabled())
+    {
+        PlaybackStutterProbe::recordDuration(
+            "playback.audio_clock_error_abs_ms",
+            absoluteErrorMs,
+            qMax(0.25, 4.0 * m_speed),
+            true);
+    }
+
+    if (absoluteErrorMs >= hardResyncMs)
+    {
+        resetFrameAnchor(clampedObserved, nowMs);
+        if (PlaybackStutterProbe::enabled())
+            PlaybackStutterProbe::recordCounter("playback.anchor_hard_resync", 1, true);
+        return;
+    }
+
+    double correctionMs = 0.0;
+    if (absoluteErrorMs > deadZoneMs)
+    {
+        const double gain = absoluteErrorMs < moderateWindowMs ? 0.08 : 0.18;
+        // Never consume more than a quarter of a frame. This keeps the next
+        // emitted media-time step positive while still converging in well
+        // under a second for ordinary backend clock drift.
+        const double maxCorrectionMs = qMax(0.05, mediaFrameMs * 0.25);
+        correctionMs = qBound(-maxCorrectionMs, errorMs * gain, maxCorrectionMs);
+    }
+
+    resetFrameAnchor(predictedMs + correctionMs, nowMs);
+    if (PlaybackStutterProbe::enabled())
+    {
+        PlaybackStutterProbe::recordDuration(
+            "playback.anchor_correction_abs_ms",
+            std::abs(correctionMs),
+            qMax(0.05, mediaFrameMs * 0.20),
+            true);
+    }
 }

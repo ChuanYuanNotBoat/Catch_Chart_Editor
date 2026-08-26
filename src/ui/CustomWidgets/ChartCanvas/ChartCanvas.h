@@ -432,9 +432,6 @@ private:
     void advancePlaybackVisual(bool scheduleRepaint, bool recordProbe = true);
     void attachDisplayFrameWindow();
     void updateDisplayRefreshRate(QScreen *screen);
-    void startDisplayFrameLoop();
-    void stopDisplayFrameLoop();
-    void requestDisplayFrame();
 
 private slots:
     void onSelectionChanged();
@@ -475,8 +472,6 @@ private:
     QMetaObject::Connection m_displayWindowDestroyedConnection;
     QMetaObject::Connection m_displayScreenChangedConnection;
     QMetaObject::Connection m_displayRefreshRateConnection;
-    bool m_displayFrameLoopActive = false;
-    bool m_displayFrameRequestPending = false;
 };
 
 // NoteChain native integration free functions (declared in ChartCanvasNoteChain.cpp)

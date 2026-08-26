@@ -608,14 +608,11 @@ void ChartCanvas::showEvent(QShowEvent *event)
     QWidget::showEvent(event);
     attachDisplayFrameWindow();
     if (m_isPlaying)
-    {
-        QTimer::singleShot(0, this, &ChartCanvas::startDisplayFrameLoop);
-    }
+        requestNextFrame();
 }
 
 void ChartCanvas::hideEvent(QHideEvent *event)
 {
-    stopDisplayFrameLoop();
     QWidget::hideEvent(event);
 }
 
@@ -632,7 +629,6 @@ void ChartCanvas::attachDisplayFrameWindow()
     QObject::disconnect(m_displayWindowDestroyedConnection);
     QObject::disconnect(m_displayScreenChangedConnection);
     m_displayFrameWindow = windowHandle;
-    m_displayFrameRequestPending = false;
 
     if (!windowHandle)
     {
@@ -647,8 +643,6 @@ void ChartCanvas::attachDisplayFrameWindow()
         [this]()
         {
             m_displayFrameWindow.clear();
-            m_displayFrameRequestPending = false;
-            stopDisplayFrameLoop();
         });
     m_displayScreenChangedConnection = connect(
         windowHandle,
@@ -680,39 +674,6 @@ void ChartCanvas::updateDisplayRefreshRate(QScreen *screen)
 
     if (m_playbackController)
         m_playbackController->setDisplayRefreshRate(screen ? screen->refreshRate() : 60.0);
-}
-
-void ChartCanvas::startDisplayFrameLoop()
-{
-    attachDisplayFrameWindow();
-    if (!m_isPlaying || !m_playbackController || !isVisible() ||
-        !m_displayFrameWindow || !m_displayFrameWindow->isExposed())
-    {
-        stopDisplayFrameLoop();
-        return;
-    }
-
-    m_displayFrameLoopActive = true;
-    m_playbackController->setExternalFramePulseEnabled(true);
-    requestDisplayFrame();
-}
-
-void ChartCanvas::stopDisplayFrameLoop()
-{
-    m_displayFrameLoopActive = false;
-    m_displayFrameRequestPending = false;
-    if (m_playbackController)
-        m_playbackController->setExternalFramePulseEnabled(false);
-}
-
-void ChartCanvas::requestDisplayFrame()
-{
-    if (!m_displayFrameLoopActive || m_displayFrameRequestPending ||
-        !m_displayFrameWindow || !m_displayFrameWindow->isExposed())
-        return;
-
-    m_displayFrameRequestPending = true;
-    m_displayFrameWindow->requestUpdate();
 }
 
 void ChartCanvas::cancelPaste()

@@ -394,14 +394,17 @@ void PlaybackBenchmarkRunner::finishMeasurement()
     }
 
     const QJsonObject summary = report.value("summary").toObject();
-    Logger::info(QStringLiteral("BENCHMARK_END output=%1 fps_tick=%2 fps_canvas=%3 paint_p95_ms=%4 pulse_p95_ms=%5")
+    const bool passed = report.value("verdict").toObject().value("passed").toBool();
+    Logger::info(QStringLiteral("BENCHMARK_END output=%1 passed=%2 fps_tick=%3 fps_canvas=%4 paint_p95_ms=%5 pulse_p95_ms=%6")
                      .arg(outputPath)
+                     .arg(passed ? QStringLiteral("true") : QStringLiteral("false"))
                      .arg(summary.value("fps_tick").toDouble(), 0, 'f', 2)
                      .arg(summary.value("fps_canvas").toDouble(), 0, 'f', 2)
                      .arg(summary.value("paint_time_p95_ms").toDouble(), 0, 'f', 3)
                      .arg(summary.value("pulse_interval_p95_ms").toDouble(), 0, 'f', 3));
     QTextStream(stdout) << "BENCHMARK_END output=\"" << outputPath
-                        << "\" fps_tick=" << QString::number(summary.value("fps_tick").toDouble(), 'f', 2)
+                        << "\" passed=" << (passed ? "true" : "false")
+                        << " fps_tick=" << QString::number(summary.value("fps_tick").toDouble(), 'f', 2)
                         << " fps_canvas=" << QString::number(summary.value("fps_canvas").toDouble(), 'f', 2)
                         << " paint_p95_ms=" << QString::number(summary.value("paint_time_p95_ms").toDouble(), 'f', 3)
                         << Qt::endl;

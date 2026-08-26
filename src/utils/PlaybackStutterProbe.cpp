@@ -5,6 +5,7 @@
 
 #include <QDateTime>
 #include <QHash>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QVector>
 
@@ -850,6 +851,44 @@ namespace PlaybackStutterProbe
         summary.insert("ui_stall_events",
                        static_cast<double>(s.session.counters.value(QStringLiteral("monitor.ui_stall_events"))));
 
+        QJsonObject verdict;
+        const double targetFps = s.session.metadata.value(QStringLiteral("effective_fps")).toDouble();
+        if (targetFps > 0.0)
+        {
+            const double frameBudgetMs = 1000.0 / targetFps;
+            const double canvasFps = summary.value(QStringLiteral("fps_canvas")).toDouble();
+            const double pulseP95Ms = summary.value(QStringLiteral("pulse_interval_p95_ms")).toDouble();
+            const double paintP95Ms = summary.value(QStringLiteral("paint_time_p95_ms")).toDouble();
+            const qint64 uiStalls = s.session.counters.value(QStringLiteral("monitor.ui_stall_events"));
+            const bool fpsPass = canvasFps >= targetFps * 0.95;
+            const bool cadencePass = pulseP95Ms > 0.0 && pulseP95Ms <= frameBudgetMs * 1.35;
+            const bool paintPass = paintP95Ms > 0.0 && paintP95Ms <= frameBudgetMs;
+            const bool stallsPass = uiStalls == 0;
+
+            QJsonObject criteria;
+            criteria.insert("canvas_fps_at_least_95_percent", fpsPass);
+            criteria.insert("pulse_p95_within_135_percent_budget", cadencePass);
+            criteria.insert("paint_p95_within_frame_budget", paintPass);
+            criteria.insert("no_ui_stalls", stallsPass);
+
+            QJsonArray failures;
+            if (!fpsPass)
+                failures.append(QStringLiteral("canvas_fps_below_target"));
+            if (!cadencePass)
+                failures.append(QStringLiteral("pulse_cadence_over_budget"));
+            if (!paintPass)
+                failures.append(QStringLiteral("paint_time_over_budget"));
+            if (!stallsPass)
+                failures.append(QStringLiteral("ui_stalls_detected"));
+
+            verdict.insert("passed", failures.isEmpty());
+            verdict.insert("target_fps", targetFps);
+            verdict.insert("frame_budget_ms", frameBudgetMs);
+            verdict.insert("fps_achievement_percent", canvasFps * 100.0 / targetFps);
+            verdict.insert("criteria", criteria);
+            verdict.insert("failures", failures);
+        }
+
         QJsonObject report;
         report.insert("schema_version", 1);
         report.insert("session", s.session.name);
@@ -858,6 +897,7 @@ namespace PlaybackStutterProbe
         report.insert("duration_ms", static_cast<double>(elapsedMs));
         report.insert("metadata", s.session.metadata);
         report.insert("summary", summary);
+        report.insert("verdict", verdict);
         report.insert("durations", durationResults);
         report.insert("counters", counterResults);
 
