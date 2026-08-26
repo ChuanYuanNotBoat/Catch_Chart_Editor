@@ -92,6 +92,13 @@ private slots:
 private:
     void setupUi();
     void createMenus();
+    void createFileMenu();
+    void createEditMenu();
+    void createViewMenu();
+    void createSettingsMenu();
+    void createPlaybackMenu();
+    void createToolsAndPluginsMenus();
+    void createHelpMenu();
     void createCentralArea();
     void retranslateUi();
     void populateSkinMenu();

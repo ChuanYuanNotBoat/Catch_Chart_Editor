@@ -576,55 +576,14 @@ void ChartCanvas::endMoveSelection()
     update();
 }
 
-QVector<int> ChartCanvas::collectColorTargetIndices(const QPoint &pos) const
+QVector<int> ChartCanvas::collectEditableTargetIndices(const QPoint &pos, bool testPoint) const
 {
     QVector<int> targetIndices;
     if (!chart())
         return targetIndices;
 
     const QVector<Note> &notes = chart()->notes();
-    const int hitIndex = hitTestNote(pos);
-    const QSet<int> selected = m_selectionController ? m_selectionController->selectedIndices() : QSet<int>();
-
-    auto appendFiltered = [&notes, &targetIndices](const QSet<int> &indices)
-    {
-        QList<int> sorted = indices.values();
-        std::sort(sorted.begin(), sorted.end());
-        for (int idx : sorted)
-        {
-            if (idx >= 0 && idx < notes.size() && notes[idx].type != NoteType::SOUND)
-                targetIndices.append(idx);
-        }
-    };
-
-    if (hitIndex >= 0 && hitIndex < notes.size())
-    {
-        if (!selected.isEmpty() && selected.contains(hitIndex))
-        {
-            appendFiltered(selected);
-        }
-        else if (notes[hitIndex].type != NoteType::SOUND)
-        {
-            targetIndices.append(hitIndex);
-        }
-    }
-    else if (!selected.isEmpty())
-    {
-        appendFiltered(selected);
-    }
-
-    return targetIndices;
-}
-
-QVector<int> ChartCanvas::collectMirrorTargetIndices(const QPoint &pos) const
-{
-    QVector<int> targetIndices;
-    if (!chart())
-        return targetIndices;
-
-    const QVector<Note> &notes = chart()->notes();
-    const bool hasPoint = !pos.isNull();
-    const int hitIndex = hasPoint ? hitTestNote(pos) : -1;
+    const int hitIndex = testPoint ? hitTestNote(pos) : -1;
     const QSet<int> selected = m_selectionController ? m_selectionController->selectedIndices() : QSet<int>();
 
     auto appendFiltered = [&notes, &targetIndices](const QSet<int> &indices)
@@ -809,181 +768,101 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
 {
     if (m_noteChainModeActive && m_noteChainEditor)
     {
-        auto *editor = m_noteChainEditor;
-        editor->setHostContext(buildPluginCanvasContext());
-        NoteChain::CanvasProjection projection;
-        projection.lmargin = laneXToCanvasX(0);
-        const double laneRight = laneXToCanvasX(kLaneWidth);
-        projection.available = qMax(1.0, laneRight - projection.lmargin);
-        projection.rmargin = qMax(0.0, width() - laneRight);
-        projection.laneW = kLaneWidth;
-        projection.ch = qMax(1, height());
-        projection.scrollB = m_scrollBeat;
-        projection.visRange = effectiveVisibleBeatRange();
-        projection.flip = m_verticalFlip;
-        editor->prepareContextMenuAt(event->position(), projection);
-
-        QMenu curveMenu(this);
-        applyContextMenuTheme(&curveMenu);
-        QAction *commitAction = curveMenu.addAction(tr("Commit Context Segments -> Notes"));
-        commitAction->setEnabled(editor->hasContextSegments());
-        curveMenu.addSeparator();
-
-        QAction *toggleShapeAction = curveMenu.addAction(tr("Toggle Curve / Polyline"));
-        toggleShapeAction->setEnabled(editor->hasContextSegments());
-
-        QMenu *densityMenu = curveMenu.addMenu(tr("Generated Note Spacing"));
-        QVector<int> densityOptions = editor->state().style().denominators;
-        if (densityOptions.isEmpty()) densityOptions = {4, 8, 12, 16};
-        densityOptions.prepend(0);
-        const int selectedDensity = editor->contextSegmentDensity();
-        for (int denominator : densityOptions)
-        {
-            const QString label = denominator <= 0 ? tr("Follow Time Division")
-                                                   : tr("1/%1").arg(denominator);
-            QAction *action = densityMenu->addAction(label);
-            action->setCheckable(true);
-            action->setEnabled(editor->hasContextSegments());
-            action->setChecked(selectedDensity == denominator);
-            connect(action, &QAction::triggered, this, [editor, denominator]() {
-                editor->setContextSegmentDensity(denominator);
-            });
-        }
-        if (selectedDensity == -1)
-        {
-            densityMenu->addSeparator();
-            QAction *mixedAction = densityMenu->addAction(tr("Mixed"));
-            mixedAction->setCheckable(true);
-            mixedAction->setChecked(true);
-            mixedAction->setEnabled(false);
-        }
-
-        curveMenu.addSeparator();
-        QAction *connectAction = curveMenu.addAction(tr("Connect Selected"));
-        QAction *disconnectAction = curveMenu.addAction(tr("Disconnect Selected"));
-        disconnectAction->setEnabled(editor->hasSelectedSegments());
-        QAction *deleteAction = curveMenu.addAction(tr("Delete Selected"));
-
-        QAction *selected = curveMenu.exec(event->globalPos());
-        if (selected == commitAction)
-            editor->commitContextSegmentsToNotes();
-        else if (selected == toggleShapeAction)
-            editor->toggleContextSegmentShape();
-        else if (selected == connectAction)
-            editor->connectSelectedAnchors();
-        else if (selected == disconnectAction)
-            editor->disconnectSelectedSegments();
-        else if (selected == deleteAction)
-            editor->deleteSelected();
-        update();
+        showNoteChainContextMenu(event);
         return;
     }
 
     if (m_pluginToolModeActive)
     {
-        const QString pluginId = resolvePluginCanvasToolId();
-        const bool routeDensityToSelectedSegments =
-            (pluginId.trimmed().compare(QStringLiteral("builtin.note_chain_assist"), Qt::CaseInsensitive) == 0);
-        QHash<QString, bool> segmentDensityCheckedMap;
-        bool segmentDensityMixed = false;
-        if (routeDensityToSelectedSegments)
-        {
-            if (PluginManager *pm = activePluginManager())
-            {
-                if (!pluginId.trimmed().isEmpty())
-                {
-                    const QList<PluginManager::ToolActionEntry> entries = pm->toolActions();
-                    for (const PluginManager::ToolActionEntry &entry : entries)
-                    {
-                        if (entry.pluginId.trimmed() != pluginId)
-                            continue;
-                        const QString actionId = entry.action.actionId.trimmed();
-                        if (actionId == QStringLiteral("set_segment_density_follow") ||
-                            actionId.startsWith(QStringLiteral("set_segment_density_")))
-                        {
-                            segmentDensityCheckedMap.insert(actionId, entry.action.checked);
-                        }
-                        else if (actionId == QStringLiteral("segment_density_mixed_info") && entry.action.checked)
-                        {
-                            segmentDensityMixed = true;
-                        }
-                    }
-                }
-            }
-        }
+        showPluginContextMenu(event);
+        return;
+    }
 
-        QMenu pluginMenu(this);
-        applyContextMenuTheme(&pluginMenu);
-        QAction *commitCurveAction = pluginMenu.addAction(tr("Commit Curve -> Notes"));
-        pluginMenu.addSeparator();
+    showStandardContextMenu(event);
+}
 
-        QMenu *densityMenu = pluginMenu.addMenu(tr("Generated Note Spacing"));
-        struct DensityOption
-        {
-            int denominator;
-            const char *label;
-        };
-        const DensityOption densityOptions[] = {
-            {0, "Follow Editor"},
-            {1, "1/1"},
-            {2, "1/2"},
-            {3, "1/3"},
-            {4, "1/4"},
-            {6, "1/6"},
-            {8, "1/8"},
-            {12, "1/12"},
-            {16, "1/16"},
-            {24, "1/24"},
-            {32, "1/32"},
-            {48, "1/48"},
-            {64, "1/64"},
-            {96, "1/96"},
-            {192, "1/192"},
-            {288, "1/288"}};
+void ChartCanvas::showNoteChainContextMenu(QMouseEvent *event)
+{
+    auto *editor = m_noteChainEditor;
+    if (!editor)
+        return;
 
-        for (const DensityOption &opt : densityOptions)
-        {
-            QAction *act = densityMenu->addAction(tr(opt.label));
-            if (routeDensityToSelectedSegments)
-            {
-                act->setCheckable(true);
-                const QString actionId = (opt.denominator <= 0)
-                                             ? QStringLiteral("set_segment_density_follow")
-                                             : QStringLiteral("set_segment_density_%1").arg(opt.denominator);
-                act->setChecked(segmentDensityCheckedMap.value(actionId, false));
-                const QString actionTitle = (opt.denominator <= 0)
-                                                ? tr("Set Segment Density: Follow Editor")
-                                                : tr("Set Segment Density: 1/%1").arg(opt.denominator);
-                connect(act, &QAction::triggered, this, [this, actionId, actionTitle]() {
-                    if (!triggerPluginToolAction(actionId, actionTitle))
-                        emit statusMessage(tr("No segment selected for density change."));
-                });
-            }
-            else
-            {
-                act->setCheckable(true);
-                act->setChecked(m_pluginPlacementDensityOverride == opt.denominator);
-                connect(act, &QAction::triggered, this, [this, opt]() {
-                    m_pluginPlacementDensityOverride = opt.denominator;
-                    if (opt.denominator <= 0)
-                        emit statusMessage(tr("Curve density: follow editor"));
-                    else
-                        emit statusMessage(tr("Curve density set to 1/%1").arg(opt.denominator));
-                    update();
-                });
-            }
-        }
-        if (routeDensityToSelectedSegments && segmentDensityMixed)
-        {
-            densityMenu->addSeparator();
-            QAction *mixedAct = densityMenu->addAction(tr("Mixed"));
-            mixedAct->setEnabled(false);
-            mixedAct->setCheckable(true);
-            mixedAct->setChecked(true);
-        }
+    editor->setHostContext(buildPluginCanvasContext());
+    NoteChain::CanvasProjection projection;
+    projection.lmargin = laneXToCanvasX(0);
+    const double laneRight = laneXToCanvasX(kLaneWidth);
+    projection.available = qMax(1.0, laneRight - projection.lmargin);
+    projection.rmargin = qMax(0.0, width() - laneRight);
+    projection.laneW = kLaneWidth;
+    projection.ch = qMax(1, height());
+    projection.scrollB = m_scrollBeat;
+    projection.visRange = effectiveVisibleBeatRange();
+    projection.flip = m_verticalFlip;
+    editor->prepareContextMenuAt(event->position(), projection);
 
-        QAction *contextSeparator = nullptr;
-        QHash<QAction *, QPair<QString, QString>> pluginContextActions;
+    QMenu curveMenu(this);
+    applyContextMenuTheme(&curveMenu);
+    QAction *commitAction = curveMenu.addAction(tr("Commit Context Segments -> Notes"));
+    commitAction->setEnabled(editor->hasContextSegments());
+    curveMenu.addSeparator();
+
+    QAction *toggleShapeAction = curveMenu.addAction(tr("Toggle Curve / Polyline"));
+    toggleShapeAction->setEnabled(editor->hasContextSegments());
+
+    QMenu *densityMenu = curveMenu.addMenu(tr("Generated Note Spacing"));
+    QVector<int> densityOptions = editor->state().style().denominators;
+    if (densityOptions.isEmpty())
+        densityOptions = {4, 8, 12, 16};
+    densityOptions.prepend(0);
+    const int selectedDensity = editor->contextSegmentDensity();
+    for (int denominator : densityOptions)
+    {
+        const QString label = denominator <= 0 ? tr("Follow Time Division") : tr("1/%1").arg(denominator);
+        QAction *action = densityMenu->addAction(label);
+        action->setCheckable(true);
+        action->setEnabled(editor->hasContextSegments());
+        action->setChecked(selectedDensity == denominator);
+        connect(action, &QAction::triggered, this,
+                [editor, denominator]() { editor->setContextSegmentDensity(denominator); });
+    }
+    if (selectedDensity == -1)
+    {
+        densityMenu->addSeparator();
+        QAction *mixedAction = densityMenu->addAction(tr("Mixed"));
+        mixedAction->setCheckable(true);
+        mixedAction->setChecked(true);
+        mixedAction->setEnabled(false);
+    }
+
+    curveMenu.addSeparator();
+    QAction *connectAction = curveMenu.addAction(tr("Connect Selected"));
+    QAction *disconnectAction = curveMenu.addAction(tr("Disconnect Selected"));
+    disconnectAction->setEnabled(editor->hasSelectedSegments());
+    QAction *deleteAction = curveMenu.addAction(tr("Delete Selected"));
+
+    QAction *selected = curveMenu.exec(event->globalPos());
+    if (selected == commitAction)
+        editor->commitContextSegmentsToNotes();
+    else if (selected == toggleShapeAction)
+        editor->toggleContextSegmentShape();
+    else if (selected == connectAction)
+        editor->connectSelectedAnchors();
+    else if (selected == disconnectAction)
+        editor->disconnectSelectedSegments();
+    else if (selected == deleteAction)
+        editor->deleteSelected();
+    update();
+}
+
+void ChartCanvas::showPluginContextMenu(QMouseEvent *event)
+{
+    const QString pluginId = resolvePluginCanvasToolId();
+    const bool routeDensityToSelectedSegments =
+        (pluginId.trimmed().compare(QStringLiteral("builtin.note_chain_assist"), Qt::CaseInsensitive) == 0);
+    QHash<QString, bool> segmentDensityCheckedMap;
+    bool segmentDensityMixed = false;
+    if (routeDensityToSelectedSegments)
+    {
         if (PluginManager *pm = activePluginManager())
         {
             if (!pluginId.trimmed().isEmpty())
@@ -993,45 +872,132 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
                 {
                     if (entry.pluginId.trimmed() != pluginId)
                         continue;
-                    if (routeDensityToSelectedSegments)
+                    const QString actionId = entry.action.actionId.trimmed();
+                    if (actionId == QStringLiteral("set_segment_density_follow") ||
+                        actionId.startsWith(QStringLiteral("set_segment_density_")))
                     {
-                        const QString actionId = entry.action.actionId.trimmed();
-                        if (actionId == QStringLiteral("set_segment_density_follow") ||
-                            actionId.startsWith(QStringLiteral("set_segment_density_")) ||
-                            actionId == QStringLiteral("segment_density_mixed_info"))
-                        {
-                            continue;
-                        }
+                        segmentDensityCheckedMap.insert(actionId, entry.action.checked);
                     }
-                    const QString placement = entry.action.placement.trimmed().toLower();
-                    if (placement != QString(PluginInterface::kPlacementPluginContextMenu))
-                        continue;
-                    if (contextSeparator == nullptr)
-                        contextSeparator = pluginMenu.addSeparator();
-                    QAction *act = pluginMenu.addAction(entry.action.title);
-                    if (!entry.action.description.isEmpty())
-                        act->setToolTip(entry.action.description);
-                    act->setCheckable(entry.action.checkable);
-                    if (entry.action.checkable)
-                        act->setChecked(entry.action.checked);
-                    pluginContextActions.insert(act, qMakePair(entry.action.actionId, entry.action.title));
+                    else if (actionId == QStringLiteral("segment_density_mixed_info") && entry.action.checked)
+                    {
+                        segmentDensityMixed = true;
+                    }
                 }
             }
         }
-
-        QAction *selected = pluginMenu.exec(event->globalPos());
-        if (selected == commitCurveAction)
-        {
-            triggerPluginBatchAction("commit_curve_to_notes", tr("Commit Curve -> Notes"));
-        }
-        else if (pluginContextActions.contains(selected))
-        {
-            const auto pair = pluginContextActions.value(selected);
-            triggerPluginToolAction(pair.first, pair.second);
-        }
-        return;
     }
 
+    QMenu pluginMenu(this);
+    applyContextMenuTheme(&pluginMenu);
+    QAction *commitCurveAction = pluginMenu.addAction(tr("Commit Curve -> Notes"));
+    pluginMenu.addSeparator();
+
+    QMenu *densityMenu = pluginMenu.addMenu(tr("Generated Note Spacing"));
+    struct DensityOption
+    {
+        int denominator;
+        const char *label;
+    };
+    const DensityOption densityOptions[] = {{0, "Follow Editor"}, {1, "1/1"},   {2, "1/2"},     {3, "1/3"},
+                                            {4, "1/4"},           {6, "1/6"},   {8, "1/8"},     {12, "1/12"},
+                                            {16, "1/16"},         {24, "1/24"}, {32, "1/32"},   {48, "1/48"},
+                                            {64, "1/64"},         {96, "1/96"}, {192, "1/192"}, {288, "1/288"}};
+
+    for (const DensityOption &opt : densityOptions)
+    {
+        QAction *act = densityMenu->addAction(tr(opt.label));
+        if (routeDensityToSelectedSegments)
+        {
+            act->setCheckable(true);
+            const QString actionId = (opt.denominator <= 0)
+                                         ? QStringLiteral("set_segment_density_follow")
+                                         : QStringLiteral("set_segment_density_%1").arg(opt.denominator);
+            act->setChecked(segmentDensityCheckedMap.value(actionId, false));
+            const QString actionTitle = (opt.denominator <= 0) ? tr("Set Segment Density: Follow Editor")
+                                                               : tr("Set Segment Density: 1/%1").arg(opt.denominator);
+            connect(act, &QAction::triggered, this,
+                    [this, actionId, actionTitle]()
+                    {
+                        if (!triggerPluginToolAction(actionId, actionTitle))
+                            emit statusMessage(tr("No segment selected for density change."));
+                    });
+        }
+        else
+        {
+            act->setCheckable(true);
+            act->setChecked(m_pluginPlacementDensityOverride == opt.denominator);
+            connect(act, &QAction::triggered, this,
+                    [this, opt]()
+                    {
+                        m_pluginPlacementDensityOverride = opt.denominator;
+                        if (opt.denominator <= 0)
+                            emit statusMessage(tr("Curve density: follow editor"));
+                        else
+                            emit statusMessage(tr("Curve density set to 1/%1").arg(opt.denominator));
+                        update();
+                    });
+        }
+    }
+    if (routeDensityToSelectedSegments && segmentDensityMixed)
+    {
+        densityMenu->addSeparator();
+        QAction *mixedAct = densityMenu->addAction(tr("Mixed"));
+        mixedAct->setEnabled(false);
+        mixedAct->setCheckable(true);
+        mixedAct->setChecked(true);
+    }
+
+    QAction *contextSeparator = nullptr;
+    QHash<QAction *, QPair<QString, QString>> pluginContextActions;
+    if (PluginManager *pm = activePluginManager())
+    {
+        if (!pluginId.trimmed().isEmpty())
+        {
+            const QList<PluginManager::ToolActionEntry> entries = pm->toolActions();
+            for (const PluginManager::ToolActionEntry &entry : entries)
+            {
+                if (entry.pluginId.trimmed() != pluginId)
+                    continue;
+                if (routeDensityToSelectedSegments)
+                {
+                    const QString actionId = entry.action.actionId.trimmed();
+                    if (actionId == QStringLiteral("set_segment_density_follow") ||
+                        actionId.startsWith(QStringLiteral("set_segment_density_")) ||
+                        actionId == QStringLiteral("segment_density_mixed_info"))
+                    {
+                        continue;
+                    }
+                }
+                const QString placement = entry.action.placement.trimmed().toLower();
+                if (placement != QString(PluginInterface::kPlacementPluginContextMenu))
+                    continue;
+                if (contextSeparator == nullptr)
+                    contextSeparator = pluginMenu.addSeparator();
+                QAction *act = pluginMenu.addAction(entry.action.title);
+                if (!entry.action.description.isEmpty())
+                    act->setToolTip(entry.action.description);
+                act->setCheckable(entry.action.checkable);
+                if (entry.action.checkable)
+                    act->setChecked(entry.action.checked);
+                pluginContextActions.insert(act, qMakePair(entry.action.actionId, entry.action.title));
+            }
+        }
+    }
+
+    QAction *selected = pluginMenu.exec(event->globalPos());
+    if (selected == commitCurveAction)
+    {
+        triggerPluginBatchAction("commit_curve_to_notes", tr("Commit Curve -> Notes"));
+    }
+    else if (pluginContextActions.contains(selected))
+    {
+        const auto pair = pluginContextActions.value(selected);
+        triggerPluginToolAction(pair.first, pair.second);
+    }
+}
+
+void ChartCanvas::showStandardContextMenu(QMouseEvent *event)
+{
     QMenu menu(this);
     applyContextMenuTheme(&menu);
     QAction *playFromRefAction = menu.addAction(tr("Play from Reference Time"));
@@ -1042,19 +1008,20 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
     paste288ModeAction->setChecked(Settings::instance().pasteUse288Division());
     paste288ModeAction->setToolTip(
         tr("Round pasted Normal/Rain note start and end beats to 1/288 and store denominator 288."));
-    connect(paste288ModeAction, &QAction::toggled, this, [this](bool enabled) {
-        Settings::instance().setPasteUse288Division(enabled);
-        emit statusMessage(enabled ? tr("Paste timing: quantize to 1/288")
-                                   : tr("Paste timing: preserve normal timing"));
-        update();
-    });
-    const QVector<int> mirrorTargetIndices = collectMirrorTargetIndices(event->pos());
+    connect(paste288ModeAction, &QAction::toggled, this,
+            [this](bool enabled)
+            {
+                Settings::instance().setPasteUse288Division(enabled);
+                emit statusMessage(enabled ? tr("Paste timing: quantize to 1/288")
+                                           : tr("Paste timing: preserve normal timing"));
+                update();
+            });
+    const QVector<int> targetIndices = collectEditableTargetIndices(event->pos(), true);
     QAction *mirrorFlipAction = menu.addAction(tr("Mirror Flip Selected (Center Line)"));
-    mirrorFlipAction->setEnabled(!mirrorTargetIndices.isEmpty());
+    mirrorFlipAction->setEnabled(!targetIndices.isEmpty());
     QMenu *colorMenu = menu.addMenu(tr("Edit Color (By Division)"));
     colorMenu->setEnabled(false);
 
-    const QVector<int> targetIndices = collectColorTargetIndices(event->pos());
     if (!targetIndices.isEmpty())
         populateColorMenu(colorMenu, targetIndices);
 
@@ -1069,7 +1036,7 @@ void ChartCanvas::showRightClickMenu(QMouseEvent *event)
     }
     else if (selectedAction == mirrorFlipAction)
     {
-        performMirrorFlip(mirrorTargetIndices, kLaneWidth / 2, tr("Mirror Flip Notes"));
+        performMirrorFlip(targetIndices, kLaneWidth / 2, tr("Mirror Flip Notes"));
     }
 }
 

@@ -174,12 +174,16 @@ void ChartCanvas::setMirrorPreviewVisible(bool visible)
 
 bool ChartCanvas::flipSelectedNotes()
 {
-    return performMirrorFlip(collectMirrorTargetIndices(QPoint()), m_mirrorAxisX, tr("Mirror Flip Notes"));
+    return performMirrorFlip(collectEditableTargetIndices(QPoint(), false),
+                             m_mirrorAxisX,
+                             tr("Mirror Flip Notes"));
 }
 
 bool ChartCanvas::flipSelectedNotesAroundCenter()
 {
-    return performMirrorFlip(collectMirrorTargetIndices(QPoint()), kLaneWidth / 2, tr("Mirror Flip Notes"));
+    return performMirrorFlip(collectEditableTargetIndices(QPoint(), false),
+                             kLaneWidth / 2,
+                             tr("Mirror Flip Notes"));
 }
 
 int ChartCanvas::clampMirrorAxisX(int axisX) const

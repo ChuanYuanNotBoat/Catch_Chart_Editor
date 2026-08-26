@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QMediaPlayer>
 #include <QAudioOutput>
+#include <QMetaObject>
 #include <QTimer>
 
 class AudioPlayer : public QObject
@@ -65,11 +66,18 @@ private:
     bool m_loaded;
     QString m_lastError;
     QStringList m_tempAudioFiles;
+    QMetaObject::Connection m_mediaStatusConnection;
+    QMetaObject::Connection m_mediaErrorConnection;
+    quint64 m_loadGeneration = 0;
 
     int m_audioLatency;
     int m_userOffset;
     bool m_audioCorrectionEnabled;
 
+    void cancelPendingLoad();
+    void disconnectLoadSignals();
+    void finishLoadFailure(const QString &message);
+    void finishLoadSuccess();
     QString normalizeAudioPath(const QString &originalPath);
     void cleanupTempAudioFiles();
 };

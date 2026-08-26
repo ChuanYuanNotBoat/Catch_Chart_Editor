@@ -192,8 +192,10 @@ private:
     void endMoveSelection();
     void prepareMoveChanges();
     void showRightClickMenu(QMouseEvent *event);
-    QVector<int> collectColorTargetIndices(const QPoint &pos) const;
-    QVector<int> collectMirrorTargetIndices(const QPoint &pos) const;
+    void showNoteChainContextMenu(QMouseEvent *event);
+    void showPluginContextMenu(QMouseEvent *event);
+    void showStandardContextMenu(QMouseEvent *event);
+    QVector<int> collectEditableTargetIndices(const QPoint &pos, bool testPoint) const;
     void populateColorMenu(QMenu *colorMenu, const QVector<int> &targetIndices);
     bool performMirrorFlip(const QVector<int> &targetIndices, int axisX, const QString &actionName);
     bool hasNoteSnapReferenceOverlays() const;

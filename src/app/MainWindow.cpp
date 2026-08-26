@@ -1575,6 +1575,20 @@ void MainWindow::createMenus()
         d->speedActionGroup = nullptr;
     }
 
+    createFileMenu();
+    createEditMenu();
+    createViewMenu();
+    createSettingsMenu();
+    createPlaybackMenu();
+    createToolsAndPluginsMenus();
+    createHelpMenu();
+    applySidebarTheme();
+
+    Logger::debug("Menus created");
+}
+
+void MainWindow::createFileMenu()
+{
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     QAction *newAction = fileMenu->addAction(tr("&New Chart..."), this, &MainWindow::newChart);
     registerShortcutAction(newAction, "file.new_chart", QKeySequence::New);
@@ -1595,7 +1609,10 @@ void MainWindow::createMenus()
     fileMenu->addSeparator();
     QAction *exitAction = fileMenu->addAction(tr("E&xit"), this, &QWidget::close);
     registerShortcutAction(exitAction, "file.exit", QKeySequence::Quit);
+}
 
+void MainWindow::createEditMenu()
+{
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
     d->undoAction = editMenu->addAction(tr("&Undo"), this, &MainWindow::undo);
     registerShortcutAction(d->undoAction, "edit.undo", QKeySequence::Undo);
@@ -1664,7 +1681,10 @@ void MainWindow::createMenus()
     editMenu->addAction(d->paste288Action);
     if (d->mainToolBar && !d->mainToolBar->actions().contains(d->paste288Action))
         d->mainToolBar->addAction(d->paste288Action);
+}
 
+void MainWindow::createViewMenu()
+{
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     if (d->dockManager)
     {
@@ -1773,7 +1793,10 @@ void MainWindow::createMenus()
     Settings::instance().setBackgroundColor(picked);
     applySidebarTheme();
     if (d->canvas) d->canvas->refreshBackground(); });
+}
 
+void MainWindow::createSettingsMenu()
+{
     QMenu *settingsMenu = menuBar()->addMenu(tr("&Settings"));
     d->noteSizeAction = settingsMenu->addAction(tr("Note Size..."));
     connect(d->noteSizeAction, &QAction::triggered, this, &MainWindow::adjustNoteSize);
@@ -1809,7 +1832,10 @@ void MainWindow::createMenus()
         act->setChecked(it.key() == currentLanguage);
         connect(act, &QAction::triggered, this, &MainWindow::changeLanguage);
     }
+}
 
+void MainWindow::createPlaybackMenu()
+{
     QMenu *playMenu = menuBar()->addMenu(tr("&Playback"));
     d->playAction = playMenu->addAction(tr("&Play/Pause"), this, &MainWindow::togglePlayback);
     d->playAction->setEnabled(d->audioPlaybackReady);
@@ -1862,6 +1888,10 @@ void MainWindow::createMenus()
                     const QString capText = (fpsCap <= 0) ? tr("Unlimited") : QString::number(fpsCap);
                     statusBar()->showMessage(tr("Playback FPS cap: %1").arg(capText), 2000); });
     }
+}
+
+void MainWindow::createToolsAndPluginsMenus()
+{
     QMenu *toolsMenu = menuBar()->addMenu(tr("&Tools"));
     d->pluginsMenu = menuBar()->addMenu(tr("&Plugins"));
     QAction *pluginManagerAction = d->pluginsMenu->addAction(tr("&Plugin Manager..."));
@@ -1968,6 +1998,10 @@ void MainWindow::createMenus()
     connect(logSettingsAction, &QAction::triggered, this, &MainWindow::openLogSettings);
     QAction *exportDiagAction = toolsMenu->addAction(tr("&Export Diagnostics Report..."));
     connect(exportDiagAction, &QAction::triggered, this, &MainWindow::exportDiagnosticsReport);
+}
+
+void MainWindow::createHelpMenu()
+{
     d->helpMenu = menuBar()->addMenu(tr("&Help"));
     d->checkUpdatesAction = d->helpMenu->addAction(tr("Check for Updates..."), this, &MainWindow::checkForUpdates);
     d->helpMenu->addSeparator();
@@ -1975,9 +2009,6 @@ void MainWindow::createMenus()
     d->aboutAction = d->helpMenu->addAction(tr("About..."), this, &MainWindow::showAboutPage);
     d->versionAction = d->helpMenu->addAction(tr("Version Information..."), this, &MainWindow::showVersionPage);
     d->logsAction = d->helpMenu->addAction(tr("Logs..."), this, &MainWindow::showLogsPage);
-    applySidebarTheme();
-
-    Logger::debug("Menus created");
 }
 
 void MainWindow::registerShortcutAction(QAction *action, const QString &actionId, const QKeySequence &defaultShortcut)
