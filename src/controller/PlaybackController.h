@@ -30,6 +30,11 @@ public:
     double speed() const;
     void setFrameRateCap(int fpsCap);
     int frameRateCap() const;
+    void setDisplayRefreshRate(double refreshRateHz);
+    double displayRefreshRate() const;
+    double effectiveFrameRate() const;
+    void setExternalFramePulseEnabled(bool enabled);
+    void advanceExternalFramePulse();
     void seekTo(double timeMs);
     void seekToBeat(int beat, int num, int den);
 
@@ -59,6 +64,9 @@ private:
     void applySeekNow(qint64 targetMs, const char *reason);
     void startFramePulse();
     void scheduleNextFramePulse(qint64 nowNs);
+    void updateFramePulseInterval();
+    void emitFramePulse(qint64 nowNs);
+    void resetExternalFrameAccumulator();
     double predictedTimeAt(qint64 nowMs) const;
     void resetFrameAnchor(double timeMs, qint64 nowMs);
     void applyObservedTimeToAnchor(double observedMs, qint64 nowMs);
@@ -70,8 +78,11 @@ private:
     bool m_autoPausedAtEnd;
     QTimer *m_framePulseTimer;
     int m_frameRateCap;
+    double m_displayRefreshRateHz;
     qint64 m_framePulseIntervalNs;
     qint64 m_nextFramePulseDeadlineNs;
+    bool m_externalFramePulseEnabled;
+    double m_externalFrameAccumulator;
     QElapsedTimer m_frameClock;
     bool m_frameAnchorValid;
     double m_frameAnchorTimeMs;

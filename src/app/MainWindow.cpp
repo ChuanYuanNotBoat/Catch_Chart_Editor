@@ -1869,7 +1869,7 @@ void MainWindow::createPlaybackMenu()
         {tr("Lock 60 FPS"), 60},
         {tr("Lock 90 FPS"), 90},
         {tr("Lock 120 FPS"), 120},
-        {tr("Unlimited"), 0},
+        {tr("Match Display Refresh Rate"), 0},
     };
     const int currentFpsCap = Settings::instance().playbackFrameRateCap();
     for (const auto &option : fpsCapOptions)
@@ -1885,7 +1885,7 @@ void MainWindow::createPlaybackMenu()
                     Settings::instance().setPlaybackFrameRateCap(fpsCap);
                     if (d->playbackController)
                         d->playbackController->setFrameRateCap(fpsCap);
-                    const QString capText = (fpsCap <= 0) ? tr("Unlimited") : QString::number(fpsCap);
+                    const QString capText = (fpsCap <= 0) ? tr("Match Display Refresh Rate") : QString::number(fpsCap);
                     statusBar()->showMessage(tr("Playback FPS cap: %1").arg(capText), 2000); });
     }
 }

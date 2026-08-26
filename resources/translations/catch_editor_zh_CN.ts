@@ -2479,8 +2479,8 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindow.cpp" line="1846"/>
         <location filename="../../src/app/MainWindow.cpp" line="1862"/>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="1096"/>
-        <source>Unlimited</source>
-        <translation>无限制</translation>
+        <source>Match Display Refresh Rate</source>
+        <translation>跟随显示器刷新率</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="1106"/>

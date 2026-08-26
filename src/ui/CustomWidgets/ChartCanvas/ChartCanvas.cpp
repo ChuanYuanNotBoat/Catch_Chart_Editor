@@ -30,6 +30,8 @@
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
 #include <QShowEvent>
+#include <QScreen>
+#include <QWindow>
 #include <QDebug>
 #include <chrono>
 #include <algorithm>
@@ -187,6 +189,28 @@ ChartCanvas::~ChartCanvas()
 
 bool ChartCanvas::eventFilter(QObject *watched, QEvent *event)
 {
+    if (watched == m_displayFrameWindow.data() &&
+        event->type() == QEvent::UpdateRequest &&
+        m_displayFrameRequestPending)
+    {
+        m_displayFrameRequestPending = false;
+        if (m_displayFrameLoopActive && m_isPlaying && m_playbackController)
+        {
+            m_playbackController->advanceExternalFramePulse();
+            QTimer::singleShot(0, this, &ChartCanvas::requestDisplayFrame);
+        }
+    }
+    else if (watched == m_displayFrameWindow.data() && event->type() == QEvent::Expose)
+    {
+        QTimer::singleShot(0, this, [this]()
+        {
+            if (m_isPlaying && m_displayFrameWindow && m_displayFrameWindow->isExposed())
+                startDisplayFrameLoop();
+            else
+                stopDisplayFrameLoop();
+        });
+    }
+
     if (event->type() == QEvent::KeyPress)
     {
         QKeyEvent *ke = static_cast<QKeyEvent *>(event);
@@ -476,6 +500,8 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
     if (m_playbackController == controller)
         return;
 
+    stopDisplayFrameLoop();
+
     if (m_playbackController)
     {
         disconnect(m_playbackController, &PlaybackController::positionChanged, this, &ChartCanvas::playbackPositionChanged);
@@ -488,6 +514,9 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
 
     if (m_playbackController)
     {
+        attachDisplayFrameWindow();
+        if (m_displayFrameScreen)
+            m_playbackController->setDisplayRefreshRate(m_displayFrameScreen->refreshRate());
         connect(m_playbackController, &PlaybackController::positionChanged, this, &ChartCanvas::playbackPositionChanged);
         connect(m_playbackController, &PlaybackController::playbackFrameTick, this, &ChartCanvas::onPlaybackFrameTick);
         connect(m_playbackController, &PlaybackController::stateChanged,
@@ -514,8 +543,11 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                     m_playableNoteTimesMs.begin(),
                     m_playableNoteTimesMs.end(),
                     m_lastNoteSoundTimeMs) - m_playableNoteTimesMs.begin());
-                requestNextFrame();
+                startDisplayFrameLoop();
+                if (!m_displayFrameLoopActive)
+                    requestNextFrame();
             } else {
+                stopDisplayFrameLoop();
                 m_isPlaying = false;
                 m_lastPlaybackFrameSeq = -1;
                 m_lastPlaybackPredictedTimeMs = -1.0;

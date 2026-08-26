@@ -7,6 +7,8 @@
 #include <QDateTime>
 #include <QVector>
 #include <QElapsedTimer>
+#include <QMetaObject>
+#include <QPointer>
 #include <QTimer>
 #include "model/Note.h"
 #include "plugin/PluginInterface.h"
@@ -24,6 +26,9 @@ class PlaybackController;
 class NoteSoundPlayer;
 class Chart;
 class QMenu;
+class QHideEvent;
+class QScreen;
+class QWindow;
 
 namespace NoteChain { class NoteChainEditor; }
 
@@ -137,6 +142,7 @@ protected:
     void timerEvent(QTimerEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 
@@ -424,6 +430,11 @@ private:
     void resetOverlayQueryState();
     void advanceNoteSoundClock(double playbackTimeMs);
     void advancePlaybackVisual(bool scheduleRepaint, bool recordProbe = true);
+    void attachDisplayFrameWindow();
+    void updateDisplayRefreshRate(QScreen *screen);
+    void startDisplayFrameLoop();
+    void stopDisplayFrameLoop();
+    void requestDisplayFrame();
 
 private slots:
     void onSelectionChanged();
@@ -457,6 +468,13 @@ private:
     qint64 m_lastPlaybackTickNs;
     qint64 m_lastPlaybackVisualAdvanceNs;
     int m_overlayPlaybackIntervalMs;
+    QPointer<QWindow> m_displayFrameWindow;
+    QPointer<QScreen> m_displayFrameScreen;
+    QMetaObject::Connection m_displayWindowDestroyedConnection;
+    QMetaObject::Connection m_displayScreenChangedConnection;
+    QMetaObject::Connection m_displayRefreshRateConnection;
+    bool m_displayFrameLoopActive = false;
+    bool m_displayFrameRequestPending = false;
 };
 
 // NoteChain native integration free functions (declared in ChartCanvasNoteChain.cpp)

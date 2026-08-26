@@ -12,6 +12,11 @@
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QCoreApplication>
+#include <QHideEvent>
+#include <QScreen>
+#include <QShowEvent>
+#include <QTimer>
+#include <QWindow>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -601,10 +606,113 @@ void ChartCanvas::resizeEvent(QResizeEvent *event)
 void ChartCanvas::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
+    attachDisplayFrameWindow();
     if (m_isPlaying)
     {
-        requestNextFrame();
+        QTimer::singleShot(0, this, &ChartCanvas::startDisplayFrameLoop);
     }
+}
+
+void ChartCanvas::hideEvent(QHideEvent *event)
+{
+    stopDisplayFrameLoop();
+    QWidget::hideEvent(event);
+}
+
+void ChartCanvas::attachDisplayFrameWindow()
+{
+    QWidget *topLevel = window();
+    QWindow *windowHandle = topLevel ? topLevel->windowHandle() : nullptr;
+    if (windowHandle == m_displayFrameWindow)
+    {
+        updateDisplayRefreshRate(windowHandle ? windowHandle->screen() : nullptr);
+        return;
+    }
+
+    QObject::disconnect(m_displayWindowDestroyedConnection);
+    QObject::disconnect(m_displayScreenChangedConnection);
+    m_displayFrameWindow = windowHandle;
+    m_displayFrameRequestPending = false;
+
+    if (!windowHandle)
+    {
+        updateDisplayRefreshRate(nullptr);
+        return;
+    }
+
+    m_displayWindowDestroyedConnection = connect(
+        windowHandle,
+        &QObject::destroyed,
+        this,
+        [this]()
+        {
+            m_displayFrameWindow.clear();
+            m_displayFrameRequestPending = false;
+            stopDisplayFrameLoop();
+        });
+    m_displayScreenChangedConnection = connect(
+        windowHandle,
+        &QWindow::screenChanged,
+        this,
+        &ChartCanvas::updateDisplayRefreshRate);
+    updateDisplayRefreshRate(windowHandle->screen());
+}
+
+void ChartCanvas::updateDisplayRefreshRate(QScreen *screen)
+{
+    if (screen != m_displayFrameScreen)
+    {
+        QObject::disconnect(m_displayRefreshRateConnection);
+        m_displayFrameScreen = screen;
+        if (screen)
+        {
+            m_displayRefreshRateConnection = connect(
+                screen,
+                &QScreen::refreshRateChanged,
+                this,
+                [this](qreal refreshRateHz)
+                {
+                    if (m_playbackController)
+                        m_playbackController->setDisplayRefreshRate(refreshRateHz);
+                });
+        }
+    }
+
+    if (m_playbackController)
+        m_playbackController->setDisplayRefreshRate(screen ? screen->refreshRate() : 60.0);
+}
+
+void ChartCanvas::startDisplayFrameLoop()
+{
+    attachDisplayFrameWindow();
+    if (!m_isPlaying || !m_playbackController || !isVisible() ||
+        !m_displayFrameWindow || !m_displayFrameWindow->isExposed())
+    {
+        stopDisplayFrameLoop();
+        return;
+    }
+
+    m_displayFrameLoopActive = true;
+    m_playbackController->setExternalFramePulseEnabled(true);
+    requestDisplayFrame();
+}
+
+void ChartCanvas::stopDisplayFrameLoop()
+{
+    m_displayFrameLoopActive = false;
+    m_displayFrameRequestPending = false;
+    if (m_playbackController)
+        m_playbackController->setExternalFramePulseEnabled(false);
+}
+
+void ChartCanvas::requestDisplayFrame()
+{
+    if (!m_displayFrameLoopActive || m_displayFrameRequestPending ||
+        !m_displayFrameWindow || !m_displayFrameWindow->isExposed())
+        return;
+
+    m_displayFrameRequestPending = true;
+    m_displayFrameWindow->requestUpdate();
 }
 
 void ChartCanvas::cancelPaste()

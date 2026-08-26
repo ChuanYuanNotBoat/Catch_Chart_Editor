@@ -1093,7 +1093,7 @@ void MainWindow::openSessionSettings()
     fpsCapCombo->addItem(tr("Lock 60 FPS"), 60);
     fpsCapCombo->addItem(tr("Lock 90 FPS"), 90);
     fpsCapCombo->addItem(tr("Lock 120 FPS"), 120);
-    fpsCapCombo->addItem(tr("Unlimited"), 0);
+    fpsCapCombo->addItem(tr("Match Display Refresh Rate"), 0);
     {
         const int currentCap = Settings::instance().playbackFrameRateCap();
         const int idx = fpsCapCombo->findData(currentCap);

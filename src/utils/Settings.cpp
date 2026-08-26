@@ -400,7 +400,7 @@ void Settings::setPlaybackStutterProbeEnabled(bool enabled)
 
 int Settings::playbackFrameRateCap() const
 {
-    return sanitizePlaybackFrameRateCap(m_settings.value("playback/frameRateCap", 120).toInt());
+    return sanitizePlaybackFrameRateCap(m_settings.value("playback/frameRateCap", 0).toInt());
 }
 
 void Settings::setPlaybackFrameRateCap(int fpsCap)

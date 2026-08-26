@@ -22,8 +22,11 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
       m_autoPausedAtEnd(false),
       m_framePulseTimer(new QTimer(this)),
       m_frameRateCap(60),
+      m_displayRefreshRateHz(60.0),
       m_framePulseIntervalNs(kNanosecondsPerSecond / 60),
       m_nextFramePulseDeadlineNs(0),
+      m_externalFramePulseEnabled(false),
+      m_externalFrameAccumulator(0.0),
       m_frameAnchorValid(false),
       m_frameAnchorTimeMs(0.0),
       m_frameAnchorWallMs(0),
@@ -191,8 +194,8 @@ void PlaybackController::setFrameRateCap(int fpsCap)
         break;
     }
 
-    const int targetFps = (m_frameRateCap <= 0) ? 120 : m_frameRateCap;
-    m_framePulseIntervalNs = kNanosecondsPerSecond / qMax(1, targetFps);
+    updateFramePulseInterval();
+    resetExternalFrameAccumulator();
     if (m_framePulseTimer->isActive())
         startFramePulse();
 }
@@ -200,6 +203,78 @@ void PlaybackController::setFrameRateCap(int fpsCap)
 int PlaybackController::frameRateCap() const
 {
     return m_frameRateCap;
+}
+
+void PlaybackController::setDisplayRefreshRate(double refreshRateHz)
+{
+    constexpr double kFallbackRefreshRateHz = 60.0;
+    constexpr double kMinimumRefreshRateHz = 24.0;
+    constexpr double kMaximumRefreshRateHz = 1000.0;
+
+    if (!std::isfinite(refreshRateHz) ||
+        refreshRateHz < kMinimumRefreshRateHz ||
+        refreshRateHz > kMaximumRefreshRateHz)
+    {
+        refreshRateHz = kFallbackRefreshRateHz;
+    }
+    if (std::abs(m_displayRefreshRateHz - refreshRateHz) < 0.01)
+        return;
+
+    m_displayRefreshRateHz = refreshRateHz;
+    updateFramePulseInterval();
+    resetExternalFrameAccumulator();
+    if (m_framePulseTimer->isActive())
+        startFramePulse();
+}
+
+double PlaybackController::displayRefreshRate() const
+{
+    return m_displayRefreshRateHz;
+}
+
+double PlaybackController::effectiveFrameRate() const
+{
+    return (m_frameRateCap <= 0)
+               ? m_displayRefreshRateHz
+               : static_cast<double>(m_frameRateCap);
+}
+
+void PlaybackController::setExternalFramePulseEnabled(bool enabled)
+{
+    if (m_externalFramePulseEnabled == enabled)
+        return;
+
+    m_externalFramePulseEnabled = enabled;
+    resetExternalFrameAccumulator();
+    if (enabled)
+    {
+        m_framePulseTimer->stop();
+    }
+    else if (m_state == Playing)
+    {
+        startFramePulse();
+    }
+}
+
+void PlaybackController::advanceExternalFramePulse()
+{
+    if (!m_externalFramePulseEnabled || m_state != Playing)
+        return;
+
+    const double targetFps = effectiveFrameRate();
+    const double displayFps = qMax(1.0, m_displayRefreshRateHz);
+    // Treat near-equal nominal rates (for example 60 vs 59.94/60.75 Hz) as
+    // one pulse per refresh. Downsampling them creates a periodic skipped
+    // frame even though the requested cap and the display mode are equivalent.
+    if (targetFps < displayFps * 0.98)
+    {
+        m_externalFrameAccumulator += targetFps;
+        if (m_externalFrameAccumulator + 0.001 < displayFps)
+            return;
+        m_externalFrameAccumulator -= displayFps;
+    }
+
+    emitFramePulse(m_frameClock.nsecsElapsed());
 }
 
 void PlaybackController::seekTo(double timeMs)
@@ -325,15 +400,20 @@ void PlaybackController::applySeekNow(qint64 targetMs, const char *reason)
 
 void PlaybackController::onFramePulseTimeout()
 {
-    if (m_state != Playing)
+    if (m_state != Playing || m_externalFramePulseEnabled)
         return;
 
     const qint64 nowNs = m_frameClock.nsecsElapsed();
     scheduleNextFramePulse(nowNs);
+    emitFramePulse(nowNs);
+}
+
+void PlaybackController::emitFramePulse(qint64 nowNs)
+{
     if (m_waitingForAudioProgress)
         return;
 
-    const qint64 nowMs = m_frameClock.elapsed();
+    const qint64 nowMs = nowNs / 1000000LL;
     if (!m_frameAnchorValid)
         resetFrameAnchor(currentTime(), nowMs);
 
@@ -349,6 +429,9 @@ void PlaybackController::onFramePulseTimeout()
 
 void PlaybackController::startFramePulse()
 {
+    if (m_externalFramePulseEnabled || m_state != Playing)
+        return;
+
     const qint64 nowNs = m_frameClock.nsecsElapsed();
     m_nextFramePulseDeadlineNs = nowNs + m_framePulseIntervalNs;
     const int delayMs = qMax(1, static_cast<int>(qRound64(
@@ -366,6 +449,21 @@ void PlaybackController::scheduleNextFramePulse(qint64 nowNs)
     const int delayMs = qMax(1, static_cast<int>(qRound64(
                                   static_cast<double>(remainingNs) / 1000000.0)));
     m_framePulseTimer->start(delayMs);
+}
+
+void PlaybackController::updateFramePulseInterval()
+{
+    const double targetFps = qMax(1.0, effectiveFrameRate());
+    m_framePulseIntervalNs = qMax<qint64>(
+        1,
+        qRound64(static_cast<double>(kNanosecondsPerSecond) / targetFps));
+}
+
+void PlaybackController::resetExternalFrameAccumulator()
+{
+    const double displayFps = qMax(1.0, m_displayRefreshRateHz);
+    const double targetFps = qMax(1.0, effectiveFrameRate());
+    m_externalFrameAccumulator = qMax(0.0, displayFps - qMin(displayFps, targetFps));
 }
 
 void PlaybackController::resetFrameAnchor(double timeMs, qint64 nowMs)
