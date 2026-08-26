@@ -17,6 +17,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
@@ -421,27 +422,45 @@ void PlaybackBenchmarkRunner::finishMeasurement()
     }
 
     const QJsonObject summary = report.value("summary").toObject();
-    const bool passed = report.value("verdict").toObject().value("passed").toBool();
-    Logger::info(QStringLiteral("BENCHMARK_END output=%1 passed=%2 fps_tick=%3 fps_canvas=%4 paint_p95_ms=%5 display_p95_ms=%6 ui_dispatch_p95_ms=%7 skipped_refresh_pct=%8 scroll_velocity_change_p95_pct=%9")
+    const QJsonObject verdict = report.value("verdict").toObject();
+    const bool passed = verdict.value("passed").toBool();
+    QStringList failures;
+    for (const QJsonValue &failure : verdict.value("failures").toArray())
+        failures.append(failure.toString());
+    const QString failureText = failures.isEmpty()
+                                    ? QStringLiteral("none")
+                                    : failures.join(',');
+    Logger::info(QStringLiteral("BENCHMARK_END output=%1 passed=%2 fps_tick=%3 fps_canvas=%4 fps_preview=%5 paint_p95_ms=%6 window_update_p95_ms=%7 window_update_max_ms=%8 display_p95_ms=%9 ui_dispatch_p95_ms=%10 skipped_refresh_pct=%11 scroll_step_change_p95_pct=%12 failures=%13 window_updates_per_frame=%14")
                      .arg(outputPath)
                      .arg(passed ? QStringLiteral("true") : QStringLiteral("false"))
                      .arg(summary.value("fps_tick").toDouble(), 0, 'f', 2)
                      .arg(summary.value("fps_canvas").toDouble(), 0, 'f', 2)
+                     .arg(summary.value("fps_preview").toDouble(), 0, 'f', 2)
                      .arg(summary.value("paint_time_p95_ms").toDouble(), 0, 'f', 3)
+                     .arg(summary.value("window_update_request_p95_ms").toDouble(), 0, 'f', 3)
+                     .arg(summary.value("window_update_request_max_ms").toDouble(), 0, 'f', 3)
                      .arg(summary.value("display_interval_p95_ms").toDouble(), 0, 'f', 3)
                      .arg(summary.value("ui_dispatch_delay_p95_ms").toDouble(), 0, 'f', 3)
                      .arg(summary.value("skipped_display_refresh_percent").toDouble(), 0, 'f', 3)
-                     .arg(summary.value("scroll_velocity_change_p95_percent").toDouble(), 0, 'f', 3));
+                     .arg(summary.value("scroll_step_change_p95_percent").toDouble(), 0, 'f', 3)
+                     .arg(failureText)
+                     .arg(summary.value("window_updates_per_canvas_frame").toDouble(), 0, 'f', 3));
     QTextStream(stdout) << "BENCHMARK_END output=\"" << outputPath
                         << "\" passed=" << (passed ? "true" : "false")
                         << " fps_tick=" << QString::number(summary.value("fps_tick").toDouble(), 'f', 2)
                         << " fps_canvas=" << QString::number(summary.value("fps_canvas").toDouble(), 'f', 2)
+                        << " fps_preview=" << QString::number(summary.value("fps_preview").toDouble(), 'f', 2)
                         << " paint_p95_ms=" << QString::number(summary.value("paint_time_p95_ms").toDouble(), 'f', 3)
+                        << " window_update_p95_ms=" << QString::number(summary.value("window_update_request_p95_ms").toDouble(), 'f', 3)
+                        << " window_update_max_ms=" << QString::number(summary.value("window_update_request_max_ms").toDouble(), 'f', 3)
                         << " display_p95_ms=" << QString::number(summary.value("display_interval_p95_ms").toDouble(), 'f', 3)
                         << " ui_dispatch_p95_ms=" << QString::number(summary.value("ui_dispatch_delay_p95_ms").toDouble(), 'f', 3)
                         << " skipped_refresh_pct=" << QString::number(summary.value("skipped_display_refresh_percent").toDouble(), 'f', 3)
-                        << " scroll_velocity_change_p95_pct="
-                        << QString::number(summary.value("scroll_velocity_change_p95_percent").toDouble(), 'f', 3)
+                        << " scroll_step_change_p95_pct="
+                        << QString::number(summary.value("scroll_step_change_p95_percent").toDouble(), 'f', 3)
+                        << " failures=" << failureText
+                        << " window_updates_per_frame="
+                        << QString::number(summary.value("window_updates_per_canvas_frame").toDouble(), 'f', 3)
                         << Qt::endl;
 
     m_finished = true;

@@ -28,6 +28,9 @@ public:
     void loadLastProject();
     void loadLanguage();
 
+protected:
+    bool notify(QObject *receiver, QEvent *event) override;
+
 private:
     ChartController *m_chartController = nullptr;
     SelectionController *m_selectionController = nullptr;
