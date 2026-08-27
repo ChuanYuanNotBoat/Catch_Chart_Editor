@@ -2084,6 +2084,12 @@ def _mark_dirty(context, flush=False):
 
 
 def _build_overlay(context):
+    # listCanvasOverlays 请求来自 C++ 侧 ExternalProcessPlugin::canvasOverlays，
+    # 该方法忽略了 context 参数并始终向 Python 发送空的 QJsonObject。
+    # 回退到 handleCanvasInput 保存的最后完整上下文，以确保
+    # chart_to_canvas 能获取正确的 scroll_beat / visible_beat_range / margin 等参数。
+    if not isinstance(context, dict) or not context:
+        context = STATE.get("last_context", {})
     callbacks = {
         "normalize_link": _normalize_link,
         "connected_anchor_segments": _connected_anchor_segments,

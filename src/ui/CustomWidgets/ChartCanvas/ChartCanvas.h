@@ -7,12 +7,13 @@
 #include <QDateTime>
 #include <QVector>
 #include <QElapsedTimer>
+#include <QMetaObject>
+#include <QPointer>
 #include <QTimer>
 #include "model/Note.h"
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
 #include "editor/NoteChain/NoteChainEditor.h"
-#include "editor/NoteChain/NoteChainCanvasBridge.h"
 
 class ChartController;
 class SelectionController;
@@ -25,6 +26,9 @@ class PlaybackController;
 class NoteSoundPlayer;
 class Chart;
 class QMenu;
+class QHideEvent;
+class QScreen;
+class QWindow;
 
 namespace NoteChain { class NoteChainEditor; }
 
@@ -54,6 +58,7 @@ public:
     void setGridSnap(bool snap);
     void setScrollPos(double timeMs);
     void setNoteSize(int size);
+    void refreshRenderSettings();
     void setMode(Mode mode);
     void setNoteSoundFile(const QString &filePath);
     void setNoteSoundEnabled(bool enabled);
@@ -121,6 +126,7 @@ signals:
     void timeScaleChanged(double scale);
     void mirrorAxisChanged(int axisX);
     void statusMessage(const QString &msg); // Status bar message hook.
+    void noteChainControlsChanged();
     void rangeStartChanged(double beat);
     void rangeEndChanged(double beat);
     void rangeDragFinished(double startBeat, double endBeat);
@@ -136,6 +142,7 @@ protected:
     void timerEvent(QTimerEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 
@@ -192,8 +199,10 @@ private:
     void endMoveSelection();
     void prepareMoveChanges();
     void showRightClickMenu(QMouseEvent *event);
-    QVector<int> collectColorTargetIndices(const QPoint &pos) const;
-    QVector<int> collectMirrorTargetIndices(const QPoint &pos) const;
+    void showNoteChainContextMenu(QMouseEvent *event);
+    void showPluginContextMenu(QMouseEvent *event);
+    void showStandardContextMenu(QMouseEvent *event);
+    QVector<int> collectEditableTargetIndices(const QPoint &pos, bool testPoint) const;
     void populateColorMenu(QMenu *colorMenu, const QVector<int> &targetIndices);
     bool performMirrorFlip(const QVector<int> &targetIndices, int axisX, const QString &actionName);
     bool hasNoteSnapReferenceOverlays() const;
@@ -231,8 +240,9 @@ private:
     double getNoteTimeMs(const Note &note) const;
     void confirmPaste();
 
-    void rebuildBpmTimeCache();
-    const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache();
+    void rebuildBpmTimeCache() const;
+    const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache() const;
+    double beatFromTimeMs(double timeMs) const;
 
     void rebuildNoteTimesCache();
     const Chart *chart() const;
@@ -293,8 +303,8 @@ private:
     QVector<int> m_sortedRainNoteIndicesByBeat;
     bool m_noteDataDirty;
     bool m_timesDirty;
-    QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
-    bool m_bpmCacheDirty;
+    mutable QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
+    mutable bool m_bpmCacheDirty;
 
     ChartController *m_chartController;
     SelectionController *m_selectionController;
@@ -418,7 +428,10 @@ private:
     int rightMargin() const;
     void invalidateChartCaches(bool includeBackground);
     void resetOverlayQueryState();
+    void advanceNoteSoundClock(double playbackTimeMs);
     void advancePlaybackVisual(bool scheduleRepaint, bool recordProbe = true);
+    void attachDisplayFrameWindow();
+    void updateDisplayRefreshRate(QScreen *screen);
 
 private slots:
     void onSelectionChanged();
@@ -448,8 +461,22 @@ private:
     double m_lastPlaybackScrollStepPx;
     double m_lastPlaybackPlayheadYPx;
     double m_lastPlaybackPlayheadStepPx;
-    bool m_playbackVisualFramePending;
-    qint64 m_lastPlaybackTickNs;
-    qint64 m_lastPlaybackVisualAdvanceNs;
+    qint64 m_lastPaintProbeNs;
+    double m_lastPaintIntervalMs;
+    bool m_paintMotionProbeValid;
+    double m_lastPaintScrollBeat;
+    double m_lastPaintScrollVelocityPxPerSecond;
     int m_overlayPlaybackIntervalMs;
+    QPointer<QWindow> m_displayFrameWindow;
+    QPointer<QScreen> m_displayFrameScreen;
+    QMetaObject::Connection m_displayWindowDestroyedConnection;
+    QMetaObject::Connection m_displayScreenChangedConnection;
+    QMetaObject::Connection m_displayRefreshRateConnection;
 };
+
+// NoteChain native integration free functions (declared in ChartCanvasNoteChain.cpp)
+class QMouseEvent;
+bool ChartCanvas_dispatchNoteChainMousePress(ChartCanvas *c, QMouseEvent *event);
+bool ChartCanvas_dispatchNoteChainMouseMove(ChartCanvas *c, QMouseEvent *event);
+bool ChartCanvas_dispatchNoteChainMouseRelease(ChartCanvas *c, QMouseEvent *event);
+void ChartCanvas_drawNoteChainOverlay(ChartCanvas *c, QPainter *painter);

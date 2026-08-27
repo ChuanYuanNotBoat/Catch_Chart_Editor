@@ -35,6 +35,10 @@ public:
     // 分数拍号转换（避免毫秒）
     static double beatToFloat(int beatNum, int numerator, int denominator);
     static void floatToBeat(double beat, int &beatNum, int &numerator, int &denominator, int maxDenominator = 1024);
+    static bool quantizeBeatToDivision(double beat, int division,
+                                       int &beatNum, int &numerator, int &denominator);
+    static bool representBeatWithDivision(double beat, int division,
+                                          int &beatNum, int &numerator, int &denominator);
     static bool isSameBeat(const Note &a, const Note &b, int timeDivision);
     static Note snapNoteToBeat(const Note &note, int timeDivision);
 

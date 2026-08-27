@@ -11,6 +11,7 @@
 class ChartController;
 class SelectionController;
 class PlaybackController;
+class QGroupBox;
 
 class LongRangeSelector : public QWidget
 {
@@ -33,6 +34,7 @@ public:
     bool hasValidRange() const;
     void setStartBeat(double beat);
     void setEndBeat(double beat);
+    void setInputOnlyMode(const QString &title);
 
     struct BeatValue
     {
@@ -77,6 +79,7 @@ private:
 
     QLineEdit *m_startEdit;
     QLineEdit *m_endEdit;
+    QGroupBox *m_group;
     QPushButton *m_startNowBtn;
     QPushButton *m_endNowBtn;
     QPushButton *m_selectBtn;
@@ -89,6 +92,7 @@ private:
 
     // 范围覆盖层状态
     bool m_rangeVisible = true;
+    bool m_inputOnlyMode = false;
 
     // 撤销合并状态（每个输入框独立）
     QTimer *m_undoMergeTimer;

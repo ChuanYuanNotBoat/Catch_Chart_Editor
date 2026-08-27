@@ -1,7 +1,9 @@
 ﻿#include "NoteEditPanel.h"
 #include "controller/ChartController.h"
+#include "controller/PlaybackController.h"
 #include "controller/SelectionController.h"
 #include "ui/LongRangeSelector.h"
+#include "ui/PlaybackSpeedPanel.h"
 #include "utils/Logger.h"
 #include <QtGlobal>
 #include <QButtonGroup>
@@ -22,6 +24,16 @@
 #include <QMessageBox>
 #include <QDebug>
 #include <QSignalBlocker>
+#include <QSizePolicy>
+
+namespace
+{
+void keepActionButtonCompact(QPushButton *button)
+{
+    if (button)
+        button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+}
+}
 
 NoteEditPanel::NoteEditPanel(QWidget *parent)
     : RightPanel(parent), m_chartController(nullptr), m_selectionController(nullptr), m_currentMode(0), m_gridDivision(20), m_pluginToolsExpanded(false)
@@ -31,7 +43,8 @@ NoteEditPanel::NoteEditPanel(QWidget *parent)
 
 void NoteEditPanel::setupUi()
 {
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    m_mainLayout = new QVBoxLayout(this);
+    QVBoxLayout *mainLayout = m_mainLayout;
 
     m_modeLabel = new QLabel(tr("Mode:"), this);
     mainLayout->addWidget(m_modeLabel);
@@ -78,6 +91,7 @@ void NoteEditPanel::setupUi()
                 refreshPluginToolsUi(); });
     mainLayout->addWidget(m_pluginToolsToggleBtn);
 
+    // Plugin placement placeholder (for external plugins via plugin system)
     m_pluginToolsLabel = new QLabel(tr("Note Placement Tools:"), this);
     m_pluginToolsContainer = new QWidget(this);
     m_pluginToolsLayout = new QVBoxLayout(m_pluginToolsContainer);
@@ -89,30 +103,98 @@ void NoteEditPanel::setupUi()
     mainLayout->addWidget(m_pluginToolsLabel);
     mainLayout->addWidget(m_pluginToolsContainer);
 
+    // NoteChain native controls (replaces plugin tooling for anchor/curve editing)
+    m_ncPlaceholder = new QWidget(this);
+    QVBoxLayout *ncLayout = new QVBoxLayout(m_ncPlaceholder);
+    ncLayout->setContentsMargins(0, 4, 0, 0);
+    ncLayout->setSpacing(6);
+    m_ncAnchorPlaceCheck = new QCheckBox(tr("Anchor Placement"), m_ncPlaceholder);
+    m_ncAnchorPlaceCheck->setChecked(false);
+    connect(m_ncAnchorPlaceCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainAnchorPlaceToggled);
+    ncLayout->addWidget(m_ncAnchorPlaceCheck);
+    m_ncCurveVisibleCheck = new QCheckBox(tr("Show Curve"), m_ncPlaceholder);
+    m_ncCurveVisibleCheck->setChecked(true);
+    connect(m_ncCurveVisibleCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainCurveVisibleToggled);
+    ncLayout->addWidget(m_ncCurveVisibleCheck);
+    m_ncPolylineModeCheck = new QCheckBox(tr("Polyline Mode"), m_ncPlaceholder);
+    m_ncPolylineModeCheck->setChecked(false);
+    connect(m_ncPolylineModeCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainPolylineModeToggled);
+    ncLayout->addWidget(m_ncPolylineModeCheck);
+    m_ncNoteCurveSnapCheck = new QCheckBox(tr("Snap Notes to Curve"), m_ncPlaceholder);
+    m_ncNoteCurveSnapCheck->setChecked(false);
+    connect(m_ncNoteCurveSnapCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainNoteCurveSnapToggled);
+    ncLayout->addWidget(m_ncNoteCurveSnapCheck);
+    m_ncSelectAnchorsCheck = new QCheckBox(tr("Select: Anchors"), m_ncPlaceholder);
+    m_ncSelectAnchorsCheck->setChecked(true);
+    connect(m_ncSelectAnchorsCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainSelectAnchorsToggled);
+    ncLayout->addWidget(m_ncSelectAnchorsCheck);
+    m_ncSelectSegmentsCheck = new QCheckBox(tr("Select: Segments"), m_ncPlaceholder);
+    m_ncSelectSegmentsCheck->setChecked(true);
+    connect(m_ncSelectSegmentsCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainSelectSegmentsToggled);
+    ncLayout->addWidget(m_ncSelectSegmentsCheck);
+    m_ncSelectNotesCheck = new QCheckBox(tr("Select: Notes"), m_ncPlaceholder);
+    m_ncSelectNotesCheck->setChecked(false);
+    connect(m_ncSelectNotesCheck, &QCheckBox::toggled, this, &NoteEditPanel::noteChainSelectNotesToggled);
+    ncLayout->addWidget(m_ncSelectNotesCheck);
+    m_ncCommitBtn = new QPushButton(tr("Commit Curve → Notes"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncCommitBtn);
+    connect(m_ncCommitBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainCommitRequested);
+    ncLayout->addWidget(m_ncCommitBtn);
+    m_ncConnectBtn = new QPushButton(tr("Connect Selected"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncConnectBtn);
+    connect(m_ncConnectBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainConnectRequested);
+    ncLayout->addWidget(m_ncConnectBtn);
+    m_ncDisconnectBtn = new QPushButton(tr("Disconnect Selected"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncDisconnectBtn);
+    connect(m_ncDisconnectBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainDisconnectRequested);
+    ncLayout->addWidget(m_ncDisconnectBtn);
+    m_ncDeleteBtn = new QPushButton(tr("Delete Selected"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncDeleteBtn);
+    connect(m_ncDeleteBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainDeleteRequested);
+    ncLayout->addWidget(m_ncDeleteBtn);
+    m_ncResetBtn = new QPushButton(tr("Reset Curve"), m_ncPlaceholder);
+    keepActionButtonCompact(m_ncResetBtn);
+    connect(m_ncResetBtn, &QPushButton::clicked, this, &NoteEditPanel::noteChainResetRequested);
+    ncLayout->addWidget(m_ncResetBtn);
+    m_ncPlaceholder->setVisible(false);
+    mainLayout->addWidget(m_ncPlaceholder);
+
     // Copy button.
     m_copyButton = new QPushButton(tr("Copy"), this);
+    keepActionButtonCompact(m_copyButton);
     connect(m_copyButton, &QPushButton::clicked, this, &NoteEditPanel::copyRequested);
     mainLayout->addWidget(m_copyButton);
 
-    m_timeDivisionLabel = new QLabel(tr("Time Division:"), this);
-    mainLayout->addWidget(m_timeDivisionLabel);
-    m_timeDivisionCombo = new QComboBox(this);
+    m_timingToolsContainer = new QWidget(this);
+    QVBoxLayout *timingLayout = new QVBoxLayout(m_timingToolsContainer);
+    timingLayout->setContentsMargins(0, 0, 0, 0);
+    timingLayout->setSpacing(6);
+    m_timeDivisionLabel = new QLabel(tr("Time Division:"), m_timingToolsContainer);
+    timingLayout->addWidget(m_timeDivisionLabel);
+    m_timeDivisionCombo = new QComboBox(m_timingToolsContainer);
     QStringList divisions = {"1", "2", "3", "4", "6", "8", "12", "16", "24", "32"};
     for (const QString &d : divisions)
         m_timeDivisionCombo->addItem(d);
     m_timeDivisionCombo->setEditable(true);
     m_timeDivisionCombo->setCurrentText("4");
     connect(m_timeDivisionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &NoteEditPanel::onTimeDivisionChanged);
-    mainLayout->addWidget(m_timeDivisionCombo);
+    timingLayout->addWidget(m_timeDivisionCombo);
 
-    m_gridSnapCheck = new QCheckBox(tr("Grid Snap"), this);
+    m_gridSnapCheck = new QCheckBox(tr("Grid Snap"), m_timingToolsContainer);
     m_gridSnapCheck->setChecked(true);
     connect(m_gridSnapCheck, &QCheckBox::toggled, this, &NoteEditPanel::onGridSnapToggled);
-    mainLayout->addWidget(m_gridSnapCheck);
+    timingLayout->addWidget(m_gridSnapCheck);
 
-    m_gridSettingsBtn = new QPushButton(tr("Grid Settings..."), this);
+    m_gridSettingsBtn = new QPushButton(tr("Grid Settings..."), m_timingToolsContainer);
+    keepActionButtonCompact(m_gridSettingsBtn);
     connect(m_gridSettingsBtn, &QPushButton::clicked, this, &NoteEditPanel::onGridSettingsClicked);
-    mainLayout->addWidget(m_gridSettingsBtn);
+    timingLayout->addWidget(m_gridSettingsBtn);
+    mainLayout->addWidget(m_timingToolsContainer);
+
+    m_playbackSpeedPanel = new PlaybackSpeedPanel(this);
+    connect(m_playbackSpeedPanel, &PlaybackSpeedPanel::speedChanged,
+            this, &NoteEditPanel::playbackSpeedChanged);
+    mainLayout->addWidget(m_playbackSpeedPanel);
 
     // 长范围选择器
     m_longRangeSelector = new LongRangeSelector(this);
@@ -138,6 +220,7 @@ void NoteEditPanel::setupUi()
     mirrorLayout->addWidget(m_mirrorPreviewCheck);
 
     m_mirrorFlipButton = new QPushButton(tr("Flip Selected"), m_mirrorGroup);
+    keepActionButtonCompact(m_mirrorFlipButton);
     mirrorLayout->addWidget(m_mirrorFlipButton);
     mainLayout->addWidget(m_mirrorGroup);
 
@@ -153,6 +236,106 @@ void NoteEditPanel::setupUi()
             this, &NoteEditPanel::rangeVisibilityChanged);
 
     mainLayout->addStretch();
+}
+
+QWidget *NoteEditPanel::takeSectionWidget(QWidget *widget)
+{
+    if (!widget || widget->parentWidget() != this)
+        return nullptr;
+    if (m_mainLayout)
+        m_mainLayout->removeWidget(widget);
+    widget->setParent(nullptr);
+    return widget;
+}
+
+void NoteEditPanel::insertSectionAfter(QWidget *widget, QWidget *after)
+{
+    if (!widget || !m_mainLayout)
+        return;
+
+    const int afterIndex = m_mainLayout->indexOf(after);
+    const int insertIndex = afterIndex >= 0 ? afterIndex + 1 : m_mainLayout->count() - 1;
+    widget->setParent(this);
+    m_mainLayout->insertWidget(qMax(0, insertIndex), widget);
+}
+
+QWidget *NoteEditPanel::takeTimingToolsWidget()
+{
+    return takeSectionWidget(m_timingToolsContainer);
+}
+
+QWidget *NoteEditPanel::takePlaybackSpeedToolsWidget()
+{
+    return takeSectionWidget(m_playbackSpeedPanel);
+}
+
+QWidget *NoteEditPanel::takeRangeToolsWidget()
+{
+    return takeSectionWidget(m_longRangeSelector);
+}
+
+QWidget *NoteEditPanel::takeMirrorToolsWidget()
+{
+    return takeSectionWidget(m_mirrorGroup);
+}
+
+QWidget *NoteEditPanel::takeCurveToolsWidget()
+{
+    return takeSectionWidget(m_ncPlaceholder);
+}
+
+QWidget *NoteEditPanel::takeEmbeddedPluginToolsWidget()
+{
+    QWidget *pluginTools = takeSectionWidget(m_embeddedPluginTools);
+    if (pluginTools)
+        m_embeddedPluginTools = nullptr;
+    return pluginTools;
+}
+
+void NoteEditPanel::attachLegacyToolSections(QWidget *timingTools,
+                                             QWidget *playbackSpeedTools,
+                                             QWidget *rangeTools,
+                                             QWidget *mirrorTools,
+                                             QWidget *curveTools,
+                                             QWidget *pluginTools,
+                                             bool showPluginTools)
+{
+    if (!m_mainLayout)
+        return;
+
+    // Rebuild the original Note Editor reading order. The sections remain the
+    // same widgets, so controller connections and in-progress input survive
+    // repeated switches between embedded and dockable modes.
+    if (curveTools)
+    {
+        const int copyIndex = m_mainLayout->indexOf(m_copyButton);
+        curveTools->setParent(this);
+        m_mainLayout->insertWidget(qMax(0, copyIndex), curveTools);
+        curveTools->setVisible(m_noteChainControlsVisible);
+    }
+
+    QWidget *anchor = m_copyButton;
+    for (QWidget *section : {timingTools, playbackSpeedTools, rangeTools, mirrorTools})
+    {
+        if (!section)
+            continue;
+        insertSectionAfter(section, anchor);
+        section->show();
+        anchor = section;
+    }
+
+    if (pluginTools)
+    {
+        insertSectionAfter(pluginTools, anchor);
+        m_embeddedPluginTools = pluginTools;
+        pluginTools->setVisible(showPluginTools);
+    }
+}
+
+void NoteEditPanel::setEmbeddedPluginToolsVisible(bool visible)
+{
+    if (m_embeddedPluginTools)
+        m_embeddedPluginTools->setVisible(visible);
 }
 
 
@@ -241,8 +424,17 @@ void NoteEditPanel::setSelectionController(SelectionController *controller)
 
 void NoteEditPanel::setPlaybackController(PlaybackController *controller)
 {
+    if (m_playbackController && m_playbackSpeedPanel)
+        disconnect(m_playbackController, nullptr, m_playbackSpeedPanel, nullptr);
+    m_playbackController = controller;
     if (m_longRangeSelector)
         m_longRangeSelector->setPlaybackController(controller);
+    if (m_playbackController && m_playbackSpeedPanel)
+    {
+        connect(m_playbackController, &PlaybackController::speedChanged,
+                m_playbackSpeedPanel, &PlaybackSpeedPanel::setSpeed);
+        m_playbackSpeedPanel->setSpeed(m_playbackController->speed());
+    }
 }
 
 void NoteEditPanel::setModeFromHost(int mode)
@@ -253,6 +445,30 @@ void NoteEditPanel::setModeFromHost(int mode)
     const QSignalBlocker blocker(m_modeGroup);
     button->setChecked(true);
     m_currentMode = mode;
+}
+
+void NoteEditPanel::setNoteChainControlsVisible(bool visible)
+{
+    m_noteChainControlsVisible = visible;
+    if (m_ncPlaceholder) m_ncPlaceholder->setVisible(visible);
+}
+
+void NoteEditPanel::syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline,
+                                                     bool noteSnap, bool selAnchors, bool selSegments, bool selNotes)
+{
+    const auto setCheckedSilently = [](QCheckBox *box, bool checked) {
+        if (!box)
+            return;
+        const QSignalBlocker blocker(box);
+        box->setChecked(checked);
+    };
+    setCheckedSilently(m_ncAnchorPlaceCheck, anchorPlace);
+    setCheckedSilently(m_ncCurveVisibleCheck, curveVisible);
+    setCheckedSilently(m_ncPolylineModeCheck, polyline);
+    setCheckedSilently(m_ncNoteCurveSnapCheck, noteSnap);
+    setCheckedSilently(m_ncSelectAnchorsCheck, selAnchors);
+    setCheckedSilently(m_ncSelectSegmentsCheck, selSegments);
+    setCheckedSilently(m_ncSelectNotesCheck, selNotes);
 }
 
 void NoteEditPanel::setPluginPlacementActions(const QList<PluginPlacementAction> &actions)
@@ -285,6 +501,7 @@ void NoteEditPanel::setPluginPlacementActions(const QList<PluginPlacementAction>
         }
 
         QPushButton *btn = new QPushButton(a.title, m_pluginToolsContainer);
+        keepActionButtonCompact(btn);
         if (!a.tooltip.isEmpty())
             btn->setToolTip(a.tooltip);
         connect(btn, &QPushButton::clicked, this, [this, a](bool)
@@ -361,6 +578,31 @@ void NoteEditPanel::retranslateUi()
     if (m_mirrorFlipButton)
         m_mirrorFlipButton->setText(tr("Flip Selected"));
 
+    if (m_ncAnchorPlaceCheck)
+        m_ncAnchorPlaceCheck->setText(tr("Anchor Placement"));
+    if (m_ncCurveVisibleCheck)
+        m_ncCurveVisibleCheck->setText(tr("Show Curve"));
+    if (m_ncPolylineModeCheck)
+        m_ncPolylineModeCheck->setText(tr("Polyline Mode"));
+    if (m_ncNoteCurveSnapCheck)
+        m_ncNoteCurveSnapCheck->setText(tr("Snap Notes to Curve"));
+    if (m_ncSelectAnchorsCheck)
+        m_ncSelectAnchorsCheck->setText(tr("Select: Anchors"));
+    if (m_ncSelectSegmentsCheck)
+        m_ncSelectSegmentsCheck->setText(tr("Select: Segments"));
+    if (m_ncCommitBtn)
+        m_ncCommitBtn->setText(tr("Commit Curve → Notes"));
+    if (m_ncConnectBtn)
+        m_ncConnectBtn->setText(tr("Connect Selected"));
+    if (m_ncDisconnectBtn)
+        m_ncDisconnectBtn->setText(tr("Disconnect Selected"));
+    if (m_ncDeleteBtn)
+        m_ncDeleteBtn->setText(tr("Delete Selected"));
+    if (m_ncResetBtn)
+        m_ncResetBtn->setText(tr("Reset Curve"));
+
     if (m_longRangeSelector)
         m_longRangeSelector->retranslateUi();
+    if (m_playbackSpeedPanel)
+        m_playbackSpeedPanel->retranslateUi();
 }

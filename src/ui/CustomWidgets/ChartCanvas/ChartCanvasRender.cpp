@@ -10,21 +10,21 @@
 #include "plugin/PluginManager.h"
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
-#include "utils/DiagnosticCollector.h"
 #include "utils/Logger.h"
+#include "utils/PlaybackStutterProbe.h"
 #include "model/Chart.h"
-#include "editor/NoteChain/NoteChainCanvasBridge.h"
 #include <QPainter>
 #include <QPen>
 #include <QDir>
 #include <QFileInfo>
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <QCoreApplication>
 
 namespace
 {
+constexpr double kGridCacheScrollChunkPx = 96.0;
+
 PluginManager *activePluginManager()
 {
     auto *app = qobject_cast<Application *>(QCoreApplication::instance());
@@ -32,11 +32,68 @@ PluginManager *activePluginManager()
         return nullptr;
     return app->pluginManager();
 }
+
+class PlaybackPaintAcknowledgement final
+{
+public:
+    PlaybackPaintAcknowledgement(PlaybackController *controller, qint64 frameSeq)
+        : m_controller(controller), m_frameSeq(frameSeq)
+    {
+    }
+
+    ~PlaybackPaintAcknowledgement()
+    {
+        if (m_controller)
+            m_controller->acknowledgeFramePainted(m_frameSeq);
+    }
+
+private:
+    PlaybackController *m_controller;
+    qint64 m_frameSeq;
+};
 }
 
 void ChartCanvas::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
+
+    // Frame scheduling is back-pressured by the main canvas. A scope-bound
+    // acknowledgement covers empty charts and any future early return without
+    // allowing an unrelated paint to release a newer queued frame.
+    PlaybackPaintAcknowledgement frameAcknowledgement(
+        m_playbackController,
+        m_lastPlaybackFrameSeq);
+
+    const bool probeFrame = m_isPlaying && PlaybackStutterProbe::enabled();
+    const qint64 paintStartNs = probeFrame ? m_playbackVisualClock.nsecsElapsed() : 0;
+    double paintIntervalMs = -1.0;
+    if (probeFrame)
+    {
+        if (m_lastPaintProbeNs > 0 && paintStartNs > m_lastPaintProbeNs)
+        {
+            paintIntervalMs = static_cast<double>(paintStartNs - m_lastPaintProbeNs) / 1000000.0;
+            const double targetIntervalMs = 1000.0 / qMax(1.0, m_playbackController->effectiveFrameRate());
+            PlaybackStutterProbe::recordDuration(
+                "canvas.paint_interval", paintIntervalMs, targetIntervalMs * 1.35, true);
+            if (m_lastPaintIntervalMs >= 0.0)
+            {
+                PlaybackStutterProbe::recordDuration(
+                    "canvas.paint_interval_jerk",
+                    std::abs(paintIntervalMs - m_lastPaintIntervalMs),
+                    2.0,
+                    true);
+            }
+            m_lastPaintIntervalMs = paintIntervalMs;
+        }
+        m_lastPaintProbeNs = paintStartNs;
+    }
+    QElapsedTimer paintTimer;
+    if (probeFrame)
+        paintTimer.start();
+    const auto paintMarkNs = [&paintTimer, probeFrame]() -> qint64
+    {
+        return probeFrame ? paintTimer.nsecsElapsed() : 0;
+    };
 
     m_frameCount++;
     qint64 elapsed = m_fpsTimer.elapsed();
@@ -57,18 +114,72 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     if (m_timesDirty || m_noteDataDirty)
         rebuildNoteTimesCache();
 
-    if (m_isPlaying && m_playbackController && m_lastPlaybackTargetTimeMs >= 0.0)
+    if (m_isPlaying && m_playbackController)
     {
-        const qint64 nowNs = m_playbackVisualClock.nsecsElapsed();
-        double visualTimeMs = m_lastPlaybackTargetTimeMs;
-        if (m_lastPlaybackTickNs > 0 && nowNs > m_lastPlaybackTickNs)
-        {
-            const double dtMs = static_cast<double>(nowNs - m_lastPlaybackTickNs) / 1000000.0;
-            visualTimeMs += dtMs * m_playbackController->speed();
-        }
+        // Render from the controller's authoritative high-resolution clock.
+        // Re-anchoring a second canvas-local clock on every frame tick turns
+        // signal-handler latency into a small position jump once per tick.
+        // The tick should schedule the paint; it should not be a second clock.
+        double visualTimeMs = m_playbackController->visualTime();
+        if (m_lastPlaybackTargetTimeMs >= 0.0)
+            visualTimeMs = qMax(visualTimeMs, m_lastPlaybackTargetTimeMs);
         m_currentPlayTime = qMax(0.0, visualTimeMs);
         advancePlaybackVisual(false, false);
     }
+
+    // Measure motion at the point actually painted. Tick-to-tick displacement
+    // is not a speed metric: a correctly paced 8/9 ms timer cadence naturally
+    // produces different per-frame steps at 120 Hz. Normalizing the scroll
+    // delta by the real paint interval isolates visible speed changes instead.
+    if (probeFrame && m_autoScrollEnabled && paintIntervalMs > 0.0)
+    {
+        const double visibleRange = qMax(1e-6, effectiveVisibleBeatRange());
+        const double pixelsPerBeat = height() > 0
+                                         ? static_cast<double>(height()) / visibleRange
+                                         : 0.0;
+        if (m_paintMotionProbeValid)
+        {
+            const double velocityPxPerSecond =
+                std::abs(m_scrollBeat - m_lastPaintScrollBeat) *
+                pixelsPerBeat * 1000.0 / paintIntervalMs;
+            PlaybackStutterProbe::recordValue(
+                "visual.scroll_velocity_px_s",
+                velocityPxPerSecond,
+                -1.0,
+                true);
+
+            if (m_lastPaintScrollVelocityPxPerSecond >= 0.0)
+            {
+                const double velocityDeltaPxPerSecond =
+                    std::abs(velocityPxPerSecond - m_lastPaintScrollVelocityPxPerSecond);
+                const double velocityReferencePxPerSecond =
+                    qMax(1.0,
+                         0.5 * (velocityPxPerSecond +
+                                m_lastPaintScrollVelocityPxPerSecond));
+                const double velocityChangePercent =
+                    velocityDeltaPxPerSecond * 100.0 / velocityReferencePxPerSecond;
+                PlaybackStutterProbe::recordValue(
+                    "visual.scroll_velocity_delta_px_s",
+                    velocityDeltaPxPerSecond,
+                    -1.0,
+                    true);
+                PlaybackStutterProbe::recordValue(
+                    "visual.scroll_velocity_change_pct",
+                    velocityChangePercent,
+                    1.0,
+                    true);
+            }
+            m_lastPaintScrollVelocityPxPerSecond = velocityPxPerSecond;
+        }
+        m_lastPaintScrollBeat = m_scrollBeat;
+        m_paintMotionProbeValid = true;
+    }
+    else if (probeFrame)
+    {
+        m_paintMotionProbeValid = false;
+        m_lastPaintScrollVelocityPxPerSecond = -1.0;
+    }
+    const qint64 preparationEndNs = paintMarkNs();
 
     const Chart *currentChart = chart();
     const auto &bpmList = currentChart->bpmList();
@@ -82,8 +193,10 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         else if (!m_backgroundCache.isNull())
             painter.drawPixmap(0, 0, m_backgroundCache);
     }
+    const qint64 backgroundEndNs = paintMarkNs();
 
     drawGrid(painter);
+    const qint64 gridEndNs = paintMarkNs();
 
     double startBeat = m_scrollBeat;
     double visibleRange = effectiveVisibleBeatRange();
@@ -91,15 +204,16 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     
 
-    if (m_hyperfruitEnabled && !bpmList.isEmpty())
+    if (m_hyperfruitEnabled && !m_hyperCacheValid)
     {
-        if (!m_hyperCacheValid)
-        {
+        if (bpmList.isEmpty())
+            m_cachedHyperSet.clear();
+        else
             m_cachedHyperSet = m_hyperfruitDetector->detect(notes, bpmList, 0);
-            m_hyperCacheValid = true;
-        }
         m_noteRenderer->setHyperfruitIndices(m_cachedHyperSet);
+        m_hyperCacheValid = true;
     }
+    const qint64 cacheEndNs = paintMarkNs();
 
     const int canvasWidth = width();
     const int canvasHeight = height();
@@ -115,8 +229,6 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         selectedSet = m_selectionController->selectedIndices();
 
     painter.setClipRect(rect());
-
-    int renderedNotesCount = 0;
 
     auto renderNoteAtIndex = [&](int i)
     {
@@ -155,7 +267,6 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             QRectF rainRect(lmargin, rectTop, availableWidth, rectHeight);
             bool selected = selectedSet.contains(i);
             m_noteRenderer->drawRain(painter, notes[i], rainRect, selected);
-            renderedNotesCount++;
         }
         else
         {
@@ -163,7 +274,6 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             QPointF pos(x, y);
             bool selected = selectedSet.contains(i);
             m_noteRenderer->drawNote(painter, notes[i], pos, selected, i);
-            renderedNotesCount++;
         }
     };
 
@@ -214,6 +324,7 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             renderNoteAtIndex(idx);
         }
     }
+    const qint64 notesEndNs = paintMarkNs();
 
     if (m_isPasting && !m_pasteNotes.isEmpty())
         drawPastePreview(painter, canvasHeight, lmargin, availableWidth, invVisibleRange, baseY, sign);
@@ -254,18 +365,8 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     drawPluginOverlays(painter, lmargin, rmargin);
 
-    // NoteChain native: render overlay
-    if (m_noteChainModeActive && m_noteChainEditor) {
-        auto projX = [this](double laneX) -> double {
-            return laneXToCanvasX(static_cast<int>(laneX));
-        };
-        auto projY = [this](double beat) -> double {
-            return beatToY(beat);
-        };
-        NoteChain::bridgeRenderOverlay(m_noteChainEditor, &painter, painter.viewport(),
-                                       m_scrollBeat, effectiveVisibleBeatRange(),
-                                       projX, projY);
-    }
+    // NoteChain native: direct QPainter render (zero overlay serialization)
+    ChartCanvas_drawNoteChainOverlay(this, &painter);
 
     painter.setPen(Qt::white);
     painter.setBrush(QColor(0, 0, 0, 128));
@@ -274,13 +375,27 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     painter.fillRect(fpsRect, QColor(0, 0, 0, 128));
     painter.drawText(fpsRect, Qt::AlignCenter, fpsText);
 
-    auto now = std::chrono::high_resolution_clock::now();
-    static auto lastRecord = now;
-    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastRecord).count();
-    if (elapsedMs > 500)
+    const qint64 overlaysEndNs = paintMarkNs();
+    if (probeFrame)
     {
-        DiagnosticCollector::instance().recordRenderMetrics(elapsedMs, renderedNotesCount);
-        lastRecord = now;
+        const auto toMs = [](qint64 nanoseconds) -> double
+        {
+            return static_cast<double>(nanoseconds) / 1000000.0;
+        };
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.prepare", toMs(preparationEndNs), 1.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.background", toMs(backgroundEndNs - preparationEndNs), 1.5, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.grid", toMs(gridEndNs - backgroundEndNs), 2.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.cache", toMs(cacheEndNs - gridEndNs), 1.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.notes", toMs(notesEndNs - cacheEndNs), 3.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint.overlays", toMs(overlaysEndNs - notesEndNs), 2.0, true);
+        PlaybackStutterProbe::recordDuration(
+            "canvas.paint_total", toMs(overlaysEndNs), 8.0, true);
     }
 
 }
@@ -373,11 +488,25 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
             if (!std::isfinite(originalTime))
                 continue;
             const double originalBeatFloat = previewBeatFromTimeMs(originalTime);
-            const double previewBeatFloat = originalBeatFloat + totalBeatShift;
+            const double requestedPreviewBeat = originalBeatFloat + totalBeatShift;
+            Note previewNote = note;
+            const bool use288Division = Settings::instance().pasteUse288Division();
+            const bool represented = use288Division
+                ? MathUtils::quantizeBeatToDivision(requestedPreviewBeat, 288,
+                                                    previewNote.beatNum, previewNote.numerator, previewNote.denominator)
+                : MathUtils::representBeatWithDivision(requestedPreviewBeat, qMax(1, note.denominator),
+                                                       previewNote.beatNum, previewNote.numerator, previewNote.denominator);
+            if (!represented)
+            {
+                MathUtils::floatToBeat(requestedPreviewBeat, previewNote.beatNum,
+                                       previewNote.numerator, previewNote.denominator);
+            }
+            const double previewBeatFloat = MathUtils::beatToFloat(
+                previewNote.beatNum, previewNote.numerator, previewNote.denominator);
             const double y = baseY + sign * ((previewBeatFloat - m_scrollBeat) * invVisibleRange * canvasHeight);
             const int previewShiftedX = qBound(0, note.x + qRound(m_pasteXOffset), kLaneWidth);
             const double x = lmargin + (previewShiftedX / static_cast<double>(kLaneWidth)) * availableWidth;
-            m_noteRenderer->drawNote(painter, note, QPointF(x, y), false, -1);
+            m_noteRenderer->drawNote(painter, previewNote, QPointF(x, y), false, -1);
         }
     }
 
@@ -386,6 +515,12 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
     painter.drawText(QRect(10, 10, 100, 30), Qt::AlignCenter, tr("Confirm"));
     painter.fillRect(QRect(120, 10, 100, 30), QColor(200, 200, 200));
     painter.drawText(QRect(120, 10, 100, 30), Qt::AlignCenter, tr("Cancel"));
+    if (Settings::instance().pasteUse288Division())
+    {
+        painter.setPen(QColor(255, 225, 120));
+        painter.drawText(QRect(230, 10, 180, 30), Qt::AlignVCenter | Qt::AlignLeft,
+                         tr("Timing: 1/288"));
+    }
 }
 
 void ChartCanvas::drawMirrorPreview(QPainter &painter,
@@ -588,7 +723,7 @@ void ChartCanvas::drawGrid(QPainter &painter)
         const double beatsPerPixel = totalBeats / viewportHeight;
         // Quantize the backing cache in larger vertical chunks and compensate
         // draw position per-frame so playback scrolling can mostly reuse cache.
-        const double quantStepBeat = qMax(1e-6, beatsPerPixel * 24.0);
+        const double quantStepBeat = qMax(1e-6, beatsPerPixel * kGridCacheScrollChunkPx);
         const auto quantizeDown = [quantStepBeat](double value) -> double
         {
             return std::floor(value / quantStepBeat) * quantStepBeat;
@@ -602,18 +737,51 @@ void ChartCanvas::drawGrid(QPainter &painter)
         const double cacheEndBeat = renderEndBeat + cachePadBeat;
         const QSize cacheSize(rect.width(), viewportHeight + cachePadPx * 2);
 
-        const bool colorEnabled = Settings::instance().timelineDivisionColorEnabled();
-        const QString colorPreset = Settings::instance().timelineDivisionColorPreset();
-        const QList<int> colorCustom = Settings::instance().timelineDivisionColorCustomDivisions();
-        const int beatNumberFontSize = Settings::instance().beatNumberFontSize();
+        // Rendering preferences change only through explicit UI actions. Read
+        // QSettings once per invalidation instead of parsing them every frame.
+        if (!m_gridCacheValid)
+        {
+            m_gridCacheColorEnabled = Settings::instance().timelineDivisionColorEnabled();
+            m_gridCacheColorPreset = Settings::instance().timelineDivisionColorPreset();
+            m_gridCacheColorCustomDivisions = Settings::instance().timelineDivisionColorCustomDivisions();
+            m_gridCacheBeatNumberFontSize = Settings::instance().beatNumberFontSize();
 
-        // 计算节拍编号所需的左侧留白宽度
-        QFont tempFont;
-        tempFont.setPointSize(beatNumberFontSize);
-        QFontMetrics tempFm(tempFont);
-        // 为最大节拍号预留空间（假设最多 6 位数字）
-        const int maxBeatNumberWidth = tempFm.horizontalAdvance("999999");
-        const int beatNumberLeftMargin = beatNumberFontSize > 0 ? maxBeatNumberWidth + 4 : 0;
+            QFont beatNumberFont;
+            beatNumberFont.setPointSize(m_gridCacheBeatNumberFontSize);
+            const QFontMetrics metrics(beatNumberFont);
+            m_gridCacheBeatNumberLeftMargin = m_gridCacheBeatNumberFontSize > 0
+                                                  ? metrics.horizontalAdvance("999999") + 4
+                                                  : 0;
+        }
+
+        const bool colorEnabled = m_gridCacheColorEnabled;
+        const QString &colorPreset = m_gridCacheColorPreset;
+        const QList<int> &colorCustom = m_gridCacheColorCustomDivisions;
+        const int beatNumberFontSize = m_gridCacheBeatNumberFontSize;
+        const int beatNumberLeftMargin = m_gridCacheBeatNumberLeftMargin;
+
+        // During playback the grid moves every frame. Blending a full-height
+        // transparent pixmap costs more than drawing the small set of visible
+        // lines directly, and rebuilding that pixmap at each scroll chunk
+        // creates a periodic multi-millisecond spike. Keep the cache for the
+        // stationary editor, but use constant-cost direct rendering in motion.
+        if (m_isPlaying)
+        {
+            m_gridRenderer->drawGrid(painter, rect, m_gridDivision,
+                                     startBeat, endBeat,
+                                     m_timeDivision,
+                                     m_verticalFlip,
+                                     colorEnabled,
+                                     colorPreset,
+                                     colorCustom,
+                                     beatNumberFontSize,
+                                     beatNumberLeftMargin);
+            // Preferences were refreshed above. Leaving the old pixmap
+            // metadata intact makes the first paused frame rebuild it only if
+            // the viewport has actually moved to a different chunk.
+            m_gridCacheValid = true;
+            return;
+        }
 
         const bool needRebuild =
             !m_gridCacheValid ||
@@ -622,12 +790,7 @@ void ChartCanvas::drawGrid(QPainter &painter)
             m_gridCacheDivision != m_gridDivision ||
             m_gridCacheTimeDivision != m_timeDivision ||
             m_gridCacheVerticalFlip != m_verticalFlip ||
-            m_gridCacheColorEnabled != colorEnabled ||
-            m_gridCacheColorPreset != colorPreset ||
-            m_gridCacheColorCustomDivisions != colorCustom ||
             m_gridCachePadPx != cachePadPx ||
-            m_gridCacheBeatNumberFontSize != beatNumberFontSize ||
-            m_gridCacheBeatNumberLeftMargin != beatNumberLeftMargin ||
             std::abs(m_gridCacheStartBeat - cacheStartBeat) > 1e-6 ||
             std::abs(m_gridCacheEndBeat - cacheEndBeat) > 1e-6;
 
@@ -701,12 +864,7 @@ double ChartCanvas::getNoteTimeMs(const Note &note) const
 
 double ChartCanvas::yPosFromTime(double timeMs) const
 {
-    int beatNum, numerator, denominator;
-    MathUtils::msToBeat(timeMs, chart()->bpmList(),
-                        chart()->meta().offset,
-                        beatNum, numerator, denominator);
-    double beat = beatNum + static_cast<double>(numerator) / denominator;
-    return beatToY(beat);
+    return beatToY(beatFromTimeMs(timeMs));
 }
 
 double ChartCanvas::beatToY(double beat) const

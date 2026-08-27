@@ -19,6 +19,7 @@ public:
     void setHyperfruitDetector(HyperfruitDetector *detector);
     void setHyperfruitIndices(const QSet<int> &indices);
     void setNoteSize(int size);
+    void refreshSettings();
     int getNoteSize() const;
 
     void drawNote(QPainter &painter, const Note &note, const QPointF &pos, bool selected, int index) const;
@@ -38,6 +39,8 @@ private:
     HyperfruitDetector *m_hyperfruitDetector;
     QSet<int> m_hyperfruitIndices;
     int m_noteSize;
+    int m_outlineWidth;
+    QColor m_outlineColor;
     mutable const Skin *m_cachedSkinPtr;
     mutable QHash<int, QPixmap> m_cachedScaledSkinPixmaps;
 };

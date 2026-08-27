@@ -23,9 +23,9 @@ TRANSLATIONS = {
         "ja": "ノート色を整形",
     },
     "action_desc": {
-        "zh": "按支持分母规范化颜色节奏序列。",
-        "en": "Normalize timing divisions to supported color sequence set.",
-        "ja": "対応分母セットに合わせて色リズム分割を正規化します。",
+        "zh": "格式化选中音符、指定拍点范围或整个谱面的颜色分度。",
+        "en": "Format color divisions for selected notes, a beat range, or the entire chart.",
+        "ja": "選択ノート、拍範囲、または譜面全体の色分割を整形します。",
     },
     "action_confirm": {
         "zh": "将对当前谱面的音符颜色节奏进行格式化处理，是否继续？",
@@ -80,12 +80,56 @@ def process_beat(beat):
     return [measure, new_num, new_den]
 
 
-def simplify_mc_beats(mc_path):
+def _selected_indices(context):
+    if not isinstance(context, dict):
+        return set()
+    raw = context.get("selected_note_indices", [])
+    if not isinstance(raw, list):
+        return set()
+    result = set()
+    for value in raw:
+        if isinstance(value, int) and value >= 0:
+            result.add(value)
+    return result
+
+
+def _note_in_scope(note, index, context, selected_indices=None):
+    if not isinstance(note, dict) or note.get("type", 0) == 1:
+        return False
+    if not isinstance(context, dict):
+        return True
+
+    scope = str(context.get("format_scope", "all") or "all").strip().lower()
+    if scope == "selected":
+        return index in (selected_indices or set())
+    if scope == "range":
+        try:
+            start = float(context.get("range_start_beat"))
+            end = float(context.get("range_end_beat"))
+        except (TypeError, ValueError):
+            return False
+        if start > end:
+            start, end = end, start
+        beat = note.get("beat")
+        if not isinstance(beat, list) or len(beat) != 3 or not beat[2]:
+            return False
+        try:
+            beat_value = float(beat[0]) + float(beat[1]) / float(beat[2])
+        except (TypeError, ValueError, ZeroDivisionError):
+            return False
+        return start <= beat_value <= end
+    return scope == "all"
+
+
+def simplify_mc_beats(mc_path, context=None):
     with open(mc_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     changed = False
-    for note in data.get("note", []):
+    selected_indices = _selected_indices(context)
+    for index, note in enumerate(data.get("note", [])):
+        if not _note_in_scope(note, index, context, selected_indices):
+            continue
         beat = note.get("beat")
         if beat is None:
             continue
@@ -100,9 +144,9 @@ def simplify_mc_beats(mc_path):
     return True
 
 
-def simplify_beats_path(path):
+def simplify_beats_path(path, context=None):
     if path.lower().endswith(".mc"):
-        simplify_mc_beats(path)
+        simplify_mc_beats(path, context)
         return True
     if path.lower().endswith(".mcz"):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -111,7 +155,7 @@ def simplify_beats_path(path):
             for root, _, files in os.walk(tmpdir):
                 for file_name in files:
                     if file_name.lower().endswith(".mc"):
-                        simplify_mc_beats(os.path.join(root, file_name))
+                        simplify_mc_beats(os.path.join(root, file_name), context)
             with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zip_write:
                 for folder, _, files in os.walk(tmpdir):
                     for file_name in files:
@@ -198,16 +242,8 @@ def run_process_plugin():
                         "action_id": "format_note_colors",
                         "title": tr(lang, "action_title"),
                         "description": tr(lang, "action_desc"),
-                        "confirm_message": tr(lang, "action_confirm"),
                         "placement": "top_toolbar",
-                        "requires_undo_snapshot": True,
-                    },
-                    {
-                        "action_id": "format_note_colors_sidebar",
-                        "title": tr(lang, "action_title"),
-                        "description": tr(lang, "action_desc"),
-                        "confirm_message": tr(lang, "action_confirm"),
-                        "placement": "left_sidebar",
+                        "scope_selector": "note_range",
                         "requires_undo_snapshot": True,
                     },
                 ],
@@ -218,11 +254,11 @@ def run_process_plugin():
             action_id = str(payload.get("action_id", ""))
             context = payload.get("context", {}) or {}
             chart_path = resolve_chart_path(context)
-            if action_id not in ("format_note_colors", "format_note_colors_sidebar") or not chart_path:
+            if action_id != "format_note_colors" or not chart_path:
                 _send_response(req_id, False)
                 continue
             try:
-                _send_response(req_id, simplify_beats_path(chart_path))
+                _send_response(req_id, simplify_beats_path(chart_path, context))
             except Exception as exc:
                 print(tr(lang, "failed", file=os.path.basename(
                     chart_path), error=str(exc)), file=sys.stderr)

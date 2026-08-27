@@ -7,9 +7,7 @@ class ChartController;
 class SelectionController;
 class PlaybackController;
 class Skin;
-class RightPanel;
 class LeftPanel;
-class QSplitter;
 class QMenu;
 class QKeySequence;
 class QCloseEvent;
@@ -25,6 +23,11 @@ class QAction;
 class QWidget;
 class QTabWidget;
 
+namespace ads
+{
+class CDockWidget;
+}
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -37,6 +40,7 @@ public:
     ~MainWindow();
 
     void setSkin(Skin *skin);
+    bool loadChartForAutomation(const QString &filePath, QString *errorMessage = nullptr);
 
 protected:
     void changeEvent(QEvent *event) override;
@@ -89,6 +93,13 @@ private slots:
 private:
     void setupUi();
     void createMenus();
+    void createFileMenu();
+    void createEditMenu();
+    void createViewMenu();
+    void createSettingsMenu();
+    void createPlaybackMenu();
+    void createToolsAndPluginsMenus();
+    void createHelpMenu();
     void createCentralArea();
     void retranslateUi();
     void populateSkinMenu();
@@ -117,6 +128,17 @@ private:
     void showInfoCenter(int initialTab);
     void applySidebarTheme();
     void showEditorPanel(QWidget *panel);
+    void showDockPanel(ads::CDockWidget *dock);
+    void setFloatingToolWindowsEnabled(bool enabled);
+    void updateToolDockActionVisibility();
+    void configureNotePanelScrollArea();
+    void configureCompactToolDock(ads::CDockWidget *dock);
+    void updateCompactToolDockHandle(ads::CDockWidget *dock);
+    void ensurePlaybackSpeedDockAssigned();
+    void saveDockLayout();
+    void restoreDockLayout();
+    void resetDockLayout();
+    void updateDockTitles();
 
     class Private;
     Private *d;

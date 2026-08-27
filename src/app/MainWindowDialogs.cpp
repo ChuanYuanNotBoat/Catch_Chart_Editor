@@ -2,6 +2,7 @@
 #include "MainWindowPrivate.h"
 #include "app/Application.h"
 #include "controller/ChartController.h"
+#include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "plugin/PluginManager.h"
 #include "ui/dialogs/LogSettingsDialog.h"
@@ -10,12 +11,17 @@
 #include "ui/CustomWidgets/RealtimePreviewWidget.h"
 #include "ui/LeftPanel.h"
 #include "ui/NoteEditPanel.h"
+#include "ui/LongRangeSelector.h"
+#include "ui/PluginActionPanel.h"
 #include "file/ChartIO.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
 #include "utils/DiagnosticCollector.h"
 #include "model/Skin.h"
 #include "model/Note.h"
+#include <DockManager.h>
+#include <DockWidget.h>
+#include <DockAreaWidget.h>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QMenu>
@@ -53,6 +59,7 @@
 #include <QGroupBox>
 #include <QStandardPaths>
 #include <QTimer>
+#include <algorithm>
 
 namespace
 {
@@ -242,6 +249,7 @@ void MainWindow::populatePluginToolsMenu()
         payload.insert("title", title);
         payload.insert("confirm_message", entry.action.confirmMessage);
         payload.insert("host_action", entry.action.hostAction);
+        payload.insert("scope_selector", entry.action.scopeSelector);
         payload.insert("requires_undo_snapshot", entry.action.requiresUndoSnapshot);
         payload.insert("placement", entry.action.placement);
         payload.insert("checkable", entry.action.checkable);
@@ -274,12 +282,11 @@ void MainWindow::populatePluginPanelsMenu()
     }
 
     const QList<PluginManager::FloatingPanelEntry> entries = app->pluginManager()->floatingPanels();
-    if (entries.isEmpty())
-    {
-        QAction *none = d->pluginPanelsMenu->addAction(tr("(No plugin panels)"));
-        none->setEnabled(false);
-        return;
-    }
+    QAction *toolPanelAction = d->pluginPanelsMenu->addAction(tr("Plugin Tools"));
+    connect(toolPanelAction, &QAction::triggered, this, [this]()
+            { showDockPanel(d->pluginToolsDock); });
+    if (!entries.isEmpty())
+        d->pluginPanelsMenu->addSeparator();
 
     for (const PluginManager::FloatingPanelEntry &entry : entries)
     {
@@ -318,6 +325,7 @@ void MainWindow::refreshPluginUiExtensions()
 
     QList<LeftPanel::PluginQuickAction> sidebarActions;
     QList<NoteEditPanel::PluginPlacementAction> notePanelActions;
+    QList<PluginActionPanel::Action> panelActions;
     const QList<PluginManager::ToolActionEntry> entries = app->pluginManager()->toolActions();
     Logger::info(QString("refreshPluginUiExtensions: discovered %1 plugin tool actions.").arg(entries.size()));
     for (const PluginManager::ToolActionEntry &entry : entries)
@@ -337,6 +345,7 @@ void MainWindow::refreshPluginUiExtensions()
         meta.insert("title", title);
         meta.insert("confirm_message", entry.action.confirmMessage);
         meta.insert("host_action", entry.action.hostAction);
+        meta.insert("scope_selector", entry.action.scopeSelector);
         meta.insert("requires_undo_snapshot", entry.action.requiresUndoSnapshot);
         meta.insert("placement", entry.action.placement);
         meta.insert("checkable", entry.action.checkable);
@@ -346,17 +355,38 @@ void MainWindow::refreshPluginUiExtensions()
         const QString key = entry.pluginId + "::" + entry.action.actionId;
         d->pluginActionMeta.insert(key, meta);
 
+        PluginActionPanel::Action panelAction;
+        panelAction.pluginDisplayName = entry.pluginDisplayName;
+        panelAction.description = entry.action.description;
+        panelAction.meta = meta;
+        panelActions.append(panelAction);
+
         const QString placement = entry.action.placement.toLower();
         if (placement == QString(PluginInterface::kPlacementTopToolbar) && d->pluginToolBar)
         {
             QAction *act = d->pluginToolBar->addAction(title);
-            if (!entry.action.description.isEmpty())
+            if (entry.action.scopeSelector.trimmed().compare(QStringLiteral("note_range"), Qt::CaseInsensitive) == 0)
+                act->setToolTip(tr("Open dockable controls for %1").arg(title));
+            else if (!entry.action.description.isEmpty())
                 act->setToolTip(entry.action.description);
             act->setCheckable(entry.action.checkable);
             if (entry.action.checkable)
                 act->setChecked(entry.action.checked);
             act->setData(meta);
-            connect(act, &QAction::triggered, this, &MainWindow::triggerPluginToolAction);
+            if (entry.action.scopeSelector.trimmed().compare(QStringLiteral("note_range"), Qt::CaseInsensitive) == 0)
+            {
+                connect(act, &QAction::triggered, this,
+                        [this, pluginId = entry.pluginId, actionId = entry.action.actionId]()
+                        {
+                            showDockPanel(d->pluginToolsDock);
+                            if (d->pluginActionPanel)
+                                d->pluginActionPanel->focusAction(pluginId, actionId);
+                        });
+            }
+            else
+            {
+                connect(act, &QAction::triggered, this, &MainWindow::triggerPluginToolAction);
+            }
             d->pluginToolbarActions.append(act);
         }
         else if (placement == QString(PluginInterface::kPlacementLeftSidebar))
@@ -390,6 +420,8 @@ void MainWindow::refreshPluginUiExtensions()
         d->leftPanel->setPluginQuickActions(sidebarActions);
     if (d->notePanel)
         d->notePanel->setPluginPlacementActions(notePanelActions);
+    if (d->pluginActionPanel)
+        d->pluginActionPanel->setActions(panelActions);
 
     const QString interactionPluginId = firstCanvasInteractionPluginId(app->pluginManager());
     const bool hasInteractionPlugin = !interactionPluginId.isEmpty();
@@ -519,6 +551,7 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
     const QString actionTitle = meta.value("title").toString();
     const QString confirmMessage = meta.value("confirm_message").toString();
     const QString hostAction = meta.value("host_action").toString().trimmed().toLower();
+    const QString scopeSelector = meta.value("scope_selector").toString().trimmed().toLower();
     const bool requiresUndo = meta.value("requires_undo_snapshot", true).toBool();
     const bool syncToolModeWithChecked = meta.value("sync_plugin_tool_mode_with_checked", false).toBool();
     if (pluginId.isEmpty() || actionId.isEmpty())
@@ -580,6 +613,81 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
         return false;
     }
 
+    const bool hasProvidedActionContext = meta.contains(QStringLiteral("action_context"));
+    QVariantMap actionContext = meta.value(QStringLiteral("action_context")).toMap();
+    if (scopeSelector == QLatin1String("note_range") && !hasProvidedActionContext)
+    {
+        QDialog scopeDialog(this);
+        scopeDialog.setWindowTitle(tr("Format Note Colors"));
+        scopeDialog.setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
+
+        QVBoxLayout *scopeLayout = new QVBoxLayout(&scopeDialog);
+        QFormLayout *scopeForm = new QFormLayout;
+        QComboBox *scopeCombo = new QComboBox(&scopeDialog);
+        const int selectedCount = d->selectionController
+                                      ? d->selectionController->selectedIndices().size()
+                                      : 0;
+        if (selectedCount > 0)
+            scopeCombo->addItem(tr("Selected Notes (%1)").arg(selectedCount), QStringLiteral("selected"));
+        scopeCombo->addItem(tr("Beat Range"), QStringLiteral("range"));
+        scopeCombo->addItem(tr("Entire Chart"), QStringLiteral("all"));
+        scopeForm->addRow(tr("Format Scope:"), scopeCombo);
+        scopeLayout->addLayout(scopeForm);
+
+        LongRangeSelector *rangeEditor = new LongRangeSelector(&scopeDialog);
+        rangeEditor->setInputOnlyMode(tr("Beat Range"));
+        rangeEditor->setChartController(d->chartController);
+        rangeEditor->setPlaybackController(d->playbackController);
+        if (d->canvas)
+        {
+            rangeEditor->setTimeDivision(d->canvas->timeDivision());
+            rangeEditor->setStartBeat(d->canvas->scrollBeat());
+            rangeEditor->setEndBeat(d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+        }
+        scopeLayout->addWidget(rangeEditor);
+
+        QLabel *scopeHint = new QLabel(
+            tr("Only Normal and Rain note start colors are formatted. Sound notes are not changed."),
+            &scopeDialog);
+        scopeHint->setWordWrap(true);
+        scopeLayout->addWidget(scopeHint);
+
+        QDialogButtonBox *scopeButtons = new QDialogButtonBox(
+            QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &scopeDialog);
+        if (QPushButton *okButton = scopeButtons->button(QDialogButtonBox::Ok))
+            okButton->setText(tr("Format"));
+        connect(scopeButtons, &QDialogButtonBox::accepted, &scopeDialog, &QDialog::accept);
+        connect(scopeButtons, &QDialogButtonBox::rejected, &scopeDialog, &QDialog::reject);
+        scopeLayout->addWidget(scopeButtons);
+
+        const auto updateRangeVisibility = [scopeCombo, rangeEditor]() {
+            rangeEditor->setVisible(scopeCombo->currentData().toString() == QLatin1String("range"));
+        };
+        connect(scopeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                &scopeDialog, [updateRangeVisibility](int) { updateRangeVisibility(); });
+        updateRangeVisibility();
+
+        if (scopeDialog.exec() != QDialog::Accepted)
+            return false;
+
+        const QString selectedScope = scopeCombo->currentData().toString();
+        actionContext.insert(QStringLiteral("format_scope"), selectedScope);
+        if (selectedScope == QLatin1String("range"))
+        {
+            if (!rangeEditor->hasValidRange())
+            {
+                QMessageBox::warning(this, tr("Format Note Colors"), tr("Enter a valid beat range."));
+                return false;
+            }
+            double startBeat = rangeEditor->currentStartBeat();
+            double endBeat = rangeEditor->currentEndBeat();
+            if (startBeat > endBeat)
+                std::swap(startBeat, endBeat);
+            actionContext.insert(QStringLiteral("range_start_beat"), startBeat);
+            actionContext.insert(QStringLiteral("range_end_beat"), endBeat);
+        }
+    }
+
     QVariantMap context;
     if (!d->workingChartPath.isEmpty())
     {
@@ -601,6 +709,8 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
         for (auto it = canvasContext.constBegin(); it != canvasContext.constEnd(); ++it)
             context.insert(it.key(), it.value());
     }
+    for (auto it = actionContext.constBegin(); it != actionContext.constEnd(); ++it)
+        context.insert(it.key(), it.value());
     context.insert("action_title", actionTitle);
     Logger::info(QString("Running plugin action: plugin=%1 action=%2 path=%3")
                      .arg(pluginId)
@@ -667,14 +777,25 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
 
 void MainWindow::closePluginPanels(const QString &reasonText)
 {
-    if (d->pluginPanelDialogs.isEmpty())
+    if (d->pluginPanelDocks.isEmpty() && d->pluginPanelDialogs.isEmpty())
         return;
+
+    const auto docks = d->pluginPanelDocks;
+    for (auto it = docks.constBegin(); it != docks.constEnd(); ++it)
+    {
+        if (it.value())
+            it.value()->closeDockWidget();
+    }
+    d->pluginPanelDocks.clear();
 
     const auto dialogs = d->pluginPanelDialogs;
     for (auto it = dialogs.constBegin(); it != dialogs.constEnd(); ++it)
     {
         if (it.value())
+        {
+            QObject::disconnect(it.value(), nullptr, this, nullptr);
             it.value()->close();
+        }
     }
     d->pluginPanelDialogs.clear();
 
@@ -704,6 +825,15 @@ void MainWindow::triggerPluginPanelAction()
         existing->activateWindow();
         return;
     }
+    if (d->pluginPanelDocks.contains(key) && d->pluginPanelDocks[key])
+    {
+        ads::CDockWidget *existing = d->pluginPanelDocks[key];
+        existing->toggleView(true);
+        existing->setAsCurrentTab();
+        existing->raise();
+        existing->activateWindow();
+        return;
+    }
 
     auto *app = qobject_cast<Application *>(QCoreApplication::instance());
     if (!app || !app->pluginManager())
@@ -725,32 +855,85 @@ void MainWindow::triggerPluginPanelAction()
     if (!workspaceConfig.isEmpty())
         context.insert("workspace", workspaceConfig);
 
-    QDialog *dialog = new QDialog(this, Qt::Tool);
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle(title.isEmpty() ? tr("Plugin Panel") : title);
-    dialog->setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
-    if (workspaceConfig.value("default_layout").toString().toLower() == "advanced")
-        dialog->resize(680, 520);
-    else if (workspaceConfig.value("default_layout").toString().toLower() == "dual")
-        dialog->resize(580, 460);
-    QVBoxLayout *layout = new QVBoxLayout(dialog);
-    layout->setContentsMargins(0, 0, 0, 0);
+    if (!d->floatingToolWindowsEnabled)
+    {
+        // Preserve the pre-ADS plugin contract in legacy layout mode: native
+        // plugin panels are ordinary tool dialogs and never enter a hidden
+        // docking container.
+        QDialog *dialog = new QDialog(this, Qt::Tool);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->setWindowTitle(title.isEmpty() ? tr("Plugin Panel") : title);
+        dialog->setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
+        if (workspaceConfig.value("default_layout").toString().toLower() == "advanced")
+            dialog->resize(680, 520);
+        else if (workspaceConfig.value("default_layout").toString().toLower() == "dual")
+            dialog->resize(580, 460);
+        QVBoxLayout *layout = new QVBoxLayout(dialog);
+        layout->setContentsMargins(0, 0, 0, 0);
 
-    QWidget *panel = app->pluginManager()->createFloatingPanel(pluginId, panelId, dialog, context);
+        QWidget *panel = app->pluginManager()->createFloatingPanel(
+            pluginId, panelId, dialog, context);
+        if (!panel)
+        {
+            delete dialog;
+            QMessageBox::warning(this, tr("Plugin Panel"), tr("Failed to create plugin panel."));
+            return;
+        }
+
+        layout->addWidget(panel);
+        if (dialog->size().isEmpty())
+            dialog->resize(520, 420);
+        d->pluginPanelDialogs.insert(key, dialog);
+        connect(dialog, &QDialog::destroyed, this, [this, key]()
+                { d->pluginPanelDialogs.remove(key); });
+        dialog->show();
+        return;
+    }
+
+    if (!d->dockManager)
+        return;
+
+    const QString panelTitle = title.isEmpty() ? tr("Plugin Panel") : title;
+    ads::CDockWidget *dock = new ads::CDockWidget(d->dockManager, panelTitle);
+    dock->setObjectName(QStringLiteral("dock.plugin.%1.%2").arg(pluginId, panelId));
+    dock->setFeature(ads::CDockWidget::DockWidgetDeleteOnClose, true);
+    dock->setFeature(ads::CDockWidget::DockWidgetForceCloseWithArea, true);
+    if (workspaceConfig.value("default_layout").toString().toLower() == "advanced")
+        dock->resize(680, 520);
+    else if (workspaceConfig.value("default_layout").toString().toLower() == "dual")
+        dock->resize(580, 460);
+
+    QWidget *panel = app->pluginManager()->createFloatingPanel(pluginId, panelId, dock, context);
     if (!panel)
     {
-        delete dialog;
+        delete dock;
         QMessageBox::warning(this, tr("Plugin Panel"), tr("Failed to create plugin panel."));
         return;
     }
 
-    layout->addWidget(panel);
-    if (dialog->size().isEmpty())
-        dialog->resize(520, 420);
-    d->pluginPanelDialogs.insert(key, dialog);
-    connect(dialog, &QDialog::destroyed, this, [this, key]()
-            { d->pluginPanelDialogs.remove(key); });
-    dialog->show();
+    panel->setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
+    dock->setWidget(panel, ads::CDockWidget::AutoScrollArea);
+    if (d->floatingToolWindowsEnabled
+        && d->pluginToolsDock && d->pluginToolsDock->dockAreaWidget())
+    {
+        ads::CDockAreaWidget *panelArea = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, dock, d->pluginToolsDock->dockAreaWidget());
+        panelArea->setAllowedAreas(ads::OuterDockAreas);
+    }
+    else if (d->notePanelDock && d->notePanelDock->dockAreaWidget())
+    {
+        ads::CDockAreaWidget *panelArea = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, dock, d->notePanelDock->dockAreaWidget());
+        panelArea->setAllowedAreas(ads::OuterDockAreas);
+    }
+    else
+        d->dockManager->addDockWidget(ads::RightDockWidgetArea, dock);
+
+    configureCompactToolDock(dock);
+    d->pluginPanelDocks.insert(key, dock);
+    connect(dock, &QObject::destroyed, this, [this, key]()
+            { d->pluginPanelDocks.remove(key); });
+    dock->setAsCurrentTab();
 }
 
 void MainWindow::openPluginManager()
@@ -910,7 +1093,7 @@ void MainWindow::openSessionSettings()
     fpsCapCombo->addItem(tr("Lock 60 FPS"), 60);
     fpsCapCombo->addItem(tr("Lock 90 FPS"), 90);
     fpsCapCombo->addItem(tr("Lock 120 FPS"), 120);
-    fpsCapCombo->addItem(tr("Unlimited"), 0);
+    fpsCapCombo->addItem(tr("Match Display Refresh Rate"), 0);
     {
         const int currentCap = Settings::instance().playbackFrameRateCap();
         const int idx = fpsCapCombo->findData(currentCap);
@@ -999,7 +1182,7 @@ void MainWindow::openSessionSettings()
             d->playbackController->setFrameRateCap(fpsCap);
         setupAutoSaveTimer();
         if (d->canvas)
-            d->canvas->update();
+            d->canvas->refreshRenderSettings();
         statusBar()->showMessage(tr("Session settings updated"), 2000);
         dialog.accept(); });
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -1266,7 +1449,9 @@ void MainWindow::configureOutline()
     {
         Settings::instance().setOutlineWidth(widthSpin->value());
         Settings::instance().setOutlineColor(outlineColor);
-        d->canvas->update();
+        d->canvas->refreshRenderSettings();
+        if (d->previewWidget)
+            d->previewWidget->refreshRenderSettings();
         Logger::info("Outline settings updated");
     }
 }

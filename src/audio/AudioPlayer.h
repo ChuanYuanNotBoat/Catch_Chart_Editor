@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QMediaPlayer>
 #include <QAudioOutput>
+#include <QMetaObject>
 #include <QTimer>
 
 class AudioPlayer : public QObject
@@ -19,7 +20,7 @@ public:
     void setPosition(qint64 positionMs);
     qint64 position() const;
     qint64 duration() const;
-    void setSpeed(double speed); // 0.25 ~ 1.0
+    void setSpeed(double speed); // 0.1 ~ 10.0
     double speed() const;
 
     bool isPlaying() const;
@@ -65,11 +66,18 @@ private:
     bool m_loaded;
     QString m_lastError;
     QStringList m_tempAudioFiles;
+    QMetaObject::Connection m_mediaStatusConnection;
+    QMetaObject::Connection m_mediaErrorConnection;
+    quint64 m_loadGeneration = 0;
 
     int m_audioLatency;
     int m_userOffset;
     bool m_audioCorrectionEnabled;
 
+    void cancelPendingLoad();
+    void disconnectLoadSignals();
+    void finishLoadFailure(const QString &message);
+    void finishLoadSuccess();
     QString normalizeAudioPath(const QString &originalPath);
     void cleanupTempAudioFiles();
 };

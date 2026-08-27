@@ -10,12 +10,48 @@
 #include "utils/Settings.h"
 #include "utils/Translator.h"
 #include "utils/Logger.h"
+#include "utils/PlaybackStutterProbe.h"
 #include <QDir>
 #include <QDebug>
+#include <QElapsedTimer>
+#include <QEvent>
 #include <QFileInfo>
 
 namespace
 {
+    QString uiEventName(QEvent::Type type)
+    {
+        switch (type)
+        {
+        case QEvent::Timer:
+            return QStringLiteral("Timer");
+        case QEvent::Paint:
+            return QStringLiteral("Paint");
+        case QEvent::UpdateRequest:
+            return QStringLiteral("UpdateRequest");
+        case QEvent::MetaCall:
+            return QStringLiteral("MetaCall");
+        case QEvent::DeferredDelete:
+            return QStringLiteral("DeferredDelete");
+        case QEvent::LayoutRequest:
+            return QStringLiteral("LayoutRequest");
+        case QEvent::Polish:
+            return QStringLiteral("Polish");
+        case QEvent::PolishRequest:
+            return QStringLiteral("PolishRequest");
+        case QEvent::Resize:
+            return QStringLiteral("Resize");
+        case QEvent::Move:
+            return QStringLiteral("Move");
+        case QEvent::Show:
+            return QStringLiteral("Show");
+        case QEvent::Hide:
+            return QStringLiteral("Hide");
+        default:
+            return QStringLiteral("Type_%1").arg(static_cast<int>(type));
+        }
+    }
+
     QStringList availableSkinBaseDirs()
     {
         const QString appDir = QCoreApplication::applicationDirPath();
@@ -97,6 +133,39 @@ Application::~Application()
     delete m_selectionController;
     delete m_playbackController;
     delete m_pluginManager;
+}
+
+bool Application::notify(QObject *receiver, QEvent *event)
+{
+    const bool traceEvent =
+        m_playbackController &&
+        m_playbackController->state() == PlaybackController::Playing &&
+        PlaybackStutterProbe::sessionActive();
+    if (!traceEvent)
+        return QApplication::notify(receiver, event);
+
+    QElapsedTimer timer;
+    timer.start();
+    const bool handled = QApplication::notify(receiver, event);
+    const double elapsedMs =
+        static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
+    if (elapsedMs >= 0.25)
+    {
+        const char *className = receiver && receiver->metaObject()
+                                    ? receiver->metaObject()->className()
+                                    : "unknown";
+        const QString eventName = event
+                                      ? uiEventName(event->type())
+                                      : QStringLiteral("Unknown");
+        PlaybackStutterProbe::recordDuration(
+            QStringLiteral("ui.event.%1.%2")
+                .arg(QString::fromLatin1(className))
+                .arg(eventName),
+            elapsedMs,
+            1.0,
+            true);
+    }
+    return handled;
 }
 
 bool Application::initialize()

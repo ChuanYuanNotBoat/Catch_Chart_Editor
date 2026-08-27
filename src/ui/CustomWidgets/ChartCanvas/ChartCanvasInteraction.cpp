@@ -11,7 +11,6 @@
 #include "utils/Settings.h"
 #include "utils/Logger.h"
 #include "utils/PlaybackStutterProbe.h"
-#include "utils/DiagnosticCollector.h"
 #include "model/Chart.h"
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
@@ -174,12 +173,16 @@ void ChartCanvas::setMirrorPreviewVisible(bool visible)
 
 bool ChartCanvas::flipSelectedNotes()
 {
-    return performMirrorFlip(collectMirrorTargetIndices(QPoint()), m_mirrorAxisX, tr("Mirror Flip Notes"));
+    return performMirrorFlip(collectEditableTargetIndices(QPoint(), false),
+                             m_mirrorAxisX,
+                             tr("Mirror Flip Notes"));
 }
 
 bool ChartCanvas::flipSelectedNotesAroundCenter()
 {
-    return performMirrorFlip(collectMirrorTargetIndices(QPoint()), kLaneWidth / 2, tr("Mirror Flip Notes"));
+    return performMirrorFlip(collectEditableTargetIndices(QPoint(), false),
+                             kLaneWidth / 2,
+                             tr("Mirror Flip Notes"));
 }
 
 int ChartCanvas::clampMirrorAxisX(int axisX) const
@@ -245,37 +248,17 @@ void ChartCanvas::refreshBackground()
 
 void ChartCanvas::advancePlaybackVisual(bool scheduleRepaint, bool recordProbe)
 {
-    constexpr double kScrollSignalEpsilonBeat = 1e-6;
-
     if (!m_isPlaying || !chart())
         return;
 
     QElapsedTimer timer;
-    timer.start();
+    if (recordProbe)
+        timer.start();
 
     if (m_autoScrollEnabled)
     {
-        const QVector<MathUtils::BpmCacheEntry> &cache = bpmTimeCache();
-        if (cache.isEmpty())
+        if (bpmTimeCache().isEmpty())
             return;
-
-        auto beatFromTimeMs = [&cache](double timeMs) -> double
-        {
-            int lo = 0;
-            int hi = cache.size() - 1;
-            while (lo < hi)
-            {
-                const int mid = (lo + hi + 1) / 2;
-                if (cache[mid].accumulatedMs <= timeMs)
-                    lo = mid;
-                else
-                    hi = mid - 1;
-            }
-            const auto &seg = cache[lo];
-            if (seg.bpm <= 0.0)
-                return seg.beatPos;
-            return seg.beatPos + (timeMs - seg.accumulatedMs) * (seg.bpm / 60000.0);
-        };
         const double beat = beatFromTimeMs(m_currentPlayTime);
 
         const double baselineRatio = kReferenceLineRatio;
@@ -289,20 +272,9 @@ void ChartCanvas::advancePlaybackVisual(bool scheduleRepaint, bool recordProbe)
             targetScrollBeat = beat - baselineRatio * effectiveVisibleBeatRange();
         }
 
-        const double previousScrollBeat = m_scrollBeat;
         m_scrollBeat = targetScrollBeat;
         if (m_scrollBeat < 0)
             m_scrollBeat = 0;
-        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-        const bool scrollChanged = std::abs(m_scrollBeat - previousScrollBeat) > kScrollSignalEpsilonBeat;
-        if (!m_isPlaying &&
-            scrollChanged &&
-            (m_lastScrollSignalTimeMs == 0 || nowMs - m_lastScrollSignalTimeMs >= kScrollSignalIntervalMs))
-        {
-            emit scrollPositionChanged(m_scrollBeat);
-            m_lastScrollSignalTimeMs = nowMs;
-            PlaybackStutterProbe::recordCounter("canvas.scroll_signal_emits", 1, m_isPlaying);
-        }
     }
 
     if (scheduleRepaint)
@@ -329,46 +301,72 @@ void ChartCanvas::onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq)
     constexpr double kVisualScrollStepJankThresholdPx = 3.5;
     constexpr double kVisualPlayheadStepJankThresholdPx = 2.4;
     constexpr double kVisualPlayheadDriftEventThresholdPx = 2.0;
-    const bool lightProbeSample = (frameSeq % 3) == 0;
     if (!m_isPlaying)
         return;
+
+    const bool probeEnabled = PlaybackStutterProbe::enabled();
+    const bool lightProbeSample = probeEnabled && (frameSeq % 3) == 0;
     QElapsedTimer timer;
-    timer.start();
+    if (lightProbeSample)
+        timer.start();
 
     if (frameSeq <= m_lastPlaybackFrameSeq)
     {
-        PlaybackStutterProbe::recordCounter("canvas.tick_out_of_order", 1, true);
+        if (probeEnabled)
+            PlaybackStutterProbe::recordCounter("canvas.tick_out_of_order", 1, true);
         return;
     }
 
-    if (m_lastPlaybackFrameSeq >= 0 && frameSeq > m_lastPlaybackFrameSeq + 1)
-        PlaybackStutterProbe::recordCounter("canvas.tick_gap", frameSeq - m_lastPlaybackFrameSeq - 1, true);
+    // The visual target is sampled for the upcoming presentation refresh and
+    // is intentionally a little ahead of wall time. Note sounds must follow
+    // the current audio clock instead of that future visual sample.
+    const double noteSoundTimeMs = m_playbackController
+                                       ? m_playbackController->currentTime()
+                                       : predictedTimeMs;
+    advanceNoteSoundClock(noteSoundTimeMs);
 
-    if (m_lastPlaybackPredictedTimeMs >= 0.0)
+    double previousScrollBeat = 0.0;
+    double previousPlayheadYPx = -1.0;
+    if (probeEnabled)
     {
-        const double stepMs = qMax(0.0, predictedTimeMs - m_lastPlaybackPredictedTimeMs);
-        PlaybackStutterProbe::recordDuration("playback.time_step_ms", stepMs, 20.0, true);
-        if (m_lastPlaybackStepMs >= 0.0)
-        {
-            const double stepJerkMs = std::abs(stepMs - m_lastPlaybackStepMs);
-            PlaybackStutterProbe::recordDuration("playback.time_step_jerk", stepJerkMs, 4.0, true);
-            if (stepJerkMs > 8.0)
-                PlaybackStutterProbe::recordCounter("playback.time_step_jank_events", 1, true);
-        }
-        m_lastPlaybackStepMs = stepMs;
-    }
+        if (m_lastPlaybackFrameSeq >= 0 && frameSeq > m_lastPlaybackFrameSeq + 1)
+            PlaybackStutterProbe::recordCounter("canvas.tick_gap", frameSeq - m_lastPlaybackFrameSeq - 1, true);
 
-    const double previousScrollBeat = m_scrollBeat;
-    const double previousPlayheadYPx = m_lastPlaybackPlayheadYPx;
+        if (m_lastPlaybackPredictedTimeMs >= 0.0)
+        {
+            const double stepMs = qMax(0.0, predictedTimeMs - m_lastPlaybackPredictedTimeMs);
+            const double expectedMediaStepMs =
+                1000.0 / qMax(1.0, m_playbackController->effectiveFrameRate()) *
+                m_playbackController->speed();
+            const double stepBudgetMs = qMax(0.05, expectedMediaStepMs * 1.35);
+            const double stepJerkBudgetMs = qMax(0.05, expectedMediaStepMs * 0.20);
+            PlaybackStutterProbe::recordDuration(
+                "playback.time_step_ms", stepMs, stepBudgetMs, true);
+            if (m_lastPlaybackStepMs >= 0.0)
+            {
+                const double stepJerkMs = std::abs(stepMs - m_lastPlaybackStepMs);
+                PlaybackStutterProbe::recordDuration(
+                    "playback.time_step_jerk", stepJerkMs, stepJerkBudgetMs, true);
+                if (stepJerkMs > expectedMediaStepMs * 0.5)
+                    PlaybackStutterProbe::recordCounter("playback.time_step_jank_events", 1, true);
+            }
+            m_lastPlaybackStepMs = stepMs;
+        }
+
+        previousScrollBeat = m_scrollBeat;
+        previousPlayheadYPx = m_lastPlaybackPlayheadYPx;
+    }
 
     m_lastPlaybackPredictedTimeMs = predictedTimeMs;
     m_lastPlaybackFrameSeq = frameSeq;
-    m_lastPlaybackTickNs = m_playbackVisualClock.nsecsElapsed();
     m_lastPlaybackTargetTimeMs = qMax(0.0, predictedTimeMs);
     m_currentPlayTime = m_lastPlaybackTargetTimeMs;
-    PlaybackStutterProbe::markUiHeartbeat(true);
-    m_playbackVisualFramePending = false;
+    if (probeEnabled)
+        PlaybackStutterProbe::markUiHeartbeat(true);
     advancePlaybackVisual(true, lightProbeSample);
+
+    if (!probeEnabled)
+        return;
 
     const double visibleRange = qMax(1e-6, effectiveVisibleBeatRange());
     const double pixelsPerBeat = (height() > 0) ? (static_cast<double>(height()) / visibleRange) : 0.0;
@@ -379,8 +377,19 @@ void ChartCanvas::onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq)
     if (m_lastPlaybackScrollStepPx >= 0.0)
     {
         const double scrollJerkPx = std::abs(scrollStepPx - m_lastPlaybackScrollStepPx);
+        const double averageScrollStepPx =
+            qMax(0.01, 0.5 * (scrollStepPx + m_lastPlaybackScrollStepPx));
+        const double scrollStepChangePercent =
+            scrollJerkPx * 100.0 / averageScrollStepPx;
         if (lightProbeSample)
+        {
             PlaybackStutterProbe::recordDuration("visual.scroll_step_jerk_px", scrollJerkPx, kVisualScrollJerkBudgetPx, true);
+            PlaybackStutterProbe::recordValue(
+                "visual.scroll_step_change_pct",
+                scrollStepChangePercent,
+                1.0,
+                true);
+        }
         if (lightProbeSample && scrollJerkPx > kVisualScrollStepJankThresholdPx)
             PlaybackStutterProbe::recordCounter("visual.scroll_step_jank_events", 1, true);
     }
@@ -449,6 +458,13 @@ void ChartCanvas::setPluginToolMode(bool enabled, const QString &pluginId)
 void ChartCanvas::setSourceChartPath(const QString &sourceChartPath)
 {
     m_sourceChartPath = sourceChartPath.trimmed();
+    if (m_noteChainModeActive && m_noteChainEditor) {
+        const QVariantMap context = buildPluginCanvasContext();
+        const QString sidecarPath = context.value(QStringLiteral("curve_project_path")).toString();
+        if (!sidecarPath.isEmpty() && sidecarPath != m_noteChainEditor->currentSidecarPath())
+            m_noteChainEditor->loadProject(sidecarPath);
+        m_noteChainEditor->setHostContext(context);
+    }
 }
 
 void ChartCanvas::setPluginOverlayToggles(const QVariantMap &toggles)
@@ -468,8 +484,11 @@ void ChartCanvas::setPluginOverlayToggles(const QVariantMap &toggles)
         changed = true;
     }
 
-    if (changed)
+    if (changed) {
+        if (m_noteChainModeActive && m_noteChainEditor)
+            m_noteChainEditor->setHostContext(buildPluginCanvasContext());
         update();
+    }
 }
 
 QString ChartCanvas::resolvePluginCanvasToolId() const
@@ -564,6 +583,7 @@ QVariantMap ChartCanvas::buildPluginCanvasContext() const
     overlayContext.insert("style_library_paths", styleLibraryPaths);
 
     QVariantList selectedIds;
+    QVariantList selectedIndices;
     QVariantList selectedNotes;
     QVariantList existingNotePositions;
     if (m_selectionController && chart())
@@ -577,10 +597,9 @@ QVariantMap ChartCanvas::buildPluginCanvasContext() const
             if (idx < 0 || idx >= notes.size())
                 continue;
             const auto &note = notes[idx];
-            if (note.id.isEmpty())
-                continue;
-            selectedIds.append(note.id);
-
+            selectedIndices.append(idx);
+            if (!note.id.isEmpty())
+                selectedIds.append(note.id);
             selectedNotes.append(serializeSelectedNoteForPlugin(note));
         }
     }
@@ -594,6 +613,7 @@ QVariantMap ChartCanvas::buildPluginCanvasContext() const
         }
     }
     overlayContext.insert("selected_note_ids", selectedIds);
+    overlayContext.insert("selected_note_indices", selectedIndices);
     overlayContext.insert("selected_notes", selectedNotes);
     overlayContext.insert("existing_note_positions", existingNotePositions);
     return overlayContext;

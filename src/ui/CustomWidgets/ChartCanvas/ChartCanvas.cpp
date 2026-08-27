@@ -10,7 +10,6 @@
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
-#include "utils/DiagnosticCollector.h"
 #include "model/Chart.h"
 #include <QPainter>
 #include <QMouseEvent>
@@ -30,6 +29,8 @@
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
 #include <QShowEvent>
+#include <QScreen>
+#include <QWindow>
 #include <QDebug>
 #include <chrono>
 #include <algorithm>
@@ -137,9 +138,11 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_lastPlaybackScrollStepPx(-1.0),
       m_lastPlaybackPlayheadYPx(-1.0),
       m_lastPlaybackPlayheadStepPx(-1.0),
-      m_playbackVisualFramePending(false),
-      m_lastPlaybackTickNs(0),
-      m_lastPlaybackVisualAdvanceNs(0),
+      m_lastPaintProbeNs(0),
+      m_lastPaintIntervalMs(-1.0),
+      m_paintMotionProbeValid(false),
+      m_lastPaintScrollBeat(0.0),
+      m_lastPaintScrollVelocityPxPerSecond(-1.0),
       m_overlayPlaybackIntervalMs(kOverlayQueryIntervalMsToolModePlaying),
       m_overlayQueryTimer(new QTimer(this)),
       m_overlayQueryScheduled(false),
@@ -153,7 +156,6 @@ ChartCanvas::ChartCanvas(QWidget *parent)
     setMouseTracking(true);
     setMinimumSize(800, 400);
     setAttribute(Qt::WA_OpaquePaintEvent, true);
-    setAttribute(Qt::WA_NativeWindow);
 
     m_noteRenderer->setNoteSize(Settings::instance().noteSize());
     m_noteSoundPlayer = new NoteSoundPlayer(this);
@@ -239,7 +241,7 @@ QVector<Note> *ChartCanvas::mutableNotes()
     return c ? &c->notes() : nullptr;
 }
 
-void ChartCanvas::rebuildBpmTimeCache()
+void ChartCanvas::rebuildBpmTimeCache() const
 {
     m_bpmTimeCache.clear();
     if (!chart())
@@ -260,11 +262,34 @@ void ChartCanvas::rebuildBpmTimeCache()
     m_bpmCacheDirty = false;
 }
 
-const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache()
+const QVector<MathUtils::BpmCacheEntry> &ChartCanvas::bpmTimeCache() const
 {
     if (m_bpmCacheDirty)
         rebuildBpmTimeCache();
     return m_bpmTimeCache;
+}
+
+double ChartCanvas::beatFromTimeMs(double timeMs) const
+{
+    const QVector<MathUtils::BpmCacheEntry> &cache = bpmTimeCache();
+    if (cache.isEmpty())
+        return 0.0;
+
+    int lo = 0;
+    int hi = cache.size() - 1;
+    while (lo < hi)
+    {
+        const int mid = (lo + hi + 1) / 2;
+        if (cache[mid].accumulatedMs <= timeMs)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+
+    const MathUtils::BpmCacheEntry &segment = cache[lo];
+    if (segment.bpm <= 0.0)
+        return segment.beatPos;
+    return segment.beatPos + (timeMs - segment.accumulatedMs) * (segment.bpm / 60000.0);
 }
 
 void ChartCanvas::rebuildNoteTimesCache()
@@ -400,6 +425,8 @@ void ChartCanvas::setChartController(ChartController *controller)
         disconnect(m_chartController, &ChartController::metaDataChanged, this, nullptr);
     }
     m_chartController = controller;
+    if (m_noteChainEditor)
+        m_noteChainEditor->setChartController(controller);
     if (controller)
     {
         connect(controller, &ChartController::chartChanged, this, [this]()
@@ -464,6 +491,9 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
 
     if (m_playbackController)
     {
+        attachDisplayFrameWindow();
+        if (m_displayFrameScreen)
+            m_playbackController->setDisplayRefreshRate(m_displayFrameScreen->refreshRate());
         connect(m_playbackController, &PlaybackController::positionChanged, this, &ChartCanvas::playbackPositionChanged);
         connect(m_playbackController, &PlaybackController::playbackFrameTick, this, &ChartCanvas::onPlaybackFrameTick);
         connect(m_playbackController, &PlaybackController::stateChanged,
@@ -480,9 +510,11 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 m_lastPlaybackScrollStepPx = -1.0;
                 m_lastPlaybackPlayheadYPx = -1.0;
                 m_lastPlaybackPlayheadStepPx = -1.0;
-                m_playbackVisualFramePending = false;
-                m_lastPlaybackTickNs = 0;
-                m_lastPlaybackVisualAdvanceNs = 0;
+                m_lastPaintProbeNs = 0;
+                m_lastPaintIntervalMs = -1.0;
+                m_paintMotionProbeValid = false;
+                m_lastPaintScrollBeat = 0.0;
+                m_lastPaintScrollVelocityPxPerSecond = -1.0;
                 const double startMs = m_playbackController ? m_playbackController->currentTime() : m_currentPlayTime;
                 m_currentPlayTime = qMax(0.0, startMs);
                 m_lastNoteSoundTimeMs = m_currentPlayTime;
@@ -500,9 +532,11 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 m_lastPlaybackScrollStepPx = -1.0;
                 m_lastPlaybackPlayheadYPx = -1.0;
                 m_lastPlaybackPlayheadStepPx = -1.0;
-                m_playbackVisualFramePending = false;
-                m_lastPlaybackTickNs = 0;
-                m_lastPlaybackVisualAdvanceNs = 0;
+                m_lastPaintProbeNs = 0;
+                m_lastPaintIntervalMs = -1.0;
+                m_paintMotionProbeValid = false;
+                m_lastPaintScrollBeat = 0.0;
+                m_lastPaintScrollVelocityPxPerSecond = -1.0;
                 m_lastNoteSoundTimeMs = m_currentPlayTime;
                 snapPlayheadToGrid();
                 update();
@@ -654,6 +688,13 @@ void ChartCanvas::setNoteSize(int size)
     if (m_noteRenderer->getNoteSize() == size)
         return;
     m_noteRenderer->setNoteSize(size);
+    update();
+}
+
+void ChartCanvas::refreshRenderSettings()
+{
+    m_noteRenderer->refreshSettings();
+    invalidateGridCache();
     update();
 }
 

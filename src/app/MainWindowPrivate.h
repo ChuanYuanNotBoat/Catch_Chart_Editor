@@ -7,6 +7,7 @@
 #include <QKeySequence>
 #include <QSet>
 #include <QString>
+#include <QByteArray>
 #include <QVariantMap>
 #include <limits>
 
@@ -14,11 +15,13 @@ class ChartController;
 class SelectionController;
 class PlaybackController;
 class Skin;
-class RightPanel;
 class LeftPanel;
 class DensityCurve;
-class QSplitter;
 class QWidget;
+class QSplitter;
+class QScrollArea;
+class QVBoxLayout;
+class QDialog;
 class NoteEditPanel;
 class BPMTimePanel;
 class MetaEditPanel;
@@ -27,9 +30,15 @@ class QActionGroup;
 class QMenu;
 class ChartCanvas;
 class QToolBar;
-class QDialog;
 class QTimer;
 class RealtimePreviewWidget;
+class PluginActionPanel;
+
+namespace ads
+{
+class CDockManager;
+class CDockWidget;
+}
 
 class MainWindow::Private
 {
@@ -41,16 +50,35 @@ public:
     ChartCanvas *canvas = nullptr;
     RealtimePreviewWidget *previewWidget = nullptr;
     DensityCurve *rightDensityBar = nullptr;
-    QSplitter *splitter = nullptr;
-    QWidget *rightPanelContainer = nullptr;
-    RightPanel *currentRightPanel = nullptr;
+    ads::CDockManager *dockManager = nullptr;
+    ads::CDockWidget *workspaceDock = nullptr;
+    ads::CDockWidget *leftPanelDock = nullptr;
+    ads::CDockWidget *previewDock = nullptr;
+    ads::CDockWidget *notePanelDock = nullptr;
+    ads::CDockWidget *timingToolsDock = nullptr;
+    ads::CDockWidget *playbackSpeedToolsDock = nullptr;
+    ads::CDockWidget *rangeToolsDock = nullptr;
+    ads::CDockWidget *mirrorToolsDock = nullptr;
+    ads::CDockWidget *curveToolsDock = nullptr;
+    ads::CDockWidget *pluginToolsDock = nullptr;
+    ads::CDockWidget *bpmPanelDock = nullptr;
+    ads::CDockWidget *metaPanelDock = nullptr;
+    QWidget *workspaceContainer = nullptr;
+    QSplitter *legacySplitter = nullptr;
+    QScrollArea *legacyRightScrollArea = nullptr;
+    QWidget *legacyRightPanelContainer = nullptr;
+    QVBoxLayout *legacyRightPanelLayout = nullptr;
+    QWidget *currentRightPanel = nullptr;
+    QByteArray defaultDockLayoutState;
     NoteEditPanel *notePanel = nullptr;
+    PluginActionPanel *pluginActionPanel = nullptr;
     BPMTimePanel *bpmPanel = nullptr;
     MetaEditPanel *metaPanel = nullptr;
     LeftPanel *leftPanel = nullptr;
     QAction *undoAction = nullptr;
     QAction *redoAction = nullptr;
     QAction *deleteAction = nullptr;
+    QAction *paste288Action = nullptr;
     QAction *colorAction = nullptr;
     QAction *timelineDivisionColorAction = nullptr;
     QAction *timelineDivisionColorSettingsAction = nullptr;
@@ -64,6 +92,7 @@ public:
     QMenu *pluginsMenu = nullptr;
     QMenu *pluginToolsMenu = nullptr;
     QMenu *pluginPanelsMenu = nullptr;
+    QMenu *panelsMenu = nullptr;
     QAction *pluginToolModeAction = nullptr;
     QAction *pluginToolModeToolbarAction = nullptr;
     QAction *pluginManagerToolbarAction = nullptr;
@@ -74,6 +103,8 @@ public:
     QAction *notePanelAction = nullptr;
     QAction *bpmPanelAction = nullptr;
     QAction *metaPanelAction = nullptr;
+    QAction *curvePanelAction = nullptr;
+    QAction *floatingToolWindowsAction = nullptr;
     QAction *checkUpdatesAction = nullptr;
     QAction *helpDocAction = nullptr;
     QAction *aboutAction = nullptr;
@@ -83,10 +114,23 @@ public:
     QToolBar *pluginToolBar = nullptr;
     QTimer *autoSaveTimer = nullptr;
     bool compactUiMode = false;
+    bool floatingToolWindowsEnabled = true;
+    bool floatingToolWindowsInitialized = false;
+    bool timingToolsWereVisible = true;
+    bool playbackSpeedToolsWereVisible = true;
+    bool rangeToolsWereVisible = true;
+    bool mirrorToolsWereVisible = true;
+    bool pluginToolsWereVisible = false;
+    bool leftPanelWasVisible = true;
+    bool previewWasVisible = true;
+    bool notePanelWasVisible = true;
+    bool bpmPanelWasVisible = false;
+    bool metaPanelWasVisible = false;
     QMenu *languageMenu = nullptr;
     QActionGroup *languageActionGroup = nullptr;
     QList<QAction *> pluginToolbarActions;
     QHash<QString, QVariantMap> pluginActionMeta;
+    QHash<QString, QPointer<ads::CDockWidget>> pluginPanelDocks;
     QHash<QString, QPointer<QDialog>> pluginPanelDialogs;
     QSet<QString> batchEditDisabledActions;
     QString pluginToolModePluginId;
@@ -98,6 +142,7 @@ public:
     QString sourceChartPath;
     QString workingChartPath;
     bool isModified = false;
+    bool isLoadingChart = false;
     bool audioPlaybackReady = false;
 
     // Cached resource paths for detecting changes after undo/redo/plugin edits.

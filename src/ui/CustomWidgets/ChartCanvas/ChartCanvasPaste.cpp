@@ -1,6 +1,7 @@
 ﻿#include "ChartCanvas.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
+#include "editor/NoteChain/NoteChainEditor.h"
 #include "model/Chart.h"
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
@@ -147,6 +148,8 @@ void ChartCanvas::beginPastePreview(const QVector<Note> &notes, const QPoint &cu
     m_pasteTimeOffsetRaw = 0.0;
     m_pasteXOffsetRaw = 0.0;
     m_isDraggingPaste = false;
+    m_pasteSnapReferenceActive = m_noteChainModeActive && m_noteChainEditor
+        && m_noteChainEditor->state().noteCurveSnapEnabled();
 
     if (!cursorPos.isNull())
     {
@@ -273,7 +276,9 @@ void ChartCanvas::beginDragPaste(const QPointF &startPos)
     m_pasteXOffsetRaw = m_pasteXOffset;
 
     refreshPluginOverlayCacheForSnap();
-    m_pasteSnapReferenceActive = hasNoteSnapReferenceOverlays();
+    m_pasteSnapReferenceActive = hasNoteSnapReferenceOverlays()
+        || (m_noteChainModeActive && m_noteChainEditor
+            && m_noteChainEditor->state().noteCurveSnapEnabled());
 }
 
 void ChartCanvas::updateDragPaste(const QPointF &currentPos)
@@ -304,7 +309,10 @@ void ChartCanvas::updateDragPaste(const QPointF &currentPos)
     if (m_pasteSnapReferenceActive && m_pasteDragReferenceIndex >= 0 &&
         m_pasteDragReferenceIndex < m_pasteNotes.size()) {
         const Note &refNote = m_pasteNotes[m_pasteDragReferenceIndex];
-        double refBeat = MathUtils::beatToFloat(refNote.beatNum, refNote.numerator, refNote.denominator) + m_pasteTimeOffset;
+        const double placementShift = m_pasteAnchorBeat - m_pasteRefBeat + m_pasteTimeOffset;
+        const double refBeat = MathUtils::beatToFloat(
+                                   refNote.beatNum, refNote.numerator, refNote.denominator)
+                             + placementShift;
         int snappedX = qBound(0, refNote.x + qRound(m_pasteXOffset), kLaneWidth);
         if (curveSnapXForBeat(refBeat, snappedX, &snappedX))
             m_pasteXOffset = static_cast<double>(snappedX - refNote.x);
@@ -317,7 +325,6 @@ void ChartCanvas::updateDragPaste(const QPointF &currentPos)
 void ChartCanvas::endDragPaste()
 {
     m_isDraggingPaste = false;
-    m_pasteSnapReferenceActive = false;
 }
 
 void ChartCanvas::confirmPaste()
@@ -329,6 +336,7 @@ void ChartCanvas::confirmPaste()
         m_pasteOriginalTimesMs.clear();
         m_pasteBaseOriginalTimeMs = std::numeric_limits<double>::max();
         m_pasteAnchorBeat = 0.0;
+        m_pasteSnapReferenceActive = false;
         return;
     }
 
@@ -358,21 +366,6 @@ void ChartCanvas::confirmPaste()
         MathUtils::msToBeat(ms, bpmList, offset, b, n, d);
         return MathUtils::beatToFloat(b, n, d);
     };
-    auto assignBeatWithDen = [](double beatFloat, int targetDen, int &outBeatNum, int &outNum, int &outDen)
-    {
-        if (targetDen <= 0)
-            targetDen = 1;
-        const qint64 ticks = qRound64(beatFloat * targetDen);
-        outBeatNum = static_cast<int>(ticks / targetDen);
-        outNum = static_cast<int>(ticks % targetDen);
-        if (outNum < 0)
-        {
-            outNum += targetDen;
-            outBeatNum -= 1;
-        }
-        outDen = targetDen;
-    };
-
     QVector<double> fallbackOriginalTimes;
     bool usingCachedOriginalTimes =
         (m_pasteOriginalTimesMs.size() == m_pasteNotes.size()) &&
@@ -408,6 +401,7 @@ void ChartCanvas::confirmPaste()
         m_pasteTimeOffsetRaw = 0.0;
         m_pasteXOffsetRaw = 0.0;
         m_pasteAnchorBeat = 0.0;
+        m_pasteSnapReferenceActive = false;
         update();
         return;
     }
@@ -423,13 +417,16 @@ void ChartCanvas::confirmPaste()
     if (m_pasteSnapReferenceActive && m_pasteDragReferenceIndex >= 0 &&
         m_pasteDragReferenceIndex < m_pasteNotes.size()) {
         const Note &refNote = m_pasteNotes[m_pasteDragReferenceIndex];
-        double refBeat = MathUtils::beatToFloat(refNote.beatNum, refNote.numerator, refNote.denominator) + m_pasteTimeOffset;
+        const double refBeat = MathUtils::beatToFloat(
+                                   refNote.beatNum, refNote.numerator, refNote.denominator)
+                             + snappedTotalBeatShift;
         int snappedX = qBound(0, refNote.x + qRound(finalXShift), kLaneWidth);
         if (curveSnapXForBeat(refBeat, snappedX, &snappedX))
             finalXShift = static_cast<double>(snappedX - refNote.x);
     }
 
     QVector<Note> newNotes;
+    const bool use288Division = Settings::instance().pasteUse288Division();
     for (int i = 0; i < m_pasteNotes.size(); ++i)
     {
         const Note &originalNote = m_pasteNotes[i];
@@ -446,13 +443,30 @@ void ChartCanvas::confirmPaste()
         // Preserve original denominator, same as move-selection logic.
         const double originalBeatFloat = MathUtils::beatToFloat(originalNote.beatNum, originalNote.numerator, originalNote.denominator);
         const double newBeatFloat = originalBeatFloat + snappedTotalBeatShift;
-        MathUtils::floatToBeat(newBeatFloat, newNote.beatNum, newNote.numerator, newNote.denominator);
+        const bool startRepresented = use288Division
+            ? MathUtils::quantizeBeatToDivision(newBeatFloat, 288,
+                                                newNote.beatNum, newNote.numerator, newNote.denominator)
+            : MathUtils::representBeatWithDivision(newBeatFloat, qMax(1, originalNote.denominator),
+                                                   newNote.beatNum, newNote.numerator, newNote.denominator);
+        if (!startRepresented)
+        {
+            MathUtils::floatToBeat(newBeatFloat, newNote.beatNum, newNote.numerator, newNote.denominator);
+        }
 
         if (originalNote.type == NoteType::RAIN)
         {
             const double originalEndBeatFloat = MathUtils::beatToFloat(originalNote.endBeatNum, originalNote.endNumerator, originalNote.endDenominator);
             const double newEndBeatFloat = originalEndBeatFloat + snappedTotalBeatShift;
-            MathUtils::floatToBeat(newEndBeatFloat, newNote.endBeatNum, newNote.endNumerator, newNote.endDenominator);
+            const bool endRepresented = use288Division
+                ? MathUtils::quantizeBeatToDivision(newEndBeatFloat, 288,
+                                                    newNote.endBeatNum, newNote.endNumerator, newNote.endDenominator)
+                : MathUtils::representBeatWithDivision(newEndBeatFloat, qMax(1, originalNote.endDenominator),
+                                                       newNote.endBeatNum, newNote.endNumerator, newNote.endDenominator);
+            if (!endRepresented)
+            {
+                MathUtils::floatToBeat(newEndBeatFloat, newNote.endBeatNum,
+                                       newNote.endNumerator, newNote.endDenominator);
+            }
         }
 
         newNote.x = originalNote.x + qRound(finalXShift);
@@ -464,7 +478,9 @@ void ChartCanvas::confirmPaste()
     if (!newNotes.isEmpty())
     {
         m_chartController->addNotes(newNotes);
-        emit statusMessage(tr("Pasted %1 notes").arg(newNotes.size()));
+        emit statusMessage(use288Division
+                               ? tr("Pasted %1 notes using 1/288 timing").arg(newNotes.size())
+                               : tr("Pasted %1 notes").arg(newNotes.size()));
     }
 
     m_isPasting = false;
@@ -474,5 +490,6 @@ void ChartCanvas::confirmPaste()
     m_pasteTimeOffsetRaw = 0.0;
     m_pasteXOffsetRaw = 0.0;
     m_pasteAnchorBeat = 0.0;
+    m_pasteSnapReferenceActive = false;
     update();
 }

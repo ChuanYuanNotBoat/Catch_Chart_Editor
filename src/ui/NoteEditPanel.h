@@ -16,6 +16,7 @@ class QGroupBox;
 class QToolButton;
 class LongRangeSelector;
 class PlaybackController;
+class PlaybackSpeedPanel;
 
 class NoteEditPanel : public RightPanel
 {
@@ -49,6 +50,27 @@ public:
     void setMirrorAxisValue(int axisX);
     void setModeFromHost(int mode);
     int currentMode() const { return m_currentMode; }
+    void setNoteChainControlsVisible(bool visible);
+    void syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline,
+                                         bool noteSnap, bool selAnchors, bool selSegments, bool selNotes);
+
+    // Transfer medium-grained tool sections into independent ADS docks.
+    // Each section can only be taken once; signal wiring remains owned by this
+    // panel so moving the widgets does not duplicate editor state.
+    QWidget *takeTimingToolsWidget();
+    QWidget *takePlaybackSpeedToolsWidget();
+    QWidget *takeRangeToolsWidget();
+    QWidget *takeMirrorToolsWidget();
+    QWidget *takeCurveToolsWidget();
+    QWidget *takeEmbeddedPluginToolsWidget();
+    void attachLegacyToolSections(QWidget *timingTools,
+                                  QWidget *playbackSpeedTools,
+                                  QWidget *rangeTools,
+                                  QWidget *mirrorTools,
+                                  QWidget *curveTools,
+                                  QWidget *pluginTools,
+                                  bool showPluginTools);
+    void setEmbeddedPluginToolsVisible(bool visible);
 
 
     LongRangeSelector *longRangeSelector() const { return m_longRangeSelector; }
@@ -65,9 +87,23 @@ signals:
     void mirrorPreviewVisibilityChanged(bool visible);
     void rangeChanged(double startBeat, double endBeat);
     void rangeVisibilityChanged(bool visible);
+    void playbackSpeedChanged(double speed);
 
     void mirrorFlipRequested();
     void pluginPlacementActionTriggered(const QString &pluginId, const QString &actionId);
+    // NoteChain native controls
+    void noteChainAnchorPlaceToggled(bool on);
+    void noteChainCurveVisibleToggled(bool on);
+    void noteChainPolylineModeToggled(bool on);
+    void noteChainCommitRequested();
+    void noteChainDeleteRequested();
+    void noteChainNoteCurveSnapToggled(bool on);
+    void noteChainSelectAnchorsToggled(bool on);
+    void noteChainSelectSegmentsToggled(bool on);
+    void noteChainSelectNotesToggled(bool on);
+    void noteChainConnectRequested();
+    void noteChainDisconnectRequested();
+    void noteChainResetRequested();
 
 private slots:
     void onNoteModeClicked();
@@ -84,9 +120,12 @@ private:
     void setupUi();
     void setMode(int mode);
     void refreshPluginToolsUi();
+    QWidget *takeSectionWidget(QWidget *widget);
+    void insertSectionAfter(QWidget *widget, QWidget *after);
 
     ChartController *m_chartController;
     SelectionController *m_selectionController;
+    PlaybackController *m_playbackController = nullptr;
     QLabel *m_modeLabel;
     QButtonGroup *m_modeGroup;
     QRadioButton *m_noteRadio;
@@ -100,10 +139,14 @@ private:
     QWidget *m_pluginToolsContainer;
     QVBoxLayout *m_pluginToolsLayout;
     QLabel *m_timeDivisionLabel;
+    QWidget *m_timingToolsContainer = nullptr;
+    PlaybackSpeedPanel *m_playbackSpeedPanel = nullptr;
     QComboBox *m_timeDivisionCombo;
     QCheckBox *m_gridSnapCheck;
     QPushButton *m_gridSettingsBtn;
     QPushButton *m_copyButton;
+    QVBoxLayout *m_mainLayout = nullptr;
+    QWidget *m_embeddedPluginTools = nullptr;
     QGroupBox *m_mirrorGroup;
     QLabel *m_mirrorAxisLabel;
     QSpinBox *m_mirrorAxisSpin;
@@ -114,4 +157,20 @@ private:
     int m_currentMode;
     int m_gridDivision;
     bool m_pluginToolsExpanded;
+
+    // NoteChain native controls
+    QCheckBox *m_ncAnchorPlaceCheck = nullptr;
+    QCheckBox *m_ncCurveVisibleCheck = nullptr;
+    QCheckBox *m_ncPolylineModeCheck = nullptr;
+    QCheckBox *m_ncNoteCurveSnapCheck = nullptr;
+    QCheckBox *m_ncSelectAnchorsCheck = nullptr;
+    QCheckBox *m_ncSelectSegmentsCheck = nullptr;
+    QCheckBox *m_ncSelectNotesCheck = nullptr;
+    QPushButton *m_ncCommitBtn = nullptr;
+    QPushButton *m_ncDeleteBtn = nullptr;
+    QPushButton *m_ncConnectBtn = nullptr;
+    QPushButton *m_ncDisconnectBtn = nullptr;
+    QPushButton *m_ncResetBtn = nullptr;
+    QWidget *m_ncPlaceholder = nullptr;
+    bool m_noteChainControlsVisible = false;
 };

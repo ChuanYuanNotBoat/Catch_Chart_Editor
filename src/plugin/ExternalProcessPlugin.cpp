@@ -266,6 +266,7 @@ QList<PluginInterface::ToolAction> ExternalProcessPlugin::toolActions() const
         action.confirmMessage = obj.value("confirm_message").toString().trimmed();
         action.hostAction = obj.value("host_action").toString().trimmed().toLower();
         action.placement = obj.value("placement").toString().trimmed();
+        action.scopeSelector = obj.value("scope_selector").toString().trimmed().toLower();
         if (action.placement.isEmpty())
             action.placement = PluginInterface::kPlacementToolsMenu;
         action.requiresUndoSnapshot = obj.value("requires_undo_snapshot").toBool(true);
@@ -297,7 +298,8 @@ bool ExternalProcessPlugin::runToolAction(const QString &actionId, const QVarian
     // session process; one-shot child process would lose in-memory state.
     const bool requiresPersistentSession =
         hasCapability(kCapabilityCanvasInteraction) ||
-        hasCapability(kCapabilityPanelWorkspace);
+        hasCapability(kCapabilityPanelWorkspace) ||
+        hasCapability(kCapabilityContextualToolActions);
 
     if (!requiresPersistentSession)
     {

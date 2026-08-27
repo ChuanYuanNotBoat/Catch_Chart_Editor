@@ -1,7 +1,7 @@
 {
   "pluginId": "builtin.note_color_formatter",
   "displayName": "Note Color Formatter",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "description": "Format note color timing divisions with supported denominator set",
   "author": "Malody Catch Editor",
   "pluginApiVersion": 2,
@@ -10,6 +10,7 @@
   "capabilities": [
     "chart_observer",
     "advanced_color_editor",
+    "contextual_tool_actions",
     "tool_actions"
   ],
   "localizedDisplayName": {

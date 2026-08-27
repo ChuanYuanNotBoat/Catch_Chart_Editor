@@ -13,6 +13,7 @@
 #include <QWheelEvent>
 #include <QKeyEvent>
 #include <QEvent>
+#include <QSizePolicy>
 #include <cmath>
 #include <algorithm>
 
@@ -89,26 +90,26 @@ LongRangeSelector::LongRangeSelector(QWidget *parent)
 
 void LongRangeSelector::setupUi()
 {
-    QGroupBox *group = new QGroupBox(tr("Range Select"), this);
+    m_group = new QGroupBox(tr("Range Select"), this);
     QVBoxLayout *outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(0, 0, 0, 0);
-    outerLayout->addWidget(group);
+    outerLayout->addWidget(m_group);
 
-    QVBoxLayout *layout = new QVBoxLayout(group);
+    QVBoxLayout *layout = new QVBoxLayout(m_group);
 
     // Show Range 复选框
-    m_showOverlayCheck = new QCheckBox(tr("Show Range"), group);
+    m_showOverlayCheck = new QCheckBox(tr("Show Range"), m_group);
     m_showOverlayCheck->setChecked(true);
     connect(m_showOverlayCheck, &QCheckBox::toggled, this, &LongRangeSelector::onShowOverlayToggled);
     layout->addWidget(m_showOverlayCheck);
 
     // 起始 beat 行
     QHBoxLayout *startRow = new QHBoxLayout;
-    QLabel *startLabel = new QLabel(tr("Start:"), group);
-    m_startEdit = new QLineEdit(group);
+    QLabel *startLabel = new QLabel(tr("Start:"), m_group);
+    m_startEdit = new QLineEdit(m_group);
     m_startEdit->setPlaceholderText(QStringLiteral("0 0/4"));
     m_startEdit->setText(QStringLiteral("0 0/4"));
-    m_startNowBtn = new QPushButton(tr("Now"), group);
+    m_startNowBtn = new QPushButton(tr("Now"), m_group);
     m_startNowBtn->setFixedWidth(48);
     startRow->addWidget(startLabel);
     startRow->addWidget(m_startEdit, 1);
@@ -117,11 +118,11 @@ void LongRangeSelector::setupUi()
 
     // 结束 beat 行
     QHBoxLayout *endRow = new QHBoxLayout;
-    QLabel *endLabel = new QLabel(tr("End:"), group);
-    m_endEdit = new QLineEdit(group);
+    QLabel *endLabel = new QLabel(tr("End:"), m_group);
+    m_endEdit = new QLineEdit(m_group);
     m_endEdit->setPlaceholderText(QStringLiteral("0 0/4"));
     m_endEdit->setText(QStringLiteral("0 0/4"));
-    m_endNowBtn = new QPushButton(tr("Now"), group);
+    m_endNowBtn = new QPushButton(tr("Now"), m_group);
     m_endNowBtn->setFixedWidth(48);
     endRow->addWidget(endLabel);
     endRow->addWidget(m_endEdit, 1);
@@ -129,7 +130,8 @@ void LongRangeSelector::setupUi()
     layout->addLayout(endRow);
 
     // 选择按钮
-    m_selectBtn = new QPushButton(tr("Select"), group);
+    m_selectBtn = new QPushButton(tr("Select"), m_group);
+    m_selectBtn->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     layout->addWidget(m_selectBtn);
 
     // 连接信号
@@ -178,9 +180,8 @@ void LongRangeSelector::setTimeDivision(int division)
 
 void LongRangeSelector::retranslateUi()
 {
-    // 通过查找子控件重新设置文本
-    if (auto *g = findChild<QGroupBox *>())
-        g->setTitle(tr("Range Select"));
+    if (m_group && !m_inputOnlyMode)
+        m_group->setTitle(tr("Range Select"));
     const auto labels = findChildren<QLabel *>();
     for (auto *l : labels)
     {
@@ -197,6 +198,18 @@ void LongRangeSelector::retranslateUi()
         m_selectBtn->setText(tr("Select"));
     if (m_showOverlayCheck)
         m_showOverlayCheck->setText(tr("Show Range"));
+}
+
+void LongRangeSelector::setInputOnlyMode(const QString &title)
+{
+    m_inputOnlyMode = true;
+    if (m_group)
+        m_group->setTitle(title);
+    if (m_showOverlayCheck)
+        m_showOverlayCheck->hide();
+    if (m_selectBtn)
+        m_selectBtn->hide();
+    m_rangeVisible = false;
 }
 
 // --- 范围覆盖层控制 ---

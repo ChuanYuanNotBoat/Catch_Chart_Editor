@@ -1,7 +1,9 @@
 ﻿set(SOURCES
     main.cpp
     app/Application.cpp
+    app/PlaybackBenchmarkRunner.cpp
     app/MainWindow.cpp
+    app/MainWindowLayout.cpp
     app/MainWindowDialogs.cpp
     app/MainWindowSkinAudio.cpp
     model/Note.cpp
@@ -12,6 +14,7 @@
     utils/MathUtils.cpp
     utils/FileUtils.cpp
     utils/Settings.cpp
+    utils/NativeWindowTheme.cpp
     utils/Logger.cpp
     utils/Translator.cpp
     utils/PerformanceTimer.cpp
@@ -32,6 +35,7 @@
     audio/autotiming/util.cpp
     controller/ChartController.cpp
     controller/SelectionController.cpp
+    controller/DisplayFrameScheduler.cpp
     controller/PlaybackController.cpp
     render/NoteRenderer.cpp
     render/BeatDivisionColor.cpp
@@ -43,6 +47,8 @@
     ui/CustomWidgets/RightPanel.cpp
     ui/CustomWidgets/RealtimePreviewWidget.cpp
     ui/LongRangeSelector.cpp
+    ui/PlaybackSpeedPanel.cpp
+    ui/PluginActionPanel.cpp
     ui/NoteEditPanel.cpp
     ui/BPMTimePanel.cpp
     ui/MetaEditPanel.cpp
@@ -57,15 +63,13 @@
     ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasInteraction.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp
+    ui/CustomWidgets/ChartCanvas/ChartCanvasNoteChain.cpp
     ui/dialogs/LogSettingsDialog.cpp
     ui/dialogs/PluginManagerDialog.cpp
     ui/dialogs/BpmMeasureDialog.cpp
     editor/NoteChain/NoteChainEditor.cpp
     editor/NoteChain/NoteChainState.cpp
-    editor/NoteChain/NoteChainHistory.cpp
     editor/NoteChain/NoteChainPersistence.cpp
-    editor/NoteChain/NoteChainCurveSampler.cpp
-    editor/NoteChain/NoteChainOverlay.cpp
 )
 
 qt_add_executable(CatchChartEditor
@@ -78,7 +82,12 @@ target_link_libraries(CatchChartEditor
     Qt6::Core
     Qt6::Widgets
     Qt6::Multimedia
+    ads::qtadvanceddocking-qt6
 )
+
+if(WIN32)
+    target_link_libraries(CatchChartEditor PRIVATE dwmapi)
+endif()
 
 if(COMMAND qt_finalize_executable)
     qt_finalize_executable(CatchChartEditor)
@@ -133,6 +142,12 @@ add_custom_command(TARGET CatchChartEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/resources/default_skin
         $<TARGET_FILE_DIR:CatchChartEditor>/skins/default
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        $<TARGET_FILE_DIR:CatchChartEditor>/licenses/QtAdvancedDockingSystem
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/third_party/QtAdvancedDockingSystem/LICENSE
+        ${CMAKE_SOURCE_DIR}/third_party/QtAdvancedDockingSystem/gnu-lgpl-v2.1.md
+        $<TARGET_FILE_DIR:CatchChartEditor>/licenses/QtAdvancedDockingSystem
 )
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/resources/note_sounds")

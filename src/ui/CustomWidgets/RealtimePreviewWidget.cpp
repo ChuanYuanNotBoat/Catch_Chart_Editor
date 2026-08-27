@@ -6,12 +6,43 @@
 #include "render/HyperfruitDetector.h"
 #include "render/NoteRenderer.h"
 #include "utils/MathUtils.h"
+#include "utils/PlaybackStutterProbe.h"
 #include <cmath>
 #include <limits>
 #include <QPainter>
 #include <QPen>
 #include <QTimer>
 #include <algorithm>
+
+namespace
+{
+class PreviewPaintMeasurement final
+{
+public:
+    explicit PreviewPaintMeasurement(bool active)
+        : m_active(active)
+    {
+        if (m_active)
+            m_timer.start();
+    }
+
+    ~PreviewPaintMeasurement()
+    {
+        if (m_active)
+        {
+            PlaybackStutterProbe::recordDuration(
+                "preview.paint_total",
+                static_cast<double>(m_timer.nsecsElapsed()) / 1000000.0,
+                4.0,
+                true);
+        }
+    }
+
+private:
+    bool m_active;
+    QElapsedTimer m_timer;
+};
+}
 
 RealtimePreviewWidget::RealtimePreviewWidget(QWidget *parent)
     : QWidget(parent),
@@ -37,6 +68,7 @@ RealtimePreviewWidget::RealtimePreviewWidget(QWidget *parent)
         m_frameTimer.restart();
     });
     m_frameTimer.start();
+    m_probeClock.start();
 }
 
 RealtimePreviewWidget::~RealtimePreviewWidget()
@@ -125,6 +157,12 @@ void RealtimePreviewWidget::setHyperfruitEnabled(bool enabled)
 void RealtimePreviewWidget::setNoteSize(int size)
 {
     m_noteRenderer->setNoteSize(size);
+    scheduleUpdate();
+}
+
+void RealtimePreviewWidget::refreshRenderSettings()
+{
+    m_noteRenderer->refreshSettings();
     scheduleUpdate();
 }
 
@@ -243,10 +281,12 @@ void RealtimePreviewWidget::handlePlaybackFrameTick(double predictedTimeMs, qint
     if (frameSeq <= m_lastPlaybackFrameSeq)
         return;
     m_lastPlaybackFrameSeq = frameSeq;
+    m_currentTimeMs = qMax(0.0, predictedTimeMs);
+    if (!isVisible())
+        return;
     if (m_deferredUpdateTimer->isActive())
         m_deferredUpdateTimer->stop();
     m_updateScheduled = false;
-    m_currentTimeMs = qMax(0.0, predictedTimeMs);
     update();
     m_frameTimer.restart();
 }
@@ -378,6 +418,35 @@ void RealtimePreviewWidget::ensureHyperCache()
 void RealtimePreviewWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
+
+    if (m_playbackController &&
+        m_playbackController->state() == PlaybackController::Playing)
+    {
+        m_currentTimeMs = qMax(
+            m_currentTimeMs,
+            m_playbackController->visualTime());
+    }
+
+    const bool probeFrame =
+        m_playbackController &&
+        m_playbackController->state() == PlaybackController::Playing &&
+        PlaybackStutterProbe::enabled();
+    const qint64 paintStartNs = probeFrame ? m_probeClock.nsecsElapsed() : 0;
+    if (probeFrame && m_lastPaintProbeNs > 0 && paintStartNs > m_lastPaintProbeNs)
+    {
+        const double intervalMs =
+            static_cast<double>(paintStartNs - m_lastPaintProbeNs) / 1000000.0;
+        const double targetIntervalMs =
+            1000.0 / qMax(1.0, m_playbackController->effectiveFrameRate());
+        PlaybackStutterProbe::recordDuration(
+            "preview.paint_interval",
+            intervalMs,
+            targetIntervalMs * 1.35,
+            true);
+    }
+    if (probeFrame)
+        m_lastPaintProbeNs = paintStartNs;
+    PreviewPaintMeasurement paintMeasurement(probeFrame);
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, false);

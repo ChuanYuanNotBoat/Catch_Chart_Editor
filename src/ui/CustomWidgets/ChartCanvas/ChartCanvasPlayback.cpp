@@ -3,6 +3,7 @@
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "audio/NoteSoundPlayer.h"
+#include "audio/PlaybackTiming.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackStutterProbe.h"
 #include "app/Application.h"
@@ -11,6 +12,11 @@
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QCoreApplication>
+#include <QHideEvent>
+#include <QScreen>
+#include <QShowEvent>
+#include <QTimer>
+#include <QWindow>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -45,51 +51,77 @@ void ChartCanvas::playbackPositionChanged(double timeMs)
 
     const double clampedTimeMs = qMax(0.0, timeMs);
 
-    if (!m_playbackController || m_playbackController->state() != PlaybackController::Playing)
+    // During playback the high-resolution controller tick is the only clock
+    // for visuals and note sounds. QMediaPlayer position callbacks are sparse,
+    // especially at low rates, and are used only to re-anchor that clock.
+    if (m_playbackController && m_playbackController->state() == PlaybackController::Playing)
+        return;
+
+    const bool visualChanged = std::abs(m_currentPlayTime - clampedTimeMs) > kPlaybackVisualEpsilonMs;
+    m_currentPlayTime = clampedTimeMs;
+    m_lastNoteSoundTimeMs = clampedTimeMs;
+    m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
+                                                   m_playableNoteTimesMs.begin(),
+                                                   m_playableNoteTimesMs.end(),
+                                                   m_lastNoteSoundTimeMs) -
+                                               m_playableNoteTimesMs.begin());
+    if (visualChanged)
+        update();
+}
+
+void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
+{
+    constexpr double kComparisonEpsilonMs = 0.5;
+    constexpr double kOutputLeadWallMs = 8.0;
+
+    if (m_timesDirty || m_noteDataDirty)
+        rebuildNoteTimesCache();
+
+    if (!m_playbackController ||
+        !m_noteSoundPlayer ||
+        !m_noteSoundPlayer->isEnabled() ||
+        !m_noteSoundPlayer->hasValidSound() ||
+        m_playableNoteTimesMs.isEmpty())
     {
-        const bool visualChanged = std::abs(m_currentPlayTime - clampedTimeMs) > kPlaybackVisualEpsilonMs;
-        m_currentPlayTime = clampedTimeMs;
-        m_lastNoteSoundTimeMs = clampedTimeMs;
-        m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                                                       m_playableNoteTimesMs.begin(),
-                                                       m_playableNoteTimesMs.end(),
-                                                       m_lastNoteSoundTimeMs) -
-                                                   m_playableNoteTimesMs.begin());
-        if (visualChanged)
-            update();
+        m_lastNoteSoundTimeMs = qMax(0.0, playbackTimeMs);
         return;
     }
 
-    const double audioTimeMs = clampedTimeMs;
+    // QSoundEffect starts asynchronously. A small wall-time lead both offsets
+    // its output queue and centers the error of a 60 Hz controller pulse. The
+    // conversion by playback rate is essential: 8 ms wall time is only 0.8 ms
+    // on the media timeline at 0.1x.
+    const double schedulingTimeMs = qMax(
+        0.0,
+        playbackTimeMs + PlaybackTiming::wallDurationToMediaMs(
+                             kOutputLeadWallMs,
+                             m_playbackController->speed()));
 
-    if (m_noteSoundPlayer &&
-        m_noteSoundPlayer->isEnabled() &&
-        m_noteSoundPlayer->hasValidSound() &&
-        !m_playableNoteTimesMs.isEmpty())
+    if (schedulingTimeMs < m_lastNoteSoundTimeMs - 2.0)
     {
-        if (audioTimeMs < m_lastNoteSoundTimeMs - 2.0)
-        {
-            m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                                                           m_playableNoteTimesMs.begin(),
-                                                           m_playableNoteTimesMs.end(),
-                                                           audioTimeMs) -
-                                                       m_playableNoteTimesMs.begin());
-        }
-
-        bool hasHit = false;
-        while (m_nextPlayableNoteIndex < m_playableNoteTimesMs.size() &&
-               m_playableNoteTimesMs[m_nextPlayableNoteIndex] <= audioTimeMs + 0.5)
-        {
-            if (m_playableNoteTimesMs[m_nextPlayableNoteIndex] > m_lastNoteSoundTimeMs + 0.5)
-                hasHit = true;
-            ++m_nextPlayableNoteIndex;
-        }
-
-        if (hasHit)
-            m_noteSoundPlayer->playHitSound();
+        m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
+                                                       m_playableNoteTimesMs.begin(),
+                                                       m_playableNoteTimesMs.end(),
+                                                       schedulingTimeMs) -
+                                                   m_playableNoteTimesMs.begin());
     }
 
-    m_lastNoteSoundTimeMs = audioTimeMs;
+    double lastTriggeredTimeMs = -std::numeric_limits<double>::infinity();
+    while (m_nextPlayableNoteIndex < m_playableNoteTimesMs.size() &&
+           m_playableNoteTimesMs[m_nextPlayableNoteIndex] <=
+               schedulingTimeMs + kComparisonEpsilonMs)
+    {
+        const double noteTimeMs = m_playableNoteTimesMs[m_nextPlayableNoteIndex];
+        if (noteTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs &&
+            noteTimeMs > lastTriggeredTimeMs + kComparisonEpsilonMs)
+        {
+            m_noteSoundPlayer->playHitSound();
+            lastTriggeredTimeMs = noteTimeMs;
+        }
+        ++m_nextPlayableNoteIndex;
+    }
+
+    m_lastNoteSoundTimeMs = schedulingTimeMs;
 }
 
 void ChartCanvas::playFromReferenceLine()
@@ -131,6 +163,47 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
         recordManualJerkMark();
         event->accept();
         return;
+    }
+
+    // NoteChain native: keyboard shortcuts
+    if (m_noteChainModeActive && m_noteChainEditor) {
+        m_noteChainEditor->setHostContext(buildPluginCanvasContext());
+        if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+            m_noteChainEditor->commitCurveToNotes();
+            event->accept(); return;
+        }
+        if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
+            m_noteChainEditor->deleteSelected();
+            event->accept(); return;
+        }
+        if (event->key() == Qt::Key_Escape) {
+            m_noteChainEditor->handleKeyDown(Qt::Key_Escape, false, false);
+            event->accept(); return;
+        }
+        if (event->key() == Qt::Key_A && !event->modifiers().testFlag(Qt::ControlModifier)) {
+            m_noteChainEditor->toggleAnchorPlacement();
+            event->accept(); return;
+        }
+        if (event->matches(QKeySequence::Undo)) {
+            if (m_chartController && m_chartController->canUndo()) {
+                const QString actionText = m_chartController->nextUndoActionText();
+                m_chartController->undo();
+                m_noteChainEditor->onHostUndo(actionText);
+            } else {
+                m_noteChainEditor->undo();
+            }
+            event->accept(); return;
+        }
+        if (event->matches(QKeySequence::Redo)) {
+            if (m_chartController && m_chartController->canRedo()) {
+                const QString actionText = m_chartController->nextRedoActionText();
+                m_chartController->redo();
+                m_noteChainEditor->onHostRedo(actionText);
+            } else {
+                m_noteChainEditor->redo();
+            }
+            event->accept(); return;
+        }
     }
 
     if (m_pluginToolModeActive && event->key() == Qt::Key_Return)
@@ -533,10 +606,78 @@ void ChartCanvas::resizeEvent(QResizeEvent *event)
 void ChartCanvas::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
+    if (m_playbackController)
+        m_playbackController->acknowledgeFramePainted(m_lastPlaybackFrameSeq);
+    attachDisplayFrameWindow();
     if (m_isPlaying)
-    {
         requestNextFrame();
+}
+
+void ChartCanvas::hideEvent(QHideEvent *event)
+{
+    if (m_playbackController)
+        m_playbackController->acknowledgeFramePainted(m_lastPlaybackFrameSeq);
+    QWidget::hideEvent(event);
+}
+
+void ChartCanvas::attachDisplayFrameWindow()
+{
+    QWidget *topLevel = window();
+    QWindow *windowHandle = topLevel ? topLevel->windowHandle() : nullptr;
+    if (windowHandle == m_displayFrameWindow)
+    {
+        updateDisplayRefreshRate(windowHandle ? windowHandle->screen() : nullptr);
+        return;
     }
+
+    QObject::disconnect(m_displayWindowDestroyedConnection);
+    QObject::disconnect(m_displayScreenChangedConnection);
+    m_displayFrameWindow = windowHandle;
+
+    if (!windowHandle)
+    {
+        updateDisplayRefreshRate(nullptr);
+        return;
+    }
+
+    m_displayWindowDestroyedConnection = connect(
+        windowHandle,
+        &QObject::destroyed,
+        this,
+        [this]()
+        {
+            m_displayFrameWindow.clear();
+        });
+    m_displayScreenChangedConnection = connect(
+        windowHandle,
+        &QWindow::screenChanged,
+        this,
+        &ChartCanvas::updateDisplayRefreshRate);
+    updateDisplayRefreshRate(windowHandle->screen());
+}
+
+void ChartCanvas::updateDisplayRefreshRate(QScreen *screen)
+{
+    if (screen != m_displayFrameScreen)
+    {
+        QObject::disconnect(m_displayRefreshRateConnection);
+        m_displayFrameScreen = screen;
+        if (screen)
+        {
+            m_displayRefreshRateConnection = connect(
+                screen,
+                &QScreen::refreshRateChanged,
+                this,
+                [this](qreal refreshRateHz)
+                {
+                    if (m_playbackController)
+                        m_playbackController->setDisplayRefreshRate(refreshRateHz);
+                });
+        }
+    }
+
+    if (m_playbackController)
+        m_playbackController->setDisplayRefreshRate(screen ? screen->refreshRate() : 60.0);
 }
 
 void ChartCanvas::cancelPaste()
@@ -550,6 +691,7 @@ void ChartCanvas::cancelPaste()
         m_pasteTimeOffsetRaw = 0.0;
         m_pasteXOffsetRaw = 0.0;
         m_pasteAnchorBeat = 0.0;
+        m_pasteSnapReferenceActive = false;
         update();
         emit statusMessage(tr("Paste cancelled."));
     }

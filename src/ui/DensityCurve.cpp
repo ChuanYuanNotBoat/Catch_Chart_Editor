@@ -5,8 +5,10 @@
 #include "model/Chart.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "utils/MathUtils.h"
+#include "utils/PlaybackStutterProbe.h"
 #include "utils/Settings.h"
 
+#include <QElapsedTimer>
 #include <QEvent>
 #include <QMouseEvent>
 #include <QPainter>
@@ -54,6 +56,7 @@ void DensityCurve::setPlaybackController(PlaybackController *controller)
     if (m_playbackController)
     {
         disconnect(m_playbackController, &PlaybackController::positionChanged, this, nullptr);
+        disconnect(m_playbackController, &PlaybackController::playbackFrameTick, this, nullptr);
         if (m_playbackController->audioPlayer())
             disconnect(m_playbackController->audioPlayer(), &AudioPlayer::durationChanged, this, nullptr);
     }
@@ -62,8 +65,23 @@ void DensityCurve::setPlaybackController(PlaybackController *controller)
     {
         connect(m_playbackController, &PlaybackController::positionChanged, this, [this](double timeMs)
                 {
-            if (!m_dragging)
+            // Backend position callbacks arrive independently of display
+            // composition. Repainting here creates a second top-level backing
+            // store flush between playback frames, which can block the next
+            // frame for an entire refresh. Paused seeks still use this path.
+            if (!m_dragging &&
+                m_playbackController->state() != PlaybackController::Playing)
                 syncCurrentTime(timeMs); });
+        connect(m_playbackController,
+                &PlaybackController::playbackFrameTick,
+                this,
+                [this](double predictedTimeMs, qint64 frameSeq)
+                {
+            // The density playhead only moves a few pixels per second. Twenty
+            // display-locked updates per second are visually sufficient and,
+            // crucially, coalesce into the canvas/preview UpdateRequest.
+            if (!m_dragging && (frameSeq % 3) == 0)
+                syncCurrentTime(predictedTimeMs); });
         if (m_playbackController->audioPlayer())
         {
             connect(m_playbackController->audioPlayer(), &AudioPlayer::durationChanged, this, [this](qint64)
@@ -224,6 +242,13 @@ void DensityCurve::leaveEvent(QEvent *event)
 void DensityCurve::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
+    const bool probePaint =
+        m_playbackController &&
+        m_playbackController->state() == PlaybackController::Playing &&
+        PlaybackStutterProbe::enabled();
+    QElapsedTimer paintTimer;
+    if (probePaint)
+        paintTimer.start();
     QPainter painter(this);
     const QColor baseBg = Settings::instance().backgroundColor();
     const double luminance = 0.2126 * baseBg.redF() + 0.7152 * baseBg.greenF() + 0.0722 * baseBg.blueF();
@@ -285,6 +310,14 @@ void DensityCurve::paintEvent(QPaintEvent *event)
         painter.drawRoundedRect(tipRect, 6, 6);
         painter.setPen(tipFg);
         painter.drawText(tipRect, Qt::AlignCenter, text);
+    }
+    if (probePaint)
+    {
+        PlaybackStutterProbe::recordDuration(
+            "density.paint_total",
+            static_cast<double>(paintTimer.nsecsElapsed()) / 1000000.0,
+            1.0,
+            true);
     }
 }
 

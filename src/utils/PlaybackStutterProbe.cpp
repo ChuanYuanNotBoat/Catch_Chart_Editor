@@ -3,20 +3,27 @@
 #include "Logger.h"
 #include "Settings.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QHash>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QMetaObject>
 #include <QVector>
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <condition_variable>
+#include <deque>
+#include <limits>
+#include <mutex>
 #include <thread>
 
 namespace
 {
     constexpr qint64 kWindowMs = 3000;
-    constexpr qint64 kLiveRefreshIntervalMs = 120;
     constexpr qint64 kMonitorPollMs = 5;
     constexpr qint64 kUiHitchThresholdMs = 22;
     constexpr qint64 kUiStallThresholdMs = 34;
@@ -29,8 +36,22 @@ namespace
         qint64 count = 0;
         double totalMs = 0.0;
         double maxMs = 0.0;
+        double minMs = std::numeric_limits<double>::max();
+        double budgetMs = 0.0;
         qint64 overBudgetCount = 0;
         QVector<double> samples;
+    };
+
+    struct SessionState
+    {
+        bool active = false;
+        QString name;
+        QString startedAtUtc;
+        qint64 startSteadyMs = 0;
+        QJsonObject metadata;
+        QHash<QString, DurationBucket> durations;
+        QHash<QString, DurationBucket> values;
+        QHash<QString, qint64> counters;
     };
 
     struct TimedSample
@@ -44,11 +65,22 @@ namespace
         qint64 windowStartMs = 0;
         bool lastPlaybackState = false;
         QHash<QString, DurationBucket> durations;
+        QHash<QString, DurationBucket> values;
         QHash<QString, qint64> counters;
         QHash<QString, QVector<TimedSample>> recentDurations;
         PlaybackStutterProbe::LiveMetrics live;
-        qint64 lastLiveRefreshMs = 0;
+        SessionState session;
     };
+
+    struct LiveWindowSnapshot
+    {
+        qint64 elapsedMs = 0;
+        QHash<QString, DurationBucket> durations;
+        QHash<QString, DurationBucket> values;
+        QHash<QString, qint64> counters;
+    };
+
+    void processLiveWindow(LiveWindowSnapshot snapshot);
 
     qint64 steadyNowMs()
     {
@@ -66,11 +98,15 @@ namespace
         std::atomic<qint64> hitchEventsPending{0};
         std::atomic<qint64> stallEventsPending{0};
         std::atomic<qint64> generation{0};
+        std::mutex wakeMutex;
+        std::condition_variable wakeCondition;
+        std::deque<LiveWindowSnapshot> pendingLiveWindows;
         std::thread worker;
 
         ~IndependentMonitor()
         {
             stopRequested.store(true);
+            wakeCondition.notify_all();
             if (worker.joinable())
                 worker.join();
         }
@@ -89,72 +125,105 @@ namespace
             return;
 
         m.worker = std::thread([]()
-                               {
-        IndependentMonitor &shared = monitor();
-        qint64 lastHitchLevel = -1;
-        qint64 lastStallLevel = -1;
-        qint64 lastGeneration = -1;
-        while (!shared.stopRequested.load())
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(kMonitorPollMs));
-
-            if (!shared.playing.load())
+            IndependentMonitor &shared = monitor();
+            qint64 lastHitchLevel = -1;
+            qint64 lastStallLevel = -1;
+            qint64 lastGeneration = -1;
+            while (true)
             {
-                lastHitchLevel = -1;
-                lastStallLevel = -1;
-                lastGeneration = shared.generation.load();
-                continue;
-            }
-
-            const qint64 currentGen = shared.generation.load();
-            if (currentGen != lastGeneration)
-            {
-                lastGeneration = currentGen;
-                lastHitchLevel = -1;
-                lastStallLevel = -1;
-            }
-
-            const qint64 hb = shared.lastUiHeartbeatSteadyMs.load();
-            if (hb <= 0)
-                continue;
-
-            const qint64 gapMs = steadyNowMs() - hb;
-            if (gapMs <= 0)
-                continue;
-
-            qint64 peak = shared.peakUiGapMs.load();
-            while (gapMs > peak && !shared.peakUiGapMs.compare_exchange_weak(peak, gapMs))
-            {
-            }
-
-            if (gapMs >= kUiHitchThresholdMs)
-            {
-                const qint64 hitchLevel = gapMs / 4;
-                if (hitchLevel != lastHitchLevel)
+                LiveWindowSnapshot pendingWindow;
+                bool hasPendingWindow = false;
                 {
-                    shared.hitchEventsPending.fetch_add(1);
-                    lastHitchLevel = hitchLevel;
+                    std::unique_lock<std::mutex> lock(shared.wakeMutex);
+                    shared.wakeCondition.wait_for(
+                        lock,
+                        std::chrono::milliseconds(kMonitorPollMs),
+                        [&shared]()
+                        {
+                            return shared.stopRequested.load() ||
+                                   !shared.pendingLiveWindows.empty();
+                        });
+                    if (!shared.pendingLiveWindows.empty())
+                    {
+                        pendingWindow = std::move(shared.pendingLiveWindows.front());
+                        shared.pendingLiveWindows.pop_front();
+                        hasPendingWindow = true;
+                    }
+                    else if (shared.stopRequested.load())
+                    {
+                        break;
+                    }
+                }
+
+                if (hasPendingWindow)
+                    processLiveWindow(std::move(pendingWindow));
+
+                if (shared.stopRequested.load())
+                {
+                    std::lock_guard<std::mutex> lock(shared.wakeMutex);
+                    if (shared.pendingLiveWindows.empty())
+                        break;
+                }
+
+                if (!shared.playing.load())
+                {
+                    lastHitchLevel = -1;
+                    lastStallLevel = -1;
+                    lastGeneration = shared.generation.load();
+                    continue;
+                }
+
+                const qint64 currentGen = shared.generation.load();
+                if (currentGen != lastGeneration)
+                {
+                    lastGeneration = currentGen;
+                    lastHitchLevel = -1;
+                    lastStallLevel = -1;
+                }
+
+                const qint64 hb = shared.lastUiHeartbeatSteadyMs.load();
+                if (hb <= 0)
+                    continue;
+
+                const qint64 gapMs = steadyNowMs() - hb;
+                if (gapMs <= 0)
+                    continue;
+
+                qint64 peak = shared.peakUiGapMs.load();
+                while (gapMs > peak && !shared.peakUiGapMs.compare_exchange_weak(peak, gapMs))
+                {
+                }
+
+                if (gapMs >= kUiHitchThresholdMs)
+                {
+                    const qint64 hitchLevel = gapMs / 4;
+                    if (hitchLevel != lastHitchLevel)
+                    {
+                        shared.hitchEventsPending.fetch_add(1);
+                        lastHitchLevel = hitchLevel;
+                    }
+                }
+                else
+                {
+                    lastHitchLevel = -1;
+                }
+
+                if (gapMs >= kUiStallThresholdMs)
+                {
+                    const qint64 stallLevel = gapMs / kUiStallStepMs;
+                    if (stallLevel != lastStallLevel)
+                    {
+                        shared.stallEventsPending.fetch_add(1);
+                        lastStallLevel = stallLevel;
+                    }
+                }
+                else
+                {
+                    lastStallLevel = -1;
                 }
             }
-            else
-            {
-                lastHitchLevel = -1;
-            }
-
-            if (gapMs >= kUiStallThresholdMs)
-            {
-                const qint64 stallLevel = gapMs / kUiStallStepMs;
-                if (stallLevel != lastStallLevel)
-                {
-                    shared.stallEventsPending.fetch_add(1);
-                    lastStallLevel = stallLevel;
-                }
-            }
-            else
-            {
-                lastStallLevel = -1;
-            }
-        } });
+        });
     }
 
     ProbeState &state()
@@ -169,8 +238,17 @@ namespace
         return seq;
     }
 
-    bool isEnabled()
+    std::atomic<bool> &processOverrideEnabled()
     {
+        static std::atomic<bool> value{false};
+        return value;
+    }
+
+    bool probeEnabled()
+    {
+        if (processOverrideEnabled().load(std::memory_order_relaxed))
+            return true;
+
         static std::atomic<int> cached{-1};
         static std::atomic<qint64> lastRefreshMs{0};
         const qint64 tsMs = QDateTime::currentMSecsSinceEpoch();
@@ -194,6 +272,7 @@ namespace
     {
         s.windowStartMs = tsMs;
         s.durations.clear();
+        s.values.clear();
         s.counters.clear();
     }
 
@@ -203,7 +282,7 @@ namespace
         s.lastPlaybackState = false;
         s.recentDurations.clear();
         s.live = PlaybackStutterProbe::LiveMetrics{};
-        s.lastLiveRefreshMs = 0;
+        s.session = SessionState{};
     }
 
     void pruneRecentSamples(QVector<TimedSample> *samples, qint64 minTsMs)
@@ -276,6 +355,69 @@ namespace
         return std::sqrt(var);
     }
 
+    void addDurationSample(DurationBucket &bucket, double elapsedMs, double budgetMs)
+    {
+        bucket.count += 1;
+        bucket.totalMs += elapsedMs;
+        bucket.maxMs = qMax(bucket.maxMs, elapsedMs);
+        bucket.minMs = qMin(bucket.minMs, elapsedMs);
+        bucket.budgetMs = budgetMs;
+        if (budgetMs >= 0.0 && elapsedMs > budgetMs)
+            bucket.overBudgetCount += 1;
+        bucket.samples.append(elapsedMs);
+    }
+
+    QJsonObject durationBucketJson(DurationBucket bucket)
+    {
+        QJsonObject result;
+        if (bucket.count <= 0)
+            return result;
+
+        std::sort(bucket.samples.begin(), bucket.samples.end());
+        result.insert("count", bucket.count);
+        result.insert("average_ms", bucket.totalMs / static_cast<double>(bucket.count));
+        result.insert("minimum_ms",
+                      bucket.minMs == std::numeric_limits<double>::max() ? 0.0 : bucket.minMs);
+        result.insert("p50_ms", percentile(bucket.samples, 0.50));
+        result.insert("p95_ms", percentile(bucket.samples, 0.95));
+        result.insert("p99_ms", percentile(bucket.samples, 0.99));
+        result.insert("maximum_ms", bucket.maxMs);
+        result.insert("standard_deviation_ms", bucketStdDev(bucket));
+        result.insert("budget_ms", bucket.budgetMs);
+        result.insert("over_budget_count", bucket.overBudgetCount);
+        result.insert("over_budget_percent",
+                      static_cast<double>(bucket.overBudgetCount) * 100.0 /
+                          static_cast<double>(bucket.count));
+        return result;
+    }
+
+    QJsonObject valueBucketJson(DurationBucket bucket)
+    {
+        QJsonObject result;
+        if (bucket.count <= 0)
+            return result;
+
+        std::sort(bucket.samples.begin(), bucket.samples.end());
+        result.insert("count", bucket.count);
+        result.insert("average", bucket.totalMs / static_cast<double>(bucket.count));
+        result.insert("minimum",
+                      bucket.minMs == std::numeric_limits<double>::max() ? 0.0 : bucket.minMs);
+        result.insert("p50", percentile(bucket.samples, 0.50));
+        result.insert("p95", percentile(bucket.samples, 0.95));
+        result.insert("p99", percentile(bucket.samples, 0.99));
+        result.insert("maximum", bucket.maxMs);
+        result.insert("standard_deviation", bucketStdDev(bucket));
+        if (bucket.budgetMs >= 0.0)
+        {
+            result.insert("budget", bucket.budgetMs);
+            result.insert("over_budget_count", bucket.overBudgetCount);
+            result.insert("over_budget_percent",
+                          static_cast<double>(bucket.overBudgetCount) * 100.0 /
+                              static_cast<double>(bucket.count));
+        }
+        return result;
+    }
+
     double recentMaxMs(const ProbeState &s, const QString &key, qint64 sinceTsMs)
     {
         const auto it = s.recentDurations.constFind(key);
@@ -332,6 +474,7 @@ namespace
         double uiGapP95Ms = 0.0;
         double visualScrollStepP95Px = 0.0;
         double visualScrollJerkP95Px = 0.0;
+        double visualScrollVelocityChangeP95Pct = 0.0;
         double visualPlayheadDriftP95Px = 0.0;
         double visualPlayheadStepJerkP95Px = 0.0;
         double jitterSlowPct = 0.0;
@@ -381,6 +524,7 @@ namespace
         const auto uiGapIt = s.durations.constFind("monitor.ui_heartbeat_gap");
         const auto visualScrollStepIt = s.durations.constFind("visual.scroll_step_px");
         const auto visualScrollJerkIt = s.durations.constFind("visual.scroll_step_jerk_px");
+        const auto visualScrollVelocityChangeIt = s.values.constFind("visual.scroll_velocity_change_pct");
         const auto visualPlayheadDriftIt = s.durations.constFind("visual.playhead_drift_px");
         const auto visualPlayheadStepJerkIt = s.durations.constFind("visual.playhead_step_jerk_px");
         const auto canvasIt = s.durations.constFind("canvas.paint_total");
@@ -402,6 +546,10 @@ namespace
         out.uiGapP95Ms = (uiGapIt != s.durations.constEnd()) ? bucketP95(uiGapIt.value()) : 0.0;
         out.visualScrollStepP95Px = (visualScrollStepIt != s.durations.constEnd()) ? bucketP95(visualScrollStepIt.value()) : 0.0;
         out.visualScrollJerkP95Px = (visualScrollJerkIt != s.durations.constEnd()) ? bucketP95(visualScrollJerkIt.value()) : 0.0;
+        out.visualScrollVelocityChangeP95Pct =
+            (visualScrollVelocityChangeIt != s.values.constEnd())
+                ? bucketP95(visualScrollVelocityChangeIt.value())
+                : 0.0;
         out.visualPlayheadDriftP95Px = (visualPlayheadDriftIt != s.durations.constEnd()) ? bucketP95(visualPlayheadDriftIt.value()) : 0.0;
         out.visualPlayheadStepJerkP95Px = (visualPlayheadStepJerkIt != s.durations.constEnd()) ? bucketP95(visualPlayheadStepJerkIt.value()) : 0.0;
         out.jitterSlowPct = (tickIt != s.durations.constEnd()) ? bucketSlowRatio(tickIt.value()) : 0.0;
@@ -418,11 +566,12 @@ namespace
         return out;
     }
 
-    void refreshLiveMetrics(ProbeState &s, qint64 elapsedMs)
+    void refreshLiveMetrics(ProbeState &s,
+                            qint64 elapsedMs,
+                            const DerivedWindowMetrics &m)
     {
         if (elapsedMs <= 0)
             return;
-        const DerivedWindowMetrics m = deriveWindowMetrics(s, elapsedMs);
         s.live.valid = true;
         s.live.windowMs = elapsedMs;
         s.live.fpsTick = m.fpsTick;
@@ -435,6 +584,7 @@ namespace
         s.live.uiGapP95Ms = m.uiGapP95Ms;
         s.live.visualScrollStepP95Px = m.visualScrollStepP95Px;
         s.live.visualScrollJerkP95Px = m.visualScrollJerkP95Px;
+        s.live.visualScrollVelocityChangeP95Pct = m.visualScrollVelocityChangeP95Pct;
         s.live.visualPlayheadDriftP95Px = m.visualPlayheadDriftP95Px;
         s.live.visualPlayheadStepJerkP95Px = m.visualPlayheadStepJerkP95Px;
         s.live.jitterSlowPct = m.jitterSlowPct;
@@ -448,7 +598,99 @@ namespace
         s.live.uiStallEvents = m.uiStallEvents;
         s.live.topHotspot = m.topList.isEmpty() ? QString() : m.topList.first();
         s.live.lastUpdateMs = nowMs();
-        s.lastLiveRefreshMs = s.live.lastUpdateMs;
+    }
+
+    void logLiveWindow(qint64 elapsedMs, const DerivedWindowMetrics &metrics)
+    {
+        Logger::info(QString("PERF_PLAYBACK window_ms=%1 fps_tick=%2 fps_canvas=%3 fps_preview=%4 jitter_p95_ms=%5 pacing_std_ms=%6 pacing_jerk_p95_ms=%7 step_jerk_p95_ms=%8 ui_gap_p95_ms=%9 scroll_velocity_change_p95_pct=%10 jank_events=%11 step_jank_events=%12 manual_jerk_marks=%13 ui_hitch_events=%14 ui_stall_events=%15 jitter_slow_pct=%16 canvas_slow_pct=%17 top=[%18] counters=[%19]")
+                         .arg(elapsedMs)
+                         .arg(metrics.fpsTick, 0, 'f', 1)
+                         .arg(metrics.fpsCanvas, 0, 'f', 1)
+                         .arg(metrics.fpsPreview, 0, 'f', 1)
+                         .arg(metrics.jitterP95Ms, 0, 'f', 2)
+                         .arg(metrics.pacingStdMs, 0, 'f', 2)
+                         .arg(metrics.pacingJerkP95Ms, 0, 'f', 2)
+                         .arg(metrics.stepJerkP95Ms, 0, 'f', 2)
+                         .arg(metrics.uiGapP95Ms, 0, 'f', 2)
+                         .arg(metrics.visualScrollVelocityChangeP95Pct, 0, 'f', 3)
+                         .arg(metrics.jankEvents)
+                         .arg(metrics.stepJankEvents)
+                         .arg(metrics.manualJerkMarks)
+                         .arg(metrics.uiHitchEvents)
+                         .arg(metrics.uiStallEvents)
+                         .arg(metrics.jitterSlowPct, 0, 'f', 1)
+                         .arg(metrics.canvasSlowPct, 0, 'f', 1)
+                         .arg(metrics.topList.join("; "))
+                         .arg(metrics.counters.join(", ")));
+
+        if (!Logger::isJsonLoggingEnabled())
+            return;
+
+        QMap<QString, QString> context;
+        context.insert("window_ms", QString::number(elapsedMs));
+        context.insert("fps_tick", QString::number(metrics.fpsTick, 'f', 1));
+        context.insert("fps_canvas", QString::number(metrics.fpsCanvas, 'f', 1));
+        context.insert("fps_preview", QString::number(metrics.fpsPreview, 'f', 1));
+        context.insert("jitter_p95_ms", QString::number(metrics.jitterP95Ms, 'f', 2));
+        context.insert("pacing_std_ms", QString::number(metrics.pacingStdMs, 'f', 2));
+        context.insert("pacing_jerk_p95_ms", QString::number(metrics.pacingJerkP95Ms, 'f', 2));
+        context.insert("step_jerk_p95_ms", QString::number(metrics.stepJerkP95Ms, 'f', 2));
+        context.insert("ui_gap_p95_ms", QString::number(metrics.uiGapP95Ms, 'f', 2));
+        context.insert("scroll_velocity_change_p95_pct",
+                       QString::number(metrics.visualScrollVelocityChangeP95Pct, 'f', 3));
+        context.insert("jank_events", QString::number(metrics.jankEvents));
+        context.insert("step_jank_events", QString::number(metrics.stepJankEvents));
+        context.insert("manual_jerk_marks", QString::number(metrics.manualJerkMarks));
+        context.insert("ui_hitch_events", QString::number(metrics.uiHitchEvents));
+        context.insert("ui_stall_events", QString::number(metrics.uiStallEvents));
+        context.insert("jitter_slow_pct", QString::number(metrics.jitterSlowPct, 'f', 1));
+        context.insert("canvas_slow_pct", QString::number(metrics.canvasSlowPct, 'f', 1));
+        context.insert("top", metrics.topList.join("; "));
+        context.insert("counters", metrics.counters.join(", "));
+        Logger::logStructured(Logger::DEBUG, "PERF_PLAYBACK_WINDOW", "PlaybackStutterProbe", context);
+    }
+
+    void processLiveWindow(LiveWindowSnapshot snapshot)
+    {
+        ProbeState snapshotState;
+        snapshotState.durations = std::move(snapshot.durations);
+        snapshotState.values = std::move(snapshot.values);
+        snapshotState.counters = std::move(snapshot.counters);
+
+        const DerivedWindowMetrics metrics =
+            deriveWindowMetrics(snapshotState, snapshot.elapsedMs);
+        refreshLiveMetrics(snapshotState, snapshot.elapsedMs, metrics);
+        logLiveWindow(snapshot.elapsedMs, metrics);
+
+        const PlaybackStutterProbe::LiveMetrics live = snapshotState.live;
+        if (QCoreApplication *application = QCoreApplication::instance())
+        {
+            QMetaObject::invokeMethod(
+                application,
+                [live]()
+                {
+                    state().live = live;
+                },
+                Qt::QueuedConnection);
+        }
+    }
+
+    void enqueueLiveWindow(ProbeState &s, qint64 elapsedMs, qint64 nextWindowStartMs)
+    {
+        LiveWindowSnapshot snapshot;
+        snapshot.elapsedMs = elapsedMs;
+        snapshot.durations.swap(s.durations);
+        snapshot.values.swap(s.values);
+        snapshot.counters.swap(s.counters);
+        s.windowStartMs = nextWindowStartMs;
+
+        ensureMonitorWorkerStarted();
+        IndependentMonitor &m = monitor();
+        {
+            std::lock_guard<std::mutex> lock(m.wakeMutex);
+            m.pendingLiveWindows.push_back(std::move(snapshot));
+        }
+        m.wakeCondition.notify_one();
     }
 
     void recordIndependentMonitorSamples(bool playing)
@@ -473,6 +715,12 @@ namespace
     void flushIfNeeded(bool force)
     {
         ProbeState &s = state();
+        // Benchmark sessions need raw samples, not live percentile sorting.
+        // Sorting growing vectors on the UI thread every few frames makes the
+        // profiler manufacture the pulse delays it is intended to measure.
+        if (s.session.active && !force)
+            return;
+
         const qint64 tsMs = nowMs();
         if (s.windowStartMs == 0)
             s.windowStartMs = tsMs;
@@ -481,68 +729,46 @@ namespace
         if (!force && elapsedMs < kWindowMs)
             return;
 
-        if (s.durations.isEmpty() && s.counters.isEmpty())
+        if (s.durations.isEmpty() && s.values.isEmpty() && s.counters.isEmpty())
         {
             resetWindow(s, tsMs);
             return;
         }
 
-        const DerivedWindowMetrics metrics = deriveWindowMetrics(s, elapsedMs);
-        refreshLiveMetrics(s, elapsedMs);
-
-        Logger::info(QString("PERF_PLAYBACK window_ms=%1 fps_tick=%2 fps_canvas=%3 fps_preview=%4 jitter_p95_ms=%5 pacing_std_ms=%6 pacing_jerk_p95_ms=%7 step_jerk_p95_ms=%8 ui_gap_p95_ms=%9 jank_events=%10 step_jank_events=%11 manual_jerk_marks=%12 ui_hitch_events=%13 ui_stall_events=%14 jitter_slow_pct=%15 canvas_slow_pct=%16 top=[%17] counters=[%18]")
-                         .arg(elapsedMs)
-                         .arg(metrics.fpsTick, 0, 'f', 1)
-                         .arg(metrics.fpsCanvas, 0, 'f', 1)
-                         .arg(metrics.fpsPreview, 0, 'f', 1)
-                         .arg(metrics.jitterP95Ms, 0, 'f', 2)
-                         .arg(metrics.pacingStdMs, 0, 'f', 2)
-                         .arg(metrics.pacingJerkP95Ms, 0, 'f', 2)
-                         .arg(metrics.stepJerkP95Ms, 0, 'f', 2)
-                         .arg(metrics.uiGapP95Ms, 0, 'f', 2)
-                         .arg(metrics.jankEvents)
-                         .arg(metrics.stepJankEvents)
-                         .arg(metrics.manualJerkMarks)
-                         .arg(metrics.uiHitchEvents)
-                         .arg(metrics.uiStallEvents)
-                         .arg(metrics.jitterSlowPct, 0, 'f', 1)
-                         .arg(metrics.canvasSlowPct, 0, 'f', 1)
-                         .arg(metrics.topList.join("; "))
-                         .arg(metrics.counters.join(", ")));
-
-        if (Logger::isJsonLoggingEnabled())
+        if (!force)
         {
-            QMap<QString, QString> context;
-            context.insert("window_ms", QString::number(elapsedMs));
-            context.insert("fps_tick", QString::number(metrics.fpsTick, 'f', 1));
-            context.insert("fps_canvas", QString::number(metrics.fpsCanvas, 'f', 1));
-            context.insert("fps_preview", QString::number(metrics.fpsPreview, 'f', 1));
-            context.insert("jitter_p95_ms", QString::number(metrics.jitterP95Ms, 'f', 2));
-            context.insert("pacing_std_ms", QString::number(metrics.pacingStdMs, 'f', 2));
-            context.insert("pacing_jerk_p95_ms", QString::number(metrics.pacingJerkP95Ms, 'f', 2));
-            context.insert("step_jerk_p95_ms", QString::number(metrics.stepJerkP95Ms, 'f', 2));
-            context.insert("ui_gap_p95_ms", QString::number(metrics.uiGapP95Ms, 'f', 2));
-            context.insert("jank_events", QString::number(metrics.jankEvents));
-            context.insert("step_jank_events", QString::number(metrics.stepJankEvents));
-            context.insert("manual_jerk_marks", QString::number(metrics.manualJerkMarks));
-            context.insert("ui_hitch_events", QString::number(metrics.uiHitchEvents));
-            context.insert("ui_stall_events", QString::number(metrics.uiStallEvents));
-            context.insert("jitter_slow_pct", QString::number(metrics.jitterSlowPct, 'f', 1));
-            context.insert("canvas_slow_pct", QString::number(metrics.canvasSlowPct, 'f', 1));
-            context.insert("top", metrics.topList.join("; "));
-            context.insert("counters", metrics.counters.join(", "));
-            Logger::logStructured(Logger::DEBUG, "PERF_PLAYBACK_WINDOW", "PlaybackStutterProbe", context);
+            enqueueLiveWindow(s, elapsedMs, tsMs);
+            return;
         }
 
+        const DerivedWindowMetrics metrics = deriveWindowMetrics(s, elapsedMs);
+        refreshLiveMetrics(s, elapsedMs, metrics);
+        logLiveWindow(elapsedMs, metrics);
         resetWindow(s, tsMs);
     }
 } // namespace
 
 namespace PlaybackStutterProbe
 {
+    bool enabled()
+    {
+        return probeEnabled();
+    }
+
+    void setProcessOverrideEnabled(bool forceEnabled)
+    {
+        processOverrideEnabled().store(forceEnabled, std::memory_order_relaxed);
+        if (!PlaybackStutterProbe::enabled() && !forceEnabled)
+        {
+            ProbeState &s = state();
+            clearState(s);
+            monitor().playing.store(false);
+        }
+    }
+
     void recordDuration(const QString &key, double elapsedMs, double budgetMs, bool playing)
     {
-        if (!isEnabled())
+        if (!enabled())
         {
             ProbeState &s = state();
             clearState(s);
@@ -553,31 +779,56 @@ namespace PlaybackStutterProbe
             return;
 
         ProbeState &s = state();
+        if (s.session.active)
+        {
+            addDurationSample(s.session.durations[key], elapsedMs, budgetMs);
+            return;
+        }
+
         const qint64 tsMs = nowMs();
         if (s.windowStartMs == 0)
             s.windowStartMs = tsMs;
 
-        DurationBucket &bucket = s.durations[key];
-        bucket.count += 1;
-        bucket.totalMs += elapsedMs;
-        bucket.maxMs = qMax(bucket.maxMs, elapsedMs);
-        if (elapsedMs > budgetMs)
-            bucket.overBudgetCount += 1;
-        bucket.samples.append(elapsedMs);
+        addDurationSample(s.durations[key], elapsedMs, budgetMs);
 
         QVector<TimedSample> &recent = s.recentDurations[key];
         recent.append(TimedSample{tsMs, elapsedMs});
         pruneRecentSamples(&recent, tsMs - kRecentSampleKeepMs);
 
-        const qint64 elapsedWindowMs = tsMs - s.windowStartMs;
-        if (s.lastLiveRefreshMs == 0 || tsMs - s.lastLiveRefreshMs >= kLiveRefreshIntervalMs)
-            refreshLiveMetrics(s, elapsedWindowMs);
+        flushIfNeeded(false);
+    }
+
+    void recordValue(const QString &key, double value, double budget, bool playing)
+    {
+        if (!enabled())
+        {
+            ProbeState &s = state();
+            clearState(s);
+            monitor().playing.store(false);
+            return;
+        }
+        if (!playing || !std::isfinite(value) || value < 0.0)
+            return;
+
+        ProbeState &s = state();
+        if (s.session.active)
+        {
+            addDurationSample(s.session.values[key], value, budget);
+            return;
+        }
+
+        const qint64 tsMs = nowMs();
+        if (s.windowStartMs == 0)
+            s.windowStartMs = tsMs;
+
+        addDurationSample(s.values[key], value, budget);
+
         flushIfNeeded(false);
     }
 
     void recordCounter(const QString &key, qint64 delta, bool playing)
     {
-        if (!isEnabled())
+        if (!enabled())
         {
             ProbeState &s = state();
             clearState(s);
@@ -588,20 +839,22 @@ namespace PlaybackStutterProbe
             return;
 
         ProbeState &s = state();
+        if (s.session.active)
+        {
+            s.session.counters[key] += delta;
+            return;
+        }
+
         if (s.windowStartMs == 0)
             s.windowStartMs = nowMs();
 
         s.counters[key] += delta;
-        const qint64 tsMs = nowMs();
-        const qint64 elapsedWindowMs = tsMs - s.windowStartMs;
-        if (s.lastLiveRefreshMs == 0 || tsMs - s.lastLiveRefreshMs >= kLiveRefreshIntervalMs)
-            refreshLiveMetrics(s, elapsedWindowMs);
         flushIfNeeded(false);
     }
 
     void markPlaybackState(bool playing)
     {
-        if (!isEnabled())
+        if (!enabled())
         {
             ProbeState &s = state();
             clearState(s);
@@ -631,7 +884,7 @@ namespace PlaybackStutterProbe
 
     void markUiHeartbeat(bool playing)
     {
-        if (!playing || !isEnabled())
+        if (!playing || !enabled())
             return;
 
         ensureMonitorWorkerStarted();
@@ -650,7 +903,7 @@ namespace PlaybackStutterProbe
 
     void markManualJerk(double playbackTimeMs, qint64 frameSeq)
     {
-        if (!isEnabled())
+        if (!enabled())
             return;
 
         ProbeState &s = state();
@@ -701,7 +954,7 @@ namespace PlaybackStutterProbe
 
     void forceFlush()
     {
-        if (!isEnabled())
+        if (!enabled())
             return;
         flushIfNeeded(true);
     }
@@ -710,5 +963,288 @@ namespace PlaybackStutterProbe
     {
         const ProbeState &s = state();
         return s.live;
+    }
+
+    void beginSession(const QString &name, const QJsonObject &metadata)
+    {
+        ProbeState &s = state();
+        resetWindow(s, nowMs());
+        s.recentDurations.clear();
+        s.session = SessionState{};
+        s.session.active = true;
+        s.session.name = name.trimmed().isEmpty() ? QStringLiteral("playback") : name.trimmed();
+        s.session.startedAtUtc = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
+        s.session.startSteadyMs = steadyNowMs();
+        s.session.metadata = metadata;
+
+        // A benchmark session begins after warmup. Do not attribute monitor
+        // gaps accumulated during chart/audio startup to the measured window.
+        IndependentMonitor &m = monitor();
+        m.peakUiGapMs.store(0);
+        m.hitchEventsPending.store(0);
+        m.stallEventsPending.store(0);
+        m.lastUiHeartbeatSteadyMs.store(steadyNowMs());
+        m.generation.fetch_add(1);
+    }
+
+    QJsonObject endSession()
+    {
+        ProbeState &s = state();
+        if (!s.session.active)
+            return QJsonObject{{"error", QStringLiteral("No active performance session.")}};
+
+        const qint64 elapsedMs = qMax<qint64>(1, steadyNowMs() - s.session.startSteadyMs);
+        QJsonObject durationResults;
+        QStringList durationKeys = s.session.durations.keys();
+        std::sort(durationKeys.begin(), durationKeys.end());
+        for (const QString &key : durationKeys)
+            durationResults.insert(key, durationBucketJson(s.session.durations.value(key)));
+
+        QJsonObject valueResults;
+        QStringList valueKeys = s.session.values.keys();
+        std::sort(valueKeys.begin(), valueKeys.end());
+        for (const QString &key : valueKeys)
+            valueResults.insert(key, valueBucketJson(s.session.values.value(key)));
+
+        QJsonObject counterResults;
+        QStringList counterKeys = s.session.counters.keys();
+        std::sort(counterKeys.begin(), counterKeys.end());
+        for (const QString &key : counterKeys)
+            counterResults.insert(key, static_cast<double>(s.session.counters.value(key)));
+
+        const auto sampleCount = [&s](const QString &key) -> qint64
+        {
+            const auto it = s.session.durations.constFind(key);
+            return it == s.session.durations.constEnd() ? 0 : it->count;
+        };
+        const auto samplesPerSecond = [elapsedMs, &sampleCount](const QString &key) -> double
+        {
+            return static_cast<double>(sampleCount(key)) * 1000.0 / static_cast<double>(elapsedMs);
+        };
+        const auto p95 = [&s](const QString &key) -> double
+        {
+            const auto it = s.session.durations.constFind(key);
+            return it == s.session.durations.constEnd() ? 0.0 : bucketP95(it.value());
+        };
+        const auto valueSampleCount = [&s](const QString &key) -> qint64
+        {
+            const auto it = s.session.values.constFind(key);
+            return it == s.session.values.constEnd() ? 0 : it->count;
+        };
+        const auto valuePercentile = [&s](const QString &key, double percentileValue) -> double
+        {
+            const auto it = s.session.values.constFind(key);
+            if (it == s.session.values.constEnd() || it->samples.isEmpty())
+                return 0.0;
+            DurationBucket bucket = it.value();
+            std::sort(bucket.samples.begin(), bucket.samples.end());
+            return percentile(bucket.samples, percentileValue);
+        };
+
+        QJsonObject summary;
+        summary.insert("fps_tick", samplesPerSecond(QStringLiteral("playback.pulse_interval")));
+        summary.insert("fps_canvas", samplesPerSecond(QStringLiteral("canvas.paint_total")));
+        summary.insert("fps_preview", samplesPerSecond(QStringLiteral("preview.paint_total")));
+        summary.insert("display_interval_p95_ms",
+                       p95(QStringLiteral("frame_scheduler.display_interval")));
+        summary.insert("ui_dispatch_delay_p95_ms",
+                       p95(QStringLiteral("frame_scheduler.ui_dispatch_delay")));
+        summary.insert("ui_dispatch_delay_max_ms",
+                       s.session.durations.value(QStringLiteral("frame_scheduler.ui_dispatch_delay")).maxMs);
+        summary.insert("window_update_request_count",
+                       static_cast<double>(sampleCount(QStringLiteral("ui.event.MainWindow.UpdateRequest"))));
+        summary.insert("window_update_request_p95_ms",
+                       p95(QStringLiteral("ui.event.MainWindow.UpdateRequest")));
+        summary.insert("window_update_request_max_ms",
+                       s.session.durations.value(QStringLiteral("ui.event.MainWindow.UpdateRequest")).maxMs);
+        const qint64 canvasFrameSamples = sampleCount(QStringLiteral("canvas.paint_total"));
+        const qint64 windowUpdateSamples =
+            sampleCount(QStringLiteral("ui.event.MainWindow.UpdateRequest"));
+        summary.insert("window_updates_per_canvas_frame",
+                       canvasFrameSamples > 0
+                           ? static_cast<double>(windowUpdateSamples) /
+                                 static_cast<double>(canvasFrameSamples)
+                           : 0.0);
+        summary.insert("pulse_interval_p95_ms", p95(QStringLiteral("playback.pulse_interval")));
+        summary.insert("paint_interval_p95_ms", p95(QStringLiteral("canvas.paint_interval")));
+        summary.insert("paint_time_p95_ms", p95(QStringLiteral("canvas.paint_total")));
+        summary.insert("preview_interval_p95_ms", p95(QStringLiteral("preview.paint_interval")));
+        summary.insert("preview_time_p95_ms", p95(QStringLiteral("preview.paint_total")));
+        summary.insert("ui_gap_p95_ms", p95(QStringLiteral("monitor.ui_heartbeat_gap")));
+        summary.insert("time_step_jerk_p95_ms", p95(QStringLiteral("playback.time_step_jerk")));
+        summary.insert("scroll_velocity_change_p95_percent",
+                       valuePercentile(QStringLiteral("visual.scroll_velocity_change_pct"), 0.95));
+        summary.insert("scroll_velocity_change_p99_percent",
+                       valuePercentile(QStringLiteral("visual.scroll_velocity_change_pct"), 0.99));
+        summary.insert("scroll_step_change_p95_percent",
+                       valuePercentile(QStringLiteral("visual.scroll_step_change_pct"), 0.95));
+        summary.insert("scroll_step_change_p99_percent",
+                       valuePercentile(QStringLiteral("visual.scroll_step_change_pct"), 0.99));
+        summary.insert("pulse_over_budget_count",
+                       static_cast<double>(s.session.durations.value(QStringLiteral("playback.pulse_interval")).overBudgetCount));
+        summary.insert("paint_over_budget_count",
+                       static_cast<double>(s.session.durations.value(QStringLiteral("canvas.paint_total")).overBudgetCount));
+        summary.insert("ui_hitch_events",
+                       static_cast<double>(s.session.counters.value(QStringLiteral("monitor.ui_hitch_events"))));
+        summary.insert("ui_stall_events",
+                       static_cast<double>(s.session.counters.value(QStringLiteral("monitor.ui_stall_events"))));
+        const qint64 displaySamples =
+            sampleCount(QStringLiteral("frame_scheduler.display_interval"));
+        const qint64 skippedDisplayRefreshes =
+            s.session.counters.value(QStringLiteral("frame_scheduler.skipped_display_refreshes"));
+        const qint64 observedDisplayRefreshes = displaySamples + skippedDisplayRefreshes;
+        summary.insert("display_refresh_samples", static_cast<double>(displaySamples));
+        summary.insert("skipped_display_refreshes", static_cast<double>(skippedDisplayRefreshes));
+        summary.insert("skipped_display_refresh_percent",
+                       observedDisplayRefreshes > 0
+                           ? static_cast<double>(skippedDisplayRefreshes) * 100.0 /
+                                 static_cast<double>(observedDisplayRefreshes)
+                           : 0.0);
+
+        QJsonObject verdict;
+        const double targetFps = s.session.metadata.value(QStringLiteral("effective_fps")).toDouble();
+        if (targetFps > 0.0)
+        {
+            const double frameBudgetMs = 1000.0 / targetFps;
+            const double canvasFps = summary.value(QStringLiteral("fps_canvas")).toDouble();
+            const double displayP95Ms =
+                summary.value(QStringLiteral("display_interval_p95_ms")).toDouble();
+            const double uiDispatchP95Ms =
+                summary.value(QStringLiteral("ui_dispatch_delay_p95_ms")).toDouble();
+            const double uiDispatchMaxMs =
+                summary.value(QStringLiteral("ui_dispatch_delay_max_ms")).toDouble();
+            const double paintIntervalP95Ms =
+                summary.value(QStringLiteral("paint_interval_p95_ms")).toDouble();
+            const double paintP95Ms = summary.value(QStringLiteral("paint_time_p95_ms")).toDouble();
+            const double previewFps = summary.value(QStringLiteral("fps_preview")).toDouble();
+            const double previewIntervalP95Ms =
+                summary.value(QStringLiteral("preview_interval_p95_ms")).toDouble();
+            const double previewPaintP95Ms =
+                summary.value(QStringLiteral("preview_time_p95_ms")).toDouble();
+            const double skippedDisplayPercent =
+                summary.value(QStringLiteral("skipped_display_refresh_percent")).toDouble();
+            const double scrollStepChangeP95Percent =
+                summary.value(QStringLiteral("scroll_step_change_p95_percent")).toDouble();
+            const qint64 uiStalls = s.session.counters.value(QStringLiteral("monitor.ui_stall_events"));
+            const qint64 scrollStepSamples =
+                valueSampleCount(QStringLiteral("visual.scroll_step_change_pct"));
+            const qint64 previewSamples = sampleCount(QStringLiteral("preview.paint_total"));
+            const int bpmCount = s.session.metadata.value(QStringLiteral("bpm_count")).toInt(-1);
+            const bool motionStabilityApplicable = bpmCount == 1 && scrollStepSamples >= 30;
+            const bool previewApplicable = previewSamples >= 30;
+            const bool windowUpdateApplicable = windowUpdateSamples >= 30;
+            const bool fpsPass = canvasFps >= targetFps * 0.95;
+            const bool displayCadencePass =
+                displayP95Ms > 0.0 && displayP95Ms <= frameBudgetMs * 1.35;
+            const bool uiDispatchPass =
+                uiDispatchP95Ms > 0.0 && uiDispatchP95Ms <= frameBudgetMs * 0.35;
+            const bool uiDispatchHitchPass = uiDispatchMaxMs <= frameBudgetMs;
+            // QWidget's top-level UpdateRequest includes backing-store flush
+            // and can legitimately wait for composition. Its duration alone
+            // is not a hitch. Extra UpdateRequests between canvas frames are
+            // the harmful signal because each forces another window submit.
+            const bool windowUpdatesCoalescedPass =
+                !windowUpdateApplicable ||
+                windowUpdateSamples <= canvasFrameSamples * 1.05 + 2;
+            const bool visibleCadencePass =
+                paintIntervalP95Ms > 0.0 && paintIntervalP95Ms <= frameBudgetMs * 1.35;
+            const bool skippedRefreshPass = skippedDisplayPercent <= 0.5;
+            const bool paintPass = paintP95Ms > 0.0 && paintP95Ms <= frameBudgetMs;
+            const bool previewFpsPass =
+                !previewApplicable || previewFps >= targetFps * 0.95;
+            const bool previewCadencePass =
+                !previewApplicable ||
+                (previewIntervalP95Ms > 0.0 &&
+                 previewIntervalP95Ms <= frameBudgetMs * 1.35);
+            const bool previewPaintPass =
+                !previewApplicable ||
+                (previewPaintP95Ms > 0.0 && previewPaintP95Ms <= frameBudgetMs);
+            const bool stallsPass = uiStalls == 0;
+            const bool motionStabilityPass =
+                !motionStabilityApplicable || scrollStepChangeP95Percent <= 1.0;
+
+            QJsonObject criteria;
+            criteria.insert("canvas_fps_at_least_95_percent", fpsPass);
+            criteria.insert("display_p95_within_135_percent_budget", displayCadencePass);
+            criteria.insert("ui_dispatch_p95_within_35_percent_budget", uiDispatchPass);
+            criteria.insert("ui_dispatch_max_within_frame_budget", uiDispatchHitchPass);
+            if (windowUpdateApplicable)
+            {
+                criteria.insert("window_updates_at_most_105_percent_canvas_frames",
+                                windowUpdatesCoalescedPass);
+            }
+            criteria.insert("paint_interval_p95_within_135_percent_budget", visibleCadencePass);
+            criteria.insert("skipped_display_refreshes_at_most_0_5_percent", skippedRefreshPass);
+            criteria.insert("paint_p95_within_frame_budget", paintPass);
+            if (previewApplicable)
+            {
+                criteria.insert("preview_fps_at_least_95_percent", previewFpsPass);
+                criteria.insert("preview_interval_p95_within_135_percent_budget",
+                                previewCadencePass);
+                criteria.insert("preview_paint_p95_within_frame_budget", previewPaintPass);
+            }
+            criteria.insert("no_ui_stalls", stallsPass);
+            if (motionStabilityApplicable)
+                criteria.insert("scroll_step_change_p95_at_most_1_percent",
+                                motionStabilityPass);
+
+            QJsonArray failures;
+            if (!fpsPass)
+                failures.append(QStringLiteral("canvas_fps_below_target"));
+            if (!displayCadencePass)
+                failures.append(QStringLiteral("display_cadence_over_budget"));
+            if (!uiDispatchPass)
+                failures.append(QStringLiteral("ui_dispatch_delay_over_budget"));
+            if (!uiDispatchHitchPass)
+                failures.append(QStringLiteral("ui_dispatch_hitch_detected"));
+            if (!windowUpdatesCoalescedPass)
+                failures.append(QStringLiteral("window_updates_not_coalesced"));
+            if (!visibleCadencePass)
+                failures.append(QStringLiteral("visible_paint_cadence_over_budget"));
+            if (!skippedRefreshPass)
+                failures.append(QStringLiteral("display_refreshes_skipped"));
+            if (!paintPass)
+                failures.append(QStringLiteral("paint_time_over_budget"));
+            if (!previewFpsPass)
+                failures.append(QStringLiteral("preview_fps_below_target"));
+            if (!previewCadencePass)
+                failures.append(QStringLiteral("preview_cadence_over_budget"));
+            if (!previewPaintPass)
+                failures.append(QStringLiteral("preview_paint_time_over_budget"));
+            if (!stallsPass)
+                failures.append(QStringLiteral("ui_stalls_detected"));
+            if (!motionStabilityPass)
+                failures.append(QStringLiteral("scroll_step_unstable"));
+
+            verdict.insert("passed", failures.isEmpty());
+            verdict.insert("target_fps", targetFps);
+            verdict.insert("frame_budget_ms", frameBudgetMs);
+            verdict.insert("fps_achievement_percent", canvasFps * 100.0 / targetFps);
+            verdict.insert("motion_stability_applicable", motionStabilityApplicable);
+            verdict.insert("preview_applicable", previewApplicable);
+            verdict.insert("criteria", criteria);
+            verdict.insert("failures", failures);
+        }
+
+        QJsonObject report;
+        report.insert("schema_version", 5);
+        report.insert("session", s.session.name);
+        report.insert("started_at_utc", s.session.startedAtUtc);
+        report.insert("finished_at_utc", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+        report.insert("duration_ms", static_cast<double>(elapsedMs));
+        report.insert("metadata", s.session.metadata);
+        report.insert("summary", summary);
+        report.insert("verdict", verdict);
+        report.insert("durations", durationResults);
+        report.insert("measurements", valueResults);
+        report.insert("counters", counterResults);
+
+        s.session.active = false;
+        return report;
+    }
+
+    bool sessionActive()
+    {
+        return state().session.active;
     }
 } // namespace PlaybackStutterProbe

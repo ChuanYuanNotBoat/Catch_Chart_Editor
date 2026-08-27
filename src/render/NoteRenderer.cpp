@@ -10,8 +10,10 @@
 NoteRenderer::NoteRenderer()
     : m_skin(nullptr), m_showColors(true), m_hyperfruitEnabled(true),
       m_hyperfruitDetector(nullptr), m_noteSize(16),
+      m_outlineWidth(1), m_outlineColor(Qt::black),
       m_cachedSkinPtr(nullptr)
 {
+    refreshSettings();
 }
 
 void NoteRenderer::setSkin(const Skin *skin)
@@ -49,6 +51,12 @@ void NoteRenderer::setNoteSize(int size)
     invalidateSkinPixmapCache();
 }
 
+void NoteRenderer::refreshSettings()
+{
+    m_outlineWidth = Settings::instance().outlineWidth();
+    m_outlineColor = Settings::instance().outlineColor();
+}
+
 int NoteRenderer::getNoteSize() const
 {
     return m_noteSize;
@@ -59,7 +67,9 @@ void NoteRenderer::drawNote(QPainter &painter, const Note &note, const QPointF &
     int noteType = 0;
     if (note.type != NoteType::RAIN)
     {
-        if (note.denominator == 2)
+        if (note.denominator == 1)
+            noteType = 0; // 1/1 whole note uses the dedicated 1/1 skin (red in color mode)
+        else if (note.denominator == 2)
             noteType = 1;
         else if (note.denominator == 4)
             noteType = 2;
@@ -168,8 +178,8 @@ void NoteRenderer::calculateOutline(const Note &note, bool selected, int index, 
     }
     else
     {
-        outlineWidth = Settings::instance().outlineWidth();
-        outlineColor = Settings::instance().outlineColor();
+        outlineWidth = m_outlineWidth;
+        outlineColor = m_outlineColor;
     }
 }
 

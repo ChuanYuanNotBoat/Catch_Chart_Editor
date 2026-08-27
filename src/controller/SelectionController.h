@@ -19,7 +19,7 @@ public:
 
     QSet<int> selectedIndices() const;
 
-    void setNotes(const QVector<Note> *notes) { m_notes = notes; }
+    void setNotes(const QVector<Note> *notes);
     void select(int index);
     void select(const QSet<int> &indices);
     void addToSelection(int index);
@@ -43,4 +43,6 @@ private:
     QSet<QString> m_selectedIds;            // 存储选中音符的 ID
     const QVector<Note> *m_notes = nullptr; // 指向当前音符列表，用于转换
     QVector<Note> m_clipboard;
+    mutable QSet<int> m_selectedIndicesCache;
+    mutable bool m_selectedIndicesDirty = true;
 };

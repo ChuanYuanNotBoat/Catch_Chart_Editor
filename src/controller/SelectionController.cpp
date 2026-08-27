@@ -10,15 +10,29 @@ SelectionController::SelectionController(QObject *parent) : QObject(parent)
 
 QSet<int> SelectionController::selectedIndices() const
 {
-    QSet<int> indices;
+    if (!m_selectedIndicesDirty)
+        return m_selectedIndicesCache;
+
+    m_selectedIndicesCache.clear();
     if (!m_notes)
-        return indices;
-    for (int i = 0; i < m_notes->size(); ++i)
+    {
+        m_selectedIndicesDirty = false;
+        return m_selectedIndicesCache;
+    }
+
+    for (qsizetype i = 0; i < m_notes->size(); ++i)
     {
         if (m_selectedIds.contains((*m_notes)[i].id))
-            indices.insert(i);
+            m_selectedIndicesCache.insert(static_cast<int>(i));
     }
-    return indices;
+    m_selectedIndicesDirty = false;
+    return m_selectedIndicesCache;
+}
+
+void SelectionController::setNotes(const QVector<Note> *notes)
+{
+    m_notes = notes;
+    m_selectedIndicesDirty = true;
 }
 
 void SelectionController::select(int index)
@@ -27,6 +41,7 @@ void SelectionController::select(int index)
         return;
     m_selectedIds.clear();
     m_selectedIds.insert((*m_notes)[index].id);
+    m_selectedIndicesDirty = true;
     emit selectionChanged(selectedIndices());
 }
 
@@ -40,6 +55,7 @@ void SelectionController::select(const QSet<int> &indices)
         if (idx >= 0 && idx < m_notes->size())
             m_selectedIds.insert((*m_notes)[idx].id);
     }
+    m_selectedIndicesDirty = true;
     emit selectionChanged(selectedIndices());
 }
 
@@ -48,6 +64,7 @@ void SelectionController::addToSelection(int index)
     if (!m_notes || index < 0 || index >= m_notes->size())
         return;
     m_selectedIds.insert((*m_notes)[index].id);
+    m_selectedIndicesDirty = true;
     emit selectionChanged(selectedIndices());
 }
 
@@ -56,6 +73,7 @@ void SelectionController::removeFromSelection(int index)
     if (!m_notes || index < 0 || index >= m_notes->size())
         return;
     m_selectedIds.remove((*m_notes)[index].id);
+    m_selectedIndicesDirty = true;
     emit selectionChanged(selectedIndices());
 }
 
@@ -64,6 +82,7 @@ void SelectionController::clearSelection()
     if (!m_selectedIds.isEmpty())
     {
         m_selectedIds.clear();
+        m_selectedIndicesDirty = true;
         emit selectionChanged(selectedIndices());
     }
 }
@@ -97,6 +116,7 @@ void SelectionController::copySelected(const QVector<Note> &notes)
 void SelectionController::updateSelectionFromNotes()
 {
     // 音符列表变化后，重新计算选中索引并发出信号（画布依赖索引）
+    m_selectedIndicesDirty = true;
     emit selectionChanged(selectedIndices());
 }
 

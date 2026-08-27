@@ -9,6 +9,7 @@
 #include "ui/NoteEditPanel.h"
 #include "ui/BPMTimePanel.h"
 #include "ui/LongRangeSelector.h"
+#include "ui/PluginActionPanel.h"
 
 #include "ui/MetaEditPanel.h"
 #include "ui/LeftPanel.h"
@@ -28,10 +29,16 @@
 #include "model/Skin.h"
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
+#include "utils/NativeWindowTheme.h"
+#include <DockManager.h>
+#include <DockWidget.h>
+#include <DockAreaWidget.h>
+#include <DockAreaTitleBar.h>
+#include <FloatingDockContainer.h>
 #include <QMenuBar>
 #include <QToolBar>
-#include <QSplitter>
 #include <QStatusBar>
+#include <QStyle>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QLabel>
@@ -44,6 +51,8 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QSlider>
+#include <QSplitter>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -57,6 +66,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPalette>
 #include <QRadioButton>
 #include <QCheckBox>
 #include <QLineEdit>
@@ -77,6 +87,7 @@
 #include <QThread>
 #include <QTreeWidget>
 #include <QSet>
+#include <QPointer>
 #include <QTimer>
 #include <QTextBrowser>
 #include <QTabWidget>
@@ -91,6 +102,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QElapsedTimer>
+#include <QScopedValueRollback>
 #include <QUuid>
 #include <QDirIterator>
 #include <algorithm>
@@ -100,6 +112,8 @@
 
 namespace
 {
+    constexpr int kDockLayoutVersion = 3;
+
     PluginManager *activePluginManager()
     {
         auto *app = qobject_cast<Application *>(QCoreApplication::instance());
@@ -113,6 +127,71 @@ namespace
         const double b = bg.blueF();
         const double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
         return (luminance >= 0.5) ? QColor(20, 20, 20) : QColor(245, 245, 245);
+    }
+
+    void applyApplicationPaletteFor(const QColor &background)
+    {
+        const QColor text = sidebarTextColorFor(background);
+        const bool dark = text.lightness() > 128;
+        const QColor window = dark ? background.lighter(108) : background.darker(103);
+        const QColor base = dark ? window.lighter(120) : window.darker(105);
+        const QColor button = dark ? window.lighter(132) : window.darker(112);
+        const QColor highlight = dark ? button.lighter(120) : button.lighter(108);
+        const QColor disabledText = dark ? QColor("#9A9A9A") : QColor("#707070");
+
+        QPalette palette = qApp->palette();
+        if (palette.color(QPalette::Window) == window &&
+            palette.color(QPalette::WindowText) == text &&
+            palette.color(QPalette::Base) == base)
+        {
+            return;
+        }
+
+        palette.setColor(QPalette::Window, window);
+        palette.setColor(QPalette::WindowText, text);
+        palette.setColor(QPalette::Base, base);
+        palette.setColor(QPalette::AlternateBase, window);
+        palette.setColor(QPalette::Text, text);
+        palette.setColor(QPalette::Button, button);
+        palette.setColor(QPalette::ButtonText, text);
+        palette.setColor(QPalette::Highlight, highlight);
+        palette.setColor(QPalette::HighlightedText, text);
+        palette.setColor(QPalette::Disabled, QPalette::WindowText, disabledText);
+        palette.setColor(QPalette::Disabled, QPalette::Text, disabledText);
+        palette.setColor(QPalette::Disabled, QPalette::ButtonText, disabledText);
+        qApp->setPalette(palette);
+    }
+
+    QString lightweightDockStyle(bool dark)
+    {
+        const QString suffix = dark ? QStringLiteral("_dark") : QString();
+        const QString closeIcon = QStringLiteral(":/ads/images/close-button%1.svg").arg(suffix);
+        const QString closeDisabledIcon = QStringLiteral(":/ads/images/close-button-disabled%1.svg").arg(suffix);
+        const QString detachIcon = QStringLiteral(":/ads/images/detach-button%1.svg").arg(suffix);
+        const QString detachDisabledIcon = QStringLiteral(":/ads/images/detach-button-disabled%1.svg").arg(suffix);
+        const QString tabsIcon = QStringLiteral(":/ads/images/tabs-menu-button%1.svg").arg(suffix);
+
+        // ADS' upstream theme contains hundreds of selectors. This compact
+        // subset keeps the essential layout, colors and controls while
+        // avoiding a costly full-tree stylesheet match on every float/drop.
+        return QString(
+                   "ads--CDockContainerWidget, ads--CDockAreaWidget, ads--CDockWidget { background: palette(window); }"
+                   "ads--CDockSplitter::handle { background: palette(mid); }"
+                   "ads--CDockSplitter[compactToolStack=\"true\"]::handle { background: transparent; }"
+                   "ads--CDockAreaTitleBar { background: palette(window); border-bottom: 1px solid palette(mid); }"
+                   "ads--CDockAreaTitleBar[compactToolHandle=\"true\"] { border: none; background: transparent; }"
+                   "QLabel#compactToolDockGrip { color: palette(mid); background: transparent; border: none; padding: 0 7px 0 0; font-size: 10px; }"
+                   "ads--CDockWidgetTab { background: palette(window); border-right: 1px solid palette(mid); padding: 0; }"
+                   "ads--CDockWidgetTab[activeTab=\"true\"] { background: palette(button); }"
+                   "ads--CDockWidgetTab QLabel, #autoHideTitleLabel { color: palette(window-text); }"
+                   "ads--CTitleBarButton, #tabCloseButton { background: transparent; border: none; padding: 0; }"
+                   "ads--CTitleBarButton:hover, #tabCloseButton:hover { background: palette(highlight); }"
+                   "#tabsMenuButton::menu-indicator { image: none; }"
+                   "#tabsMenuButton { qproperty-icon: url(%5); qproperty-iconSize: 16px; }"
+                   "#dockAreaCloseButton, #tabCloseButton { qproperty-icon: url(%1), url(%2) disabled; qproperty-iconSize: 16px; }"
+                   "#detachGroupButton { qproperty-icon: url(%3), url(%4) disabled; qproperty-iconSize: 16px; }"
+                   "QScrollArea#dockWidgetScrollArea { padding: 0; border: none; }")
+            .arg(closeIcon, closeDisabledIcon, detachIcon, detachDisabledIcon, tabsIcon);
     }
 
     bool isModifierKey(int key)
@@ -1269,15 +1348,27 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->skin = skin;
     d->canvas = nullptr;
     d->rightDensityBar = nullptr;
-    d->splitter = nullptr;
-    d->rightPanelContainer = nullptr;
-    d->currentRightPanel = nullptr;
+    d->dockManager = nullptr;
+    d->workspaceDock = nullptr;
+    d->leftPanelDock = nullptr;
+    d->previewDock = nullptr;
+    d->notePanelDock = nullptr;
+    d->timingToolsDock = nullptr;
+    d->playbackSpeedToolsDock = nullptr;
+    d->rangeToolsDock = nullptr;
+    d->mirrorToolsDock = nullptr;
+    d->curveToolsDock = nullptr;
+    d->pluginToolsDock = nullptr;
+    d->bpmPanelDock = nullptr;
+    d->metaPanelDock = nullptr;
     d->notePanel = nullptr;
+    d->pluginActionPanel = nullptr;
     d->bpmPanel = nullptr;
     d->metaPanel = nullptr;
     d->leftPanel = nullptr;
     d->undoAction = nullptr;
     d->redoAction = nullptr;
+    d->paste288Action = nullptr;
     d->colorAction = nullptr;
     d->timelineDivisionColorAction = nullptr;
     d->timelineDivisionColorSettingsAction = nullptr;
@@ -1312,6 +1403,10 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->pluginToolModePluginId.clear();
 
     setAcceptDrops(true);
+    // Establish the palette before creating the widget tree. Applying a
+    // global stylesheet afterwards recursively repolishes every dock widget
+    // and also slows down each subsequently created floating window.
+    applyApplicationPaletteFor(Settings::instance().backgroundColor());
 
     setupUi();
     createCentralArea();
@@ -1320,20 +1415,26 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
     connect(d->chartController, &ChartController::chartChanged, this, [this]()
             {
-        d->isModified = true;
+        const bool userEdit = !d->isLoadingChart;
+        if (userEdit)
+            d->isModified = true;
         d->canvas->update();
-        persistRecoveryState();
-        if (d->undoAction)
-            d->undoAction->setEnabled(true);
-        if (d->redoAction)
-            d->redoAction->setEnabled(true);
+        if (userEdit)
+        {
+            persistRecoveryState();
+            if (d->undoAction)
+                d->undoAction->setEnabled(true);
+            if (d->redoAction)
+                d->redoAction->setEnabled(true);
+        }
         if (d->selectionController) {
             d->selectionController->setNotes(&(d->chartController->chart()->notes()));
             d->selectionController->updateSelectionFromNotes();
         }
 
         // Detect resource file changes (e.g. undo/redo on meta) and reload.
-        if (d->chartController && d->chartController->chart() && d->playbackController && d->playbackController->audioPlayer())
+        if (userEdit && d->chartController && d->chartController->chart() &&
+            d->playbackController && d->playbackController->audioPlayer())
         {
             const MetaData &meta = d->chartController->chart()->meta();
             const QString chartPath = d->workingChartPath.isEmpty()
@@ -1394,13 +1495,19 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     }
     connect(d->playbackController, &PlaybackController::speedChanged, this, [this](double speed)
             {
-        if (!d->speedActionGroup)
-            return;
-        for (QAction *action : d->speedActionGroup->actions())
+        Settings::instance().setPlaybackSpeed(speed);
+        if (d->speedActionGroup)
         {
-            const double actionSpeed = action->data().toDouble();
-            action->setChecked(qFuzzyCompare(actionSpeed, speed));
+            const QSignalBlocker blocker(d->speedActionGroup);
+            d->speedActionGroup->setExclusive(false);
+            for (QAction *action : d->speedActionGroup->actions())
+            {
+                const double actionSpeed = action->data().toDouble();
+                action->setChecked(qAbs(actionSpeed - speed) < 0.0001);
+            }
+            d->speedActionGroup->setExclusive(true);
         } });
+    d->playbackController->setSpeed(Settings::instance().playbackSpeed());
     connect(d->leftPanel, &LeftPanel::pluginQuickActionTriggered, this, &MainWindow::triggerPluginQuickAction);
     QTimer::singleShot(0, this, [this]()
                        {
@@ -1432,7 +1539,16 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
 MainWindow::~MainWindow()
 {
+    saveDockLayout();
     clearWorkingCopySession(true);
+    closePluginPanels();
+    if (d->dockManager)
+    {
+        // Destroy ADS while Private is still alive: floating dock destruction
+        // emits signals whose handlers update the plugin dock registry.
+        delete d->dockManager;
+        d->dockManager = nullptr;
+    }
     delete d->skin;
     delete d;
     Logger::info("MainWindow destroyed");
@@ -1442,6 +1558,9 @@ void MainWindow::setupUi()
 {
     setWindowTitle(tr("Catch Chart Editor"));
     resize(1200, 800);
+    const QByteArray geometry = Settings::instance().mainWindowGeometry();
+    if (!geometry.isEmpty() && !restoreGeometry(geometry))
+        Logger::warn("Failed to restore main window geometry; using defaults.");
     Logger::debug("MainWindow UI setup completed");
 }
 
@@ -1463,6 +1582,20 @@ void MainWindow::createMenus()
         d->speedActionGroup = nullptr;
     }
 
+    createFileMenu();
+    createEditMenu();
+    createViewMenu();
+    createSettingsMenu();
+    createPlaybackMenu();
+    createToolsAndPluginsMenus();
+    createHelpMenu();
+    applySidebarTheme();
+
+    Logger::debug("Menus created");
+}
+
+void MainWindow::createFileMenu()
+{
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     QAction *newAction = fileMenu->addAction(tr("&New Chart..."), this, &MainWindow::newChart);
     registerShortcutAction(newAction, "file.new_chart", QKeySequence::New);
@@ -1483,7 +1616,10 @@ void MainWindow::createMenus()
     fileMenu->addSeparator();
     QAction *exitAction = fileMenu->addAction(tr("E&xit"), this, &QWidget::close);
     registerShortcutAction(exitAction, "file.exit", QKeySequence::Quit);
+}
 
+void MainWindow::createEditMenu()
+{
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
     d->undoAction = editMenu->addAction(tr("&Undo"), this, &MainWindow::undo);
     registerShortcutAction(d->undoAction, "edit.undo", QKeySequence::Undo);
@@ -1502,6 +1638,14 @@ void MainWindow::createMenus()
     registerShortcutAction(d->deleteAction, "edit.delete", QKeySequence::Delete);
     connect(d->deleteAction, &QAction::triggered, this, [this]()
             {
+        if (d->canvas && d->canvas->isNoteChainModeActive() && d->canvas->noteChainEditor() &&
+            d->canvas->noteChainEditor()->hasSelectedItems()) {
+            d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+            d->canvas->noteChainEditor()->deleteSelected();
+            d->canvas->update();
+            Logger::debug("Deleted native Note Chain selection via menu shortcut");
+            return;
+        }
         if (d->canvas && d->canvas->triggerPluginDeleteSelection()) {
             Logger::debug("Deleted plugin selection via menu");
             return;
@@ -1524,14 +1668,63 @@ void MainWindow::createMenus()
             Logger::debug("Deleted selected notes via menu");
          } });
 
-    // Paste option: use 288-division conversion.
+    // Explicit paste timing mode. The same action is visible in the Edit menu
+    // and the main toolbar so the active quantization cannot be missed.
     editMenu->addSeparator();
-    QAction *paste288Action = editMenu->addAction(tr("Paste with 288 Division"));
-    paste288Action->setCheckable(true);
-    paste288Action->setChecked(Settings::instance().pasteUse288Division());
-    connect(paste288Action, &QAction::toggled, this, &MainWindow::togglePaste288Division);
+    if (!d->paste288Action)
+    {
+        d->paste288Action = new QAction(this);
+        d->paste288Action->setObjectName(QStringLiteral("action.paste_quantize_288"));
+        d->paste288Action->setCheckable(true);
+        connect(d->paste288Action, &QAction::toggled, this, &MainWindow::togglePaste288Division);
+    }
+    d->paste288Action->setText(tr("Quantize Paste to 1/288"));
+    d->paste288Action->setToolTip(
+        tr("Round pasted Normal/Rain note start and end beats to 1/288 and store denominator 288."));
+    {
+        const QSignalBlocker blocker(d->paste288Action);
+        d->paste288Action->setChecked(Settings::instance().pasteUse288Division());
+    }
+    editMenu->addAction(d->paste288Action);
+    if (d->mainToolBar && !d->mainToolBar->actions().contains(d->paste288Action))
+        d->mainToolBar->addAction(d->paste288Action);
+}
 
+void MainWindow::createViewMenu()
+{
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+    if (d->dockManager)
+    {
+        if (!d->floatingToolWindowsAction)
+        {
+            d->floatingToolWindowsAction = new QAction(this);
+            d->floatingToolWindowsAction->setCheckable(true);
+            connect(d->floatingToolWindowsAction, &QAction::toggled, this,
+                    [this](bool enabled) { setFloatingToolWindowsEnabled(enabled); });
+        }
+        d->floatingToolWindowsAction->setText(tr("Enable Floating Windows"));
+        {
+            const QSignalBlocker blocker(d->floatingToolWindowsAction);
+            d->floatingToolWindowsAction->setChecked(d->floatingToolWindowsEnabled);
+        }
+        viewMenu->addAction(d->floatingToolWindowsAction);
+        d->panelsMenu = viewMenu->addMenu(tr("Panels"));
+        const QList<ads::CDockWidget *> docks = {
+            d->leftPanelDock, d->previewDock, d->notePanelDock,
+            d->timingToolsDock, d->playbackSpeedToolsDock,
+            d->rangeToolsDock, d->mirrorToolsDock,
+            d->curveToolsDock, d->pluginToolsDock,
+            d->bpmPanelDock, d->metaPanelDock};
+        for (ads::CDockWidget *dock : docks)
+        {
+            if (dock)
+                d->panelsMenu->addAction(dock->toggleViewAction());
+        }
+        d->panelsMenu->addSeparator();
+        d->panelsMenu->addAction(tr("Reset Panel Layout"), this, &MainWindow::resetDockLayout);
+        updateToolDockActionVisibility();
+        viewMenu->addSeparator();
+    }
     d->colorAction = viewMenu->addAction(tr("&Color Notes"));
     d->colorAction->setCheckable(true);
     d->colorAction->setChecked(Settings::instance().colorNoteEnabled());
@@ -1607,7 +1800,10 @@ void MainWindow::createMenus()
     Settings::instance().setBackgroundColor(picked);
     applySidebarTheme();
     if (d->canvas) d->canvas->refreshBackground(); });
+}
 
+void MainWindow::createSettingsMenu()
+{
     QMenu *settingsMenu = menuBar()->addMenu(tr("&Settings"));
     d->noteSizeAction = settingsMenu->addAction(tr("Note Size..."));
     connect(d->noteSizeAction, &QAction::triggered, this, &MainWindow::adjustNoteSize);
@@ -1643,7 +1839,10 @@ void MainWindow::createMenus()
         act->setChecked(it.key() == currentLanguage);
         connect(act, &QAction::triggered, this, &MainWindow::changeLanguage);
     }
+}
 
+void MainWindow::createPlaybackMenu()
+{
     QMenu *playMenu = menuBar()->addMenu(tr("&Playback"));
     d->playAction = playMenu->addAction(tr("&Play/Pause"), this, &MainWindow::togglePlayback);
     d->playAction->setEnabled(d->audioPlaybackReady);
@@ -1659,12 +1858,11 @@ void MainWindow::createMenus()
     QMenu *speedMenu = playMenu->addMenu(tr("&Speed"));
     d->speedActionGroup = new QActionGroup(this);
     d->speedActionGroup->setExclusive(true);
-    for (double sp : {0.25, 0.5, 0.75, 1.0})
+    for (double sp : {0.25, 0.5, 0.75, 1.0, 1.5, 2.0})
     {
         QAction *act = speedMenu->addAction(tr("%1x").arg(sp), [this, sp]()
                                             {
             d->playbackController->setSpeed(sp);
-            Settings::instance().setPlaybackSpeed(sp);
             Logger::info(QString("Playback speed set to %1x").arg(sp)); });
         act->setCheckable(true);
         act->setData(sp);
@@ -1678,7 +1876,7 @@ void MainWindow::createMenus()
         {tr("Lock 60 FPS"), 60},
         {tr("Lock 90 FPS"), 90},
         {tr("Lock 120 FPS"), 120},
-        {tr("Unlimited"), 0},
+        {tr("Match Display Refresh Rate"), 0},
     };
     const int currentFpsCap = Settings::instance().playbackFrameRateCap();
     for (const auto &option : fpsCapOptions)
@@ -1694,9 +1892,13 @@ void MainWindow::createMenus()
                     Settings::instance().setPlaybackFrameRateCap(fpsCap);
                     if (d->playbackController)
                         d->playbackController->setFrameRateCap(fpsCap);
-                    const QString capText = (fpsCap <= 0) ? tr("Unlimited") : QString::number(fpsCap);
+                    const QString capText = (fpsCap <= 0) ? tr("Match Display Refresh Rate") : QString::number(fpsCap);
                     statusBar()->showMessage(tr("Playback FPS cap: %1").arg(capText), 2000); });
     }
+}
+
+void MainWindow::createToolsAndPluginsMenus()
+{
     QMenu *toolsMenu = menuBar()->addMenu(tr("&Tools"));
     d->pluginsMenu = menuBar()->addMenu(tr("&Plugins"));
     QAction *pluginManagerAction = d->pluginsMenu->addAction(tr("&Plugin Manager..."));
@@ -1705,10 +1907,75 @@ void MainWindow::createMenus()
     connect(d->pluginToolsMenu, &QMenu::aboutToShow, this, &MainWindow::populatePluginToolsMenu);
     d->pluginPanelsMenu = d->pluginsMenu->addMenu(tr("Plugin &Panels"));
     connect(d->pluginPanelsMenu, &QMenu::aboutToShow, this, &MainWindow::populatePluginPanelsMenu);
-    d->pluginToolModeAction = d->pluginsMenu->addAction(tr("Plugin Enhanced Tool Mode"));
+    d->pluginToolModeAction = d->pluginsMenu->addAction(tr("Curve Edit Tool"));
     d->pluginToolModeAction->setCheckable(true);
-    d->pluginToolModeAction->setEnabled(false);
-    connect(d->pluginToolModeAction, &QAction::toggled, this, &MainWindow::togglePluginEnhancedToolMode);
+    d->pluginToolModeAction->setEnabled(true);
+    connect(d->pluginToolModeAction, &QAction::toggled, this, [this](bool checked) {
+        if (d->canvas) {
+            d->canvas->setNoteChainModeActive(checked);
+            d->canvas->setMode(checked ? ChartCanvas::AnchorPlace : ChartCanvas::PlaceNote);
+        }
+        if (d->notePanel) {
+            d->notePanel->setNoteChainControlsVisible(checked);
+            d->notePanel->setModeFromHost(checked ? NoteEditPanel::PlaceAnchorMode
+                                                  : NoteEditPanel::PlaceNoteMode);
+            if (checked && d->canvas && d->canvas->noteChainEditor()) {
+                auto *ed = d->canvas->noteChainEditor();
+                d->notePanel->syncNoteChainControlsFromEditor(ed->state().anchorPlacementEnabled(),
+                    ed->state().curveVisible(),
+                    ed->state().activeLinkShape() == "polyline",
+                    ed->state().noteCurveSnapEnabled(),
+                    ed->state().selectionTargetEnabled("anchors"),
+                    ed->state().selectionTargetEnabled("segments"),
+                    ed->state().selectionTargetEnabled("notes"));
+            }
+        }
+        if (checked)
+        {
+            showEditorPanel(d->notePanel);
+            showDockPanel(d->curveToolsDock);
+        }
+        else if (d->curveToolsDock)
+        {
+            d->curveToolsDock->toggleView(false);
+        }
+        if (d->pluginToolModeToolbarAction) { const QSignalBlocker b(d->pluginToolModeToolbarAction); d->pluginToolModeToolbarAction->setChecked(checked); }
+        if (d->curvePanelAction) { const QSignalBlocker b(d->curvePanelAction); d->curvePanelAction->setChecked(checked); }
+    });
+    QAction *exportCurveStyleAction = d->pluginsMenu->addAction(tr("Export Curve Style..."));
+    connect(exportCurveStyleAction, &QAction::triggered, this, [this]() {
+        if (!d->canvas) return;
+        if (!d->canvas->isNoteChainModeActive()) {
+            if (d->pluginToolModeAction) d->pluginToolModeAction->setChecked(true);
+            else d->canvas->setNoteChainModeActive(true);
+        }
+        auto *editor = d->canvas->noteChainEditor();
+        if (!editor) return;
+        const QString path = QFileDialog::getSaveFileName(
+            this, tr("Export Curve Style"), Settings::instance().lastOpenPath(),
+            tr("Curve Style (*.curve_style.json);;JSON Files (*.json)"));
+        if (path.isEmpty()) return;
+        QString error;
+        if (!editor->exportStylePreset(path, &error))
+            QMessageBox::warning(this, tr("Export Curve Style"), error);
+    });
+    QAction *importCurveStyleAction = d->pluginsMenu->addAction(tr("Import Curve Style..."));
+    connect(importCurveStyleAction, &QAction::triggered, this, [this]() {
+        if (!d->canvas) return;
+        if (!d->canvas->isNoteChainModeActive()) {
+            if (d->pluginToolModeAction) d->pluginToolModeAction->setChecked(true);
+            else d->canvas->setNoteChainModeActive(true);
+        }
+        auto *editor = d->canvas->noteChainEditor();
+        if (!editor) return;
+        const QString path = QFileDialog::getOpenFileName(
+            this, tr("Import Curve Style"), Settings::instance().lastOpenPath(),
+            tr("Curve Style (*.curve_style.json *.json);;All Files (*.*)"));
+        if (path.isEmpty()) return;
+        QString error;
+        if (!editor->importStylePreset(path, &error))
+            QMessageBox::warning(this, tr("Import Curve Style"), error);
+    });
 
     QMenu *overlayMenu = d->pluginsMenu->addMenu(tr("Plugin Overlay Elements"));
     auto addOverlayToggle = [this, overlayMenu](const QString &key, const QString &label, bool defaultValue)
@@ -1738,6 +2005,10 @@ void MainWindow::createMenus()
     connect(logSettingsAction, &QAction::triggered, this, &MainWindow::openLogSettings);
     QAction *exportDiagAction = toolsMenu->addAction(tr("&Export Diagnostics Report..."));
     connect(exportDiagAction, &QAction::triggered, this, &MainWindow::exportDiagnosticsReport);
+}
+
+void MainWindow::createHelpMenu()
+{
     d->helpMenu = menuBar()->addMenu(tr("&Help"));
     d->checkUpdatesAction = d->helpMenu->addAction(tr("Check for Updates..."), this, &MainWindow::checkForUpdates);
     d->helpMenu->addSeparator();
@@ -1745,9 +2016,6 @@ void MainWindow::createMenus()
     d->aboutAction = d->helpMenu->addAction(tr("About..."), this, &MainWindow::showAboutPage);
     d->versionAction = d->helpMenu->addAction(tr("Version Information..."), this, &MainWindow::showVersionPage);
     d->logsAction = d->helpMenu->addAction(tr("Logs..."), this, &MainWindow::showLogsPage);
-    applySidebarTheme();
-
-    Logger::debug("Menus created");
 }
 
 void MainWindow::registerShortcutAction(QAction *action, const QString &actionId, const QKeySequence &defaultShortcut)
@@ -1867,13 +2135,40 @@ void MainWindow::createCentralArea()
 {
     Logger::debug("Creating central area...");
 
-    d->leftPanel = new LeftPanel(this);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DockAreaDynamicTabsMenuButtonVisibility, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::MiddleMouseButtonClosesTab, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewShowsContentPixmap, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewHasWindowFrame, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DisableStylesheet, true);
+    d->dockManager = new ads::CDockManager(this);
+    d->dockManager->setObjectName(QStringLiteral("mainDockManager"));
+    const bool darkTheme = sidebarTextColorFor(Settings::instance().backgroundColor()).lightness() > 128;
+    d->dockManager->setColorSchemeMode(darkTheme
+                                           ? ads::CDockManager::ColorSchemeMode::Dark
+                                           : ads::CDockManager::ColorSchemeMode::Light);
+    connect(d->dockManager,
+            &ads::CDockManager::floatingWidgetCreated,
+            this,
+            [this](ads::CFloatingDockContainer *floatingWindow)
+            {
+                const QColor background = Settings::instance().backgroundColor();
+                const QColor text = sidebarTextColorFor(background);
+                const bool dark = text.lightness() > 128;
+                const QColor caption = dark ? background.lighter(108) : background.darker(103);
+                const QColor border = dark ? caption.lighter(165) : caption.darker(145);
+                NativeWindowTheme::apply(floatingWindow, caption, text, border, true);
+            });
+
+    d->leftPanel = new LeftPanel(d->dockManager);
     d->leftPanel->setObjectName("leftPanelRoot");
     d->leftPanel->setAttribute(Qt::WA_StyledBackground, true);
     d->leftPanel->setChartController(d->chartController);
     d->leftPanel->setPlaybackController(d->playbackController);
 
-    d->canvas = new ChartCanvas(this);
+    d->canvas = new ChartCanvas(d->dockManager);
     d->canvas->setChartController(d->chartController);
     d->canvas->setSelectionController(d->selectionController);
     d->canvas->setPlaybackController(d->playbackController);
@@ -1892,7 +2187,7 @@ void MainWindow::createCentralArea()
     d->canvas->setNoteSoundFile(noteSoundPath);
     d->canvas->setNoteSoundEnabled(!noteSoundPath.isEmpty());
 
-    d->previewWidget = new RealtimePreviewWidget(this);
+    d->previewWidget = new RealtimePreviewWidget(d->dockManager);
     d->previewWidget->setChartController(d->chartController);
     d->previewWidget->setPlaybackController(d->playbackController);
     d->previewWidget->setColorMode(Settings::instance().colorNoteEnabled());
@@ -1912,13 +2207,14 @@ void MainWindow::createCentralArea()
 
     d->leftPanel->setChartCanvas(d->canvas);
 
-    d->rightDensityBar = new DensityCurve(this);
+    d->rightDensityBar = new DensityCurve(d->dockManager);
     d->rightDensityBar->setChartController(d->chartController);
     d->rightDensityBar->setPlaybackController(d->playbackController);
     d->rightDensityBar->setCanvas(d->canvas);
 
-    QWidget *canvasContainer = new QWidget(this);
-    QHBoxLayout *canvasLayout = new QHBoxLayout(canvasContainer);
+    d->workspaceContainer = new QWidget(d->dockManager);
+    d->workspaceContainer->setObjectName(QStringLiteral("chartWorkspaceRoot"));
+    QHBoxLayout *canvasLayout = new QHBoxLayout(d->workspaceContainer);
     canvasLayout->setContentsMargins(0, 0, 0, 0);
     canvasLayout->setSpacing(0);
     canvasLayout->addWidget(d->canvas, 1);
@@ -1972,25 +2268,43 @@ void MainWindow::createCentralArea()
             d->playbackController->seekTo(d->densityPendingSeekMs);
         d->densitySeekGestureActive = false; });
 
-    d->rightPanelContainer = new QWidget(this);
-    d->rightPanelContainer->setObjectName("rightPanelRoot");
-    d->rightPanelContainer->setAttribute(Qt::WA_StyledBackground, true);
-    QVBoxLayout *rightLayout = new QVBoxLayout(d->rightPanelContainer);
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-
-    d->notePanel = new NoteEditPanel(d->rightPanelContainer);
-    d->bpmPanel = new BPMTimePanel(d->rightPanelContainer);
-    d->metaPanel = new MetaEditPanel(d->rightPanelContainer);
+    d->notePanel = new NoteEditPanel(d->dockManager);
+    d->notePanel->setObjectName(QStringLiteral("notePanelRoot"));
+    d->notePanel->setAttribute(Qt::WA_StyledBackground, true);
+    d->pluginActionPanel = new PluginActionPanel(d->dockManager);
+    d->pluginActionPanel->setObjectName(QStringLiteral("pluginActionPanelRoot"));
+    d->pluginActionPanel->setAttribute(Qt::WA_StyledBackground, true);
+    d->bpmPanel = new BPMTimePanel(d->dockManager);
+    d->bpmPanel->setObjectName(QStringLiteral("bpmPanelRoot"));
+    d->bpmPanel->setAttribute(Qt::WA_StyledBackground, true);
+    d->metaPanel = new MetaEditPanel(d->dockManager);
+    d->metaPanel->setObjectName(QStringLiteral("metaPanelRoot"));
+    d->metaPanel->setAttribute(Qt::WA_StyledBackground, true);
     d->currentRightPanel = d->notePanel;
-    rightLayout->addWidget(d->notePanel);
-    rightLayout->addWidget(d->bpmPanel);
-    rightLayout->addWidget(d->metaPanel);
-    d->bpmPanel->setVisible(false);
-    d->metaPanel->setVisible(false);
 
     d->notePanel->setChartController(d->chartController);
     d->notePanel->setSelectionController(d->selectionController);
     d->notePanel->setPlaybackController(d->playbackController);
+    connect(d->notePanel, &NoteEditPanel::playbackSpeedChanged, this,
+            [this](double speed)
+            {
+                if (!d->playbackController)
+                    return;
+                d->playbackController->setSpeed(speed);
+                Logger::info(QString("Playback speed set to %1x").arg(speed));
+            });
+    d->pluginActionPanel->setChartController(d->chartController);
+    d->pluginActionPanel->setSelectionController(d->selectionController);
+    d->pluginActionPanel->setPlaybackController(d->playbackController);
+    d->pluginActionPanel->setViewportRange(d->canvas->timeDivision(),
+                                           d->canvas->scrollBeat(),
+                                           d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+    connect(d->pluginActionPanel, &PluginActionPanel::actionRequested, this,
+            [this](QVariantMap meta, const QVariantMap &actionContext)
+            {
+                meta.insert(QStringLiteral("action_context"), actionContext);
+                runPluginActionWithMeta(meta);
+            });
     d->bpmPanel->setChartController(d->chartController);
     d->bpmPanel->setPlaybackController(d->playbackController);
     d->metaPanel->setChartController(d->chartController);
@@ -2044,14 +2358,35 @@ void MainWindow::createCentralArea()
             {
         if (mode == NoteEditPanel::PlaceAnchorMode)
         {
+            if (d->pluginToolModeAction && !d->pluginToolModeAction->isChecked())
+                d->pluginToolModeAction->setChecked(true);
+            else
+                d->canvas->setNoteChainModeActive(true);
             d->canvas->setMode(ChartCanvas::AnchorPlace);
-            togglePluginEnhancedToolMode(true);
-            if (!d->canvas->isPluginToolModeActive())
-            {
-                d->notePanel->setModeFromHost(NoteEditPanel::PlaceNoteMode);
-                d->canvas->setMode(ChartCanvas::PlaceNote);
+            if (d->canvas->noteChainEditor()) {
+                d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+                d->canvas->noteChainEditor()->setAnchorPlacementEnabled(true);
             }
             return;
+        }
+
+        // Select mode remains available while the native curve editor is
+        // active, allowing curve box-selection and optional note pass-through.
+        if (mode == NoteEditPanel::SelectMode && d->canvas->isNoteChainModeActive()) {
+            d->canvas->setMode(ChartCanvas::Select);
+            if (d->canvas->noteChainEditor()) {
+                d->canvas->noteChainEditor()->setAnchorPlacementEnabled(false);
+                d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+            }
+            return;
+        }
+
+        if (d->canvas->isNoteChainModeActive()) {
+            if (d->pluginToolModeAction && d->pluginToolModeAction->isChecked())
+                d->pluginToolModeAction->setChecked(false);
+            else
+                d->canvas->setNoteChainModeActive(false);
+            d->notePanel->setModeFromHost(mode);
         }
 
         if (d->canvas->isPluginToolModeActive())
@@ -2067,6 +2402,81 @@ void MainWindow::createCentralArea()
     connect(d->notePanel, &NoteEditPanel::mirrorPreviewVisibilityChanged, d->canvas, &ChartCanvas::setMirrorPreviewVisible);
     connect(d->notePanel, &NoteEditPanel::mirrorFlipRequested, d->canvas, &ChartCanvas::flipSelectedNotes);
     connect(d->notePanel, &NoteEditPanel::pluginPlacementActionTriggered, this, &MainWindow::triggerPluginQuickAction);
+    // NoteChain native controls
+    connect(d->notePanel, &NoteEditPanel::noteChainAnchorPlaceToggled, this, [this](bool on) {
+        if (!d->canvas)
+            return;
+        if (on && !d->canvas->isNoteChainModeActive()) {
+            if (d->pluginToolModeAction) d->pluginToolModeAction->setChecked(true);
+            else d->canvas->setNoteChainModeActive(true);
+        }
+        if (!d->canvas->noteChainEditor())
+            return;
+        d->canvas->setMode(on ? ChartCanvas::AnchorPlace : ChartCanvas::Select);
+        d->notePanel->setModeFromHost(on ? NoteEditPanel::PlaceAnchorMode : NoteEditPanel::SelectMode);
+        d->canvas->noteChainEditor()->setAnchorPlacementEnabled(on);
+        d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext()); });
+    connect(d->notePanel, &NoteEditPanel::noteChainCurveVisibleToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setCurveVisible(on); });
+    connect(d->notePanel, &NoteEditPanel::noteChainPolylineModeToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setPolylineMode(on); });
+    connect(d->notePanel, &NoteEditPanel::noteChainNoteCurveSnapToggled, this, [this](bool on) {
+        if (!d->canvas || !d->canvas->noteChainEditor())
+            return;
+        d->canvas->noteChainEditor()->setNoteCurveSnapEnabled(on);
+        if (on && d->canvas->isNoteChainModeActive()) {
+            d->canvas->setMode(ChartCanvas::Select);
+            d->notePanel->setModeFromHost(NoteEditPanel::SelectMode);
+            d->canvas->noteChainEditor()->setAnchorPlacementEnabled(false);
+            d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+        } });
+    connect(d->notePanel, &NoteEditPanel::noteChainSelectAnchorsToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setSelectAnchorsEnabled(on); });
+    connect(d->notePanel, &NoteEditPanel::noteChainSelectSegmentsToggled, this, [this](bool on) {
+        if (d->canvas && d->canvas->noteChainEditor()) d->canvas->noteChainEditor()->setSelectSegmentsEnabled(on); });
+    connect(d->notePanel, &NoteEditPanel::noteChainSelectNotesToggled, this, [this](bool on) {
+        if (!d->canvas || !d->canvas->noteChainEditor())
+            return;
+        d->canvas->noteChainEditor()->setSelectNotesEnabled(on);
+        if (on && d->canvas->isNoteChainModeActive()) {
+            d->canvas->setMode(ChartCanvas::Select);
+            d->notePanel->setModeFromHost(NoteEditPanel::SelectMode);
+            d->canvas->noteChainEditor()->setAnchorPlacementEnabled(false);
+            d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+        } });
+    connect(d->notePanel, &NoteEditPanel::noteChainCommitRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) {
+            d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
+            d->canvas->noteChainEditor()->commitCurveToNotes();
+            d->canvas->update();
+        } });
+    connect(d->notePanel, &NoteEditPanel::noteChainConnectRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->connectSelectedAnchors(); d->canvas->update(); } });
+    connect(d->notePanel, &NoteEditPanel::noteChainDisconnectRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->disconnectSelectedSegments(); d->canvas->update(); } });
+    connect(d->notePanel, &NoteEditPanel::noteChainDeleteRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->deleteSelected(); d->canvas->update(); } });
+    connect(d->notePanel, &NoteEditPanel::noteChainResetRequested, this, [this]() {
+        if (d->canvas && d->canvas->noteChainEditor()) { d->canvas->noteChainEditor()->resetCurve(); d->canvas->update(); } });
+    connect(d->canvas, &ChartCanvas::noteChainControlsChanged, this, [this]() {
+        if (!d->notePanel || !d->canvas || !d->canvas->noteChainEditor()) return;
+        const auto &state = d->canvas->noteChainEditor()->state();
+        if (d->canvas->isNoteChainModeActive()) {
+            if (state.anchorPlacementEnabled()) {
+                d->canvas->setMode(ChartCanvas::AnchorPlace);
+                d->notePanel->setModeFromHost(NoteEditPanel::PlaceAnchorMode);
+            } else if (d->notePanel->currentMode() == NoteEditPanel::PlaceAnchorMode) {
+                d->canvas->setMode(ChartCanvas::Select);
+                d->notePanel->setModeFromHost(NoteEditPanel::SelectMode);
+            }
+        }
+        d->notePanel->syncNoteChainControlsFromEditor(
+            state.anchorPlacementEnabled(), state.curveVisible(),
+            state.activeLinkShape() == QLatin1String("polyline"), state.noteCurveSnapEnabled(),
+            state.selectionTargetEnabled(QStringLiteral("anchors")),
+            state.selectionTargetEnabled(QStringLiteral("segments")),
+            state.selectionTargetEnabled(QStringLiteral("notes")));
+    });
     connect(d->canvas, &ChartCanvas::mirrorAxisChanged, d->notePanel, &NoteEditPanel::setMirrorAxisValue);
 
 
@@ -2084,13 +2494,122 @@ void MainWindow::createCentralArea()
                 d->notePanel->longRangeSelector()->setEndBeat(endBeat);
             });
 
-    d->splitter = new QSplitter(Qt::Horizontal, this);
-    d->splitter->addWidget(d->leftPanel);
-    d->splitter->addWidget(d->previewWidget);
-    d->splitter->addWidget(canvasContainer);
-    d->splitter->addWidget(d->rightPanelContainer);
-    d->splitter->setSizes({150, 200, 700, 300});
-    setCentralWidget(d->splitter);
+    d->workspaceDock = new ads::CDockWidget(d->dockManager, tr("Chart Workspace"));
+    d->workspaceDock->setObjectName(QStringLiteral("dock.workspace"));
+    d->workspaceDock->setWidget(d->workspaceContainer, ads::CDockWidget::ForceNoScrollArea);
+    ads::CDockAreaWidget *workspaceArea = d->dockManager->setCentralWidget(d->workspaceDock);
+
+    d->leftPanelDock = new ads::CDockWidget(d->dockManager, tr("Navigation"));
+    d->leftPanelDock->setObjectName(QStringLiteral("dock.navigation"));
+    d->leftPanelDock->setWidget(d->leftPanel, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *leftArea = d->dockManager->addDockWidget(
+        ads::LeftDockWidgetArea, d->leftPanelDock, workspaceArea);
+
+    d->previewDock = new ads::CDockWidget(d->dockManager, tr("Realtime Preview"));
+    d->previewDock->setObjectName(QStringLiteral("dock.preview"));
+    d->previewDock->setWidget(d->previewWidget, ads::CDockWidget::ForceNoScrollArea);
+    d->dockManager->addDockWidget(ads::RightDockWidgetArea, d->previewDock, leftArea);
+
+    QWidget *timingTools = d->notePanel->takeTimingToolsWidget();
+    QWidget *playbackSpeedTools = d->notePanel->takePlaybackSpeedToolsWidget();
+    QWidget *rangeTools = d->notePanel->takeRangeToolsWidget();
+    QWidget *mirrorTools = d->notePanel->takeMirrorToolsWidget();
+    QWidget *curveTools = d->notePanel->takeCurveToolsWidget();
+    timingTools->setObjectName(QStringLiteral("timingToolsRoot"));
+    playbackSpeedTools->setObjectName(QStringLiteral("playbackSpeedToolsRoot"));
+    rangeTools->setObjectName(QStringLiteral("rangeToolsRoot"));
+    mirrorTools->setObjectName(QStringLiteral("mirrorToolsRoot"));
+    curveTools->setObjectName(QStringLiteral("curveToolsRoot"));
+
+    d->notePanelDock = new ads::CDockWidget(d->dockManager, tr("Note Input"));
+    d->notePanelDock->setObjectName(QStringLiteral("dock.note"));
+    d->notePanelDock->setWidget(d->notePanel, ads::CDockWidget::ForceScrollArea);
+    configureNotePanelScrollArea();
+    ads::CDockAreaWidget *editorArea = d->dockManager->addDockWidget(
+        ads::RightDockWidgetArea, d->notePanelDock, workspaceArea);
+
+    d->timingToolsDock = new ads::CDockWidget(d->dockManager, tr("Timing & Grid"));
+    d->timingToolsDock->setObjectName(QStringLiteral("dock.note.timing"));
+    d->timingToolsDock->setWidget(timingTools, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *timingArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->timingToolsDock, editorArea);
+    timingArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->timingToolsDock);
+
+    d->playbackSpeedToolsDock = new ads::CDockWidget(d->dockManager, tr("Playback Speed"));
+    d->playbackSpeedToolsDock->setObjectName(QStringLiteral("dock.playback.speed"));
+    d->playbackSpeedToolsDock->setWidget(playbackSpeedTools, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *playbackSpeedArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->playbackSpeedToolsDock, timingArea);
+    playbackSpeedArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->playbackSpeedToolsDock);
+
+    d->rangeToolsDock = new ads::CDockWidget(d->dockManager, tr("Range Select"));
+    d->rangeToolsDock->setObjectName(QStringLiteral("dock.note.range"));
+    d->rangeToolsDock->setWidget(rangeTools, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *rangeArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->rangeToolsDock, playbackSpeedArea);
+    rangeArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->rangeToolsDock);
+
+    d->mirrorToolsDock = new ads::CDockWidget(d->dockManager, tr("Mirror Flip"));
+    d->mirrorToolsDock->setObjectName(QStringLiteral("dock.note.mirror"));
+    d->mirrorToolsDock->setWidget(mirrorTools, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *mirrorArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->mirrorToolsDock, rangeArea);
+    mirrorArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->mirrorToolsDock);
+
+    d->curveToolsDock = new ads::CDockWidget(d->dockManager, tr("Curve Tools"));
+    d->curveToolsDock->setObjectName(QStringLiteral("dock.note.curve"));
+    d->curveToolsDock->setWidget(curveTools, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *curveArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->curveToolsDock, mirrorArea);
+    curveArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->curveToolsDock);
+
+    d->pluginToolsDock = new ads::CDockWidget(d->dockManager, tr("Plugin Tools"));
+    d->pluginToolsDock->setObjectName(QStringLiteral("dock.plugin.tools"));
+    d->pluginToolsDock->setWidget(d->pluginActionPanel, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *pluginArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->pluginToolsDock, curveArea);
+    pluginArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->pluginToolsDock);
+
+    d->bpmPanelDock = new ads::CDockWidget(d->dockManager, tr("BPM & Timing"));
+    d->bpmPanelDock->setObjectName(QStringLiteral("dock.bpm"));
+    d->bpmPanelDock->setWidget(d->bpmPanel, ads::CDockWidget::ForceScrollArea);
+    d->dockManager->addDockWidgetTabToArea(d->bpmPanelDock, editorArea);
+
+    d->metaPanelDock = new ads::CDockWidget(d->dockManager, tr("Metadata"));
+    d->metaPanelDock->setObjectName(QStringLiteral("dock.metadata"));
+    d->metaPanelDock->setWidget(d->metaPanel, ads::CDockWidget::ForceScrollArea);
+    d->dockManager->addDockWidgetTabToArea(d->metaPanelDock, editorArea);
+    d->notePanelDock->setAsCurrentTab();
+    d->curveToolsDock->toggleView(false);
+    d->pluginToolsDock->toggleView(false);
+
+    // Keep the former Note editor reading order while allowing every medium-
+    // grained block to be detached. Docked blocks remain simultaneously
+    // visible in a vertical stack instead of turning into switching tabs.
+    d->dockManager->setSplitterSizes(leftArea, {150, 200});
+    d->dockManager->setSplitterSizes(workspaceArea, {350, 650, 300});
+    d->dockManager->setSplitterSizes(editorArea, {270, 130, 145, 210, 170, 260, 260});
+
+    connect(d->dockManager, &ads::CDockManager::stateRestored, this, [this]()
+            {
+                const QList<ads::CDockWidget *> toolDocks = {
+                    d->timingToolsDock, d->playbackSpeedToolsDock,
+                    d->rangeToolsDock, d->mirrorToolsDock,
+                    d->curveToolsDock, d->pluginToolsDock};
+                for (ads::CDockWidget *dock : toolDocks)
+                    configureCompactToolDock(dock);
+            });
+
+    d->defaultDockLayoutState = d->dockManager->saveState(kDockLayoutVersion);
+    restoreDockLayout();
+    ensurePlaybackSpeedDockAssigned();
+
     d->mainToolBar = addToolBar(tr("Tools"));
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
                                                    { showEditorPanel(d->notePanel); });
@@ -2098,16 +2617,38 @@ void MainWindow::createCentralArea()
                                                   { showEditorPanel(d->bpmPanel); });
     d->metaPanelAction = d->mainToolBar->addAction(tr("Meta"), [this]()
                                                    { showEditorPanel(d->metaPanel); });
+    d->curvePanelAction = d->mainToolBar->addAction(tr("Curve"));
+    d->curvePanelAction->setCheckable(true);
+    d->curvePanelAction->setEnabled(true);
+    connect(d->curvePanelAction, &QAction::toggled, this, [this](bool checked) {
+        if (d->canvas) {
+            d->canvas->setNoteChainModeActive(checked);
+            d->canvas->setMode(checked ? ChartCanvas::AnchorPlace : ChartCanvas::PlaceNote);
+        }
+        if (d->notePanel) {
+            d->notePanel->setNoteChainControlsVisible(checked);
+            d->notePanel->setModeFromHost(checked ? NoteEditPanel::PlaceAnchorMode
+                                                  : NoteEditPanel::PlaceNoteMode);
+            // Sync checkbox states from editor
+            if (checked && d->canvas && d->canvas->noteChainEditor()) {
+                auto *ed = d->canvas->noteChainEditor();
+                d->notePanel->syncNoteChainControlsFromEditor(ed->state().anchorPlacementEnabled(),
+                    ed->state().curveVisible(),
+                    ed->state().activeLinkShape() == "polyline",
+                    ed->state().noteCurveSnapEnabled(),
+                    ed->state().selectionTargetEnabled("anchors"),
+                    ed->state().selectionTargetEnabled("segments"),
+                    ed->state().selectionTargetEnabled("notes"));
+            }
+        }
+        if (checked)
+            showEditorPanel(d->notePanel);
+        if (d->pluginToolModeAction) { const QSignalBlocker b(d->pluginToolModeAction); d->pluginToolModeAction->setChecked(checked); }
+    });
     addToolBarBreak(Qt::TopToolBarArea);
     d->pluginToolBar = addToolBar(tr("Plugins"));
     d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
-    d->pluginToolModeToolbarAction = d->pluginToolBar->addAction(tr("Launch Curve Tool"));
-    d->pluginToolModeToolbarAction->setCheckable(true);
-    d->pluginToolModeToolbarAction->setEnabled(false);
-    connect(d->pluginToolModeToolbarAction, &QAction::toggled, this, &MainWindow::togglePluginEnhancedToolMode);
-    showEditorPanel(d->notePanel);
-    applySidebarTheme();
-
+    setFloatingToolWindowsEnabled(Settings::instance().floatingToolWindowsEnabled());
     Logger::debug("Central area created with LeftPanel.");
 }
 
@@ -2272,6 +2813,12 @@ void MainWindow::tryRecoverPreviousSession()
 
     d->isModified = true;
     d->canvas->update();
+    if (d->pluginActionPanel)
+    {
+        d->pluginActionPanel->setViewportRange(
+            d->canvas->timeDivision(), d->canvas->scrollBeat(),
+            d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+    }
     statusBar()->showMessage(tr("Recovered unsaved session"), 3000);
     cleanupSessionWorkingCopies(d->workingChartPath);
     persistRecoveryState();
@@ -2285,8 +2832,15 @@ void MainWindow::closeEvent(QCloseEvent *event)
         return;
     }
 
+    saveDockLayout();
     clearWorkingCopySession(true);
     event->accept();
+
+    // ADS keeps closed floating containers alive so their panels can be
+    // reopened.  Those hidden top-level windows make Qt's implicit
+    // quit-on-last-window-closed behavior platform dependent.  Closing the
+    // confirmed main editor window is an explicit application-exit request.
+    QCoreApplication::quit();
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
@@ -2609,6 +3163,43 @@ void MainWindow::openImportedLibrary()
 }
 
 // ==================== Load chart core logic ====================
+bool MainWindow::loadChartForAutomation(const QString &filePath, QString *errorMessage)
+{
+    if (errorMessage)
+        errorMessage->clear();
+
+    const QFileInfo requestedInfo(filePath);
+    if (!requestedInfo.isFile())
+    {
+        if (errorMessage)
+            *errorMessage = tr("Chart does not exist: %1").arg(filePath);
+        return false;
+    }
+    if (requestedInfo.suffix().compare(QStringLiteral("mc"), Qt::CaseInsensitive) != 0)
+    {
+        if (errorMessage)
+            *errorMessage = tr("Automated chart loading requires an extracted .mc chart.");
+        return false;
+    }
+    if (d->isModified)
+    {
+        if (errorMessage)
+            *errorMessage = tr("Cannot load an automated test chart while the current chart has unsaved changes.");
+        return false;
+    }
+
+    loadChartFile(requestedInfo.absoluteFilePath());
+    const QString loadedPath = QFileInfo(d->currentChartPath).absoluteFilePath();
+    if (QDir::cleanPath(loadedPath).compare(QDir::cleanPath(requestedInfo.absoluteFilePath()),
+                                            Qt::CaseInsensitive) != 0)
+    {
+        if (errorMessage)
+            *errorMessage = tr("The automated test chart could not be loaded.");
+        return false;
+    }
+    return true;
+}
+
 void MainWindow::loadChartFile(const QString &filePath)
 {
     Logger::info(QString("Loading chart file: %1").arg(filePath));
@@ -2700,7 +3291,13 @@ void MainWindow::loadChartFile(const QString &filePath)
     }
 
     QString loadChartError;
-    if (!loadWorkingChartWithProgress(this, d->chartController, workingChartPath, &loadChartError))
+    bool chartLoaded = false;
+    {
+        QScopedValueRollback<bool> loadingGuard(d->isLoadingChart, true);
+        chartLoaded = loadWorkingChartWithProgress(
+            this, d->chartController, workingChartPath, &loadChartError);
+    }
+    if (!chartLoaded)
     {
         removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
         QMessageBox::critical(this,
@@ -2749,6 +3346,12 @@ void MainWindow::loadChartFile(const QString &filePath)
     d->playbackController->audioPlayer()->setAdjustedPosition(0);
 
     d->canvas->update();
+    if (d->pluginActionPanel)
+    {
+        d->pluginActionPanel->setViewportRange(
+            d->canvas->timeDivision(), d->canvas->scrollBeat(),
+            d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+    }
     d->isModified = false;
 
     persistRecoveryState();
@@ -3200,6 +3803,8 @@ void MainWindow::undo()
         Logger::debug("Undo triggered");
         const QString actionText = d->chartController->nextUndoActionText();
         d->chartController->undo();
+        if (d->canvas && d->canvas->noteChainEditor())
+            d->canvas->noteChainEditor()->onHostUndo(actionText);
         if (PluginManager *pm = activePluginManager())
             pm->notifyHostUndo(actionText);
     }
@@ -3212,6 +3817,8 @@ void MainWindow::redo()
         Logger::debug("Redo triggered");
         const QString actionText = d->chartController->nextRedoActionText();
         d->chartController->redo();
+        if (d->canvas && d->canvas->noteChainEditor())
+            d->canvas->noteChainEditor()->onHostRedo(actionText);
         if (PluginManager *pm = activePluginManager())
             pm->notifyHostRedo(actionText);
     }
@@ -3231,7 +3838,7 @@ void MainWindow::toggleTimelineDivisionColorMode(bool on)
     Logger::info(QString("Timeline division color mode toggled to %1").arg(on));
     Settings::instance().setTimelineDivisionColorEnabled(on);
     if (d->canvas)
-        d->canvas->update();
+        d->canvas->refreshRenderSettings();
 }
 
 void MainWindow::openTimelineDivisionColorSettings()
@@ -3387,7 +3994,7 @@ void MainWindow::openTimelineDivisionColorSettings()
     if (d->timelineDivisionColorAction)
         d->timelineDivisionColorAction->setChecked(enabled);
     if (d->canvas)
-        d->canvas->update();
+        d->canvas->refreshRenderSettings();
 }
 
 void MainWindow::toggleHyperfruitMode(bool on)
@@ -3456,6 +4063,7 @@ void MainWindow::changeEvent(QEvent *event)
 void MainWindow::retranslateUi()
 {
     setWindowTitle(tr("Catch Chart Editor"));
+    updateDockTitles();
     createMenus();
     if (d->mainToolBar)
         d->mainToolBar->setWindowTitle(tr("Tools"));
@@ -3467,6 +4075,8 @@ void MainWindow::retranslateUi()
         d->bpmPanelAction->setText(tr("BPM"));
     if (d->metaPanelAction)
         d->metaPanelAction->setText(tr("Meta"));
+    if (d->curvePanelAction)
+        d->curvePanelAction->setText(tr("Curve"));
     if (d->pluginManagerToolbarAction)
         d->pluginManagerToolbarAction->setText(tr("Plugins"));
     if (d->pluginToolModeToolbarAction)
@@ -3475,6 +4085,8 @@ void MainWindow::retranslateUi()
         d->leftPanel->retranslateUi();
     if (d->notePanel)
         d->notePanel->retranslateUi();
+    if (d->pluginActionPanel)
+        d->pluginActionPanel->retranslateUi();
     if (d->bpmPanel)
         d->bpmPanel->retranslateUi();
     if (d->metaPanel)
@@ -3488,18 +4100,246 @@ void MainWindow::showEditorPanel(QWidget *panel)
     if (!panel)
         return;
 
-    d->notePanel->setVisible(panel == d->notePanel);
-    d->bpmPanel->setVisible(panel == d->bpmPanel);
-    d->metaPanel->setVisible(panel == d->metaPanel);
-    if (panel == d->notePanel)
-        d->currentRightPanel = d->notePanel;
-    else if (panel == d->bpmPanel)
-        d->currentRightPanel = d->bpmPanel;
-    else if (panel == d->metaPanel)
-        d->currentRightPanel = d->metaPanel;
+    if (panel == d->notePanel || panel == d->bpmPanel || panel == d->metaPanel)
+        d->currentRightPanel = panel;
 
-    if (d->rightPanelContainer)
-        d->rightPanelContainer->setVisible(true);
+    if (!d->floatingToolWindowsEnabled)
+    {
+        if (d->notePanel)
+            d->notePanel->setVisible(panel == d->notePanel);
+        if (d->bpmPanel)
+            d->bpmPanel->setVisible(panel == d->bpmPanel);
+        if (d->metaPanel)
+            d->metaPanel->setVisible(panel == d->metaPanel);
+        if (d->legacyRightScrollArea)
+            d->legacyRightScrollArea->show();
+        return;
+    }
+
+    ads::CDockWidget *dock = nullptr;
+    if (panel == d->notePanel)
+        dock = d->notePanelDock;
+    else if (panel == d->bpmPanel)
+        dock = d->bpmPanelDock;
+    else if (panel == d->metaPanel)
+        dock = d->metaPanelDock;
+    else if (panel == d->leftPanel)
+        dock = d->leftPanelDock;
+    else if (panel == d->previewWidget)
+        dock = d->previewDock;
+
+    if (!dock)
+        return;
+
+    showDockPanel(dock);
+}
+
+void MainWindow::showDockPanel(ads::CDockWidget *dock)
+{
+    if (!dock)
+        return;
+
+    if (!d->floatingToolWindowsEnabled
+        && (dock == d->pluginToolsDock || dock == d->curveToolsDock))
+    {
+        if (dock == d->pluginToolsDock)
+        {
+            d->pluginToolsWereVisible = true;
+            if (d->notePanel)
+                d->notePanel->setEmbeddedPluginToolsVisible(true);
+        }
+
+        showEditorPanel(d->notePanel);
+        if (dock == d->pluginToolsDock && d->legacyRightScrollArea)
+        {
+            d->legacyRightScrollArea->ensureWidgetVisible(d->pluginActionPanel);
+        }
+        return;
+    }
+
+    dock->toggleView(true);
+    dock->setAsCurrentTab();
+    dock->raise();
+    dock->activateWindow();
+}
+
+void MainWindow::configureCompactToolDock(ads::CDockWidget *dock)
+{
+    if (!dock)
+        return;
+
+    dock->setFeature(ads::CDockWidget::NoTab, true);
+    if (!dock->property("compactToolDockConfigured").toBool())
+    {
+        dock->setProperty("compactToolDockConfigured", true);
+        const QPointer<ads::CDockWidget> guardedDock(dock);
+        connect(dock, &ads::CDockWidget::topLevelChanged, this,
+                [this, guardedDock](bool)
+                {
+                    QTimer::singleShot(0, this, [this, guardedDock]()
+                                       {
+                        if (guardedDock)
+                            updateCompactToolDockHandle(guardedDock); });
+                });
+    }
+
+    updateCompactToolDockHandle(dock);
+}
+
+void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
+{
+    if (!dock || !dock->dockAreaWidget())
+        return;
+
+    ads::CDockAreaTitleBar *titleBar = dock->dockAreaWidget()->titleBar();
+    if (!titleBar)
+        return;
+
+    // A floating container already has a native window caption. Keep the ADS
+    // title bar only while docked, where it becomes a compact drag handle.
+    if (dock->isFloating())
+    {
+        titleBar->hide();
+        return;
+    }
+
+    titleBar->setProperty("compactToolHandle", true);
+    titleBar->setCursor(Qt::SizeAllCursor);
+    titleBar->setToolTip(titleBar->titleBarButtonToolTip(ads::TitleBarButtonUndock));
+    titleBar->setFixedHeight(14);
+    titleBar->style()->unpolish(titleBar);
+    titleBar->style()->polish(titleBar);
+    const ads::TitleBarButton hiddenButtons[] = {
+        ads::TitleBarButtonTabsMenu,
+        ads::TitleBarButtonUndock,
+        ads::TitleBarButtonClose,
+        ads::TitleBarButtonAutoHide,
+        ads::TitleBarButtonMinimize};
+    for (ads::TitleBarButton buttonId : hiddenButtons)
+    {
+        if (ads::CTitleBarButton *button = titleBar->button(buttonId))
+            button->setShowInTitleBar(false);
+    }
+
+    QLabel *grip = titleBar->findChild<QLabel *>(
+        QStringLiteral("compactToolDockGrip"), Qt::FindDirectChildrenOnly);
+    if (!grip)
+    {
+        // Hide the normal tab text and window buttons. The transparent label
+        // only paints the grip; mouse events continue to reach ADS' title bar.
+        const QList<QWidget *> titleItems = titleBar->findChildren<QWidget *>(
+            QString(), Qt::FindDirectChildrenOnly);
+        for (QWidget *item : titleItems)
+            item->hide();
+
+        grip = new QLabel(QStringLiteral("⠿"), titleBar);
+        grip->setObjectName(QStringLiteral("compactToolDockGrip"));
+        grip->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        grip->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        grip->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        grip->setFixedHeight(14);
+        grip->setToolTip(titleBar->titleBarButtonToolTip(ads::TitleBarButtonUndock));
+        titleBar->insertWidget(0, grip);
+    }
+
+    if (auto *splitter = qobject_cast<QSplitter *>(dock->dockAreaWidget()->parentWidget()))
+    {
+        splitter->setProperty("compactToolStack", true);
+        splitter->setHandleWidth(3);
+        splitter->style()->unpolish(splitter);
+        splitter->style()->polish(splitter);
+    }
+
+    grip->show();
+    titleBar->show();
+}
+
+void MainWindow::saveDockLayout()
+{
+    Settings::instance().setMainWindowGeometry(saveGeometry());
+    if (d->dockManager && d->floatingToolWindowsEnabled)
+        Settings::instance().setDockLayoutState(d->dockManager->saveState(kDockLayoutVersion));
+}
+
+void MainWindow::restoreDockLayout()
+{
+    if (!d->dockManager)
+        return;
+
+    const QByteArray state = Settings::instance().dockLayoutState();
+    if (state.isEmpty())
+        return;
+
+    if (!d->dockManager->restoreState(state, kDockLayoutVersion))
+    {
+        Logger::warn("Failed to restore ADS panel layout; reverting to defaults.");
+        Settings::instance().clearDockLayoutState();
+        if (!d->defaultDockLayoutState.isEmpty())
+            d->dockManager->restoreState(d->defaultDockLayoutState, kDockLayoutVersion);
+    }
+}
+
+void MainWindow::resetDockLayout()
+{
+    if (!d->dockManager || d->defaultDockLayoutState.isEmpty())
+        return;
+
+    if (!d->dockManager->restoreState(d->defaultDockLayoutState, kDockLayoutVersion))
+    {
+        statusBar()->showMessage(tr("Failed to reset panel layout."), 3000);
+        return;
+    }
+
+    Settings::instance().clearDockLayoutState();
+    if (!d->floatingToolWindowsEnabled)
+    {
+        for (ads::CDockWidget *dock : {d->timingToolsDock, d->playbackSpeedToolsDock,
+                                       d->rangeToolsDock, d->mirrorToolsDock,
+                                       d->curveToolsDock,
+                                       d->pluginToolsDock})
+        {
+            if (dock)
+                dock->toggleView(false);
+        }
+        d->timingToolsWereVisible = true;
+        d->playbackSpeedToolsWereVisible = true;
+        d->rangeToolsWereVisible = true;
+        d->mirrorToolsWereVisible = true;
+        d->pluginToolsWereVisible = false;
+    }
+    d->notePanelDock->setAsCurrentTab();
+    if (d->timingToolsDock)
+        d->timingToolsDock->setAsCurrentTab();
+    statusBar()->showMessage(tr("Panel layout reset."), 2000);
+}
+
+void MainWindow::updateDockTitles()
+{
+    if (d->workspaceDock)
+        d->workspaceDock->setWindowTitle(tr("Chart Workspace"));
+    if (d->leftPanelDock)
+        d->leftPanelDock->setWindowTitle(tr("Navigation"));
+    if (d->previewDock)
+        d->previewDock->setWindowTitle(tr("Realtime Preview"));
+    if (d->notePanelDock)
+        d->notePanelDock->setWindowTitle(
+            d->floatingToolWindowsEnabled ? tr("Note Input") : tr("Note Editor"));
+    if (d->timingToolsDock)
+        d->timingToolsDock->setWindowTitle(tr("Timing & Grid"));
+    if (d->playbackSpeedToolsDock)
+        d->playbackSpeedToolsDock->setWindowTitle(tr("Playback Speed"));
+    if (d->rangeToolsDock)
+        d->rangeToolsDock->setWindowTitle(tr("Range Select"));
+    if (d->mirrorToolsDock)
+        d->mirrorToolsDock->setWindowTitle(tr("Mirror Flip"));
+    if (d->curveToolsDock)
+        d->curveToolsDock->setWindowTitle(tr("Curve Tools"));
+    if (d->pluginToolsDock)
+        d->pluginToolsDock->setWindowTitle(tr("Plugin Tools"));
+    if (d->bpmPanelDock)
+        d->bpmPanelDock->setWindowTitle(tr("BPM & Timing"));
+    if (d->metaPanelDock)
+        d->metaPanelDock->setWindowTitle(tr("Metadata"));
 }
 
 // ==================== Paste 288 division option slot ====================
@@ -3507,6 +4347,12 @@ void MainWindow::togglePaste288Division(bool enabled)
 {
     Settings::instance().setPasteUse288Division(enabled);
     Logger::info(QString("Paste 288 division: %1").arg(enabled ? "enabled" : "disabled"));
+    statusBar()->showMessage(
+        enabled ? tr("Paste timing: quantize to 1/288")
+                : tr("Paste timing: preserve normal timing"),
+        2500);
+    if (d->canvas)
+        d->canvas->update();
 }
 
 void MainWindow::changeLanguage()
@@ -3852,6 +4698,7 @@ void MainWindow::showInfoCenter(int initialTab)
 void MainWindow::applySidebarTheme()
 {
     const QColor bg = Settings::instance().backgroundColor();
+    applyApplicationPaletteFor(bg);
     const QColor fg = sidebarTextColorFor(bg);
     const bool darkTheme = (fg.lightness() > 128);
     const QColor panelBg = darkTheme ? bg.lighter(108) : bg.darker(103);
@@ -3862,13 +4709,16 @@ void MainWindow::applySidebarTheme()
     const QColor panelBorder = darkTheme ? panelBg.lighter(165) : panelBg.darker(145);
     const QColor panelDisabledText = darkTheme ? QColor("#9A9A9A") : QColor("#707070");
 
-    auto applyPanelStyle = [&](QWidget *panel, const QString &rootName)
+    auto applyPanelStyle = [&](QWidget *panel, const QString &rootName, bool flatRoot = false)
     {
         if (!panel)
             return;
 
+        const QString rootBorder = flatRoot
+                                       ? QStringLiteral("border: none;")
+                                       : QStringLiteral("border: 1px solid %1;").arg(panelBorder.name());
         const QString css = QString(
-                                "QWidget#%9 { background-color: %1; color: %2; border: 1px solid %4; }"
+                                "QWidget#%9 { background-color: %1; color: %2; %10 }"
                                 "QLabel, QCheckBox, QRadioButton, QGroupBox { color: %2; }"
                                 "QGroupBox { border: 1px solid %4; border-radius: 6px; margin-top: 8px; padding-top: 10px; }"
                                 "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: %2; }"
@@ -3878,6 +4728,7 @@ void MainWindow::applySidebarTheme()
                                 "QPushButton { background-color: %5; color: %2; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; }"
                                 "QPushButton:hover { background-color: %7; }"
                                 "QPushButton:pressed { background-color: %8; }"
+                                "QPushButton:checked { background-color: %7; }"
                                 "QPushButton:disabled { color: %6; }"
                                 "QToolButton { background-color: %5; color: %2; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; }"
                                 "QToolButton:hover { background-color: %7; }"
@@ -3886,13 +4737,73 @@ void MainWindow::applySidebarTheme()
                                 "QToolButton:disabled { color: %6; }"
                                 "QScrollBar:vertical, QScrollBar:horizontal { background-color: %1; }")
                                 .arg(panelBg.name(), fg.name(), panelInputBg.name(), panelBorder.name(), panelButtonBg.name(),
-                                     panelDisabledText.name(), panelButtonHoverBg.name(), panelButtonPressedBg.name(), rootName);
+                                     panelDisabledText.name(), panelButtonHoverBg.name(), panelButtonPressedBg.name(), rootName,
+                                     rootBorder);
 
         panel->setStyleSheet(css);
     };
 
     applyPanelStyle(d->leftPanel, "leftPanelRoot");
-    applyPanelStyle(d->rightPanelContainer, "rightPanelRoot");
+    if (d->floatingToolWindowsEnabled)
+    {
+        applyPanelStyle(d->notePanel, "notePanelRoot");
+        if (d->timingToolsDock)
+            applyPanelStyle(d->timingToolsDock->widget(), "timingToolsRoot", true);
+        if (d->playbackSpeedToolsDock)
+            applyPanelStyle(d->playbackSpeedToolsDock->widget(), "playbackSpeedToolsRoot", true);
+        if (d->rangeToolsDock)
+            applyPanelStyle(d->rangeToolsDock->widget(), "rangeToolsRoot", true);
+        if (d->mirrorToolsDock)
+            applyPanelStyle(d->mirrorToolsDock->widget(), "mirrorToolsRoot", true);
+        if (d->curveToolsDock)
+            applyPanelStyle(d->curveToolsDock->widget(), "curveToolsRoot", true);
+        applyPanelStyle(d->pluginActionPanel, "pluginActionPanelRoot", true);
+        applyPanelStyle(d->bpmPanel, "bpmPanelRoot");
+        applyPanelStyle(d->metaPanel, "metaPanelRoot");
+    }
+    else
+    {
+        // Match the pre-ADS stylesheet boundary: the whole switchable right
+        // sidebar is one styled surface, rather than several panel windows.
+        if (d->notePanel)
+            d->notePanel->setStyleSheet(QString());
+        if (d->bpmPanel)
+            d->bpmPanel->setStyleSheet(QString());
+        if (d->metaPanel)
+            d->metaPanel->setStyleSheet(QString());
+        if (d->pluginActionPanel)
+            d->pluginActionPanel->setStyleSheet(QString());
+        applyPanelStyle(d->legacyRightPanelContainer, "rightPanelRoot");
+    }
+
+    if (d->dockManager)
+    {
+        QPalette palette = d->dockManager->palette();
+        palette.setColor(QPalette::Window, panelBg);
+        palette.setColor(QPalette::WindowText, fg);
+        palette.setColor(QPalette::Base, panelInputBg);
+        palette.setColor(QPalette::AlternateBase, panelBg);
+        palette.setColor(QPalette::Text, fg);
+        palette.setColor(QPalette::Button, panelButtonBg);
+        palette.setColor(QPalette::ButtonText, fg);
+        palette.setColor(QPalette::Highlight, panelButtonHoverBg);
+        palette.setColor(QPalette::HighlightedText, fg);
+        d->dockManager->setPalette(palette);
+        d->dockManager->setColorSchemeMode(darkTheme
+                                               ? ads::CDockManager::ColorSchemeMode::Dark
+                                               : ads::CDockManager::ColorSchemeMode::Light);
+        const QString dockStyle = lightweightDockStyle(darkTheme);
+        if (d->dockManager->styleSheet() != dockStyle)
+            d->dockManager->setStyleSheet(dockStyle);
+
+        if (d->floatingToolWindowsEnabled)
+        {
+            for (ads::CFloatingDockContainer *floatingWindow : d->dockManager->floatingWidgets())
+                NativeWindowTheme::apply(floatingWindow, panelBg, fg, panelBorder, true);
+        }
+    }
+
+    NativeWindowTheme::apply(this, panelBg, fg, panelBorder);
 
     if (menuBar())
     {
@@ -3901,19 +4812,22 @@ void MainWindow::applySidebarTheme()
                                     "QMenuBar::item { background: transparent; color: %2; padding: 4px 8px; }"
                                     "QMenuBar::item:selected { background: %3; }"
                                     "QMenu { background-color: %1; color: %2; border: 1px solid %4; }"
-                                    "QMenu::item:selected { background-color: %3; }")
-                                    .arg(bg.name(), fg.name(), panelButtonBg.name(), panelBorder.name());
+                                    "QMenu::item { color: %2; padding: 5px 24px 5px 10px; }"
+                                    "QMenu::item:selected { background-color: %3; color: %2; }"
+                                    "QMenu::item:disabled { color: %5; }")
+                                    .arg(bg.name(), fg.name(), panelButtonBg.name(), panelBorder.name(),
+                                         panelDisabledText.name());
         menuBar()->setStyleSheet(menuCss);
     }
 
     if (d->mainToolBar)
     {
         const QString toolbarCss = QString(
-                                       "QToolBar { background-color: %1; color: %2; border-bottom: 1px solid %4; border-top: 1px solid %4; spacing: 6px; padding: 2px 4px; }"
-                                       "QToolButton { background-color: %5; color: %2; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; }"
-                                       "QToolButton:hover { background-color: %6; }"
-                                       "QToolButton:pressed { background-color: %7; }")
-                                       .arg(panelBg.name(), fg.name(), panelInputBg.name(), panelBorder.name(), panelButtonBg.name(),
+                                       "QToolBar { background-color: %1; color: %2; border-bottom: 1px solid %3; border-top: 1px solid %3; spacing: 6px; padding: 2px 4px; }"
+                                       "QToolButton { background-color: %4; color: %2; border: 1px solid %3; border-radius: 6px; padding: 4px 8px; }"
+                                       "QToolButton:hover { background-color: %5; }"
+                                       "QToolButton:pressed { background-color: %6; }")
+                                       .arg(panelBg.name(), fg.name(), panelBorder.name(), panelButtonBg.name(),
                                             panelButtonHoverBg.name(), panelButtonPressedBg.name());
         d->mainToolBar->setStyleSheet(toolbarCss);
         if (d->pluginToolBar)
@@ -3926,37 +4840,14 @@ void MainWindow::applySidebarTheme()
                                        .arg(panelBg.name(), fg.name(), panelBorder.name()));
     }
 
-    if (d->splitter)
+    if (d->legacySplitter)
     {
-        d->splitter->setStyleSheet(QString("QSplitter::handle { background-color: %1; }").arg(panelBorder.name()));
+        d->legacySplitter->setStyleSheet(
+            QStringLiteral("QSplitter::handle { background-color: %1; }")
+                .arg(panelBorder.name()));
     }
 
     if (d->rightDensityBar)
         d->rightDensityBar->update();
 
-    // Global dialog/message box theming. This keeps popups readable on dark backgrounds.
-    const QString dialogCss = QString(
-                                  "QDialog, QMessageBox, QInputDialog { background-color: %1; color: %2; }"
-                                  "QDialog QLabel, QMessageBox QLabel, QInputDialog QLabel, QDialog QGroupBox { color: %2; }"
-                                  "QDialog QLabel[hintText=\"true\"] { color: %6; }"
-                                  "QDialog QLineEdit, QDialog QTextEdit, QDialog QPlainTextEdit, QDialog QComboBox,"
-                                  "QDialog QAbstractSpinBox, QDialog QListWidget, QDialog QTreeWidget, QDialog QTableWidget,"
-                                  "QMessageBox QLineEdit, QInputDialog QLineEdit {"
-                                  "  background-color: %3; color: %2; border: 1px solid %4; }"
-                                  "QDialog QAbstractItemView, QMessageBox QAbstractItemView, QInputDialog QAbstractItemView {"
-                                  "  background-color: %3; color: %2; border: 1px solid %4;"
-                                  "  selection-background-color: %5; selection-color: %6; }"
-                                  "QDialog QPushButton, QMessageBox QPushButton, QInputDialog QPushButton {"
-                                  "  background-color: %5; color: %2; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; }"
-                                  "QDialog QPushButton:hover, QMessageBox QPushButton:hover, QInputDialog QPushButton:hover {"
-                                  "  background-color: %7; }"
-                                  "QDialog QPushButton:pressed, QMessageBox QPushButton:pressed, QInputDialog QPushButton:pressed {"
-                                  "  background-color: %8; }"
-                                  "QDialog QPushButton:disabled, QMessageBox QPushButton:disabled, QInputDialog QPushButton:disabled {"
-                                  "  color: %6; }"
-                                  "QDialog QMenuBar, QDialog QMenu { background-color: %1; color: %2; }"
-                                  "QDialog QTabWidget::pane { border: 1px solid %4; }")
-                                  .arg(panelBg.name(), fg.name(), panelInputBg.name(), panelBorder.name(), panelButtonBg.name(),
-                                       panelDisabledText.name(), panelButtonHoverBg.name(), panelButtonPressedBg.name());
-    qApp->setStyleSheet(dialogCss);
 }

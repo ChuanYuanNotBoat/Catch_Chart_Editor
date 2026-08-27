@@ -1,4 +1,5 @@
 #include "Settings.h"
+#include "PlaybackSpeed.h"
 #include <QDir>
 #include <QCoreApplication>
 #include <QStandardPaths>
@@ -138,11 +139,12 @@ void Settings::setHyperfruitOutlineEnabled(bool enabled)
 
 double Settings::playbackSpeed() const
 {
-    return m_settings.value("playbackSpeed", 1.0).toDouble();
+    return PlaybackSpeed::sanitize(
+        m_settings.value("playbackSpeed", PlaybackSpeed::Default).toDouble());
 }
 void Settings::setPlaybackSpeed(double speed)
 {
-    m_settings.setValue("playbackSpeed", speed);
+    m_settings.setValue("playbackSpeed", PlaybackSpeed::sanitize(speed));
 }
 
 int Settings::audioLatency() const
@@ -398,7 +400,7 @@ void Settings::setPlaybackStutterProbeEnabled(bool enabled)
 
 int Settings::playbackFrameRateCap() const
 {
-    return sanitizePlaybackFrameRateCap(m_settings.value("playback/frameRateCap", 120).toInt());
+    return sanitizePlaybackFrameRateCap(m_settings.value("playback/frameRateCap", 0).toInt());
 }
 
 void Settings::setPlaybackFrameRateCap(int fpsCap)
@@ -414,4 +416,39 @@ int Settings::chartPickerPrimaryColumnWidth() const
 void Settings::setChartPickerPrimaryColumnWidth(int width)
 {
     m_settings.setValue("ui/chartPickerPrimaryColumnWidth", qBound(320, width, 2000));
+}
+
+QByteArray Settings::mainWindowGeometry() const
+{
+    return m_settings.value("ui/mainWindowGeometry").toByteArray();
+}
+
+void Settings::setMainWindowGeometry(const QByteArray &geometry)
+{
+    m_settings.setValue("ui/mainWindowGeometry", geometry);
+}
+
+QByteArray Settings::dockLayoutState() const
+{
+    return m_settings.value("ui/dockLayoutState").toByteArray();
+}
+
+void Settings::setDockLayoutState(const QByteArray &state)
+{
+    m_settings.setValue("ui/dockLayoutState", state);
+}
+
+void Settings::clearDockLayoutState()
+{
+    m_settings.remove("ui/dockLayoutState");
+}
+
+bool Settings::floatingToolWindowsEnabled() const
+{
+    return m_settings.value("ui/floatingToolWindowsEnabled", true).toBool();
+}
+
+void Settings::setFloatingToolWindowsEnabled(bool enabled)
+{
+    m_settings.setValue("ui/floatingToolWindowsEnabled", enabled);
 }

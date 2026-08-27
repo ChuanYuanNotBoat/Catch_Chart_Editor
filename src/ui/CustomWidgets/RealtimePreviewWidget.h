@@ -25,6 +25,7 @@ public:
     void setColorMode(bool enabled);
     void setHyperfruitEnabled(bool enabled);
     void setNoteSize(int size);
+    void refreshRenderSettings();
 
 public slots:
     void setCurrentBeat(double beat);
@@ -84,6 +85,8 @@ private:
     bool m_hyperCacheValid = false;
     QTimer *m_deferredUpdateTimer = nullptr;
     QElapsedTimer m_frameTimer;
+    QElapsedTimer m_probeClock;
     bool m_updateScheduled = false;
     qint64 m_lastPlaybackFrameSeq = -1;
+    qint64 m_lastPaintProbeNs = 0;
 };

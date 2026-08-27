@@ -1,4 +1,4 @@
-# Canvas Interaction Protocol (Host API v3 Proposal)
+# Canvas Interaction Protocol (Host API v3)
 
 This document defines an extension for direct plugin interaction on the main chart canvas.
 
@@ -13,7 +13,7 @@ Scope constraint for this plugin family:
 - Do not mutate chart file format/schema.
 - Extra data must be persisted in plugin-owned sidecar files.
 
-This proposal adds:
+Host API v3 adds:
 
 - A new capability: `canvas_interaction`
 - New host-to-plugin request: `handleCanvasInput`
