@@ -5,11 +5,11 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 ## Version status / 版本状态
 
-- Development / 当前开发周期：**Beta v1.11.0（开发中，尚未发布）**
-- Latest release / 最新已发布版本：**Beta v1.10.5**
+- Current release / 当前版本：**Beta v1.11.0（2026-08-27）**
+- Git tag / 标签：`v1.11.0-beta`
 - Download / 下载：[GitHub Releases](https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor/releases/latest)
 
-`docs/history.md` 中已经发布的版本段落视为冻结记录。Beta v1.11.0 的进行中变更只写入其独立开发段落，不回填 Beta v1.10.5。
+`docs/history.md` 中已经发布的版本段落视为冻结记录。Beta v1.11.0 的变更记录位于文件顶部，不回填 Beta v1.10.5。
 
 ## Documentation / 文档
 
@@ -21,7 +21,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - [测试指南](TESTING.md)
 - [插件 SDK](src/plugin/README.md)
 
-## Beta v1.11.0 focus / 当前开发重点
+## Beta v1.11.0 focus / 本版本重点
 
 - Native C++ Note Chain editor with direct canvas interaction, curve sampling, note snapping, unified undo/redo, and V3 sidecar compatibility.
   原生 C++ 曲线编辑器：画布直操、曲线采样、音符吸附、统一撤销/重做和 V3 sidecar 兼容。
@@ -32,7 +32,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - Updated architecture, format, AutoTiming, Note Chain, testing, and plugin documentation.
   更新架构、格式、AutoTiming、曲线编辑器、测试及插件文档。
 
-完整的开发中变更见 [docs/history.md](docs/history.md) 顶部的 Beta v1.11.0 段落。
+完整变更见 [docs/history.md](docs/history.md) 顶部的 Beta v1.11.0 段落。
 
 ## Features / 功能
 

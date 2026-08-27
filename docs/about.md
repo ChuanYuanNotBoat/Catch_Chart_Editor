@@ -4,12 +4,12 @@ Malody Catch Editor 是面向 Malody Catch 模式的开源桌面谱面编辑器�
 
 ## 项目状态
 
-- 当前开发周期：**Beta v1.11.0（开发中）**
-- 最新发布：**Beta v1.10.5**
+- 当前版本：**Beta v1.11.0（2026-08-27）**
+- Git 标签：`v1.11.0-beta`
 - 主要桌面验证平台：Windows
 - 技术栈：C++17、Qt 6 Widgets、Qt Multimedia、Qt Advanced Docking System
 
-Beta 表示项目已经可用于实际制谱，但仍可能调整交互、sidecar 细节和插件 API。编辑重要谱面时请保留源文件与 sidecar 备份。
+Beta 表示项目已经可用于实际制谱，但交互、sidecar 细节和插件 API 仍可能调整。编辑重要谱面时请保留源文件与 sidecar 备份。
 
 ## 项目原则
 
