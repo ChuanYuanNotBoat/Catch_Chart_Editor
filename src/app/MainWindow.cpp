@@ -3193,7 +3193,6 @@ bool MainWindow::loadChartForAutomation(const QString &filePath, QString *errorM
     }
     return true;
 }
-
 void MainWindow::loadChartFile(const QString &filePath)
 {
     Logger::info(QString("Loading chart file: %1").arg(filePath));
@@ -3318,10 +3317,18 @@ void MainWindow::loadChartFile(const QString &filePath)
     updatePlaybackAvailability(false);
     if (!audioFile.isEmpty())
     {
-        QString audioPath = chartDir + "/" + audioFile;
+        // 优先使用 Chart 对象记录的音频源完整路径（已在加载时解析并重命名）
+        QString audioPath = d->chartController->chart()->audioSourceFullPath();
+        if (audioPath.isEmpty() || !QFile::exists(audioPath))
+        {
+            // 回退到基于原始谱面目录的路径
+            audioPath = QDir(chartDir).filePath(audioFile);
+        }
+
         if (QFile::exists(audioPath))
         {
             d->playbackController->audioPlayer()->load(audioPath);
+            Logger::info(QString("MainWindow::loadChartFile - Loaded audio from: %1").arg(audioPath));
         }
         else
         {
@@ -3351,7 +3358,6 @@ void MainWindow::loadChartFile(const QString &filePath)
     persistRecoveryState();
     statusBar()->showMessage(tr("Loaded: %1").arg(QFileInfo(actualChartPath).fileName()), 3000);
 }
-
 QString MainWindow::selectChartFromList(const QList<QPair<QString, QString>> &charts, const QString &title)
 {
     QDialog dialog(this);

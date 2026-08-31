@@ -122,4 +122,5 @@ void Chart::clear()
     m_bpmList.clear();
     m_meta = MetaData();
     m_bpmList.append(BpmEntry(0, 1, 1, 120.0));
+    m_audioSourceFullPath.clear();
 }
