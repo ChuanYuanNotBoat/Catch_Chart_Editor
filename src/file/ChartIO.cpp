@@ -31,9 +31,13 @@ namespace
      */
     QString resolveAndCollectResource(const QString &rawValue, const QString &mcDir, QString &outFull)
     {
+        Logger::debug(QString("resolveAndCollectResource - Input: rawValue='%1', mcDir='%2'")
+                          .arg(rawValue, mcDir));
+
         if (rawValue.isEmpty())
         {
             outFull.clear();
+            Logger::debug("resolveAndCollectResource - Empty input, return empty");
             return rawValue;
         }
 
@@ -47,30 +51,38 @@ namespace
             {
                 // 无法提取文件名，保持原值
                 outFull = rawValue;
+                Logger::warn(QString("resolveAndCollectResource - Cannot extract filename from path '%1', return original").arg(rawValue));
                 return rawValue;
             }
-            Logger::info(QString("ChartIO::load - [PATCH] Extracted filename '%1' from path '%2'")
+            Logger::info(QString("resolveAndCollectResource - [PATCH] Extracted filename '%1' from path '%2'")
                              .arg(fileName, rawValue));
         }
         else
         {
             fileName = rawValue;
+            Logger::debug(QString("resolveAndCollectResource - Input is plain filename: '%1'").arg(fileName));
         }
 
         const QString localCandidate = QDir(mcDir).absoluteFilePath(fileName);
+        Logger::debug(QString("resolveAndCollectResource - Local candidate path: '%1'").arg(localCandidate));
 
         // 步骤2：如果 .mc 同目录下已经存在同名文件
         if (QFileInfo::exists(localCandidate))
         {
+            Logger::debug("resolveAndCollectResource - Local file exists");
             // 如果原始值是路径且指向真实文件，比较哈希
             if (hasPathSep && QFileInfo::exists(rawValue))
             {
+                Logger::debug("resolveAndCollectResource - Original path also exists, comparing hashes");
                 const QString localHash = CalcHash::computeQuickHash(localCandidate);
                 const QString sourceHash = CalcHash::computeQuickHash(rawValue);
+                Logger::debug(QString("resolveAndCollectResource - Local hash: %1, Source hash: %2")
+                                  .arg(localHash, sourceHash));
                 if (!localHash.isEmpty() && !sourceHash.isEmpty() && localHash != sourceHash)
                 {
                     // 哈希不同，弹窗询问
                     const QString defaultRename = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + "_" + fileName;
+                    Logger::warn(QString("resolveAndCollectResource - Hash mismatch for '%1', prompting user").arg(fileName));
                     QMessageBox msgBox;
                     msgBox.setIcon(QMessageBox::Warning);
                     msgBox.setWindowTitle(QObject::tr("Resource Conflict"));
@@ -87,12 +99,20 @@ namespace
                         const QString newPath = QDir(mcDir).absoluteFilePath(defaultRename);
                         if (QFile::copy(rawValue, newPath))
                         {
-                            Logger::info(QString("ChartIO::load - [PATCH] Copied to '%1'").arg(defaultRename));
+                            Logger::info(QString("resolveAndCollectResource - Copied to '%1'").arg(defaultRename));
                             outFull = newPath;
                             return defaultRename;
                         }
+                        else
+                        {
+                            Logger::warn(QString("resolveAndCollectResource - Failed to copy to '%1', using existing local file").arg(newPath));
+                        }
                     }
                     // 否则使用已存在的本地文件
+                }
+                else
+                {
+                    Logger::debug("resolveAndCollectResource - Hashes match or empty, using local file");
                 }
             }
             // 哈希相同、或原始值不是真实路径、或用户选择跳过 → 直接使用本地文件
@@ -103,17 +123,23 @@ namespace
         // 步骤3：.mc 目录下不存在，尝试从原始路径复制
         if (hasPathSep && QFileInfo::exists(rawValue))
         {
+            Logger::debug(QString("resolveAndCollectResource - Local file missing, attempt copy from '%1'").arg(rawValue));
             if (QFile::copy(rawValue, localCandidate))
             {
-                Logger::info(QString("ChartIO::load - [PATCH] Collected '%1' from '%2'")
+                Logger::info(QString("resolveAndCollectResource - Collected '%1' from '%2'")
                                  .arg(fileName, rawValue));
                 outFull = localCandidate;
                 return fileName;
             }
-            Logger::warn(QString("ChartIO::load - [PATCH] Failed to copy '%1' to .mc directory").arg(rawValue));
+            Logger::warn(QString("resolveAndCollectResource - Failed to copy '%1' to .mc directory").arg(rawValue));
+        }
+        else
+        {
+            Logger::debug(QString("resolveAndCollectResource - Local file missing and original path '%1' does not exist, cannot collect").arg(rawValue));
         }
 
         // 步骤4：无法收集，使用原始值（fallback）
+        Logger::warn(QString("resolveAndCollectResource - Fallback to original value '%1'").arg(rawValue));
         outFull = rawValue;
         return fileName;
     }
@@ -415,8 +441,10 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
         {
             const QString bgValue = metaObj.value("background").toString();
             QString fullPath;
+            Logger::debug(QString("ChartIO::load - Processing background: '%1'").arg(bgValue));
             const QString bgFileName = resolveAndCollectResource(bgValue, QFileInfo(filePath).absolutePath(), fullPath);
             meta.backgroundFile = bgFileName.isEmpty() ? bgValue : bgFileName;
+            Logger::debug(QString("ChartIO::load - backgroundFile set to: '%1'").arg(meta.backgroundFile));
         }
 
         // 读取 mode_ext.speed
@@ -447,44 +475,67 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
                     }
                 }
             }
+            Logger::debug(QString("ChartIO::load - Processing audio: '%1'").arg(audioValue));
             QString fullPath;
             QString audioFileName = resolveAndCollectResource(audioValue, QFileInfo(filePath).absolutePath(), fullPath);
             if (audioFileName.isEmpty())
                 audioFileName = audioValue;
+
+            // 初始源路径：如果 resolveAndCollectResource 返回了完整路径就用它，否则构造同目录路径
+            QString audioSourcePath = fullPath;
+            if (audioSourcePath.isEmpty() && !audioFileName.isEmpty())
+                audioSourcePath = QDir(QFileInfo(filePath).absolutePath()).filePath(audioFileName);
 
             // Rename long audio filenames to timestamp-based names to avoid
             // path length limits and Malody V issues with non-ASCII filenames.
             const int kMaxAudioNameLen = 24;
             if (!audioFileName.isEmpty() && audioFileName.length() > kMaxAudioNameLen)
             {
+                Logger::info(QString("ChartIO::load - Audio filename '%1' exceeds %2 chars, attempting rename")
+                                 .arg(audioFileName).arg(kMaxAudioNameLen));
                 const QFileInfo afi(audioFileName);
                 const QString suffix = afi.suffix();
                 const QString mcDir = QFileInfo(filePath).absolutePath();
                 const QString oldPath = QDir(mcDir).filePath(audioFileName);
                 const QString newName = QString::number(static_cast<uint>(QDateTime::currentSecsSinceEpoch())) + "." + suffix;
                 const QString newPath = QDir(mcDir).filePath(newName);
+
+                Logger::debug(QString("ChartIO::load - Rename attempt: oldPath='%1', newPath='%2'").arg(oldPath, newPath));
+
                 if (QFileInfo::exists(oldPath))
                 {
+                    Logger::debug("ChartIO::load - Old file exists, trying rename");
                     if (QFile::rename(oldPath, newPath))
                     {
                         Logger::info(QString("ChartIO::load - Renamed long audio '%1' -> '%2'")
                                          .arg(audioFileName, newName));
                         audioFileName = newName;
+                        audioSourcePath = newPath;   // 更新源路径为新文件
                     }
                     else
                     {
-                        Logger::warn(QString("ChartIO::load - Failed to rename '%1' to '%2'")
+                        Logger::warn(QString("ChartIO::load - Failed to rename '%1' to '%2', keeping original name")
                                          .arg(audioFileName, newName));
+                        // 保持原文件名和原路径
                     }
                 }
                 else
                 {
-                    Logger::info(QString("ChartIO::load - Shortened audio reference '%1' -> '%2' (file not on disk)")
-                                     .arg(audioFileName, newName));
-                    audioFileName = newName;
+                    // 文件暂未出现在磁盘上（可能延迟解压），不应修改引用
+                    Logger::warn(QString("ChartIO::load - Audio file '%1' not found, skipping rename; keeping original name")
+                                     .arg(oldPath));
+                    // 源路径保持不变（可能为原路径，但文件不存在）
                 }
             }
+            else
+            {
+                Logger::debug(QString("ChartIO::load - Audio filename length (%1) within limit, no rename").arg(audioFileName.length()));
+            }
+
             meta.audioFile = audioFileName;
+            outChart.setAudioSourceFullPath(audioSourcePath);   // 保存到 Chart 内部
+            Logger::info(QString("ChartIO::load - meta.audioFile='%1', sourceFullPath='%2'")
+                             .arg(meta.audioFile, audioSourcePath));
         }
 
         // 预览时间和偏移量
@@ -566,17 +617,40 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     // 补丁：辅助 lambda，将资源文件的完整路径转换为纯文件名并复制到 .mc 目录
     const QDir chartSaveDir(QFileInfo(filePath).absolutePath());
     auto resolveResourcePath = [&chartSaveDir](const QString &value) -> QString {
+        Logger::debug(QString("save::resolveResourcePath - Input: '%1'").arg(value));
         if (value.isEmpty()) return value;
         // 如果已经是纯文件名（不含路径分隔符），直接返回
         if (!QDir::isAbsolutePath(value) && !value.contains('/') && !value.contains('\\'))
+        {
+            Logger::debug("save::resolveResourcePath - Value is plain filename, no path conversion needed");
             return value;
+        }
         // 如果是路径，提取文件名
         QString fileName = QFileInfo(value).fileName();
         if (fileName.isEmpty()) return value;
+        Logger::debug(QString("save::resolveResourcePath - Extracted filename: '%1'").arg(fileName));
         // 如果目标目录没有这个文件，尝试复制
         QString targetPath = chartSaveDir.filePath(fileName);
         if (!QFileInfo::exists(targetPath) && QFileInfo::exists(value))
-            QFile::copy(value, targetPath);
+        {
+            Logger::debug(QString("save::resolveResourcePath - Target '%1' missing, copying from '%2'")
+                              .arg(targetPath, value));
+            if (QFile::copy(value, targetPath))
+            {
+                Logger::info(QString("save::resolveResourcePath - Copied '%1' to '%2'")
+                                 .arg(value, targetPath));
+            }
+            else
+            {
+                Logger::warn(QString("save::resolveResourcePath - Failed to copy '%1' to '%2'")
+                                 .arg(value, targetPath));
+            }
+        }
+        else
+        {
+            Logger::debug(QString("save::resolveResourcePath - Target '%1' already exists or source missing, skipping copy")
+                              .arg(targetPath));
+        }
         return fileName;
     };
 
@@ -612,7 +686,45 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     // 如果 chart.meta() 中有这些值，可以选择性添加
     if (!chart.meta().audioFile.isEmpty())
     {
-        metaObj["audio"] = resolveResourcePath(chart.meta().audioFile);
+        QString audioFileName = chart.meta().audioFile;
+        // 如果是纯文件名，尝试从源路径复制到保存目录
+        if (!QDir::isAbsolutePath(audioFileName) && !audioFileName.contains('/') && !audioFileName.contains('\\'))
+        {
+            QString sourcePath = chart.audioSourceFullPath();
+            if (!sourcePath.isEmpty() && QFileInfo::exists(sourcePath))
+            {
+                QString targetPath = chartSaveDir.filePath(audioFileName);
+                if (!QFileInfo::exists(targetPath))
+                {
+                    Logger::debug(QString("ChartIO::save - Copying audio '%1' -> '%2'")
+                                      .arg(sourcePath, targetPath));
+                    if (QFile::copy(sourcePath, targetPath))
+                    {
+                        Logger::info(QString("ChartIO::save - Audio copied to '%1'").arg(targetPath));
+                    }
+                    else
+                    {
+                        Logger::warn(QString("ChartIO::save - Failed to copy audio '%1' to '%2'")
+                                         .arg(sourcePath, targetPath));
+                    }
+                }
+                else
+                {
+                    Logger::debug(QString("ChartIO::save - Audio target already exists: '%1'").arg(targetPath));
+                }
+            }
+            else
+            {
+                Logger::warn(QString("ChartIO::save - Audio source path not available for '%1', cannot copy")
+                                 .arg(audioFileName));
+            }
+            metaObj["audio"] = audioFileName;
+        }
+        else
+        {
+            // 如果 audioFile 本身是路径，走原有逻辑（提取文件名并复制）
+            metaObj["audio"] = resolveResourcePath(audioFileName);
+        }
     }
     if (chart.meta().previewTime != 0)
     {
@@ -707,6 +819,31 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     // This also upgrades legacy charts that only had meta.audio without a sound note.
     if (soundNoteCount == 0 && !chart.meta().audioFile.isEmpty())
     {
+        // 确保音频文件已复制到目标目录
+        QString audioFileName = chart.meta().audioFile;
+        if (!QDir::isAbsolutePath(audioFileName) && !audioFileName.contains('/') && !audioFileName.contains('\\'))
+        {
+            QString sourcePath = chart.audioSourceFullPath();
+            if (!sourcePath.isEmpty() && QFileInfo::exists(sourcePath))
+            {
+                QString targetPath = chartSaveDir.filePath(audioFileName);
+                if (!QFileInfo::exists(targetPath))
+                {
+                    Logger::debug(QString("ChartIO::save - Copying audio for sound note: '%1' -> '%2'")
+                                      .arg(sourcePath, targetPath));
+                    if (!QFile::copy(sourcePath, targetPath))
+                    {
+                        Logger::warn(QString("ChartIO::save - Failed to copy audio for sound note: '%1' -> '%2'")
+                                         .arg(sourcePath, targetPath));
+                    }
+                }
+            }
+        }
+        else
+        {
+            audioFileName = resolveResourcePath(audioFileName);
+        }
+
         QJsonObject soundObj;
         QJsonArray beatArr;
         beatArr.append(0);
@@ -714,12 +851,12 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
         beatArr.append(1);
         soundObj["beat"] = beatArr;
         soundObj["type"] = 1;
-        soundObj["sound"] = resolveResourcePath(chart.meta().audioFile);
+        soundObj["sound"] = audioFileName;
         soundObj["vol"] = 100;
         soundObj["offset"] = chart.meta().offset;
         noteArray.insert(0, soundObj);
         soundNoteCount = 1;
-        Logger::debug(QString("ChartIO::save - Injected sound note for audio: %1").arg(chart.meta().audioFile));
+        Logger::debug(QString("ChartIO::save - Injected sound note for audio: %1").arg(audioFileName));
     }
 
     root["note"] = noteArray;

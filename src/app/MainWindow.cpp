@@ -122,76 +122,73 @@ namespace
 
     QColor sidebarTextColorFor(const QColor &bg)
     {
-        const double r = bg.redF();
-        const double g = bg.greenF();
-        const double b = bg.blueF();
-        const double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        return (luminance >= 0.5) ? QColor(20, 20, 20) : QColor(245, 245, 245);
+        return NativeWindowTheme::themeColorsFor(bg).text;
     }
 
     void applyApplicationPaletteFor(const QColor &background)
     {
-        const QColor text = sidebarTextColorFor(background);
-        const bool dark = text.lightness() > 128;
-        const QColor window = dark ? background.lighter(108) : background.darker(103);
-        const QColor base = dark ? window.lighter(120) : window.darker(105);
-        const QColor button = dark ? window.lighter(132) : window.darker(112);
-        const QColor highlight = dark ? button.lighter(120) : button.lighter(108);
-        const QColor disabledText = dark ? QColor("#9A9A9A") : QColor("#707070");
+        const auto theme = NativeWindowTheme::themeColorsFor(background);
 
         QPalette palette = qApp->palette();
-        if (palette.color(QPalette::Window) == window &&
-            palette.color(QPalette::WindowText) == text &&
-            palette.color(QPalette::Base) == base)
+        if (palette.color(QPalette::Window) == theme.window &&
+            palette.color(QPalette::WindowText) == theme.text &&
+            palette.color(QPalette::Base) == theme.base)
         {
             return;
         }
 
-        palette.setColor(QPalette::Window, window);
-        palette.setColor(QPalette::WindowText, text);
-        palette.setColor(QPalette::Base, base);
-        palette.setColor(QPalette::AlternateBase, window);
-        palette.setColor(QPalette::Text, text);
-        palette.setColor(QPalette::Button, button);
-        palette.setColor(QPalette::ButtonText, text);
-        palette.setColor(QPalette::Highlight, highlight);
-        palette.setColor(QPalette::HighlightedText, text);
-        palette.setColor(QPalette::Disabled, QPalette::WindowText, disabledText);
-        palette.setColor(QPalette::Disabled, QPalette::Text, disabledText);
-        palette.setColor(QPalette::Disabled, QPalette::ButtonText, disabledText);
+        palette.setColor(QPalette::Window, theme.window);
+        palette.setColor(QPalette::WindowText, theme.text);
+        palette.setColor(QPalette::Base, theme.base);
+        palette.setColor(QPalette::AlternateBase, theme.window);
+        palette.setColor(QPalette::Text, theme.text);
+        palette.setColor(QPalette::Button, theme.button);
+        palette.setColor(QPalette::ButtonText, theme.text);
+        palette.setColor(QPalette::Highlight, theme.highlight);
+        palette.setColor(QPalette::HighlightedText, theme.text);
+        palette.setColor(QPalette::Disabled, QPalette::WindowText, theme.disabledText);
+        palette.setColor(QPalette::Disabled, QPalette::Text, theme.disabledText);
+        palette.setColor(QPalette::Disabled, QPalette::ButtonText, theme.disabledText);
         qApp->setPalette(palette);
     }
 
-    QString lightweightDockStyle(bool dark)
+    QString lightweightDockStyle(const NativeWindowTheme::ThemeColors &theme)
     {
-        const QString suffix = dark ? QStringLiteral("_dark") : QString();
+        const QString suffix = theme.dark ? QStringLiteral("_dark") : QString();
         const QString closeIcon = QStringLiteral(":/ads/images/close-button%1.svg").arg(suffix);
         const QString closeDisabledIcon = QStringLiteral(":/ads/images/close-button-disabled%1.svg").arg(suffix);
         const QString detachIcon = QStringLiteral(":/ads/images/detach-button%1.svg").arg(suffix);
         const QString detachDisabledIcon = QStringLiteral(":/ads/images/detach-button-disabled%1.svg").arg(suffix);
         const QString tabsIcon = QStringLiteral(":/ads/images/tabs-menu-button%1.svg").arg(suffix);
 
-        // ADS' upstream theme contains hundreds of selectors. This compact
-        // subset keeps the essential layout, colors and controls while
-        // avoiding a costly full-tree stylesheet match on every float/drop.
         return QString(
-                   "ads--CDockContainerWidget, ads--CDockAreaWidget, ads--CDockWidget { background: palette(window); }"
-                   "ads--CDockSplitter::handle { background: palette(mid); }"
+                   "ads--CDockContainerWidget, ads--CDockAreaWidget, ads--CDockWidget { background: %1; }"
+                   "ads--CDockSplitter::handle { background: %6; }"
                    "ads--CDockSplitter[compactToolStack=\"true\"]::handle { background: transparent; }"
-                   "ads--CDockAreaTitleBar { background: palette(window); border-bottom: 1px solid palette(mid); }"
+                   "ads--CDockAreaTitleBar { background: %1; border-bottom: 1px solid %7; }"
                    "ads--CDockAreaTitleBar[compactToolHandle=\"true\"] { border: none; background: transparent; }"
-                   "QLabel#compactToolDockGrip { color: palette(mid); background: transparent; border: none; padding: 0 7px 0 0; font-size: 10px; }"
-                   "ads--CDockWidgetTab { background: palette(window); border-right: 1px solid palette(mid); padding: 0; }"
-                   "ads--CDockWidgetTab[activeTab=\"true\"] { background: palette(button); }"
-                   "ads--CDockWidgetTab QLabel, #autoHideTitleLabel { color: palette(window-text); }"
-                   "ads--CTitleBarButton, #tabCloseButton { background: transparent; border: none; padding: 0; }"
-                   "ads--CTitleBarButton:hover, #tabCloseButton:hover { background: palette(highlight); }"
+                   "QLabel#compactToolDockGrip { color: %6; background: transparent; border: none; padding: 0 7px 0 0; font-size: 10px; }"
+                   "ads--CDockWidgetTab { background: %1; border-right: 1px solid %7; padding: 0; }"
+                   "ads--CDockWidgetTab[activeTab=\"true\"] { background: %8; }"
+                   "ads--CDockWidgetTab QLabel, #autoHideTitleLabel { color: %2; }"
+                   "ads--CTitleBarButton, #tabCloseButton { background: transparent; border: none; color: %2; padding: 0; }"
+                   "ads--CTitleBarButton:hover, #tabCloseButton:hover { background: %9; color: %2; }"
                    "#tabsMenuButton::menu-indicator { image: none; }"
-                   "#tabsMenuButton { qproperty-icon: url(%5); qproperty-iconSize: 16px; }"
-                   "#dockAreaCloseButton, #tabCloseButton { qproperty-icon: url(%1), url(%2) disabled; qproperty-iconSize: 16px; }"
-                   "#detachGroupButton { qproperty-icon: url(%3), url(%4) disabled; qproperty-iconSize: 16px; }"
+                   "#tabsMenuButton { color: %2; qproperty-icon: url(%5); qproperty-iconSize: 16px; }"
+                   "#dockAreaCloseButton, #tabCloseButton { color: %2; qproperty-icon: url(%3), url(%4) disabled; qproperty-iconSize: 16px; }"
+                   "#detachGroupButton { color: %2; qproperty-icon: url(%10), url(%11) disabled; qproperty-iconSize: 16px; }"
                    "QScrollArea#dockWidgetScrollArea { padding: 0; border: none; }")
-            .arg(closeIcon, closeDisabledIcon, detachIcon, detachDisabledIcon, tabsIcon);
+            .arg(theme.window.name(),
+                 theme.text.name(),
+                 closeIcon,
+                 closeDisabledIcon,
+                 tabsIcon,
+                 theme.border.name(),
+                 theme.border.name(),
+                 theme.button.name(),
+                 theme.highlight.name(),
+                 detachIcon,
+                 detachDisabledIcon);
     }
 
     bool isModifierKey(int key)
@@ -2145,7 +2142,8 @@ void MainWindow::createCentralArea()
     ads::CDockManager::setConfigFlag(ads::CDockManager::DisableStylesheet, true);
     d->dockManager = new ads::CDockManager(this);
     d->dockManager->setObjectName(QStringLiteral("mainDockManager"));
-    const bool darkTheme = sidebarTextColorFor(Settings::instance().backgroundColor()).lightness() > 128;
+    const auto dockTheme = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor());
+    const bool darkTheme = dockTheme.dark;
     d->dockManager->setColorSchemeMode(darkTheme
                                            ? ads::CDockManager::ColorSchemeMode::Dark
                                            : ads::CDockManager::ColorSchemeMode::Light);
@@ -2154,12 +2152,8 @@ void MainWindow::createCentralArea()
             this,
             [this](ads::CFloatingDockContainer *floatingWindow)
             {
-                const QColor background = Settings::instance().backgroundColor();
-                const QColor text = sidebarTextColorFor(background);
-                const bool dark = text.lightness() > 128;
-                const QColor caption = dark ? background.lighter(108) : background.darker(103);
-                const QColor border = dark ? caption.lighter(165) : caption.darker(145);
-                NativeWindowTheme::apply(floatingWindow, caption, text, border, true);
+                const auto theme = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor());
+                NativeWindowTheme::apply(floatingWindow, theme.window, theme.text, theme.border, true);
             });
 
     d->leftPanel = new LeftPanel(d->dockManager);
@@ -3199,7 +3193,6 @@ bool MainWindow::loadChartForAutomation(const QString &filePath, QString *errorM
     }
     return true;
 }
-
 void MainWindow::loadChartFile(const QString &filePath)
 {
     Logger::info(QString("Loading chart file: %1").arg(filePath));
@@ -3324,10 +3317,18 @@ void MainWindow::loadChartFile(const QString &filePath)
     updatePlaybackAvailability(false);
     if (!audioFile.isEmpty())
     {
-        QString audioPath = chartDir + "/" + audioFile;
+        // 优先使用 Chart 对象记录的音频源完整路径（已在加载时解析并重命名）
+        QString audioPath = d->chartController->chart()->audioSourceFullPath();
+        if (audioPath.isEmpty() || !QFile::exists(audioPath))
+        {
+            // 回退到基于原始谱面目录的路径
+            audioPath = QDir(chartDir).filePath(audioFile);
+        }
+
         if (QFile::exists(audioPath))
         {
             d->playbackController->audioPlayer()->load(audioPath);
+            Logger::info(QString("MainWindow::loadChartFile - Loaded audio from: %1").arg(audioPath));
         }
         else
         {
@@ -3357,7 +3358,6 @@ void MainWindow::loadChartFile(const QString &filePath)
     persistRecoveryState();
     statusBar()->showMessage(tr("Loaded: %1").arg(QFileInfo(actualChartPath).fileName()), 3000);
 }
-
 QString MainWindow::selectChartFromList(const QList<QPair<QString, QString>> &charts, const QString &title)
 {
     QDialog dialog(this);
@@ -4692,22 +4692,48 @@ void MainWindow::showInfoCenter(int initialTab)
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     layout->addWidget(buttons);
 
+    // Apply theme-aware styling to the Help Center dialog
+    {
+        const QColor bg = Settings::instance().backgroundColor();
+        const auto theme = NativeWindowTheme::themeColorsFor(bg);
+        const QColor selectedTabBg = theme.dark ? theme.button.lighter(120) : theme.button.darker(110);
+
+        QString helpDialogCss = QString(
+            "QDialog { background-color: %1; color: %2; }"
+            "QLabel, QCheckBox, QGroupBox { color: %2; }"
+            "QLineEdit, QAbstractSpinBox, QComboBox, QTextEdit, QPlainTextEdit, QTextBrowser {"
+            "  background-color: %3; color: %2; border: 1px solid %4; }"
+            "QPushButton { background-color: %5; color: %2; border: 1px solid %4; padding: 3px 8px; }"
+            "QPushButton:disabled { color: %6; }"
+            "QGroupBox { border: 1px solid %4; margin-top: 8px; padding-top: 10px; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: %2; }"
+            "QTabWidget::pane { border: 1px solid %4; }"
+            "QTabBar::tab { background-color: %3; color: %2; padding: 4px 12px; border: 1px solid %4; }"
+            "QTabBar::tab:selected { background-color: %7; color: %2; border: 1px solid %4; }"
+            "QTreeWidget { background-color: %3; color: %2; border: 1px solid %4; }"
+            "QTableWidget { background-color: %3; color: %2; border: 1px solid %4; }"
+            "QHeaderView::section { background-color: %5; color: %2; border: 1px solid %4; padding: 4px; }")
+            .arg(theme.window.name(), theme.text.name(), theme.base.name(), theme.border.name(),
+                 theme.button.name(), theme.disabledText.name(), selectedTabBg.name());
+        dialog.setStyleSheet(helpDialogCss);
+    }
+
     dialog.exec();
 }
 
 void MainWindow::applySidebarTheme()
 {
     const QColor bg = Settings::instance().backgroundColor();
+    const auto theme = NativeWindowTheme::themeColorsFor(bg);
     applyApplicationPaletteFor(bg);
-    const QColor fg = sidebarTextColorFor(bg);
-    const bool darkTheme = (fg.lightness() > 128);
-    const QColor panelBg = darkTheme ? bg.lighter(108) : bg.darker(103);
-    const QColor panelInputBg = darkTheme ? panelBg.lighter(120) : panelBg.darker(105);
-    const QColor panelButtonBg = darkTheme ? panelBg.lighter(132) : panelBg.darker(112);
-    const QColor panelButtonHoverBg = darkTheme ? panelButtonBg.lighter(120) : panelButtonBg.lighter(108);
-    const QColor panelButtonPressedBg = darkTheme ? panelButtonBg.darker(118) : panelButtonBg.darker(118);
-    const QColor panelBorder = darkTheme ? panelBg.lighter(165) : panelBg.darker(145);
-    const QColor panelDisabledText = darkTheme ? QColor("#9A9A9A") : QColor("#707070");
+    const bool darkTheme = theme.dark;
+    const QColor panelBg = theme.window;
+    const QColor panelInputBg = theme.base;
+    const QColor panelButtonBg = theme.button;
+    const QColor panelButtonHoverBg = theme.highlight;
+    const QColor panelButtonPressedBg = panelButtonBg.darker(118);
+    const QColor panelBorder = theme.border;
+    const QColor panelDisabledText = theme.disabledText;
 
     auto applyPanelStyle = [&](QWidget *panel, const QString &rootName, bool flatRoot = false)
     {
@@ -4736,7 +4762,7 @@ void MainWindow::applySidebarTheme()
                                 "QToolButton:checked { background-color: %7; }"
                                 "QToolButton:disabled { color: %6; }"
                                 "QScrollBar:vertical, QScrollBar:horizontal { background-color: %1; }")
-                                .arg(panelBg.name(), fg.name(), panelInputBg.name(), panelBorder.name(), panelButtonBg.name(),
+                                .arg(panelBg.name(), theme.text.name(), panelInputBg.name(), panelBorder.name(), panelButtonBg.name(),
                                      panelDisabledText.name(), panelButtonHoverBg.name(), panelButtonPressedBg.name(), rootName,
                                      rootBorder);
 
@@ -4780,30 +4806,30 @@ void MainWindow::applySidebarTheme()
     {
         QPalette palette = d->dockManager->palette();
         palette.setColor(QPalette::Window, panelBg);
-        palette.setColor(QPalette::WindowText, fg);
+        palette.setColor(QPalette::WindowText, theme.text);
         palette.setColor(QPalette::Base, panelInputBg);
         palette.setColor(QPalette::AlternateBase, panelBg);
-        palette.setColor(QPalette::Text, fg);
+        palette.setColor(QPalette::Text, theme.text);
         palette.setColor(QPalette::Button, panelButtonBg);
-        palette.setColor(QPalette::ButtonText, fg);
+        palette.setColor(QPalette::ButtonText, theme.text);
         palette.setColor(QPalette::Highlight, panelButtonHoverBg);
-        palette.setColor(QPalette::HighlightedText, fg);
+        palette.setColor(QPalette::HighlightedText, theme.text);
         d->dockManager->setPalette(palette);
         d->dockManager->setColorSchemeMode(darkTheme
                                                ? ads::CDockManager::ColorSchemeMode::Dark
                                                : ads::CDockManager::ColorSchemeMode::Light);
-        const QString dockStyle = lightweightDockStyle(darkTheme);
+        const QString dockStyle = lightweightDockStyle(theme);
         if (d->dockManager->styleSheet() != dockStyle)
             d->dockManager->setStyleSheet(dockStyle);
 
         if (d->floatingToolWindowsEnabled)
         {
             for (ads::CFloatingDockContainer *floatingWindow : d->dockManager->floatingWidgets())
-                NativeWindowTheme::apply(floatingWindow, panelBg, fg, panelBorder, true);
+                NativeWindowTheme::apply(floatingWindow, panelBg, theme.text, panelBorder, true);
         }
     }
 
-    NativeWindowTheme::apply(this, panelBg, fg, panelBorder);
+    NativeWindowTheme::apply(this, panelBg, theme.text, panelBorder);
 
     if (menuBar())
     {
@@ -4815,9 +4841,21 @@ void MainWindow::applySidebarTheme()
                                     "QMenu::item { color: %2; padding: 5px 24px 5px 10px; }"
                                     "QMenu::item:selected { background-color: %3; color: %2; }"
                                     "QMenu::item:disabled { color: %5; }")
-                                    .arg(bg.name(), fg.name(), panelButtonBg.name(), panelBorder.name(),
+                                    .arg(bg.name(), theme.text.name(), panelButtonBg.name(), panelBorder.name(),
                                          panelDisabledText.name());
         menuBar()->setStyleSheet(menuCss);
+        if (d->skinMenu)
+            d->skinMenu->setStyleSheet(menuCss);
+        if (d->noteSoundMenu)
+            d->noteSoundMenu->setStyleSheet(menuCss);
+        if (d->languageMenu)
+            d->languageMenu->setStyleSheet(menuCss);
+        if (d->pluginsMenu)
+            d->pluginsMenu->setStyleSheet(menuCss);
+        if (d->pluginToolsMenu)
+            d->pluginToolsMenu->setStyleSheet(menuCss);
+        if (d->pluginPanelsMenu)
+            d->pluginPanelsMenu->setStyleSheet(menuCss);
     }
 
     if (d->mainToolBar)
@@ -4827,7 +4865,7 @@ void MainWindow::applySidebarTheme()
                                        "QToolButton { background-color: %4; color: %2; border: 1px solid %3; border-radius: 6px; padding: 4px 8px; }"
                                        "QToolButton:hover { background-color: %5; }"
                                        "QToolButton:pressed { background-color: %6; }")
-                                       .arg(panelBg.name(), fg.name(), panelBorder.name(), panelButtonBg.name(),
+                                       .arg(panelBg.name(), theme.text.name(), panelBorder.name(), panelButtonBg.name(),
                                             panelButtonHoverBg.name(), panelButtonPressedBg.name());
         d->mainToolBar->setStyleSheet(toolbarCss);
         if (d->pluginToolBar)
@@ -4837,7 +4875,7 @@ void MainWindow::applySidebarTheme()
     if (statusBar())
     {
         statusBar()->setStyleSheet(QString("QStatusBar { background-color: %1; color: %2; border-top: 1px solid %3; }")
-                                       .arg(panelBg.name(), fg.name(), panelBorder.name()));
+                                       .arg(panelBg.name(), theme.text.name(), panelBorder.name()));
     }
 
     if (d->legacySplitter)

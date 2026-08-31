@@ -5,6 +5,7 @@
 #include <QEvent>
 #include <QObject>
 #include <QWidget>
+#include <cmath>
 
 #ifdef Q_OS_WIN
 #ifndef WIN32_LEAN_AND_MEAN
@@ -19,6 +20,32 @@
 
 namespace
 {
+constexpr auto kMinContrastForDarkText = 0.5;
+
+// Calculate relative luminance using proper sRGB linearization (WCAG formula)
+double linearizedChannel(int value)
+{
+    const double normalized = value / 255.0;
+    return normalized <= 0.03928
+               ? normalized / 12.92
+               : std::pow((normalized + 0.055) / 1.055, 2.4);
+}
+
+double relativeLuminance(const QColor &color)
+{
+    return 0.2126 * linearizedChannel(color.red()) +
+           0.7152 * linearizedChannel(color.green()) +
+           0.0722 * linearizedChannel(color.blue());
+}
+
+QColor chooseTextColorFor(const QColor &background)
+{
+    if (!background.isValid())
+        return Qt::white;
+
+    return relativeLuminance(background) >= kMinContrastForDarkText ? QColor(20, 20, 20) : QColor(245, 245, 245);
+}
+
 #ifdef Q_OS_WIN
 constexpr auto captionColorProperty = "_mcce_native_caption_color";
 constexpr auto textColorProperty = "_mcce_native_text_color";
@@ -105,6 +132,21 @@ NativeWindowThemeFilter *themeFilter()
 
 namespace NativeWindowTheme
 {
+ThemeColors themeColorsFor(const QColor &background)
+{
+    const QColor text = chooseTextColorFor(background);
+    // dark = true means light text (lightness > 128), which corresponds to a dark background
+    const bool dark = text.lightness() > 128;
+    const QColor window = dark ? background.lighter(108) : background.darker(103);
+    const QColor base = dark ? window.lighter(120) : window.darker(105);
+    const QColor button = dark ? window.lighter(132) : window.darker(112);
+    const QColor border = dark ? window.lighter(165) : window.darker(145);
+    const QColor highlight = dark ? button.lighter(120) : button.lighter(108);
+    const QColor disabledText = dark ? QColor("#9A9A9A") : QColor("#707070");
+
+    return ThemeColors{window, text, base, button, highlight, border, disabledText, dark};
+}
+
 void apply(QWidget *window,
            const QColor &captionColor,
            const QColor &textColor,

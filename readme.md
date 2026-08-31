@@ -5,11 +5,11 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 ## Version status / 版本状态
 
-- Current release / 当前版本：**Beta v1.11.0（2026-08-27）**
-- Git tag / 标签：`v1.11.0-beta`
+- Current release / 当前版本：**Beta v1.11.0-patch.1（2026-08-31）**
+- Git tag / 标签：`v1.11.0-patch.1`
 - Download / 下载：[GitHub Releases](https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor/releases/latest)
 
-`docs/history.md` 中已经发布的版本段落视为冻结记录。Beta v1.11.0 的变更记录位于文件顶部，不回填 Beta v1.10.5。
+`docs/history.md` 中已经发布的版本段落视为冻结记录。Beta v1.11.0-patch.1 的补丁记录位于文件顶部，不回填 Beta v1.11.0 或 v1.10.5。
 
 ## Documentation / 文档
 

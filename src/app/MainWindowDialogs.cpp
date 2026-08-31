@@ -17,6 +17,7 @@
 #include "utils/Settings.h"
 #include "utils/Logger.h"
 #include "utils/DiagnosticCollector.h"
+#include "utils/NativeWindowTheme.h"
 #include "model/Skin.h"
 #include "model/Note.h"
 #include <DockManager.h>
@@ -63,35 +64,49 @@
 
 namespace
 {
-    QColor dialogTextColorFor(const QColor &bg)
+    struct PreviewColors
     {
-        const double r = bg.redF();
-        const double g = bg.greenF();
-        const double b = bg.blueF();
-        const double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        return (luminance >= 0.5) ? QColor(20, 20, 20) : QColor(245, 245, 245);
+        QColor bg;
+        QColor border;
+        QColor lineColor;
+        QColor textColor;
+    };
+
+    // Unified theme colors getter - always uses NativeWindowTheme for consistency
+    PreviewColors previewColorsFor(const QColor &baseBg)
+    {
+        const auto theme = NativeWindowTheme::themeColorsFor(baseBg);
+        PreviewColors result;
+        result.bg = baseBg;
+        result.border = theme.border;
+        result.lineColor = theme.dark ? QColor(150, 150, 150) : QColor(100, 100, 100);
+        result.textColor = theme.dark ? QColor(200, 200, 200) : QColor(40, 40, 40);
+        return result;
     }
 
     QString themedDialogCss(const QColor &baseBg)
     {
-        const QColor fg = dialogTextColorFor(baseBg);
-        const bool darkTheme = (fg.lightness() > 128);
-        const QColor panelBg = darkTheme ? baseBg.lighter(108) : baseBg.darker(103);
-        const QColor inputBg = darkTheme ? panelBg.lighter(120) : panelBg.darker(105);
-        const QColor buttonBg = darkTheme ? panelBg.lighter(132) : panelBg.darker(112);
-        const QColor border = darkTheme ? panelBg.lighter(165) : panelBg.darker(145);
-        const QColor disabledText = darkTheme ? QColor("#9A9A9A") : QColor("#707070");
+        const auto theme = NativeWindowTheme::themeColorsFor(baseBg);
+        const QColor selectedTabBg = theme.dark ? theme.button.lighter(120) : theme.button.darker(110);
 
         return QString(
                    "QDialog { background-color: %1; color: %2; }"
                    "QLabel, QCheckBox, QGroupBox { color: %2; }"
-                   "QLineEdit, QAbstractSpinBox, QComboBox, QTextEdit, QPlainTextEdit {"
+                   "QLineEdit, QAbstractSpinBox, QComboBox, QTextEdit, QPlainTextEdit, QTextBrowser {"
                    "  background-color: %3; color: %2; border: 1px solid %4; }"
-                   "QPushButton { background-color: %5; color: %2; border: 1px solid %4; padding: 3px 8px; }"
-                   "QPushButton:disabled { color: %6; }"
+                   "QPushButton, QDialogButtonBox QPushButton, QMessageBox QPushButton { background-color: %5; color: %2; border: 1px solid %4; padding: 3px 8px; }"
+                   "QPushButton:disabled, QDialogButtonBox QPushButton:disabled, QMessageBox QPushButton:disabled { color: %6; }"
+                   "QPushButton:default, QDialogButtonBox QPushButton:default, QMessageBox QPushButton:default { background-color: %7; border-color: %4; }"
                    "QGroupBox { border: 1px solid %4; margin-top: 8px; padding-top: 10px; }"
-                   "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: %2; }")
-            .arg(panelBg.name(), fg.name(), inputBg.name(), border.name(), buttonBg.name(), disabledText.name());
+                   "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: %2; }"
+                   "QTabWidget::pane { border: 1px solid %4; }"
+                   "QTabBar::tab { background-color: %3; color: %2; padding: 4px 12px; border: 1px solid %4; }"
+                   "QTabBar::tab:selected { background-color: %7; color: %2; border: 1px solid %4; }"
+                   "QTreeWidget { background-color: %3; color: %2; border: 1px solid %4; }"
+                   "QTableWidget { background-color: %3; color: %2; border: 1px solid %4; }"
+                   "QHeaderView::section { background-color: %5; color: %2; border: 1px solid %4; padding: 4px; }")
+            .arg(theme.window.name(), theme.text.name(), theme.base.name(), theme.border.name(),
+                 theme.button.name(), theme.disabledText.name(), selectedTabBg.name());
     }
 
     QString humanizeActionId(const QString &actionId)
@@ -1113,8 +1128,9 @@ void MainWindow::openSessionSettings()
     previewLabel->setFixedHeight(60);
     previewLabel->setMinimumWidth(200);
     previewLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    previewLabel->setStyleSheet(QString("background-color: %1; border: 1px solid #555;")
-                                    .arg(Settings::instance().backgroundColor().name()));
+    const PreviewColors prevColorsGridBeat = previewColorsFor(Settings::instance().backgroundColor());
+    previewLabel->setStyleSheet(QString("background-color: %1; border: 1px solid %2;")
+                                    .arg(prevColorsGridBeat.bg.name(), prevColorsGridBeat.border.name()));
 
     QSpinBox *beatFontSizeSpin = new QSpinBox(viewGroup);
     beatFontSizeSpin->setRange(6, 24);
@@ -1129,11 +1145,12 @@ void MainWindow::openSessionSettings()
         if (w <= 0 || h <= 0)
             return;
         QPixmap pix(w, h);
-        pix.fill(Settings::instance().backgroundColor());
+        const PreviewColors prevColors = previewColorsFor(Settings::instance().backgroundColor());
+        pix.fill(prevColors.bg);
         QPainter p(&pix);
         const int midY = h / 2;
-        const QColor lineColor(180, 180, 180);
-        const QColor textColor(80, 80, 80);
+        const QColor lineColor = prevColors.lineColor;
+        const QColor textColor = prevColors.textColor;
 
         QFont font;
         font.setPointSize(beatFontSizeSpin->value());
@@ -1274,7 +1291,9 @@ void MainWindow::adjustNoteSize()
 
     QLabel *previewLabel = new QLabel;
     previewLabel->setFixedSize(128, 128);
-    previewLabel->setStyleSheet("border: 1px solid gray; background: white;");
+    const PreviewColors prevColorsNote = previewColorsFor(Settings::instance().backgroundColor());
+    previewLabel->setStyleSheet(QString("border: 1px solid %1; background: %2;")
+                                    .arg(prevColorsNote.border.name(), prevColorsNote.bg.name()));
     previewLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(previewLabel, 0, Qt::AlignCenter);
 
@@ -1282,7 +1301,8 @@ void MainWindow::adjustNoteSize()
     {
         int sz = sizeSpin->value();
         QPixmap pix(128, 128);
-        pix.fill(Qt::white);
+        const PreviewColors prevColors = previewColorsFor(Settings::instance().backgroundColor());
+        pix.fill(prevColors.bg);
         QPainter painter(&pix);
         if (d->skin && d->skin->isValid())
         {
@@ -1361,7 +1381,9 @@ void MainWindow::calibrateSkin()
 
         QLabel *previewLabel = new QLabel;
         previewLabel->setFixedSize(128, 128);
-        previewLabel->setStyleSheet("border: 1px solid gray; background: white;");
+        const PreviewColors prevColorsSkin = previewColorsFor(Settings::instance().backgroundColor());
+        previewLabel->setStyleSheet(QString("border: 1px solid %1; background: %2;")
+                                        .arg(prevColorsSkin.border.name(), prevColorsSkin.bg.name()));
         previewLabel->setAlignment(Qt::AlignCenter);
         pageLayout->addWidget(previewLabel, 0, Qt::AlignCenter);
 
@@ -1369,7 +1391,8 @@ void MainWindow::calibrateSkin()
         {
             double scale = scaleSpin->value();
             QPixmap pix(128, 128);
-            pix.fill(Qt::white);
+            const PreviewColors prevColors = previewColorsFor(Settings::instance().backgroundColor());
+            pix.fill(prevColors.bg);
             QPainter painter(&pix);
             const QPixmap *notePix = d->skin->getNotePixmap(i);
             if (notePix && !notePix->isNull())
@@ -1469,19 +1492,29 @@ void MainWindow::adjustNoteSoundVolume()
     slider->setRange(0, 200);
     slider->setValue(Settings::instance().noteSoundVolume());
     slider->setFixedSize(420, 26);
-    slider->setStyleSheet(
-        "QSlider::groove:horizontal {"
-        "height: 10px;"
-        "border: 1px solid #666;"
-        "background: #d8d8d8;"
-        "border-radius: 2px;"
-        "}"
-        "QSlider::handle:horizontal {"
-        "background: #444;"
-        "width: 18px;"
-        "margin: -5px 0;"
-        "border-radius: 2px;"
-        "}");
+
+    // Apply theme-aware slider styling
+    {
+        const PreviewColors sliderColors = previewColorsFor(Settings::instance().backgroundColor());
+        const bool darkTheme = (sliderColors.textColor.lightness() > 128);
+        const QColor grooveBg = darkTheme ? sliderColors.bg.lighter(120) : sliderColors.bg.darker(110);
+        const QColor handleBg = darkTheme ? sliderColors.bg.lighter(140) : sliderColors.bg.darker(130);
+
+        slider->setStyleSheet(QString(
+            "QSlider::groove:horizontal {"
+            "height: 10px;"
+            "border: 1px solid %1;"
+            "background: %2;"
+            "border-radius: 2px;"
+            "}"
+            "QSlider::handle:horizontal {"
+            "background: %3;"
+            "width: 18px;"
+            "margin: -5px 0;"
+            "border-radius: 2px;"
+            "}")
+            .arg(sliderColors.border.name(), grooveBg.name(), handleBg.name()));
+    }
 
     auto refreshLabel = [valueLabel, slider]()
     { valueLabel->setText(QObject::tr("Volume: %1%").arg(slider->value())); };

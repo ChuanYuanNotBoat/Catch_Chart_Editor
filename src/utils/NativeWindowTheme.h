@@ -1,10 +1,25 @@
 #pragma once
 
+#include <QColor>
+
 class QWidget;
-class QColor;
 
 namespace NativeWindowTheme
 {
+struct ThemeColors
+{
+    QColor window;
+    QColor text;
+    QColor base;
+    QColor button;
+    QColor highlight;
+    QColor border;
+    QColor disabledText;
+    bool dark = false;
+};
+
+ThemeColors themeColorsFor(const QColor &background);
+
 // Applies the editor theme to the operating-system title bar. Floating dock
 // windows can also opt out of native transitions so redocking is immediate.
 // The native handle is never created eagerly: attributes are applied when Qt
