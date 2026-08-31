@@ -21,6 +21,16 @@ add_subdirectory(third_party/QtAdvancedDockingSystem EXCLUDE_FROM_ALL)
 unset(BUILD_STATIC)
 unset(BUILD_EXAMPLES)
 
+# Workaround for MSVC Release optimizer crash on specific files.
+# Disable optimization for ChartCanvas.cpp and ChartCanvasPlayback.cpp.
+if(MSVC)
+    set_source_files_properties(
+        src/ui/CustomWidgets/ChartCanvas/ChartCanvas.cpp
+        src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp
+        PROPERTIES COMPILE_OPTIONS "/Od"
+    )
+endif()
+
 add_subdirectory(src)
 
 install(TARGETS CatchChartEditor DESTINATION bin)
