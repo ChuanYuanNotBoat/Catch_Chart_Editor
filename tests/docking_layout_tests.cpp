@@ -12,6 +12,7 @@
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <cmath>
 #include <cstdio>
 
 #include "ui/PlaybackSpeedPanel.h"
@@ -41,6 +42,31 @@ namespace
             std::fprintf(stderr, "FAILED: %s\n", message);
         return condition;
     }
+
+    double relativeLuminance(const QColor &color)
+    {
+        const auto channel = [](int value)
+        {
+            const double normalized = value / 255.0;
+            const double linear = normalized <= 0.03928
+                                     ? normalized / 12.92
+                                     : std::pow((normalized + 0.055) / 1.055, 2.4);
+            return linear;
+        };
+
+        return 0.2126 * channel(color.red()) +
+               0.7152 * channel(color.green()) +
+               0.0722 * channel(color.blue());
+    }
+
+    double contrastRatio(const QColor &a, const QColor &b)
+    {
+        const double lumA = relativeLuminance(a);
+        const double lumB = relativeLuminance(b);
+        const double lighter = std::max(lumA, lumB);
+        const double darker = std::min(lumA, lumB);
+        return (lighter + 0.05) / (darker + 0.05);
+    }
 }
 
 int main(int argc, char **argv)
@@ -51,11 +77,29 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
 
     bool ok = true;
+
+    const auto darkTheme = NativeWindowTheme::themeColorsFor(QColor(24, 26, 30));
+    ok &= require(contrastRatio(darkTheme.text, darkTheme.window) >= 4.5,
+                  "dark theme text must maintain at least WCAG AA contrast against its background");
+    ok &= require(contrastRatio(darkTheme.text, darkTheme.button) >= 3.0,
+                  "dark theme button text must remain readable against the button face");
+    ok &= require(darkTheme.dark == true,
+                  "dark background must produce a dark theme flag");
+
+    // Test light theme to ensure it's properly inverted
+    const auto lightTheme = NativeWindowTheme::themeColorsFor(QColor(240, 240, 240));
+    ok &= require(contrastRatio(lightTheme.text, lightTheme.window) >= 4.5,
+                  "light theme text must maintain at least WCAG AA contrast against its background");
+    ok &= require(contrastRatio(lightTheme.text, lightTheme.button) >= 3.0,
+                  "light theme button text must remain readable against the button face");
+    ok &= require(lightTheme.dark == false,
+                  "light background must produce a light theme flag");
+
     QWidget nativeThemeProbe;
     NativeWindowTheme::apply(&nativeThemeProbe,
-                             QColor(28, 30, 34),
-                             QColor(245, 245, 245),
-                             QColor(58, 61, 68));
+                             darkTheme.window,
+                             darkTheme.text,
+                             darkTheme.border);
     ok &= require(nativeThemeProbe.internalWinId() == 0,
                   "native title theming must not create a window handle eagerly");
 #ifdef Q_OS_WIN
