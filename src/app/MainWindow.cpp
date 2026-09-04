@@ -1,4 +1,4 @@
-﻿// MainWindow.cpp - Main window implementation.
+// MainWindow.cpp - Main window implementation.
 #include "MainWindow.h"
 #include "MainWindowPrivate.h"
 #include "app/Application.h"
@@ -2610,7 +2610,13 @@ void MainWindow::createCentralArea()
             });
 
     d->defaultDockLayoutState = d->dockManager->saveState(kDockLayoutVersion);
-    restoreDockLayout();
+    // Only restore the persisted ADS layout when the startup mode is actually
+    // the floating (multi-window) one. Restoring in legacy mode materializes
+    // the saved floating windows for a moment before
+    // setFloatingToolWindowsEnabled(false) tears them down again, which shows
+    // up as a startup flicker of floating windows.
+    if (Settings::instance().floatingToolWindowsEnabled())
+        restoreDockLayout();
     ensurePlaybackSpeedDockAssigned();
 
     d->mainToolBar = addToolBar(tr("Tools"));
@@ -4283,6 +4289,12 @@ void MainWindow::saveDockLayout()
 void MainWindow::restoreDockLayout()
 {
     if (!d->dockManager)
+        return;
+
+    // Defensive guard: the legacy (non-floating) layout does not use the ADS
+    // state at all, so restoring it here would only create transient floating
+    // containers that get torn down again right away.
+    if (d->floatingToolWindowsInitialized && !d->floatingToolWindowsEnabled)
         return;
 
     const QByteArray state = Settings::instance().dockLayoutState();

@@ -65,9 +65,22 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         // Preserve the user's real ADS layout before temporarily emptying the
         // tool docks. Layout saves are paused in legacy mode so this snapshot
         // remains available after a restart.
-        if (d->dockManager)
+        // wasInitialized == false means this is the startup conversion where the
+        // dock manager still holds the default layout; saving here would clobber
+        // the user's persisted floating layout snapshot with the default one.
+        if (d->dockManager && wasInitialized)
             Settings::instance().setDockLayoutState(
                 d->dockManager->saveState(kDockLayoutVersion));
+        // Hide every floating container in one step first. Without this they
+        // would close one by one (each with a visible flash) as their docks
+        // are emptied below. showDockWidget() shows them again when floating
+        // mode is re-enabled.
+        for (ads::CFloatingDockContainer *floatingWindow :
+             d->dockManager->floatingWidgets())
+        {
+            if (floatingWindow)
+                floatingWindow->hide();
+        }
         closePluginPanels();
 
         const auto isOpen = [](ads::CDockWidget *dock, bool fallback)
@@ -213,8 +226,11 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         {
             if (!dock || !content)
                 return;
-            content->show();
+            // Reparent the content into the dock widget before showing it.
+            // The content is parentless here, so showing it first would
+            // briefly flash a transient top-level native window per panel.
             dock->setWidget(content, insertMode);
+            content->show();
             dock->toggleView(visible);
         };
         restoreDockContent(d->workspaceDock, d->workspaceContainer, true,
