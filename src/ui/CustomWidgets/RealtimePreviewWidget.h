@@ -24,6 +24,7 @@ public:
     void setSkin(Skin *skin);
     void setColorMode(bool enabled);
     void setHyperfruitEnabled(bool enabled);
+    void setRainRewardPreviewEnabled(bool enabled);
     void setNoteSize(int size);
     void refreshRenderSettings();
 
@@ -72,6 +73,7 @@ private:
     HyperfruitDetector *m_hyperfruitDetector = nullptr;
     bool m_colorMode = true;
     bool m_hyperfruitEnabled = true;
+    bool m_rainRewardPreviewEnabled = false;
     double m_currentTimeMs = 0.0;
     QVector<BpmSegment> m_bpmSegments;
     QVector<double> m_noteStartTimesMs;

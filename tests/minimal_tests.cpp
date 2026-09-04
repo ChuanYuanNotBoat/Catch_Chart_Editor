@@ -23,6 +23,7 @@
 #include "editor/NoteChain/NoteChainEditor.h"
 #include "editor/NoteChain/NoteChainPersistence.h"
 #include "model/Chart.h"
+#include "render/RainRewardGenerator.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackSpeed.h"
 
@@ -2523,6 +2524,149 @@ namespace
             && controller.nextUndoActionText() == QStringLiteral("Plugin Curve Edit: Move Anchor");
     }
 
+    Note makeRainNote(int startBeatNum, int startNum, int startDen,
+                      int endBeatNum, int endNum, int endDen)
+    {
+        Note rain;
+        rain.type = NoteType::RAIN;
+        rain.beatNum = startBeatNum;
+        rain.numerator = startNum;
+        rain.denominator = startDen;
+        rain.endBeatNum = endBeatNum;
+        rain.endNumerator = endNum;
+        rain.endDenominator = endDen;
+        rain.x = 256;
+        return rain;
+    }
+
+    bool testRainRewardStateCore()
+    {
+        if (RainRewardGenerator::seedForNoteCount(3) != 0xCA7FBEA4u)
+            return false;
+
+        std::uint32_t state[4] = {};
+        RainRewardGenerator::initializeState(
+            RainRewardGenerator::seedForNoteCount(3), state);
+        const std::uint32_t expectedInitial[] = {
+            0x89A034D8u, 0xA89A8FC1u, 0xD1292EA6u, 0x10F97618u};
+        for (int i = 0; i < 4; ++i)
+        {
+            if (state[i] != expectedInitial[i])
+                return false;
+        }
+
+        const std::uint32_t expectedRawX[] = {228u, 155u, 3u, 372u, 148u};
+        for (std::uint32_t expected : expectedRawX)
+        {
+            RainRewardGenerator::advanceState(state);
+            if (RainRewardGenerator::rawXFromState(state) != expected)
+                return false;
+        }
+        return true;
+    }
+
+    bool testRainRewardDropsUseOfficialTimingAndX()
+    {
+        QVector<Note> notes;
+        notes.append(makeRainNote(0, 0, 1, 4, 0, 1));
+        notes.append(makeNormalNote(2, 0, 1, 128, QStringLiteral("n1")));
+        notes.append(makeRainNote(8, 1, 2, 9, 1, 4));
+        const QVector<BpmEntry> bpmList = {BpmEntry(0, 0, 1, 120.0)};
+
+        auto &gen = RainRewardGenerator::instance();
+        gen.invalidate();
+        gen.ensureChart(notes, bpmList, 0);
+
+        const QVector<RainDrop> first = gen.dropsFor(notes[0]);
+        if (first.size() != 21) // round(2000 / 100) + 1
+            return false;
+
+        const std::uint32_t expectedRawX[] = {228u, 155u, 3u, 372u, 148u};
+        for (int i = 0; i < first.size(); ++i)
+        {
+            if (!nearlyEqual(first[i].beatOffset * 500.0, i * 100.0)
+                || first[i].rawX > 512u
+                || !nearlyEqual(first[i].xRatio,
+                                static_cast<double>(first[i].rawX) / 512.0))
+                return false;
+            if (i < 5 && first[i].rawX != expectedRawX[i])
+                return false;
+        }
+        if (!nearlyEqual(first.last().beatOffset, 4.0))
+            return false;
+
+        const QVector<RainDrop> second = gen.dropsFor(notes[2]);
+        if (second.size() != 5) // round(375 / 100) + 1
+            return false;
+        const double expectedOffsetsMs[] = {0.0, 93.0, 187.0, 281.0, 375.0};
+        const std::uint32_t expectedSecondRawX[] = {246u, 33u, 349u, 155u, 107u};
+        for (int i = 0; i < second.size(); ++i)
+        {
+            if (!nearlyEqual(second[i].beatOffset * 500.0, expectedOffsetsMs[i])
+                || second[i].rawX != expectedSecondRawX[i])
+                return false;
+        }
+
+        // The stream is rebuilt deterministically from the chart's gameplay
+        // notes.
+        gen.invalidate();
+        gen.ensureChart(notes, bpmList, 0);
+        const QVector<RainDrop> replay = gen.dropsFor(notes[0]);
+        if (replay.size() != first.size())
+            return false;
+        for (int i = 0; i < first.size(); ++i)
+        {
+            if (replay[i].rawX != first[i].rawX
+                || !nearlyEqual(replay[i].beatOffset, first[i].beatOffset))
+                return false;
+        }
+        return true;
+    }
+
+    bool testRainRewardUsesWholeNoteCountAndCatchRainOnly()
+    {
+        const QVector<BpmEntry> bpmList = {BpmEntry(0, 0, 1, 120.0)};
+        const Note rain = makeRainNote(0, 0, 1, 2, 0, 1);
+
+        QVector<Note> onlyRain;
+        onlyRain.append(rain);
+        QVector<Note> rainAndNormal;
+        rainAndNormal.append(rain);
+        rainAndNormal.append(makeNormalNote(1, 0, 1, 64, QStringLiteral("plain")));
+
+        auto &gen = RainRewardGenerator::instance();
+        gen.invalidate();
+        gen.ensureChart(onlyRain, bpmList, 0);
+        const QVector<RainDrop> oneNote = gen.dropsFor(rain);
+        if (oneNote.size() != 11)
+            return false; // round(1000 / 100) + 1
+
+        gen.invalidate();
+        gen.ensureChart(rainAndNormal, bpmList, 0);
+        const QVector<RainDrop> twoNotes = gen.dropsFor(rainAndNormal[0]);
+        if (twoNotes.size() != oneNote.size()
+            || twoNotes.first().rawX == oneNote.first().rawX)
+            return false;
+        if (gen.dropsFor(rainAndNormal[1]).size() != 0)
+            return false;
+
+        // 437's input vector omits SOUND notes. Adding one must not perturb
+        // the reward stream even though it remains in the editor chart.
+        QVector<Note> rainAndSound;
+        rainAndSound.append(rain);
+        rainAndSound.append(Note(1, 0, 1, QStringLiteral("sound.ogg"), 100, 0));
+        gen.invalidate();
+        gen.ensureChart(rainAndSound, bpmList, 0);
+        if (gen.dropsFor(rainAndSound[0]).first().rawX != oneNote.first().rawX)
+            return false;
+
+        // Rain coordinates do not use the source x field; mirror lookup is
+        // intentionally able to reuse the same generated sequence.
+        Note mirrored = rain;
+        mirrored.x = 512 - rain.x;
+        return gen.dropsFor(mirrored).size() == twoNotes.size();
+    }
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -2644,6 +2788,9 @@ int main(int argc, char **argv)
         {"NoteChain failed project switch is transactional", &testNoteChainEditorFailedProjectSwitchIsTransactional},
         {"NoteChain host note selection sync", &testNoteChainHostNoteSelectionSynchronizesNearestAnchors},
         {"ChartController undo marker text lifecycle", &testChartControllerUndoMarkerTextLifecycle},
+        {"RainReward Catch state core", &testRainRewardStateCore},
+        {"RainReward official timing and x", &testRainRewardDropsUseOfficialTimingAndX},
+        {"RainReward whole note count and Catch-only", &testRainRewardUsesWholeNoteCountAndCatchRainOnly},
     };
 
     int failed = 0;

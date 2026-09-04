@@ -50,9 +50,11 @@ public:
     void setChartController(ChartController *controller);
     void setSelectionController(SelectionController *controller);
     void setSkin(Skin *skin);
+    void invalidateSkinCache();
     void setPlaybackController(PlaybackController *controller);
     void setColorMode(bool enabled);
     void setHyperfruitEnabled(bool enabled);
+    void setRainRewardPreviewEnabled(bool enabled);
     void setTimeDivision(int division);
     void setGridDivision(int division);
     void setGridSnap(bool snap);

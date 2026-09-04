@@ -64,6 +64,7 @@ private slots:
     void toggleTimelineDivisionColorMode(bool on);
     void openTimelineDivisionColorSettings();
     void toggleHyperfruitMode(bool on);
+    void toggleRainRewardPreview(bool on);
     void toggleVerticalFlip(bool flipped);
     void togglePlayback();
     void changeSkin(const QString &skinName);

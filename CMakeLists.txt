@@ -59,6 +59,7 @@ if(BUILD_TESTING)
         src/utils/CalcHash.cpp
         src/controller/ChartController.cpp
         src/controller/SelectionController.cpp
+        src/render/RainRewardGenerator.cpp
         src/file/ChartIO.cpp
         src/file/ProjectIO.cpp
         src/file/ChartFileSystem.cpp

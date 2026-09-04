@@ -27,6 +27,7 @@
 #include "file/ChartIO.h"
 #include "file/ChartFileSystem.h"
 #include "model/Skin.h"
+#include "render/RainRewardGenerator.h"
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
 #include "utils/NativeWindowTheme.h"
@@ -1412,6 +1413,8 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
     connect(d->chartController, &ChartController::chartChanged, this, [this]()
             {
+        // 谱面数据变化：使奖励 drop 缓存失效（下次渲染时按新谱面重建）。
+        RainRewardGenerator::instance().invalidate();
         const bool userEdit = !d->isLoadingChart;
         if (userEdit)
             d->isModified = true;
@@ -1736,6 +1739,10 @@ void MainWindow::createViewMenu()
     d->hyperfruitAction->setCheckable(true);
     d->hyperfruitAction->setChecked(Settings::instance().hyperfruitOutlineEnabled());
     connect(d->hyperfruitAction, &QAction::toggled, this, &MainWindow::toggleHyperfruitMode);
+    d->rainRewardPreviewAction = viewMenu->addAction(tr("Rain Reward Preview"));
+    d->rainRewardPreviewAction->setCheckable(true);
+    d->rainRewardPreviewAction->setChecked(Settings::instance().rainRewardPreviewEnabled());
+    connect(d->rainRewardPreviewAction, &QAction::toggled, this, &MainWindow::toggleRainRewardPreview);
     d->verticalFlipAction = viewMenu->addAction(tr("&Vertical Flip"));
     d->verticalFlipAction->setCheckable(true);
     d->verticalFlipAction->setChecked(Settings::instance().verticalFlip());
@@ -2168,6 +2175,7 @@ void MainWindow::createCentralArea()
     d->canvas->setPlaybackController(d->playbackController);
     d->canvas->setColorMode(Settings::instance().colorNoteEnabled());
     d->canvas->setHyperfruitEnabled(Settings::instance().hyperfruitOutlineEnabled());
+    d->canvas->setRainRewardPreviewEnabled(Settings::instance().rainRewardPreviewEnabled());
     if (d->skin)
         d->canvas->setSkin(d->skin);
     d->canvas->setNoteSize(Settings::instance().noteSize());
@@ -2186,6 +2194,7 @@ void MainWindow::createCentralArea()
     d->previewWidget->setPlaybackController(d->playbackController);
     d->previewWidget->setColorMode(Settings::instance().colorNoteEnabled());
     d->previewWidget->setHyperfruitEnabled(Settings::instance().hyperfruitOutlineEnabled());
+    d->previewWidget->setRainRewardPreviewEnabled(Settings::instance().rainRewardPreviewEnabled());
     d->previewWidget->setNoteSize(Settings::instance().noteSize());
     d->previewWidget->setCurrentTimeMs(d->canvas->currentPlayTime());
 
@@ -4004,6 +4013,16 @@ void MainWindow::toggleHyperfruitMode(bool on)
     d->canvas->setHyperfruitEnabled(on);
     if (d->previewWidget)
         d->previewWidget->setHyperfruitEnabled(on);
+}
+
+void MainWindow::toggleRainRewardPreview(bool on)
+{
+    Logger::info(QString("Rain reward preview toggled to %1").arg(on));
+    Settings::instance().setRainRewardPreviewEnabled(on);
+    if (d->canvas)
+        d->canvas->setRainRewardPreviewEnabled(on);
+    if (d->previewWidget)
+        d->previewWidget->setRainRewardPreviewEnabled(on);
 }
 
 void MainWindow::toggleVerticalFlip(bool flipped)

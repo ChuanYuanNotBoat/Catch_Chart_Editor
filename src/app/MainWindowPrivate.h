@@ -83,6 +83,7 @@ public:
     QAction *timelineDivisionColorAction = nullptr;
     QAction *timelineDivisionColorSettingsAction = nullptr;
     QAction *hyperfruitAction = nullptr;
+    QAction *rainRewardPreviewAction = nullptr;
     QAction *verticalFlipAction = nullptr;
     QAction *playAction = nullptr;
     QActionGroup *speedActionGroup = nullptr;

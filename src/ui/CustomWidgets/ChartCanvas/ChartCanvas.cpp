@@ -568,6 +568,12 @@ void ChartCanvas::setSkin(Skin *skin)
     update();
 }
 
+void ChartCanvas::invalidateSkinCache()
+{
+    m_noteRenderer->invalidateSkinPixmapCache();
+    update();
+}
+
 void ChartCanvas::setColorMode(bool enabled)
 {
     if (m_colorMode == enabled)
@@ -584,6 +590,12 @@ void ChartCanvas::setHyperfruitEnabled(bool enabled)
     m_hyperfruitEnabled = enabled;
     m_noteRenderer->setHyperfruitEnabled(enabled);
     m_hyperCacheValid = false;
+    update();
+}
+
+void ChartCanvas::setRainRewardPreviewEnabled(bool enabled)
+{
+    m_noteRenderer->setRainRewardPreviewEnabled(enabled);
     update();
 }
 

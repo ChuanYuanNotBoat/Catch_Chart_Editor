@@ -38,6 +38,7 @@
     controller/DisplayFrameScheduler.cpp
     controller/PlaybackController.cpp
     render/NoteRenderer.cpp
+    render/RainRewardGenerator.cpp
     render/BeatDivisionColor.cpp
     render/GridRenderer.cpp
     render/BackgroundRenderer.cpp

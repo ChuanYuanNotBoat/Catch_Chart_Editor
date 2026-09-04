@@ -30,6 +30,9 @@ public:
     bool hyperfruitOutlineEnabled() const;
     void setHyperfruitOutlineEnabled(bool enabled);
 
+    bool rainRewardPreviewEnabled() const;
+    void setRainRewardPreviewEnabled(bool enabled);
+
     double playbackSpeed() const;
     void setPlaybackSpeed(double speed);
 

@@ -3,6 +3,7 @@
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "render/NoteRenderer.h"
+#include "render/RainRewardGenerator.h"
 #include "render/GridRenderer.h"
 #include "render/BackgroundRenderer.h"
 #include "render/HyperfruitDetector.h"
@@ -266,7 +267,29 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
                 return;
             QRectF rainRect(lmargin, rectTop, availableWidth, rectHeight);
             bool selected = selectedSet.contains(i);
-            m_noteRenderer->drawRain(painter, notes[i], rainRect, selected);
+            // rain 奖励 note 预览点（同一 paint pass 内绘制，无额外图层；关闭时零开销）。
+            QVector<QPointF> rewardPoints;
+            if (m_noteRenderer->rainRewardPreviewEnabled())
+            {
+                auto &generator = RainRewardGenerator::instance();
+                generator.ensureChart(notes, bpmList, chart()->meta().offset);
+                const QVector<RainDrop> drops = generator.dropsFor(notes[i]);
+                if (!drops.isEmpty())
+                {
+                    rewardPoints.reserve(drops.size());
+                    for (const RainDrop &drop : drops)
+                    {
+                        const double dropBeat = beat + drop.beatOffset;
+                        if (dropBeat < startBeat || dropBeat > endBeat)
+                            continue;
+                        const double dropY = baseY + sign * ((dropBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+                        const double dropX = lmargin + drop.xRatio * availableWidth;
+                        rewardPoints.append(QPointF(dropX, dropY));
+                    }
+                }
+            }
+            m_noteRenderer->drawRain(painter, notes[i], rainRect, selected,
+                                     rewardPoints.isEmpty() ? nullptr : &rewardPoints);
         }
         else
         {
@@ -565,7 +588,29 @@ void ChartCanvas::drawMirrorPreview(QPainter &painter,
             if (rectHeight <= 0.0)
                 continue;
             QRectF rainRect(lmargin, rectTop, availableWidth, rectHeight);
-            m_noteRenderer->drawRain(painter, mirrored, rainRect, false);
+            // 镜像预览：预览点横向沿镜像轴翻转（复用同一份缓存序列）。
+            QVector<QPointF> rewardPoints;
+            if (m_noteRenderer->rainRewardPreviewEnabled())
+            {
+                auto &generator = RainRewardGenerator::instance();
+                generator.ensureChart(notes, chart()->bpmList(), chart()->meta().offset);
+                const QVector<RainDrop> drops = generator.dropsFor(mirrored);
+                if (!drops.isEmpty())
+                {
+                    rewardPoints.reserve(drops.size());
+                    for (const RainDrop &drop : drops)
+                    {
+                        const double dropBeat =
+                            MathUtils::beatToFloat(mirrored.beatNum, mirrored.numerator, mirrored.denominator)
+                            + drop.beatOffset;
+                        const double dropY = baseY + sign * ((dropBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+                        const double dropX = lmargin + (1.0 - drop.xRatio) * availableWidth;
+                        rewardPoints.append(QPointF(dropX, dropY));
+                    }
+                }
+            }
+            m_noteRenderer->drawRain(painter, mirrored, rainRect, false,
+                                     rewardPoints.isEmpty() ? nullptr : &rewardPoints);
         }
         else
         {

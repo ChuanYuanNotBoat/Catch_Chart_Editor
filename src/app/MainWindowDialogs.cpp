@@ -1431,7 +1431,9 @@ void MainWindow::calibrateSkin()
             }
         }
         d->skin->saveConfig();
-        d->canvas->update();
+        // 皮肤校准是原地修改同一 Skin 实例，必须失效渲染器缩放缓存，
+        // 否则音符与 rain 奖励预览小点不会跟随新的皮肤大小设置。
+        d->canvas->invalidateSkinCache();
         Logger::info("Skin calibration saved");
         dialog.accept(); });
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

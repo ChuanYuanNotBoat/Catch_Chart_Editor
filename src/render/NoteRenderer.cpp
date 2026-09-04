@@ -51,10 +51,18 @@ void NoteRenderer::setNoteSize(int size)
     invalidateSkinPixmapCache();
 }
 
+void NoteRenderer::setRainRewardPreviewEnabled(bool enabled)
+{
+    if (m_rainRewardPreviewEnabled == enabled)
+        return;
+    m_rainRewardPreviewEnabled = enabled;
+}
+
 void NoteRenderer::refreshSettings()
 {
     m_outlineWidth = Settings::instance().outlineWidth();
     m_outlineColor = Settings::instance().outlineColor();
+    m_rainRewardPreviewEnabled = Settings::instance().rainRewardPreviewEnabled();
 }
 
 int NoteRenderer::getNoteSize() const
@@ -131,7 +139,8 @@ void NoteRenderer::drawNote(QPainter &painter, const Note &note, const QPointF &
     }
 }
 
-void NoteRenderer::drawRain(QPainter &painter, const Note &note, const QRectF &rect, bool selected) const
+void NoteRenderer::drawRain(QPainter &painter, const Note &note, const QRectF &rect, bool selected,
+                            const QVector<QPointF> *rewardPoints) const
 {
     if (!validateRect(rect))
     {
@@ -143,9 +152,40 @@ void NoteRenderer::drawRain(QPainter &painter, const Note &note, const QRectF &r
         return;
     }
 
-    painter.setBrush(QColor(0, 0, 255, 100));
+    // 开启预览时降低 rain 填充透明度，为叠加的奖励 note 预览留出对比度。
+    painter.setBrush(QColor(0, 0, 255, m_rainRewardPreviewEnabled ? 40 : 100));
     painter.setPen(Qt::NoPen);
     painter.drawRect(rect);
+
+    // 同一绘制调用内叠加奖励 note 预览点（无额外图层/绘制 pass）。
+    // 尺寸与 drawNote 的 /288 音符完全一致：有皮肤用贴图尺寸（已含 getNoteScale(5) 校准缩放），
+    // 无皮肤用 m_noteSize，从而自动跟随「音符大小」设置与「皮肤校准」缩放。
+    if (m_rainRewardPreviewEnabled && rewardPoints && !rewardPoints->isEmpty())
+    {
+        const QPixmap *dropPix = (m_skin && m_skin->isValid()) ? cachedSkinPixmapForType(5) : nullptr;
+        if (dropPix && dropPix->isNull())
+            dropPix = nullptr;
+        painter.setPen(Qt::NoPen);
+        if (dropPix)
+        {
+            const qreal dropW = static_cast<qreal>(dropPix->width());
+            const qreal dropH = static_cast<qreal>(dropPix->height());
+            for (const QPointF &p : *rewardPoints)
+                painter.drawPixmap(QRectF(p.x() - dropW / 2.0, p.y() - dropH / 2.0, dropW, dropH),
+                                   *dropPix,
+                                   QRectF(dropPix->rect()));
+        }
+        else
+        {
+            const qreal dropSize = qMax<qreal>(2.0, m_noteSize);
+            painter.setBrush(BeatDivisionColor::noteColorForDivision(288));
+            for (const QPointF &p : *rewardPoints)
+            {
+                QRectF dropRect(p.x() - dropSize / 2.0, p.y() - dropSize / 2.0, dropSize, dropSize);
+                painter.drawEllipse(dropRect);
+            }
+        }
+    }
 
     int outlineWidth;
     QColor outlineColor;
