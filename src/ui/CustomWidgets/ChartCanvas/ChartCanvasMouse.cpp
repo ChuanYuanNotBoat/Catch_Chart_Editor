@@ -1075,6 +1075,12 @@ bool ChartCanvas::handleRainPlacementLeftClick(const QPointF &pos)
     if (m_currentMode != PlaceRain)
         return false;
 
+    // Clicks outside the chart lane (left/right margins) fall through to the
+    // common handling below so they clear the selection exactly like in
+    // PlaceNote mode instead of being consumed as rain placement steps.
+    if (pos.x() < leftMargin() || pos.x() > width() - rightMargin())
+        return false;
+
     // Clicks on existing notes fall through to the normal selection/drag
     // handling (same as PlaceNote mode) instead of being consumed by the
     // two-step rain placement.
