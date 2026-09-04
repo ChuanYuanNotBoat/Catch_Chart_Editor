@@ -147,6 +147,55 @@ ThemeColors themeColorsFor(const QColor &background)
     return ThemeColors{window, text, base, button, highlight, border, disabledText, dark};
 }
 
+QString dialogStyleSheet(const QColor &background)
+{
+    const auto theme = themeColorsFor(background);
+    const QColor selectedTabBg = theme.dark ? theme.button.lighter(120) : theme.button.darker(110);
+
+    return QString(
+               "QDialog { background-color: %1; color: %2; }"
+               "QLabel, QCheckBox, QRadioButton, QGroupBox { color: %2; }"
+               "QLineEdit, QAbstractSpinBox, QComboBox, QTextEdit, QPlainTextEdit, QTextBrowser {"
+               "  background-color: %3; color: %2; border: 1px solid %4; }"
+               "QPushButton, QDialogButtonBox QPushButton, QMessageBox QPushButton { background-color: %5; color: %2; border: 1px solid %4; padding: 3px 8px; }"
+               "QPushButton:disabled, QDialogButtonBox QPushButton:disabled, QMessageBox QPushButton:disabled { color: %6; }"
+               "QPushButton:default, QDialogButtonBox QPushButton:default, QMessageBox QPushButton:default { background-color: %7; border-color: %4; }"
+               "QGroupBox { border: 1px solid %4; margin-top: 8px; padding-top: 10px; }"
+               "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: %2; }"
+               "QTabWidget::pane { border: 1px solid %4; }"
+               "QTabBar::tab { background-color: %3; color: %2; padding: 4px 12px; border: 1px solid %4; }"
+               "QTabBar::tab:selected { background-color: %7; color: %2; border: 1px solid %4; }"
+               "QTreeWidget { background-color: %3; color: %2; border: 1px solid %4; }"
+               "QTableWidget { background-color: %3; color: %2; border: 1px solid %4; }"
+               "QHeaderView::section { background-color: %5; color: %2; border: 1px solid %4; padding: 4px; }")
+            .arg(theme.window.name(), theme.text.name(), theme.base.name(), theme.border.name(),
+                 theme.button.name(), theme.disabledText.name(), selectedTabBg.name());
+}
+
+QString applicationStyleSheet(const QColor &background)
+{
+    const auto theme = themeColorsFor(background);
+    const QColor buttonPressed = theme.dark ? theme.button.darker(115) : theme.button.darker(118);
+
+    return QString(
+               "QMessageBox { background-color: %1; color: %2; }"
+               "QMessageBox QLabel { color: %2; }"
+               "QPushButton { background-color: %3; color: %2; border: 1px solid %4; border-radius: 4px; padding: 3px 10px; }"
+               "QPushButton:hover { background-color: %5; }"
+               "QPushButton:pressed { background-color: %6; }"
+               "QPushButton:disabled { color: %7; }"
+               "QRadioButton::indicator, QCheckBox::indicator { width: 13px; height: 13px; border: 1px solid %4; border-radius: 3px; background-color: %8; }"
+               "QRadioButton::indicator { border-radius: 7px; }"
+               "QRadioButton::indicator:checked, QCheckBox::indicator:checked { background-color: %5; border: 1px solid %2; }"
+               "QMenu { background-color: %1; color: %2; border: 1px solid %4; }"
+               "QMenu::item { padding: 4px 24px 4px 12px; }"
+               "QMenu::item:selected { background-color: %3; }"
+               "QMenu::item:disabled { color: %7; }"
+               "QMenu::separator { height: 1px; background-color: %4; margin: 3px 6px; }")
+            .arg(theme.window.name(), theme.text.name(), theme.button.name(), theme.border.name(),
+                 theme.highlight.name(), buttonPressed.name(), theme.disabledText.name(), theme.base.name());
+}
+
 void apply(QWidget *window,
            const QColor &captionColor,
            const QColor &textColor,

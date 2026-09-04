@@ -34,28 +34,9 @@ namespace
 PluginManagerDialog::PluginManagerDialog(PluginManager *pluginManager, QWidget *parent)
     : QDialog(parent), m_pluginManager(pluginManager)
 {
-    const auto theme = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor());
-    const QColor selectedTabBg = theme.dark ? theme.button.lighter(120) : theme.button.darker(110);
-
     setWindowTitle(tr("Plugin Manager"));
     resize(980, 600);
-    setStyleSheet(QString(
-        "QDialog { background-color: %1; color: %2; }"
-        "QLabel, QCheckBox, QGroupBox { color: %2; }"
-        "QLineEdit, QAbstractSpinBox, QComboBox, QTextEdit, QPlainTextEdit, QTextBrowser {"
-        "  background-color: %3; color: %2; border: 1px solid %4; }"
-        "QPushButton, QDialogButtonBox QPushButton, QMessageBox QPushButton { background-color: %5; color: %2; border: 1px solid %4; padding: 3px 8px; }"
-        "QPushButton:disabled, QDialogButtonBox QPushButton:disabled, QMessageBox QPushButton:disabled { color: %6; }"
-        "QPushButton:default, QDialogButtonBox QPushButton:default, QMessageBox QPushButton:default { background-color: %7; border-color: %4; }"
-        "QGroupBox { border: 1px solid %4; margin-top: 8px; padding-top: 10px; }"
-        "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: %2; }"
-        "QTabWidget::pane { border: 1px solid %4; }"
-        "QTabBar::tab { background-color: %3; color: %2; padding: 4px 12px; border: 1px solid %4; }"
-        "QTabBar::tab:selected { background-color: %7; color: %2; border: 1px solid %4; }"
-        "QTableWidget { background-color: %3; color: %2; border: 1px solid %4; }"
-        "QHeaderView::section { background-color: %5; color: %2; border: 1px solid %4; padding: 4px; }")
-        .arg(theme.window.name(), theme.text.name(), theme.base.name(), theme.border.name(),
-             theme.button.name(), theme.disabledText.name(), selectedTabBg.name()));
+    setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
 
     QVBoxLayout *root = new QVBoxLayout(this);
     m_summaryLabel = new QLabel(this);

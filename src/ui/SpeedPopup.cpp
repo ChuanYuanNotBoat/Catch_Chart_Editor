@@ -1,4 +1,6 @@
 #include "SpeedPopup.h"
+#include "utils/NativeWindowTheme.h"
+#include "utils/Settings.h"
 #include <QHBoxLayout>
 #include <QRadioButton>
 #include <QButtonGroup>
@@ -6,6 +8,12 @@
 SpeedPopup::SpeedPopup(QWidget *parent)
     : QWidget(parent), m_currentSpeed(1.0)
 {
+    // Popup floats above the main window: force theme colors so the radio
+    // labels stay readable in dark mode (native style ignores QPalette).
+    const auto theme = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor());
+    setStyleSheet(QString("QWidget { background-color: %1; color: %2; }"
+                          "QRadioButton { color: %2; spacing: 4px; padding: 2px; }")
+                      .arg(theme.window.name(), theme.text.name()));
     QHBoxLayout *layout = new QHBoxLayout(this);
     layout->setContentsMargins(4, 4, 4, 4);
     m_buttonGroup = new QButtonGroup(this);

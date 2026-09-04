@@ -76,6 +76,10 @@ void TimelineWidget::paintEvent(QPaintEvent *event)
     Q_UNUSED(event);
     QPainter painter(this);
     painter.fillRect(rect(), QColor(40, 40, 40));
+    // The background is a fixed dark color: use high-contrast tick/label
+    // colors so they never blend into it.
+    const QColor tickColor(150, 150, 150);
+    const QColor labelColor(220, 220, 220);
     if (m_totalDuration <= 0)
         return;
     // 画时间标尺
@@ -85,8 +89,9 @@ void TimelineWidget::paintEvent(QPaintEvent *event)
     for (int sec = 0; sec <= static_cast<int>(m_totalDuration / 1000); ++sec)
     {
         int x = static_cast<int>(sec * 1000 * pixelPerMs);
-        painter.setPen(Qt::gray);
+        painter.setPen(tickColor);
         painter.drawLine(x, 0, x, height());
+        painter.setPen(labelColor);
         painter.drawText(x + 2, 12, QString::number(sec));
     }
     // 画播放头（需要转换为音频位置）

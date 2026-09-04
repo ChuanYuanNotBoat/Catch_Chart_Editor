@@ -130,6 +130,13 @@ namespace
     {
         const auto theme = NativeWindowTheme::themeColorsFor(background);
 
+        // Controls painted natively by the Windows style (message boxes,
+        // check/radio indicators, buttons in plain dialogs) ignore QPalette,
+        // so reinforce the theme with a minimal application stylesheet.
+        const QString appStyle = NativeWindowTheme::applicationStyleSheet(background);
+        if (qApp->styleSheet() != appStyle)
+            qApp->setStyleSheet(appStyle);
+
         QPalette palette = qApp->palette();
         if (palette.color(QPalette::Window) == theme.window &&
             palette.color(QPalette::WindowText) == theme.text &&
@@ -150,6 +157,21 @@ namespace
         palette.setColor(QPalette::Disabled, QPalette::WindowText, theme.disabledText);
         palette.setColor(QPalette::Disabled, QPalette::Text, theme.disabledText);
         palette.setColor(QPalette::Disabled, QPalette::ButtonText, theme.disabledText);
+        palette.setColor(QPalette::Disabled, QPalette::Base, theme.base);
+        palette.setColor(QPalette::Disabled, QPalette::Button, theme.button);
+        palette.setColor(QPalette::Disabled, QPalette::Window, theme.window);
+        palette.setColor(QPalette::Disabled, QPalette::Highlight, theme.highlight);
+
+        // Roles consumed by validation messages (QPalette::Link via
+        // "color: palette(link)" stylesheets), input placeholders, tooltips
+        // and rich-text links. Without them these keep the light system
+        // palette and become unreadable on the dark theme.
+        palette.setColor(QPalette::Link, theme.dark ? QColor(102, 179, 255) : QColor(0, 90, 255));
+        palette.setColor(QPalette::LinkVisited, theme.dark ? QColor(173, 127, 255) : QColor(120, 0, 220));
+        palette.setColor(QPalette::PlaceholderText, theme.disabledText);
+        palette.setColor(QPalette::ToolTipBase, theme.base);
+        palette.setColor(QPalette::ToolTipText, theme.text);
+        palette.setColor(QPalette::BrightText, theme.dark ? Qt::white : Qt::black);
         qApp->setPalette(palette);
     }
 
@@ -2046,6 +2068,7 @@ void MainWindow::configureShortcuts()
 
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Keyboard Shortcuts"));
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.setMinimumWidth(520);
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
@@ -3377,6 +3400,7 @@ QString MainWindow::selectChartFromList(const QList<QPair<QString, QString>> &ch
 {
     QDialog dialog(this);
     dialog.setWindowTitle(title);
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.setMinimumWidth(350);
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
     layout->addWidget(new QLabel(tr("Select a chart:")));
@@ -3408,6 +3432,7 @@ QString MainWindow::selectChartFromFolder(const QString &rootDir,
 {
     QDialog dialog(this);
     dialog.setWindowTitle(title);
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.resize(620, 460);
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
@@ -3523,6 +3548,7 @@ QString MainWindow::selectChartFromLibrary(const QString &libraryRoot, const QSt
 
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Imported Chart Library"));
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.resize(560, 420);
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
@@ -4503,6 +4529,7 @@ void MainWindow::showInfoCenter(int initialTab)
 {
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Help Center"));
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.resize(840, 600);
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);

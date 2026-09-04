@@ -10,6 +10,7 @@
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
 #include "utils/MathUtils.h"
+#include "utils/NativeWindowTheme.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
 #include "utils/PlaybackStutterProbe.h"
@@ -371,7 +372,11 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     if (m_playbackController && m_currentPlayTime > 0)
     {
-        painter.setPen(Qt::black);
+        // Text is painted directly over the user-configurable canvas color,
+        // so pick the readable contrast color for the current background.
+        const QColor overlayTextColor =
+            NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor()).text;
+        painter.setPen(overlayTextColor);
         painter.drawText(canvasWidth - rmargin - 50, baselineY - 5,
                          QString::number(m_currentPlayTime, 'f', 0) + "ms");
         QString autoScrollText = m_autoScrollEnabled ? tr("AutoScroll: ON") : tr("AutoScroll: OFF");
