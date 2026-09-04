@@ -1070,6 +1070,15 @@ bool ChartCanvas::handlePastePreviewLeftClick(const QPoint &pos)
     return true;
 }
 
+bool ChartCanvas::cancelPendingRainAnchor()
+{
+    if (m_currentMode != PlaceRain || m_rainFirst)
+        return false;
+    m_rainFirst = true;
+    update();
+    return true;
+}
+
 bool ChartCanvas::handleRainPlacementLeftClick(const QPointF &pos)
 {
     if (m_currentMode != PlaceRain)
@@ -1078,8 +1087,13 @@ bool ChartCanvas::handleRainPlacementLeftClick(const QPointF &pos)
     // Clicks outside the chart lane (left/right margins) fall through to the
     // common handling below so they clear the selection exactly like in
     // PlaceNote mode instead of being consumed as rain placement steps.
+    // A pending rain anchor (first click) is cancelled as well so a stray
+    // click on the margins does not leave an invisible anchor behind.
     if (pos.x() < leftMargin() || pos.x() > width() - rightMargin())
+    {
+        cancelPendingRainAnchor();
         return false;
+    }
 
     // Clicks on existing notes fall through to the normal selection/drag
     // handling (same as PlaceNote mode) instead of being consumed by the
@@ -1371,6 +1385,14 @@ void ChartCanvas::mousePressEvent(QMouseEvent *event)
     }
     else if (event->button() == Qt::RightButton)
     {
+        // Right click cancels a pending rain anchor first (same pattern as
+        // interval selection above); only show the menu when there was no
+        // anchor to clear.
+        if (cancelPendingRainAnchor())
+        {
+            event->accept();
+            return;
+        }
         showRightClickMenu(event);
     }
 }

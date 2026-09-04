@@ -220,6 +220,9 @@ private:
     void handleLeftMousePress(QMouseEvent *event);
     bool handlePastePreviewLeftClick(const QPoint &pos);
     bool handleRainPlacementLeftClick(const QPointF &pos);
+    // Cancels a pending two-step rain anchor (first click), if any. Returns
+    // true when an anchor was actually cleared.
+    bool cancelPendingRainAnchor();
     bool handleHitNoteLeftClick(int hitIndex, Qt::KeyboardModifiers modifiers, const QPointF &pos);
     bool handleMirrorGuidePress(const QPointF &pos);
     bool handleSelectionRelease();
