@@ -1075,17 +1075,26 @@ bool ChartCanvas::handleRainPlacementLeftClick(const QPointF &pos)
     if (m_currentMode != PlaceRain)
         return false;
 
+    // Clicks on existing notes fall through to the normal selection/drag
+    // handling (same as PlaceNote mode) instead of being consumed by the
+    // two-step rain placement.
+    if (hitTestNote(pos) != -1)
+        return false;
+
     if (m_rainFirst)
     {
-        m_rainStartPos = pos;
+        // Convert the anchor to a note immediately so scrolling between the
+        // two clicks cannot shift the start time. update() also paints the
+        // anchor guide line as visible feedback.
+        m_rainStartNote = posToNote(pos);
         m_rainFirst = false;
+        update();
         return true;
     }
 
-    const QPointF endPos = pos;
+    const Note endNote = posToNote(pos);
     m_rainFirst = true;
-    const Note startNote = posToNote(m_rainStartPos);
-    const Note endNote = posToNote(endPos);
+    const Note startNote = m_rainStartNote;
     const double startTime = MathUtils::beatToMs(startNote.beatNum, startNote.numerator, startNote.denominator,
                                                  chart()->bpmList(),
                                                  chart()->meta().offset);
@@ -1110,6 +1119,88 @@ bool ChartCanvas::handleRainPlacementLeftClick(const QPointF &pos)
     {
         QMessageBox::warning(this, tr("Invalid Rain Note"), tr("End time must be later than start time"));
     }
+    update(); // hide the anchor guide line
+    return true;
+}
+
+void ChartCanvas::beginRainTailDrag(int noteIndex)
+{
+    if (!chart() || noteIndex < 0 || noteIndex >= chart()->notes().size())
+        return;
+    const Note &note = chart()->notes()[noteIndex];
+    if (note.type != NoteType::RAIN)
+        return;
+
+    m_rainTailDragIndex = noteIndex;
+    m_rainTailDragOriginal = note;
+    setCursor(Qt::SizeVerCursor);
+    update();
+}
+
+void ChartCanvas::updateRainTailDrag(const QPointF &pos)
+{
+    if (m_rainTailDragIndex < 0 || !chart())
+        return;
+
+    QVector<Note> *notes = mutableNotes();
+    if (!notes || m_rainTailDragIndex >= notes->size())
+        return;
+
+    const Note &original = m_rainTailDragOriginal;
+    const double startBeat = MathUtils::beatToFloat(original.beatNum, original.numerator, original.denominator);
+
+    double snapped = snapBeatToTimeDivision(yToBeat(pos.y()));
+
+    // Never allow collapsing the rain to zero length: keep at least one time
+    // division between start and end (subject to the same time-division snap).
+    double minBeat = startBeat + 1e-6;
+    if (m_timeDivision > 0)
+        minBeat = qMax(minBeat, snapBeatToTimeDivision(startBeat + 1.0 / m_timeDivision));
+    if (snapped < minBeat)
+        snapped = minBeat;
+
+    Note newNote = original;
+    MathUtils::floatToBeat(snapped, newNote.endBeatNum, newNote.endNumerator, newNote.endDenominator);
+
+    if ((*notes)[m_rainTailDragIndex] == newNote)
+        return;
+    (*notes)[m_rainTailDragIndex] = newNote;
+
+    m_noteDataDirty = true;
+    m_timesDirty = true;
+    m_hyperCacheValid = false;
+    update();
+}
+
+bool ChartCanvas::endRainTailDrag()
+{
+    if (m_rainTailDragIndex < 0 || !chart())
+        return false;
+
+    const int idx = m_rainTailDragIndex;
+    m_rainTailDragIndex = -1;
+    setCursor(Qt::ArrowCursor);
+
+    QVector<Note> *notes = mutableNotes();
+    if (!notes || idx >= notes->size())
+        return true;
+
+    const Note newNote = (*notes)[idx];
+    const Note original = m_rainTailDragOriginal;
+    if (newNote == original)
+    {
+        update();
+        return true;
+    }
+
+    // Roll back the in-place preview, then commit through the undo stack so
+    // the change is a single undoable command (same flow as move selection).
+    (*notes)[idx] = original;
+    m_noteDataDirty = true;
+    m_timesDirty = true;
+    m_hyperCacheValid = false;
+    m_chartController->moveNotes(QList<QPair<Note, Note>>{qMakePair(original, newNote)});
+    update();
     return true;
 }
 
@@ -1156,6 +1247,19 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
 
     if (handlePastePreviewLeftClick(event->pos()))
         return;
+
+    // Rain tail drag handle has the highest priority: the grip sits inside
+    // the rain body, so it must be tested before note hit tests and rain
+    // placement.
+    if (event->button() == Qt::LeftButton)
+    {
+        const int tailHandleIndex = hitTestRainTailHandle(event->pos());
+        if (tailHandleIndex >= 0)
+        {
+            beginRainTailDrag(tailHandleIndex);
+            return;
+        }
+    }
 
     if (m_currentMode == Select)
     {
@@ -1310,6 +1414,20 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
         return;
     }
 
+    // Rain tail handle dragging (before throttle to ensure responsive dragging)
+    if (m_rainTailDragIndex >= 0)
+    {
+        updateRainTailDrag(event->pos());
+        event->accept();
+        return;
+    }
+    // Hover feedback for the rain tail grip (mouse tracking is enabled).
+    if (!m_isSelecting && !m_pendingMove && !m_isMovingSelection && !m_isPasting && !m_isDraggingPaste
+        && !m_isDraggingMirrorGuide)
+    {
+        setCursor(hitTestRainTailHandle(event->pos()) >= 0 ? Qt::SizeVerCursor : Qt::ArrowCursor);
+    }
+
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     if (nowMs - m_lastPluginMouseMoveDispatchMs < kPluginMouseMoveMinIntervalMs)
         return;
@@ -1457,6 +1575,12 @@ void ChartCanvas::mouseReleaseEvent(QMouseEvent *event)
     pluginEvent.timestampMs = QDateTime::currentMSecsSinceEpoch();
     bool consumed = false;
     if (dispatchPluginCanvasInput(pluginEvent, &consumed) && consumed)
+    {
+        event->accept();
+        return;
+    }
+
+    if (endRainTailDrag())
     {
         event->accept();
         return;

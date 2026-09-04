@@ -356,6 +356,25 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     if (m_mirrorPreviewVisible)
         drawMirrorPreview(painter, canvasHeight, lmargin, availableWidth, invVisibleRange, baseY, sign);
 
+    // Pending rain anchor: horizontal dashed guide at the anchored start time
+    // so the first rain click gives immediate visual feedback. Anchored as a
+    // beat, the line follows scrolling and disappears once the rain is placed
+    // or the mode changes.
+    if (m_currentMode == PlaceRain && !m_rainFirst)
+    {
+        const double anchorBeat = MathUtils::beatToFloat(
+            m_rainStartNote.beatNum, m_rainStartNote.numerator, m_rainStartNote.denominator);
+        const int guideY = qRound(beatToY(anchorBeat));
+        const QColor guideColor =
+            NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor()).dark
+                ? QColor(255, 150, 40)  // dark canvas: bright orange
+                : QColor(200, 90, 0);   // light canvas: dark orange
+        painter.setPen(QPen(guideColor, 2, Qt::DashLine));
+        painter.drawLine(lmargin, guideY, canvasWidth - rmargin, guideY);
+    }
+
+    drawRainTailHandles(painter);
+
     if (m_mirrorGuideVisible)
         drawMirrorGuide(painter, canvasHeight, lmargin, availableWidth);
 
@@ -1013,6 +1032,88 @@ QRectF ChartCanvas::getRainNoteRect(const Note &note) const
     double rainWidth = qMax(1, width() - lmargin - rmargin);
 
     return QRectF(lmargin, rectTop, rainWidth, rectHeight);
+}
+
+QRectF ChartCanvas::rainTailHandleRect(const Note &note) const
+{
+    if (!chart())
+        return QRectF();
+
+    const double endTime = MathUtils::beatToMs(note.endBeatNum, note.endNumerator, note.endDenominator,
+                                               chart()->bpmList(), chart()->meta().offset);
+    const double tailY = yPosFromTime(endTime);
+
+    const int lmargin = leftMargin();
+    const int rmargin = rightMargin();
+    const double laneCenter = lmargin + (width() - lmargin - rmargin) * 0.5;
+
+    // Small grip centered horizontally inside the rain body, hugging the
+    // tail edge.
+    constexpr double kHandleWidth = 26.0;
+    constexpr double kHandleHeight = 9.0;
+    return QRectF(laneCenter - kHandleWidth * 0.5, tailY - kHandleHeight * 0.5,
+                  kHandleWidth, kHandleHeight);
+}
+
+int ChartCanvas::hitTestRainTailHandle(const QPointF &pos) const
+{
+    if (!chart())
+        return -1;
+    // The grip is an editing affordance only in placement modes; in Select or
+    // Delete mode clicks keep their original meaning.
+    if (m_currentMode != PlaceNote && m_currentMode != PlaceRain)
+        return -1;
+    if (m_rainTailDragIndex >= 0)
+        return m_rainTailDragIndex;
+
+    const auto &notes = chart()->notes();
+    // Topmost (last drawn) rain wins; iterate in reverse draw order.
+    for (int i = notes.size() - 1; i >= 0; --i)
+    {
+        if (notes[i].type != NoteType::RAIN)
+            continue;
+        if (rainTailHandleRect(notes[i]).adjusted(-3, -3, 3, 3).contains(pos))
+            return i;
+    }
+    return -1;
+}
+
+void ChartCanvas::drawRainTailHandles(QPainter &painter)
+{
+    if (!chart())
+        return;
+    if (m_currentMode != PlaceNote && m_currentMode != PlaceRain)
+        return;
+
+    const auto theme = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor());
+    const QColor gripBorder = theme.dark ? QColor(255, 170, 60) : QColor(180, 90, 0);
+    const QColor gripFill = m_rainTailDragIndex >= 0
+                                ? (theme.dark ? QColor(255, 150, 40) : QColor(200, 90, 0))
+                                : theme.button;
+
+    const auto &notes = chart()->notes();
+    for (int i = 0; i < notes.size(); ++i)
+    {
+        if (notes[i].type != NoteType::RAIN)
+            continue;
+        const QRectF handle = rainTailHandleRect(notes[i]);
+        if (!handle.intersects(QRectF(rect())))
+            continue;
+
+        painter.save();
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(QPen(gripBorder, m_rainTailDragIndex == i ? 2 : 1));
+        painter.setBrush(gripFill);
+        painter.drawRoundedRect(handle, 3, 3);
+        painter.setPen(QPen(theme.text, 1));
+        const double cx = handle.center().x();
+        for (int notch = -1; notch <= 1; ++notch)
+        {
+            const double nx = cx + notch * 4.0;
+            painter.drawLine(QPointF(nx, handle.top() + 2), QPointF(nx, handle.bottom() - 2));
+        }
+        painter.restore();
+    }
 }
 
 int ChartCanvas::hitTestNote(const QPointF &pos) const

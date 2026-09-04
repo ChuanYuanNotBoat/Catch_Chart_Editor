@@ -193,6 +193,12 @@ private:
     void updateBackgroundCache();
     int hitTestRangeHandle(const QPointF &pos) const;
     double snapBeatToTimeDivision(double beat) const;
+    QRectF rainTailHandleRect(const Note &note) const;
+    int hitTestRainTailHandle(const QPointF &pos) const;
+    void drawRainTailHandles(QPainter &painter);
+    void beginRainTailDrag(int noteIndex);
+    void updateRainTailDrag(const QPointF &pos);
+    bool endRainTailDrag();
     void drawRangeOverlay(QPainter &painter, int lmargin, int rmargin, int canvasHeight);
     void drawRangeSelectionHighlight(QPainter &painter, int lmargin, int availableWidth, int canvasHeight);
 
@@ -377,7 +383,9 @@ private:
     bool m_hyperfruitEnabledBackup;
 
     bool m_rainFirst;
-    QPointF m_rainStartPos;
+    Note m_rainStartNote; // rain anchor converted to beat at click time (scroll-safe)
+    int m_rainTailDragIndex = -1; // rain note currently being tail-dragged
+    Note m_rainTailDragOriginal;  // snapshot of the dragged rain for rollback/commit
 
     bool m_snapToGrid;
     int m_snapTimerId;
