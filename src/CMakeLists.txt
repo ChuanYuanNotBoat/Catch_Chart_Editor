@@ -1,4 +1,4 @@
-﻿set(SOURCES
+set(SOURCES
     main.cpp
     app/Application.cpp
     app/PlaybackBenchmarkRunner.cpp
@@ -29,6 +29,7 @@
     audio/AudioPlayer.cpp
     audio/NoteSoundPlayer.cpp
     audio/BpmDetector.cpp
+    audio/AudioConverter.cpp
     audio/autotiming/AutoTiming.cpp
     audio/autotiming/dsp.cpp
     audio/autotiming/fft.cpp
@@ -84,6 +85,7 @@ target_link_libraries(CatchChartEditor
     Qt6::Widgets
     Qt6::Multimedia
     ads::qtadvanceddocking-qt6
+    Vorbis::vorbis
 )
 
 if(WIN32)
@@ -149,6 +151,15 @@ add_custom_command(TARGET CatchChartEditor POST_BUILD
         ${CMAKE_SOURCE_DIR}/third_party/QtAdvancedDockingSystem/LICENSE
         ${CMAKE_SOURCE_DIR}/third_party/QtAdvancedDockingSystem/gnu-lgpl-v2.1.md
         $<TARGET_FILE_DIR:CatchChartEditor>/licenses/QtAdvancedDockingSystem
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        $<TARGET_FILE_DIR:CatchChartEditor>/licenses/libogg
+        $<TARGET_FILE_DIR:CatchChartEditor>/licenses/libvorbis
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/third_party/libogg/COPYING
+        $<TARGET_FILE_DIR:CatchChartEditor>/licenses/libogg
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/third_party/libvorbis/COPYING
+        $<TARGET_FILE_DIR:CatchChartEditor>/licenses/libvorbis
 )
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/resources/note_sounds")

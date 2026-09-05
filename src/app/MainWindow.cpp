@@ -19,6 +19,7 @@
 #include "controller/PlaybackController.h"
 #include "audio/AudioPlayer.h"
 #include "audio/BpmDetector.h"
+#include "audio/AudioConverter.h"
 #include "utils/Settings.h"
 #include "utils/Translator.h"
 #include "utils/DiagnosticCollector.h"
@@ -2986,10 +2987,10 @@ void MainWindow::newChart()
     if (!confirmSaveIfModified(tr("Creating a new chart will replace the current one in editor.")))
         return;
 
-    // Step 1: Select audio file.
+    // Step 1: Select audio file. Non-OGG audio is converted automatically.
     const QString audioPath = QFileDialog::getOpenFileName(
         this, tr("Select Audio File"), beatmapRootPath(),
-        tr("OGG Files (*.ogg);;All Files (*.*)"));
+        tr("Audio Files (*.ogg *.mp3 *.wav *.flac *.m4a *.aac);;All Files (*.*)"));
     if (audioPath.isEmpty())
     {
         Logger::debug("New chart cancelled (no audio selected)");
@@ -3000,11 +3001,17 @@ void MainWindow::newChart()
     const QString audioSuffix = audioInfo.suffix();                 // e.g. "ogg"
     const QString audioStem = audioInfo.completeBaseName();         // e.g. "Astral Sky,非可逆リズム - ..."
 
+    // Malody charts can only reference OGG music, so non-OGG sources are
+    // converted at the destination. Content-hash dedup only makes sense for
+    // OGG sources (a freshly converted file can never byte-match an existing
+    // OGG anyway).
+    const bool sourceIsOgg = AudioConverter::isOggFile(audioPath);
+
     // Step 2: Build time-stamped identifiers up front.
     const uint timestamp = static_cast<uint>(QDateTime::currentSecsSinceEpoch());
 
     // Step 2.5: Check if identical audio already exists in beatmap dirs (dedup).
-    const QString audioHash = computeFileQuickHash(audioPath);
+    const QString audioHash = sourceIsOgg ? computeFileQuickHash(audioPath) : QString();
     QString songDir;
     QString targetAudioName;
     QString targetAudioPath;
@@ -3049,13 +3056,31 @@ void MainWindow::newChart()
         }
 
         // Step 4: Copy audio file using short time-stamped name (avoid long paths).
-        targetAudioName = QString::number(timestamp) + "." + audioSuffix;
+        // Non-OGG sources are transcoded straight to "<timestamp>.ogg".
+        targetAudioName = QString::number(timestamp) +
+                          (sourceIsOgg ? QStringLiteral(".") + audioSuffix
+                                       : QStringLiteral(".ogg"));
         targetAudioPath = QDir(songDir).filePath(targetAudioName);
-        if (!QFile::copy(audioPath, targetAudioPath))
+        if (sourceIsOgg)
         {
-            QMessageBox::critical(this, tr("Error"),
-                                  tr("Failed to copy audio file to:\n%1").arg(targetAudioPath));
-            return;
+            if (!QFile::copy(audioPath, targetAudioPath))
+            {
+                QMessageBox::critical(this, tr("Error"),
+                                      tr("Failed to copy audio file to:\n%1").arg(targetAudioPath));
+                return;
+            }
+        }
+        else
+        {
+            QString convertError;
+            if (AudioConverter::convertToOggWithProgress(this, audioPath, targetAudioPath,
+                                                         &convertError)
+                    .isEmpty())
+            {
+                QMessageBox::critical(this, tr("Error"),
+                                      tr("Failed to convert audio to OGG:\n%1").arg(convertError));
+                return;
+            }
         }
     }
 

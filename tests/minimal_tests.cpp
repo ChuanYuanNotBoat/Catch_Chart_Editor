@@ -1,4 +1,4 @@
-#include <QCoreApplication>
+﻿#include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -17,6 +17,7 @@
 #include "file/ChartIO.h"
 #include "file/ChartFileSystem.h"
 #include "audio/PlaybackTiming.h"
+#include "audio/AudioConverter.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
 #include "editor/NoteChain/NoteChainCurveSampler.h"
@@ -2667,6 +2668,126 @@ namespace
         return gen.dropsFor(mirrored).size() == twoNotes.size();
     }
 
+    // ---- AudioConverter ----
+
+    bool testAudioConverterIsOggFile()
+    {
+        QTemporaryDir dir;
+        if (!dir.isValid())
+            return false;
+
+        const QString oggPath = dir.filePath(QStringLiteral("real.ogg"));
+        {
+            QFile f(oggPath);
+            if (!f.open(QIODevice::WriteOnly))
+                return false;
+            f.write("OggS\0\0", 6);
+        }
+        const QString fakePath = dir.filePath(QStringLiteral("fake.ogg"));
+        {
+            QFile f(fakePath);
+            if (!f.open(QIODevice::WriteOnly))
+                return false;
+            f.write("RIFFxxxx", 8);
+        }
+        const QString noExtPath = dir.filePath(QStringLiteral("stream"));
+        {
+            QFile f(noExtPath);
+            if (!f.open(QIODevice::WriteOnly))
+                return false;
+            f.write("OggS\0\0", 6);
+        }
+
+        // Content sniffing wins over extension: a real OggS payload is OGG
+        // regardless of the file name, a fake .ogg is not.
+        return AudioConverter::isOggFile(oggPath) && !AudioConverter::isOggFile(fakePath)
+               && AudioConverter::isOggFile(noExtPath) && !AudioConverter::isOggFile(
+                   dir.filePath(QStringLiteral("missing.ogg")));
+    }
+
+    // Writes a minimal 16-bit PCM WAV file with a 440 Hz sine tone.
+    bool makeTestWav(const QString &path, int sampleRate, int seconds)
+    {
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly))
+            return false;
+
+        const int numFrames = sampleRate * seconds;
+        const quint32 dataBytes = static_cast<quint32>(numFrames * 2);
+        const quint32 riffSize = 36 + dataBytes;
+
+        f.write("RIFF", 4);
+        f.write(reinterpret_cast<const char *>(&riffSize), 4);
+        f.write("WAVE", 4);
+        f.write("fmt ", 4);
+        const quint32 fmtSize = 16;
+        const quint16 audioFormat = 1; // PCM
+        const quint16 channels = 1;
+        const quint16 bitsPerSample = 16;
+        const quint32 byteRate = static_cast<quint32>(sampleRate) * channels * 2;
+        const quint16 blockAlign = channels * 2;
+        f.write(reinterpret_cast<const char *>(&fmtSize), 4);
+        f.write(reinterpret_cast<const char *>(&audioFormat), 2);
+        f.write(reinterpret_cast<const char *>(&channels), 2);
+        f.write(reinterpret_cast<const char *>(&sampleRate), 4);
+        f.write(reinterpret_cast<const char *>(&byteRate), 4);
+        f.write(reinterpret_cast<const char *>(&blockAlign), 2);
+        f.write(reinterpret_cast<const char *>(&bitsPerSample), 2);
+        f.write("data", 4);
+        f.write(reinterpret_cast<const char *>(&dataBytes), 4);
+
+        for (int i = 0; i < numFrames; ++i)
+        {
+            const double t = static_cast<double>(i) / sampleRate;
+            const double value = 0.5 * std::sin(2.0 * M_PI * 440.0 * t);
+            const qint16 sample = static_cast<qint16>(value * 32767.0);
+            f.write(reinterpret_cast<const char *>(&sample), 2);
+        }
+        return true;
+    }
+
+    bool testAudioConverterConvertsWavToOgg()
+    {
+        QTemporaryDir dir;
+        if (!dir.isValid())
+            return false;
+
+        const QString wavPath = dir.filePath(QStringLiteral("tone.wav"));
+        const QString oggPath = dir.filePath(QStringLiteral("tone.ogg"));
+        if (!makeTestWav(wavPath, 8000, 1))
+            return false;
+
+        QString error;
+        if (!AudioConverter::convertToOgg(wavPath, oggPath, &error))
+        {
+            std::fprintf(stderr, "convertToOgg failed: %s\n", qPrintable(error));
+            return false;
+        }
+
+        QFile out(oggPath);
+        if (!out.open(QIODevice::ReadOnly))
+            return false;
+        const QByteArray bytes = out.readAll();
+        if (bytes.size() <= 44)
+            return false;
+        // Ogg capture pattern must start the stream and the Vorbis
+        // identification header ("\x01vorbis") must be present.
+        if (!bytes.startsWith("OggS"))
+            return false;
+        if (!bytes.contains(QByteArray("\x01vorbis", 7)))
+            return false;
+
+        // A missing input must fail with a non-empty error message.
+        QString missingError;
+        if (AudioConverter::convertToOgg(dir.filePath(QStringLiteral("missing.wav")),
+                                         dir.filePath(QStringLiteral("out.ogg")),
+                                         &missingError))
+            return false;
+        if (missingError.isEmpty())
+            return false;
+        return true;
+    }
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -2791,6 +2912,8 @@ int main(int argc, char **argv)
         {"RainReward Catch state core", &testRainRewardStateCore},
         {"RainReward official timing and x", &testRainRewardDropsUseOfficialTimingAndX},
         {"RainReward whole note count and Catch-only", &testRainRewardUsesWholeNoteCountAndCatchRainOnly},
+        {"AudioConverter isOggFile content sniffing", &testAudioConverterIsOggFile},
+        {"AudioConverter WAV to OGG roundtrip", &testAudioConverterConvertsWavToOgg},
     };
 
     int failed = 0;

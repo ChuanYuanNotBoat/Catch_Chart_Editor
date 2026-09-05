@@ -1,7 +1,9 @@
 ﻿#include "MetaEditPanel.h"
 #include "controller/ChartController.h"
+#include "audio/AudioConverter.h"
 #include "model/MetaData.h"
 #include "utils/Logger.h"
+#include <QMessageBox>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
@@ -64,7 +66,7 @@ void MetaEditPanel::setupUi()
     m_formLayout->addRow(m_audioOggLabel, audioLayout);
     connect(m_audioBrowseBtn, &QPushButton::clicked, [this]()
             {
-        QString fileName = QFileDialog::getOpenFileName(this, tr("Select Audio"), QString(), tr("OGG Files (*.ogg)"));
+        QString fileName = QFileDialog::getOpenFileName(this, tr("Select Audio"), QString(), tr("Audio Files (*.ogg *.mp3 *.wav *.flac *.m4a *.aac);;All Files (*.*)"));
         if (!fileName.isEmpty()) m_audioFileEdit->setText(fileName); });
 
     m_backgroundFileEdit = new QLineEdit(this);
@@ -360,7 +362,47 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
     // Import audio file to chart directory if absolute path.
     if (!next.audioFile.trimmed().isEmpty() && QDir::isAbsolutePath(next.audioFile))
     {
-        const QString imported = importResourceToChartDirectory(next.audioFile);
+        QString importSource = next.audioFile;
+
+        // Malody charts can only reference OGG music: convert non-OGG audio
+        // into the chart directory first, then reuse the normal import flow.
+        if (!AudioConverter::isOggFile(importSource))
+        {
+            const QString chartPath = m_chartController ? m_chartController->chartFilePath()
+                                                        : QString();
+            const QDir chartDir(QFileInfo(chartPath).absolutePath());
+            if (chartPath.isEmpty() || !chartDir.exists())
+            {
+                QMessageBox::critical(this, tr("Error"),
+                                      tr("Cannot convert audio: chart directory is not available."));
+                return false;
+            }
+
+            const QFileInfo sourceInfo(importSource);
+            const QString baseName = sourceInfo.completeBaseName().isEmpty()
+                                         ? QStringLiteral("audio")
+                                         : sourceInfo.completeBaseName();
+            QString fileName = baseName + QStringLiteral(".ogg");
+            QString targetPath = chartDir.filePath(fileName);
+            for (int i = 2; QFileInfo::exists(targetPath); ++i)
+            {
+                fileName = QStringLiteral("%1_%2.ogg").arg(baseName).arg(i);
+                targetPath = chartDir.filePath(fileName);
+            }
+
+            QString convertError;
+            if (AudioConverter::convertToOggWithProgress(this, importSource, targetPath,
+                                                         &convertError)
+                    .isEmpty())
+            {
+                QMessageBox::critical(this, tr("Error"),
+                                      tr("Failed to convert audio to OGG:\n%1").arg(convertError));
+                return false;
+            }
+            importSource = targetPath;
+        }
+
+        const QString imported = importResourceToChartDirectory(importSource);
         if (!imported.isEmpty())
         {
             next.audioFile = imported;
