@@ -11,6 +11,7 @@ set(SOURCES
     model/MetaData.cpp
     model/Chart.cpp
     model/Skin.cpp
+    model/ChartStatistics.cpp
     utils/MathUtils.cpp
     utils/FileUtils.cpp
     utils/Settings.cpp
@@ -50,6 +51,7 @@ set(SOURCES
     ui/CustomWidgets/RealtimePreviewWidget.cpp
     ui/LongRangeSelector.cpp
     ui/PlaybackSpeedPanel.cpp
+    ui/ChartStatsPanel.cpp
     ui/PluginActionPanel.cpp
     ui/NoteEditPanel.cpp
     ui/BPMTimePanel.cpp
@@ -69,6 +71,7 @@ set(SOURCES
     ui/dialogs/LogSettingsDialog.cpp
     ui/dialogs/PluginManagerDialog.cpp
     ui/dialogs/BpmMeasureDialog.cpp
+    ui/dialogs/DetailedStatsDialog.cpp
     editor/NoteChain/NoteChainEditor.cpp
     editor/NoteChain/NoteChainState.cpp
     editor/NoteChain/NoteChainPersistence.cpp

@@ -136,10 +136,13 @@ private:
     void configureCompactToolDock(ads::CDockWidget *dock);
     void updateCompactToolDockHandle(ads::CDockWidget *dock);
     void ensurePlaybackSpeedDockAssigned();
+    void ensureStatsDockAssigned();
     void saveDockLayout();
     void restoreDockLayout();
     void resetDockLayout();
     void updateDockTitles();
+    void refreshChartStatistics();
+    void openDetailedStatsDialog();
 
     class Private;
     Private *d;

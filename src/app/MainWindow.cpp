@@ -13,6 +13,9 @@
 
 #include "ui/MetaEditPanel.h"
 #include "ui/LeftPanel.h"
+#include "ui/ChartStatsPanel.h"
+#include "ui/dialogs/DetailedStatsDialog.h"
+#include "model/ChartStatistics.h"
 #include "ui/dialogs/LogSettingsDialog.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
@@ -1438,6 +1441,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
             {
         // 谱面数据变化：使奖励 drop 缓存失效（下次渲染时按新谱面重建）。
         RainRewardGenerator::instance().invalidate();
+        refreshChartStatistics();
         const bool userEdit = !d->isLoadingChart;
         if (userEdit)
             d->isModified = true;
@@ -1737,7 +1741,7 @@ void MainWindow::createViewMenu()
             d->timingToolsDock, d->playbackSpeedToolsDock,
             d->rangeToolsDock, d->mirrorToolsDock,
             d->curveToolsDock, d->pluginToolsDock,
-            d->bpmPanelDock, d->metaPanelDock};
+            d->bpmPanelDock, d->metaPanelDock, d->statsToolsDock};
         for (ads::CDockWidget *dock : docks)
         {
             if (dock)
@@ -2193,6 +2197,11 @@ void MainWindow::createCentralArea()
     d->leftPanel->setChartController(d->chartController);
     d->leftPanel->setPlaybackController(d->playbackController);
 
+    d->statsPanel = new ChartStatsPanel(d->dockManager);
+    connect(d->statsPanel, &ChartStatsPanel::detailedStatsRequested,
+            this, &MainWindow::openDetailedStatsDialog);
+    refreshChartStatistics();
+
     d->canvas = new ChartCanvas(d->dockManager);
     d->canvas->setChartController(d->chartController);
     d->canvas->setSelectionController(d->selectionController);
@@ -2612,6 +2621,17 @@ void MainWindow::createCentralArea()
     d->metaPanelDock->setObjectName(QStringLiteral("dock.metadata"));
     d->metaPanelDock->setWidget(d->metaPanel, ads::CDockWidget::ForceScrollArea);
     d->dockManager->addDockWidgetTabToArea(d->metaPanelDock, editorArea);
+
+    // 统计面板：默认停靠左侧栏（Navigation）区域底部，可像其它工具块一样拖出。
+    d->statsToolsDock = new ads::CDockWidget(d->dockManager, tr("Chart Statistics"));
+    d->statsToolsDock->setObjectName(QStringLiteral("dock.chart.stats"));
+    d->statsToolsDock->setWidget(d->statsPanel, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *statsArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->statsToolsDock, leftArea);
+    statsArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->statsToolsDock);
+    d->dockManager->setSplitterSizes(leftArea, {150, 200, 120});
+
     d->notePanelDock->setAsCurrentTab();
     d->curveToolsDock->toggleView(false);
     d->pluginToolsDock->toggleView(false);
@@ -2628,7 +2648,7 @@ void MainWindow::createCentralArea()
                 const QList<ads::CDockWidget *> toolDocks = {
                     d->timingToolsDock, d->playbackSpeedToolsDock,
                     d->rangeToolsDock, d->mirrorToolsDock,
-                    d->curveToolsDock, d->pluginToolsDock};
+                    d->curveToolsDock, d->pluginToolsDock, d->statsToolsDock};
                 for (ads::CDockWidget *dock : toolDocks)
                     configureCompactToolDock(dock);
             });
@@ -2642,6 +2662,7 @@ void MainWindow::createCentralArea()
     if (Settings::instance().floatingToolWindowsEnabled())
         restoreDockLayout();
     ensurePlaybackSpeedDockAssigned();
+    ensureStatsDockAssigned();
 
     d->mainToolBar = addToolBar(tr("Tools"));
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
@@ -2683,6 +2704,34 @@ void MainWindow::createCentralArea()
     d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
     setFloatingToolWindowsEnabled(Settings::instance().floatingToolWindowsEnabled());
     Logger::debug("Central area created with LeftPanel.");
+}
+
+void MainWindow::refreshChartStatistics()
+{
+    if (!d->statsPanel || !d->chartController)
+        return;
+    const Chart *chart = d->chartController->chart();
+    const int offset = chart ? chart->meta().offset : 0;
+    const ChartStatistics stats = ChartStatsCalculator::compute(chart, offset);
+    d->statsPanel->setStatistics(stats);
+    if (d->detailedStatsDialog && d->detailedStatsDialog->isVisible())
+        d->detailedStatsDialog->setStatistics(stats);
+}
+
+void MainWindow::openDetailedStatsDialog()
+{
+    if (!d->detailedStatsDialog)
+    {
+        d->detailedStatsDialog = new DetailedStatsDialog(this);
+        // 非模态：show() 而非 exec()，主窗口操作不受阻塞；关闭仅隐藏、复用实例。
+        d->detailedStatsDialog->setModal(false);
+        d->detailedStatsDialog->setAttribute(Qt::WA_DeleteOnClose, false);
+        if (d->statsPanel)
+            d->detailedStatsDialog->setStatistics(d->statsPanel->statistics());
+    }
+    d->detailedStatsDialog->show();
+    d->detailedStatsDialog->raise();
+    d->detailedStatsDialog->activateWindow();
 }
 
 // ==================== beatmap root path ====================
@@ -4168,6 +4217,10 @@ void MainWindow::retranslateUi()
         d->bpmPanel->retranslateUi();
     if (d->metaPanel)
         d->metaPanel->retranslateUi();
+    if (d->statsPanel)
+        d->statsPanel->retranslateUi();
+    if (d->detailedStatsDialog)
+        d->detailedStatsDialog->retranslateUi();
     applySidebarTheme();
     Logger::debug("UI retranslated");
 }
@@ -4423,6 +4476,8 @@ void MainWindow::updateDockTitles()
         d->bpmPanelDock->setWindowTitle(tr("BPM & Timing"));
     if (d->metaPanelDock)
         d->metaPanelDock->setWindowTitle(tr("Metadata"));
+    if (d->statsToolsDock)
+        d->statsToolsDock->setWindowTitle(tr("Chart Statistics"));
 }
 
 // ==================== Paste 288 division option slot ====================
@@ -4867,6 +4922,8 @@ void MainWindow::applySidebarTheme()
             applyPanelStyle(d->mirrorToolsDock->widget(), "mirrorToolsRoot", true);
         if (d->curveToolsDock)
             applyPanelStyle(d->curveToolsDock->widget(), "curveToolsRoot", true);
+        if (d->statsToolsDock)
+            applyPanelStyle(d->statsToolsDock->widget(), "chartStatsRoot", true);
         applyPanelStyle(d->pluginActionPanel, "pluginActionPanelRoot", true);
         applyPanelStyle(d->bpmPanel, "bpmPanelRoot");
         applyPanelStyle(d->metaPanel, "metaPanelRoot");

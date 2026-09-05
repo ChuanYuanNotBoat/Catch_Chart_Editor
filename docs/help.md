@@ -24,11 +24,13 @@
 - `Realtime Preview` 面板：实时预览当前谱面效果。
 - `Chart Workspace`：不可关闭的中央谱面画布与时间密度导航条。
 - `Note Input`、`Timing & Grid`、`Playback Speed`、`Range Select`、`Mirror Flip`、`Curve Tools`、`Plugin Tools`：按功能组成中等粒度工具块；`BPM & Timing` 和 `Metadata` 保持独立面板。
+- `Chart Statistics` 统计面板：展示全 note 数、常规 note 数、rain 数量、奖励音符数与理论 Max Combo，默认停靠在 Navigation 下方，两种窗口模式均可用。
 
 ### 可组合面板布局
 
 - `View -> Enable Floating Windows`：切换是否使用 ADS 可组合工作区，设置会在重启后保留。默认启用。
 - 关闭浮动窗口后，界面恢复为引入 ADS 前的固定四栏布局：Navigation、Realtime Preview、Chart Workspace 和最右侧单一编辑栏；顶部 `Note` / `BPM` / `Meta` 仍按旧方式切换右栏内容，不显示停靠标题、标签、拆分手柄或浮动入口。
+- 固定布局下 `Chart Statistics` 面板位于左侧 Navigation 栏底部，可点击标题栏箭头折叠/展开。
 - 固定布局的右侧编辑栏只提供按需显示的纵向滚动条，可直接用滚轮上下浏览；横向滚动条始终禁用。Timing、Playback Speed、Range、Mirror、Curve 和 Plugin Tools 回到 Note 栏的原顺序，格式化颜色快捷按钮会在同一栏内展开插件 GUI。
 - 重新启用浮动窗口后，会恢复关闭前保存的 ADS 停靠位置和面板开关状态；固定布局期间不会覆盖该布局快照。
 - 拖动普通面板标题或标签可以改变停靠位置；BPM、Meta 等完整面板仍可组合成标签页。
@@ -134,6 +136,20 @@ Grid Settings、范围选择、镜像执行、曲线操作、复制、BPM/Meta �
 - `Grid Settings...`：设置横向网格数量。
 - `Mirror Flip`：按指定 `Axis X` 镜像翻转选中音符。`Show Guide` 显示可拖动参考线，`Show Preview` 显示翻转预览，`Flip Selected` 执行翻转。
 - 原生曲线控制：启用 `Curve` 或 `Place Anchor` 后出现，包含锚点放置、曲线显示、折线模式、音符吸附、选择目标、提交、连接、断开、删除和重置。
+
+### 统计面板
+
+`Chart Statistics` 面板展示当前谱面的统计信息（音频 note 不进入任何统计口径）：
+
+- 全部音符：常规 note 数 + rain 数量（每个 rain 计 1 个）。
+- 常规音符：`NORMAL` 音符数量。
+- Rain 数量：`RAIN` 音符数量。
+- 奖励音符：按官方 Rain 奖励算法生成的奖励 note 总数（与画布上的 Rain 奖励预览点完全一致）。
+- 最大连击（Max Combo）：常规音符 + 奖励音符。rain 本体不计入连击，因为 rain 在游玩时由其奖励 note 构成。
+
+点击面板底部 `详细统计...` 可打开非模态详细统计窗口；该窗口不阻塞主窗口操作，会随谱面编辑实时刷新。详细统计的内容为后续版本预留扩展接口。
+
+统计在音符增删改、雨滴拖动、撤销/重做等编辑后自动刷新。
 
 ### BPM & Timing 面板
 

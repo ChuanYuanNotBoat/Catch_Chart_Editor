@@ -92,6 +92,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         d->rangeToolsWereVisible = isOpen(d->rangeToolsDock, true);
         d->mirrorToolsWereVisible = isOpen(d->mirrorToolsDock, true);
         d->pluginToolsWereVisible = isOpen(d->pluginToolsDock, false);
+        d->statsToolsWereVisible = isOpen(d->statsToolsDock, true);
         d->leftPanelWasVisible = isOpen(d->leftPanelDock, true);
         d->previewWasVisible = isOpen(d->previewDock, true);
         d->notePanelWasVisible = isOpen(d->notePanelDock, true);
@@ -124,6 +125,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         QWidget *mirrorTools = takeDockContent(d->mirrorToolsDock);
         QWidget *curveTools = takeDockContent(d->curveToolsDock);
         QWidget *pluginTools = takeDockContent(d->pluginToolsDock);
+        QWidget *statsTools = takeDockContent(d->statsToolsDock);
 
         QWidget *leftPanel = takeDockContent(d->leftPanelDock);
         QWidget *preview = takeDockContent(d->previewDock);
@@ -144,6 +146,8 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
                 d->pluginToolsWereVisible);
             d->notePanel->setNoteChainControlsVisible(curveVisible);
         }
+        if (d->leftPanel && statsTools)
+            d->leftPanel->attachStatsSection(statsTools);
 
         if (!d->legacySplitter)
         {
@@ -200,6 +204,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         QWidget *mirrorTools = d->notePanel ? d->notePanel->takeMirrorToolsWidget() : nullptr;
         QWidget *curveTools = d->notePanel ? d->notePanel->takeCurveToolsWidget() : nullptr;
         QWidget *pluginTools = d->notePanel ? d->notePanel->takeEmbeddedPluginToolsWidget() : nullptr;
+        QWidget *statsTools = d->leftPanel ? d->leftPanel->takeStatsSection() : nullptr;
 
         const auto detachLegacyWidget = [](QWidget *widget)
         {
@@ -236,6 +241,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         restoreDockContent(d->workspaceDock, d->workspaceContainer, true,
                            ads::CDockWidget::ForceNoScrollArea);
         restoreDockContent(d->leftPanelDock, d->leftPanel, d->leftPanelWasVisible);
+        restoreDockContent(d->statsToolsDock, statsTools, d->statsToolsWereVisible);
         restoreDockContent(d->previewDock, d->previewWidget, d->previewWasVisible,
                            ads::CDockWidget::ForceNoScrollArea);
         restoreDockContent(d->notePanelDock, d->notePanel, d->notePanelWasVisible);
@@ -272,7 +278,7 @@ void MainWindow::updateToolDockActionVisibility()
         d->timingToolsDock, d->playbackSpeedToolsDock,
         d->rangeToolsDock, d->mirrorToolsDock,
         d->curveToolsDock, d->pluginToolsDock, d->bpmPanelDock,
-        d->metaPanelDock};
+        d->metaPanelDock, d->statsToolsDock};
     for (ads::CDockWidget *dock : docks)
     {
         if (dock && dock->toggleViewAction())
@@ -323,6 +329,43 @@ void MainWindow::ensurePlaybackSpeedDockAssigned()
     d->playbackSpeedToolsDock->toggleView(true);
     configureCompactToolDock(d->playbackSpeedToolsDock);
     Logger::info("Added Playback Speed panel to an existing ADS layout.");
+}
+
+void MainWindow::ensureStatsDockAssigned()
+{
+    if (!d->dockManager || !d->statsToolsDock
+        || d->statsToolsDock->dockAreaWidget())
+    {
+        return;
+    }
+
+    ads::CDockAreaWidget *area = nullptr;
+    if (d->leftPanelDock && d->leftPanelDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, d->statsToolsDock,
+            d->leftPanelDock->dockAreaWidget());
+    }
+    else if (d->notePanelDock && d->notePanelDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, d->statsToolsDock,
+            d->notePanelDock->dockAreaWidget());
+    }
+    else if (d->workspaceDock && d->workspaceDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::RightDockWidgetArea, d->statsToolsDock,
+            d->workspaceDock->dockAreaWidget());
+    }
+
+    if (!area)
+        return;
+
+    area->setAllowedAreas(ads::OuterDockAreas);
+    d->statsToolsDock->toggleView(true);
+    configureCompactToolDock(d->statsToolsDock);
+    Logger::info("Added Chart Statistics panel to an existing ADS layout.");
 }
 
 void MainWindow::configureNotePanelScrollArea()

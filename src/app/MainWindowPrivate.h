@@ -33,6 +33,8 @@ class QToolBar;
 class QTimer;
 class RealtimePreviewWidget;
 class PluginActionPanel;
+class ChartStatsPanel;
+class DetailedStatsDialog;
 
 namespace ads
 {
@@ -63,6 +65,7 @@ public:
     ads::CDockWidget *pluginToolsDock = nullptr;
     ads::CDockWidget *bpmPanelDock = nullptr;
     ads::CDockWidget *metaPanelDock = nullptr;
+    ads::CDockWidget *statsToolsDock = nullptr;
     QWidget *workspaceContainer = nullptr;
     QSplitter *legacySplitter = nullptr;
     QScrollArea *legacyRightScrollArea = nullptr;
@@ -74,6 +77,8 @@ public:
     PluginActionPanel *pluginActionPanel = nullptr;
     BPMTimePanel *bpmPanel = nullptr;
     MetaEditPanel *metaPanel = nullptr;
+    ChartStatsPanel *statsPanel = nullptr;
+    DetailedStatsDialog *detailedStatsDialog = nullptr;
     LeftPanel *leftPanel = nullptr;
     QAction *undoAction = nullptr;
     QAction *redoAction = nullptr;
@@ -122,6 +127,7 @@ public:
     bool rangeToolsWereVisible = true;
     bool mirrorToolsWereVisible = true;
     bool pluginToolsWereVisible = false;
+    bool statsToolsWereVisible = true;
     bool leftPanelWasVisible = true;
     bool previewWasVisible = true;
     bool notePanelWasVisible = true;

@@ -24,6 +24,7 @@
 #include "editor/NoteChain/NoteChainEditor.h"
 #include "editor/NoteChain/NoteChainPersistence.h"
 #include "model/Chart.h"
+#include "model/ChartStatistics.h"
 #include "render/RainRewardGenerator.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackSpeed.h"
@@ -2667,6 +2668,86 @@ namespace
         mirrored.x = 512 - rain.x;
         return gen.dropsFor(mirrored).size() == twoNotes.size();
     }
+// ---- ChartStatsCalculator ----
+
+    bool testChartStatsCalculatorCounts()
+    {
+        Chart chart;
+        chart.clearNotes();
+        chart.bpmList().clear();
+        chart.addBpm(BpmEntry(0, 0, 1, 120.0));
+        chart.meta().offset = 0;
+
+        // 4 normal, 2 rain(4 拍、1 拍 @120bpm -> 21 与 6 个奖励点), 1 sound, 1 zero-length rain.
+        chart.addNote(makeNormalNote(0, 0, 1, 64, QStringLiteral("n0")));
+        chart.addNote(makeNormalNote(1, 0, 1, 128, QStringLiteral("n1")));
+        chart.addNote(makeNormalNote(2, 0, 1, 256, QStringLiteral("n2")));
+        chart.addNote(makeNormalNote(3, 0, 1, 300, QStringLiteral("n3")));
+        chart.addNote(makeRainNote(0, 0, 1, 4, 0, 1));      // 2000ms -> 21 drops
+        chart.addNote(makeRainNote(4, 0, 1, 5, 0, 1));      // 500ms -> 6 drops
+        chart.addNote(Note(5, 0, 1, QStringLiteral("audio.ogg"), 100, 0)); // SOUND
+        Note zero; // 零长度 rain -> 0 奖励点
+        zero.type = NoteType::RAIN;
+        zero.x = 100;
+        zero.beatNum = 6;
+        zero.numerator = 0;
+        zero.denominator = 1;
+        zero.endBeatNum = 6;
+        zero.endNumerator = 0;
+        zero.endDenominator = 1;
+        chart.addNote(zero);
+
+        const ChartStatistics stats = ChartStatsCalculator::compute(&chart, 0);
+
+        // 全 note 数 = NORMAL + RAIN（不含 SOUND）。
+        if (stats.totalNotes != 7) // 4 normal + 2 rain + 1 zero-length rain
+            return false;
+        if (stats.normalCount != 4)
+            return false;
+        if (stats.rainCount != 3) // 2 常规 rain + 1 零长度 rain
+            return false;
+        if (stats.soundCount != 1)
+            return false;
+        // 奖励数量与预览算法完全一致。
+        if (stats.rewardCount != 21 + 6 + 0)
+            return false;
+        // 理论 Max Combo = NORMAL + 奖励点（rain 本体不重复计）。
+        if (stats.maxCombo != 4 + 27)
+            return false;
+        return true;
+    }
+
+    bool testChartStatsCalculatorSoundExcludedFromEveryField()
+    {
+        Chart chart;
+        chart.clearNotes();
+        chart.bpmList().clear();
+        chart.addBpm(BpmEntry(0, 0, 1, 120.0));
+        chart.meta().offset = 0;
+        chart.addNote(Note(0, 0, 1, QStringLiteral("only_audio.ogg"), 80, 0));
+        chart.addNote(Note(1, 0, 1, QStringLiteral("second.ogg"), 90, 0));
+
+        const ChartStatistics stats = ChartStatsCalculator::compute(&chart, 0);
+        if (stats.totalNotes != 0 || stats.normalCount != 0 || stats.rainCount != 0
+            || stats.rewardCount != 0 || stats.maxCombo != 0 || stats.soundCount != 2)
+            return false;
+        return true;
+    }
+
+    bool testChartStatsCalculatorEmptyChart()
+    {
+        Chart chart;
+        chart.clearNotes();
+        chart.bpmList().clear();
+        chart.meta().offset = 42;
+        const ChartStatistics stats = ChartStatsCalculator::compute(&chart, 42);
+        if (stats.totalNotes != 0 || stats.normalCount != 0 || stats.rainCount != 0
+            || stats.rewardCount != 0 || stats.maxCombo != 0 || stats.soundCount != 0)
+            return false;
+        if (stats.totalNotes != 0)
+            return false;
+        return true;
+    }
 
     // ---- AudioConverter ----
 
@@ -2929,6 +3010,9 @@ int main(int argc, char **argv)
         {"RainReward Catch state core", &testRainRewardStateCore},
         {"RainReward official timing and x", &testRainRewardDropsUseOfficialTimingAndX},
         {"RainReward whole note count and Catch-only", &testRainRewardUsesWholeNoteCountAndCatchRainOnly},
+        {"ChartStats counts with sound excluded", &testChartStatsCalculatorCounts},
+        {"ChartStats sound-only chart yields zeros", &testChartStatsCalculatorSoundExcludedFromEveryField},
+        {"ChartStats empty chart yields zeros", &testChartStatsCalculatorEmptyChart},
         {"AudioConverter isOggFile content sniffing", &testAudioConverterIsOggFile},
         {"AudioConverter WAV to OGG roundtrip", &testAudioConverterConvertsWavToOgg},
     };
