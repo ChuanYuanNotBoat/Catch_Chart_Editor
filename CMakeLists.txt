@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.16)
-project(CatchChartEditor VERSION 1.11.0 LANGUAGES CXX)
+project(CatchChartEditor VERSION 1.11.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,6 +21,11 @@ add_subdirectory(third_party/QtAdvancedDockingSystem EXCLUDE_FROM_ALL)
 unset(BUILD_STATIC)
 unset(BUILD_EXAMPLES)
 
+# Vendored Xiph.Org codecs (BSD-style licenses, see third_party/README.md)
+# used by AudioConverter to encode non-OGG chart music to OGG Vorbis.
+add_subdirectory(third_party/libogg EXCLUDE_FROM_ALL)
+add_subdirectory(third_party/libvorbis EXCLUDE_FROM_ALL)
+
 # Workaround for MSVC Release optimizer crash on specific files.
 # Disable optimization for ChartCanvas.cpp and ChartCanvasPlayback.cpp.
 if(MSVC)
@@ -39,6 +44,14 @@ install(FILES
     third_party/QtAdvancedDockingSystem/LICENSE
     third_party/QtAdvancedDockingSystem/gnu-lgpl-v2.1.md
     DESTINATION share/${PROJECT_NAME}/licenses/QtAdvancedDockingSystem
+)
+install(FILES
+    third_party/libogg/COPYING
+    DESTINATION share/${PROJECT_NAME}/licenses/libogg
+)
+install(FILES
+    third_party/libvorbis/COPYING
+    DESTINATION share/${PROJECT_NAME}/licenses/libvorbis
 )
 if(EXISTS "${CMAKE_SOURCE_DIR}/plugins")
     install(DIRECTORY plugins/ DESTINATION bin/plugins)
@@ -66,10 +79,12 @@ if(BUILD_TESTING)
         src/editor/NoteChain/NoteChainEditor.cpp
         src/editor/NoteChain/NoteChainState.cpp
         src/editor/NoteChain/NoteChainPersistence.cpp
+        src/audio/AudioConverter.cpp
     )
 
     target_include_directories(CatchChartEditorTests PRIVATE src)
-    target_link_libraries(CatchChartEditorTests Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test)
+    target_link_libraries(CatchChartEditorTests
+        Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test Qt6::Multimedia Vorbis::vorbis)
 
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
 
