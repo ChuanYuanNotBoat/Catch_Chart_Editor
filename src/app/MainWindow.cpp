@@ -2990,7 +2990,8 @@ void MainWindow::newChart()
     // Step 1: Select audio file. Non-OGG audio is converted automatically.
     const QString audioPath = QFileDialog::getOpenFileName(
         this, tr("Select Audio File"), beatmapRootPath(),
-        tr("Audio Files (*.ogg *.mp3 *.wav *.flac *.m4a *.aac);;All Files (*.*)"));
+        tr("Audio Files (*.ogg *.oga *.mp3 *.wav *.flac *.m4a *.aac *.wma "
+           "*.opus *.aif *.aiff *.mka);;All Files (*.*)"));
     if (audioPath.isEmpty())
     {
         Logger::debug("New chart cancelled (no audio selected)");

@@ -66,7 +66,9 @@ void MetaEditPanel::setupUi()
     m_formLayout->addRow(m_audioOggLabel, audioLayout);
     connect(m_audioBrowseBtn, &QPushButton::clicked, [this]()
             {
-        QString fileName = QFileDialog::getOpenFileName(this, tr("Select Audio"), QString(), tr("Audio Files (*.ogg *.mp3 *.wav *.flac *.m4a *.aac);;All Files (*.*)"));
+        QString fileName = QFileDialog::getOpenFileName(this, tr("Select Audio"), QString(),
+            tr("Audio Files (*.ogg *.oga *.mp3 *.wav *.flac *.m4a *.aac *.wma "
+               "*.opus *.aif *.aiff *.mka);;All Files (*.*)"));
         if (!fileName.isEmpty()) m_audioFileEdit->setText(fileName); });
 
     m_backgroundFileEdit = new QLineEdit(this);

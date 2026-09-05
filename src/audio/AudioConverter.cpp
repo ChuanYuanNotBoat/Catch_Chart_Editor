@@ -255,6 +255,7 @@ bool convertToOgg(const QString &inputPath,
     qint64 durationMs = 0;
     qint64 lastPositionMs = 0;
     QString decodeError;
+    QAudioDecoder::Error decoderError = QAudioDecoder::NoError;
 
     // Encodes one decoded buffer. Returns false on cancel or IO failure.
     const auto processBuffer = [&](const QAudioBuffer &buffer) -> bool
@@ -381,9 +382,10 @@ bool convertToOgg(const QString &inputPath,
         } });
 
     QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error),
-                     &decoder, [&](QAudioDecoder::Error)
+                     &decoder, [&](QAudioDecoder::Error error)
                      {
         decodeFailed = true;
+        decoderError = error;
         decodeError = decoder.errorString().isEmpty()
                           ? QStringLiteral("QAudioDecoder failed.")
                           : decoder.errorString(); });
@@ -403,13 +405,39 @@ bool convertToOgg(const QString &inputPath,
     {
         outFile.close();
         QFile::remove(outputPath);
-        return fail(QStringLiteral("Audio decode failed: %1").arg(decodeError));
+        // Turn backend decoder errors into actionable user-facing hints.
+        QString hint;
+        switch (decoderError)
+        {
+        case QAudioDecoder::FormatError:
+            hint = QStringLiteral(
+                "The audio format is not supported by the current system decoder.");
+            break;
+        case QAudioDecoder::ResourceError:
+            hint = QStringLiteral(
+                "The file could not be read as audio (missing, locked, corrupted "
+                "or not an audio file at all).");
+            break;
+        case QAudioDecoder::AccessDeniedError:
+            hint = QStringLiteral("Access to the audio file was denied.");
+            break;
+        default:
+            hint = QStringLiteral(
+                "The file may be corrupted or in an unsupported audio format.");
+            break;
+        }
+        return fail(QStringLiteral("Audio decode failed: %1\n(%2)")
+                        .arg(hint, decodeError));
     }
     if (!sawAnyBuffer || !enc.inited)
     {
         outFile.close();
         QFile::remove(outputPath);
-        return fail(QStringLiteral("No decodable audio samples found in: %1").arg(inputPath));
+        return fail(QStringLiteral(
+                        "No decodable audio samples found in: %1\n"
+                        "The file may not be a valid audio file, or its codec is "
+                        "not supported by the current system decoder.")
+                        .arg(inInfo.absoluteFilePath()));
     }
 
     // Flush the encoder and write the end-of-stream page.
