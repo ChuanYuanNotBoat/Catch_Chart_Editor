@@ -2682,6 +2682,8 @@ namespace
             if (!f.open(QIODevice::WriteOnly))
                 return false;
             f.write("OggS\0\0", 6);
+            f.write(QByteArray(30, '\0'));
+            f.write("\x01vorbis", 7);
         }
         const QString fakePath = dir.filePath(QStringLiteral("fake.ogg"));
         {
@@ -2696,13 +2698,28 @@ namespace
             if (!f.open(QIODevice::WriteOnly))
                 return false;
             f.write("OggS\0\0", 6);
+            f.write(QByteArray(30, '\0'));
+            f.write("\x01vorbis", 7);
+        }
+        // Opus uses the same OggS container but a different codec; Malody
+        // cannot play it, so it must NOT be treated as chart-ready OGG.
+        const QString opusPath = dir.filePath(QStringLiteral("song.opus"));
+        {
+            QFile f(opusPath);
+            if (!f.open(QIODevice::WriteOnly))
+                return false;
+            f.write("OggS\0\0", 6);
+            f.write(QByteArray(30, '\0'));
+            f.write("OpusHead", 8);
         }
 
-        // Content sniffing wins over extension: a real OggS payload is OGG
-        // regardless of the file name, a fake .ogg is not.
+        // Content sniffing wins over extension: a Vorbis-in-Ogg payload is OGG
+        // regardless of the file name, a fake .ogg is not. OggS files carrying
+        // other codecs (Opus) are rejected so they get transcoded instead.
         return AudioConverter::isOggFile(oggPath) && !AudioConverter::isOggFile(fakePath)
-               && AudioConverter::isOggFile(noExtPath) && !AudioConverter::isOggFile(
-                   dir.filePath(QStringLiteral("missing.ogg")));
+               && AudioConverter::isOggFile(noExtPath)
+               && !AudioConverter::isOggFile(opusPath)
+               && !AudioConverter::isOggFile(dir.filePath(QStringLiteral("missing.ogg")));
     }
 
     // Writes a minimal 16-bit PCM WAV file with a 440 Hz sine tone.

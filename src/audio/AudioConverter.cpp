@@ -210,7 +210,13 @@ bool isOggFile(const QString &path)
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly))
         return false;
-    return file.read(4) == QByteArray("OggS");
+    const QByteArray head = file.read(4096);
+    if (!head.startsWith(QByteArray("OggS")))
+        return false;
+    // Malody only supports Vorbis-in-Ogg. Opus/Theora/Speex streams use the
+    // same OggS container but must be transcoded, so require the Vorbis
+    // identification packet within the first pages of the stream.
+    return head.contains(QByteArray("\x01vorbis", 7));
 }
 
 bool convertToOgg(const QString &inputPath,

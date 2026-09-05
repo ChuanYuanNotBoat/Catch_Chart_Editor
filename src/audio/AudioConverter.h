@@ -7,9 +7,11 @@ class QWidget;
 
 namespace AudioConverter
 {
-// True when the file starts with the Ogg capture pattern ("OggS"),
-// regardless of its extension. Used to decide whether a selected audio
-// file must be converted before it can be referenced by a chart.
+// True when the file is an Ogg bitstream ("OggS") that carries the Vorbis
+// codec (identification packet "\x01vorbis"), regardless of its extension.
+// Other Ogg-contained codecs (Opus, Theora, Speex, ...) return false on
+// purpose: Malody only supports Vorbis-in-Ogg, so such files must be
+// transcoded first.
 bool isOggFile(const QString &path);
 
 // Blocking conversion of any audio file decodable by QAudioDecoder
