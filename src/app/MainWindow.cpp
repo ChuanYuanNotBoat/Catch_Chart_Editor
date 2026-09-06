@@ -2714,7 +2714,7 @@ void MainWindow::refreshChartStatistics()
     const int offset = chart ? chart->meta().offset : 0;
     const ChartStatistics stats = ChartStatsCalculator::compute(chart, offset);
     d->statsPanel->setStatistics(stats);
-    if (d->detailedStatsDialog && d->detailedStatsDialog->isVisible())
+    if (d->detailedStatsDialog)
         d->detailedStatsDialog->setStatistics(stats);
 }
 
@@ -2729,6 +2729,10 @@ void MainWindow::openDetailedStatsDialog()
         if (d->statsPanel)
             d->detailedStatsDialog->setStatistics(d->statsPanel->statistics());
     }
+    // Always push the latest statistics when (re)showing the dialog, so
+    // stale data from a previous chart is not displayed after switching.
+    if (d->statsPanel)
+        d->detailedStatsDialog->setStatistics(d->statsPanel->statistics());
     d->detailedStatsDialog->show();
     d->detailedStatsDialog->raise();
     d->detailedStatsDialog->activateWindow();
@@ -3454,6 +3458,15 @@ void MainWindow::loadChartFile(const QString &filePath)
     // Initialize resource cache for change detection.
     d->lastLoadedAudioFile = loadedMeta.audioFile;
     d->lastLoadedBackgroundFile = loadedMeta.backgroundFile;
+
+    // Force background refresh: during chart loading, isLoadingChart is true
+    // so the chartChanged handler's userEdit block (which normally refreshes
+    // the background) is skipped. Without this call, switching to a chart
+    // with the same background filename in a different directory leaves the
+    // old background because the canvas' filename-based change detection
+    // misses it.
+    if (d->canvas)
+        d->canvas->refreshBackground();
 
     // Reset playback state and position when switching charts
     d->playbackController->stop();

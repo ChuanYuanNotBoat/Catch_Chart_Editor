@@ -3,7 +3,6 @@
 #include "utils/Logger.h"
 #include "utils/PerformanceTimer.h"
 #include <QUndoCommand>
-#include <QDebug>
 #include <QList>
 #include <QPair>
 #include <QHash>
@@ -589,7 +588,7 @@ void ChartController::removeNotes(const QVector<Note> &notes)
 {
     if (notes.isEmpty())
         return;
-    qDebug() << "[ChartController] removeNotes: pushing command for" << notes.size() << "notes";
+    Logger::debug(QString("[ChartController] removeNotes: pushing command for %1 notes").arg(notes.size()));
     m_undoStack->push(new RemoveNotesCommand(this, notes));
 }
 
@@ -621,40 +620,40 @@ void ChartController::setMetaData(const MetaData &meta)
 
 void ChartController::undo()
 {
-    qDebug() << "ChartController::undo called";
+    Logger::debug("ChartController::undo called");
     try
     {
         m_undoStack->undo();
-        qDebug() << "ChartController::undo completed";
+        Logger::debug("ChartController::undo completed");
     }
     catch (const std::exception &e)
     {
-        qCritical() << "ChartController::undo exception:" << e.what();
+        Logger::error(QString("ChartController::undo exception: %1").arg(e.what()));
         throw;
     }
     catch (...)
     {
-        qCritical() << "ChartController::undo unknown exception";
+        Logger::error("ChartController::undo unknown exception");
         throw;
     }
 }
 
 void ChartController::redo()
 {
-    qDebug() << "ChartController::redo called";
+    Logger::debug("ChartController::redo called");
     try
     {
         m_undoStack->redo();
-        qDebug() << "ChartController::redo completed";
+        Logger::debug("ChartController::redo completed");
     }
     catch (const std::exception &e)
     {
-        qCritical() << "ChartController::redo exception:" << e.what();
+        Logger::error(QString("ChartController::redo exception: %1").arg(e.what()));
         throw;
     }
     catch (...)
     {
-        qCritical() << "ChartController::redo unknown exception";
+        Logger::error("ChartController::redo unknown exception");
         throw;
     }
 }

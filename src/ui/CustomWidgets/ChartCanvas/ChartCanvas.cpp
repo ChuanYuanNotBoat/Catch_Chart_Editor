@@ -31,8 +31,7 @@
 #include <QShowEvent>
 #include <QScreen>
 #include <QWindow>
-#include <QDebug>
-#include <chrono>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -314,7 +313,7 @@ void ChartCanvas::rebuildNoteTimesCache()
 
     if (bpmList.isEmpty())
     {
-        qWarning() << "ChartCanvas::rebuildNoteTimesCache: BPM list is empty, cannot compute times.";
+        Logger::warn("ChartCanvas::rebuildNoteTimesCache: BPM list is empty, cannot compute times.");
         m_noteBeatPositions.clear();
         m_noteEndBeatPositions.clear();
         m_noteXPositions.clear();
