@@ -1533,6 +1533,14 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     createCentralArea();
     createMenus();
     setupAutoSaveTimer();
+    d->statsRefreshTimer = new QTimer(this);
+    d->statsRefreshTimer->setSingleShot(true);
+    d->statsRefreshTimer->setInterval(120);
+    connect(d->statsRefreshTimer, &QTimer::timeout, this, [this]()
+            {
+        refreshChartStatistics();
+        saveEditorStats(d->editStatisticsPath, d->editStatistics);
+    });
 
     connect(d->chartController, &ChartController::chartChanged, this, [this]()
             {
@@ -1548,9 +1556,9 @@ MainWindow::MainWindow(ChartController *chartCtrl,
             const QString action = d->chartController->nextUndoActionText();
             if (!action.isEmpty())
                 ++d->editStatistics.operationCounts[action];
-            saveEditorStats(d->editStatisticsPath, d->editStatistics);
         }
-        refreshChartStatistics();
+        if (d->statsRefreshTimer)
+            d->statsRefreshTimer->start();
         d->canvas->update();
         if (userEdit)
         {

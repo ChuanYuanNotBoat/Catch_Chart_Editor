@@ -121,6 +121,7 @@ public:
     QToolBar *mainToolBar = nullptr;
     QToolBar *pluginToolBar = nullptr;
     QTimer *autoSaveTimer = nullptr;
+    QTimer *statsRefreshTimer = nullptr;
     QAction *reloadChartAction = nullptr;
     bool compactUiMode = false;
     bool floatingToolWindowsEnabled = true;
