@@ -12,6 +12,7 @@
 #include "utils/Logger.h"
 #include "model/Chart.h"
 #include <QPainter>
+#include <QDir>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QFileInfo>
@@ -430,11 +431,12 @@ void ChartCanvas::setChartController(ChartController *controller)
     {
         connect(controller, &ChartController::chartChanged, this, [this]()
                 {
-            // Only dirty background cache when the background file path actually changed.
+            // Only dirty background cache when the resolved background path actually changed.
             // Note/BPM edits should not trigger expensive background regeneration.
+            // 比较解析后的绝对路径（chart 目录 + 文件名），避免跨目录同名背景误判为未变化。
             bool bgChanged = false;
             if (m_chartController && m_chartController->chart()) {
-                const QString &currentBg = m_chartController->chart()->meta().backgroundFile;
+                const QString currentBg = currentBackgroundPath();
                 if (currentBg != m_lastKnownBackgroundFile) {
                     bgChanged = true;
                     m_lastKnownBackgroundFile = currentBg;
@@ -452,7 +454,7 @@ void ChartCanvas::setChartController(ChartController *controller)
         connect(controller, &ChartController::metaDataChanged, this, [this]() {
             bool bgChanged = false;
             if (m_chartController && m_chartController->chart()) {
-                const QString &currentBg = m_chartController->chart()->meta().backgroundFile;
+                const QString currentBg = currentBackgroundPath();
                 if (currentBg != m_lastKnownBackgroundFile) {
                     bgChanged = true;
                     m_lastKnownBackgroundFile = currentBg;
@@ -462,12 +464,21 @@ void ChartCanvas::setChartController(ChartController *controller)
                 invalidateChartCaches(true);
             update();
         });
+
+        // 加载新谱面时无条件重建背景缓存：即使新旧谱面的背景文件名相同但目录不同，
+        // 也必须重新解析并加载（覆盖所有切换路径，包括恢复会话与插件加载）。
+        connect(controller, &ChartController::chartLoaded, this, [this]() {
+            if (m_chartController && m_chartController->chart())
+                m_lastKnownBackgroundFile = currentBackgroundPath();
+            invalidateChartCaches(true);
+            update();
+        });
         m_hyperfruitDetector->setCS(3.2);
         m_noteRenderer->setHyperfruitDetector(m_hyperfruitDetector);
 
         // Initialize background file tracking so note edits don't trigger unnecessary bg regen
         if (controller->chart())
-            m_lastKnownBackgroundFile = controller->chart()->meta().backgroundFile;
+            m_lastKnownBackgroundFile = currentBackgroundPath();
     }
     invalidateChartCaches(true);
     update();

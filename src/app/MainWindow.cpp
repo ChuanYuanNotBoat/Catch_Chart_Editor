@@ -897,6 +897,17 @@ namespace
         return target == root || target.startsWith(prefix, Qt::CaseInsensitive);
     }
 
+    // 将 meta/note 中引用的资源值解析为绝对路径；用于变化检测时统一比较口径。
+    QString resolvedChartResourcePath(const QString &chartPath, const QString &resourceFile)
+    {
+        if (resourceFile.trimmed().isEmpty())
+            return QString();
+        if (QDir::isAbsolutePath(resourceFile))
+            return QDir::cleanPath(resourceFile);
+        const QString chartDir = QFileInfo(chartPath).absolutePath();
+        return QDir::cleanPath(QDir(chartDir).filePath(resourceFile));
+    }
+
     void copyReferencedExternalResources(const QString &sourceChartPath, const QString &workingChartPath)
     {
         if (sourceChartPath.isEmpty() || workingChartPath.isEmpty())
@@ -1484,9 +1495,11 @@ MainWindow::MainWindow(ChartController *chartCtrl,
                 }
             }
 
-            if (meta.backgroundFile != d->lastLoadedBackgroundFile)
+            // 使用解析后的绝对路径比较，避免跨目录同名背景漏检。
+            const QString resolvedBg = resolvedChartResourcePath(chartPath, meta.backgroundFile);
+            if (resolvedBg != d->lastLoadedBackgroundFile)
             {
-                d->lastLoadedBackgroundFile = meta.backgroundFile;
+                d->lastLoadedBackgroundFile = resolvedBg;
                 if (d->canvas)
                     d->canvas->refreshBackground();
             }
@@ -3410,6 +3423,8 @@ void MainWindow::loadChartFile(const QString &filePath)
     if (!chartLoaded)
     {
         removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
+        // 加载失败也重推统计：统计面板/详细统计窗口必须与当前实际加载的谱面一致。
+        refreshChartStatistics();
         QMessageBox::critical(this,
                               tr("Error"),
                               loadChartError.isEmpty() ? tr("Failed to load chart.") : loadChartError);
@@ -3455,18 +3470,21 @@ void MainWindow::loadChartFile(const QString &filePath)
         }
     }
 
-    // Initialize resource cache for change detection.
+    // Initialize resource cache for change detection（背景存解析后的绝对路径）。
     d->lastLoadedAudioFile = loadedMeta.audioFile;
-    d->lastLoadedBackgroundFile = loadedMeta.backgroundFile;
+    d->lastLoadedBackgroundFile = resolvedChartResourcePath(d->workingChartPath, loadedMeta.backgroundFile);
 
     // Force background refresh: during chart loading, isLoadingChart is true
     // so the chartChanged handler's userEdit block (which normally refreshes
-    // the background) is skipped. Without this call, switching to a chart
-    // with the same background filename in a different directory leaves the
-    // old background because the canvas' filename-based change detection
-    // misses it.
+    // the background) is skipped. The canvas' chartLoaded handler already
+    // invalidates its background cache unconditionally; this repaint keeps
+    // the frame in sync right away.
     if (d->canvas)
         d->canvas->refreshBackground();
+
+    // 防御：切换谱面后强制重推统计快照，确保统计面板与详细统计窗口
+    // 始终反映当前谱面，不残留上一个谱面的数据。
+    refreshChartStatistics();
 
     // Reset playback state and position when switching charts
     d->playbackController->stop();

@@ -191,6 +191,8 @@ private:
     int hitTestNote(const QPointF &pos) const;
     QRectF getRainNoteRect(const Note &note) const;
     void updateBackgroundCache();
+    // 解析后的背景图绝对路径（chart 目录 + backgroundFile）；用于跨目录同名背景的变化检测。
+    QString currentBackgroundPath() const;
     int hitTestRangeHandle(const QPointF &pos) const;
     double snapBeatToTimeDivision(double beat) const;
     QRectF rainTailHandleRect(const Note &note) const;
