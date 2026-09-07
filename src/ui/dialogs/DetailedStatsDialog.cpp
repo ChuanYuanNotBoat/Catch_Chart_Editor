@@ -10,6 +10,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QStringList>
 
 DetailedStatsDialog::DetailedStatsDialog(QWidget *parent)
     : QDialog(parent)
@@ -17,7 +18,7 @@ DetailedStatsDialog::DetailedStatsDialog(QWidget *parent)
     // 非模态：不调用 setModal/exec，配合 show() 使用。
     setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     setWindowTitle(tr("Detailed Chart Statistics"));
-    resize(420, 320);
+    resize(480, 520);
 
     m_mainLayout = new QVBoxLayout(this);
 
@@ -42,6 +43,14 @@ DetailedStatsDialog::DetailedStatsDialog(QWidget *parent)
     addRow(3, &m_rewardTitle, &m_rewardValue);
     addRow(4, &m_soundNoteTitle, &m_soundNoteValue);
     addRow(5, &m_maxComboTitle, &m_maxComboValue);
+    addRow(6, &m_averageDensityTitle, &m_averageDensityValue);
+    addRow(7, &m_peakDensityTitle, &m_peakDensityValue);
+    addRow(8, &m_starRatingTitle, &m_starRatingValue);
+    addRow(9, &m_hyperdashTitle, &m_hyperdashValue);
+    addRow(10, &m_editTimeTitle, &m_editTimeValue);
+    addRow(11, &m_editCountTitle, &m_editCountValue);
+    addRow(12, &m_undoTitle, &m_undoValue);
+    addRow(13, &m_redoTitle, &m_redoValue);
     m_mainLayout->addWidget(m_basicGroup);
 
     m_mainLayout->addStretch();
@@ -82,6 +91,22 @@ void DetailedStatsDialog::retranslateUi()
         m_soundNoteTitle->setText(tr("Audio Notes (excluded)"));
     if (m_maxComboTitle)
         m_maxComboTitle->setText(tr("Max Combo"));
+    if (m_averageDensityTitle)
+        m_averageDensityTitle->setText(tr("Average Density"));
+    if (m_peakDensityTitle)
+        m_peakDensityTitle->setText(tr("Peak Density (1 sec)"));
+    if (m_starRatingTitle)
+        m_starRatingTitle->setText(tr("Star Rating"));
+    if (m_hyperdashTitle)
+        m_hyperdashTitle->setText(tr("Hyperdash Count"));
+    if (m_editTimeTitle)
+        m_editTimeTitle->setText(tr("Time Spent Editing"));
+    if (m_editCountTitle)
+        m_editCountTitle->setText(tr("Edit Operations"));
+    if (m_undoTitle)
+        m_undoTitle->setText(tr("Undo Operations"));
+    if (m_redoTitle)
+        m_redoTitle->setText(tr("Redo Operations"));
     if (m_closeButton)
         m_closeButton->setText(tr("Close"));
 }
@@ -127,6 +152,33 @@ void DetailedStatsDialog::rebuildBasicRows()
         m_soundNoteValue->setText(formatCount(m_stats.soundCount));
     if (m_maxComboValue)
         m_maxComboValue->setText(formatCount(m_stats.maxCombo));
+    if (m_averageDensityValue)
+        m_averageDensityValue->setText(QString::number(m_stats.averageDensity, 'f', 2) + tr(" /s"));
+    if (m_peakDensityValue)
+        m_peakDensityValue->setText(QString::number(m_stats.peakDensity, 'f', 0));
+    if (m_starRatingValue)
+        m_starRatingValue->setText(QString::number(m_stats.starRating, 'f', 2));
+    if (m_hyperdashValue)
+        m_hyperdashValue->setText(formatCount(m_stats.hyperdashCount));
+    if (m_editTimeValue)
+    {
+        const qint64 totalSeconds = m_stats.editTimeMs / 1000;
+        m_editTimeValue->setText(QStringLiteral("%1:%2:%3").arg(totalSeconds / 3600, 2, 10, QLatin1Char('0'))
+                                      .arg((totalSeconds / 60) % 60, 2, 10, QLatin1Char('0'))
+                                      .arg(totalSeconds % 60, 2, 10, QLatin1Char('0')));
+    }
+    if (m_editCountValue)
+    {
+        QStringList details;
+        for (auto it = m_stats.operationCounts.constBegin(); it != m_stats.operationCounts.constEnd(); ++it)
+            details.append(QStringLiteral("%1: %2").arg(it.key()).arg(it.value()));
+        const QString suffix = details.isEmpty() ? QString() : QStringLiteral(" (%1)").arg(details.join(QStringLiteral(", ")));
+        m_editCountValue->setText(formatCount(m_stats.editCount) + suffix);
+    }
+    if (m_undoValue)
+        m_undoValue->setText(formatCount(m_stats.undoCount));
+    if (m_redoValue)
+        m_redoValue->setText(formatCount(m_stats.redoCount));
 }
 
 QString DetailedStatsDialog::formatCount(int count)

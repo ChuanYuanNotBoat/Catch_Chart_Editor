@@ -54,12 +54,28 @@ private:
     QLabel *m_rewardValue = nullptr;
     QLabel *m_maxComboValue = nullptr;
     QLabel *m_soundNoteValue = nullptr;
+    QLabel *m_averageDensityValue = nullptr;
+    QLabel *m_peakDensityValue = nullptr;
+    QLabel *m_starRatingValue = nullptr;
+    QLabel *m_hyperdashValue = nullptr;
+    QLabel *m_editTimeValue = nullptr;
+    QLabel *m_editCountValue = nullptr;
+    QLabel *m_undoValue = nullptr;
+    QLabel *m_redoValue = nullptr;
     QLabel *m_notesTotalTitle = nullptr;
     QLabel *m_normalTitle = nullptr;
     QLabel *m_rainTitle = nullptr;
     QLabel *m_rewardTitle = nullptr;
     QLabel *m_maxComboTitle = nullptr;
     QLabel *m_soundNoteTitle = nullptr;
+    QLabel *m_averageDensityTitle = nullptr;
+    QLabel *m_peakDensityTitle = nullptr;
+    QLabel *m_starRatingTitle = nullptr;
+    QLabel *m_hyperdashTitle = nullptr;
+    QLabel *m_editTimeTitle = nullptr;
+    QLabel *m_editCountTitle = nullptr;
+    QLabel *m_undoTitle = nullptr;
+    QLabel *m_redoTitle = nullptr;
     QPushButton *m_closeButton = nullptr;
     struct ExtraSection
     {

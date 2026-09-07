@@ -179,6 +179,49 @@ namespace
         qApp->setPalette(palette);
     }
 
+    QString editorStatsPath(const QString &chartPath)
+    {
+        return chartPath.isEmpty() ? QString() : chartPath + QStringLiteral(".editor-stats.json");
+    }
+
+    ChartStatistics loadEditorStats(const QString &chartPath)
+    {
+        ChartStatistics stats;
+        const QString path = editorStatsPath(chartPath);
+        QFile file(path);
+        if (!path.isEmpty() && file.open(QIODevice::ReadOnly))
+        {
+            const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
+            stats.editTimeMs = root.value(QStringLiteral("edit_time_ms")).toVariant().toLongLong();
+            stats.editCount = root.value(QStringLiteral("edit_count")).toInt();
+            stats.undoCount = root.value(QStringLiteral("undo_count")).toInt();
+            stats.redoCount = root.value(QStringLiteral("redo_count")).toInt();
+            const QJsonObject operations = root.value(QStringLiteral("operations")).toObject();
+            for (auto it = operations.begin(); it != operations.end(); ++it)
+                stats.operationCounts.insert(it.key(), it.value().toInt());
+        }
+        return stats;
+    }
+
+    void saveEditorStats(const QString &chartPath, const ChartStatistics &stats)
+    {
+        const QString path = editorStatsPath(chartPath);
+        if (path.isEmpty())
+            return;
+        QJsonObject operations;
+        for (auto it = stats.operationCounts.constBegin(); it != stats.operationCounts.constEnd(); ++it)
+            operations.insert(it.key(), it.value());
+        QJsonObject root;
+        root.insert(QStringLiteral("edit_time_ms"), QString::number(stats.editTimeMs));
+        root.insert(QStringLiteral("edit_count"), stats.editCount);
+        root.insert(QStringLiteral("undo_count"), stats.undoCount);
+        root.insert(QStringLiteral("redo_count"), stats.redoCount);
+        root.insert(QStringLiteral("operations"), operations);
+        QFile file(path);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    }
+
     QString lightweightDockStyle(const NativeWindowTheme::ThemeColors &theme)
     {
         const QString suffix = theme.dark ? QStringLiteral("_dark") : QString();
@@ -1495,10 +1538,19 @@ MainWindow::MainWindow(ChartController *chartCtrl,
             {
         // 谱面数据变化：使奖励 drop 缓存失效（下次渲染时按新谱面重建）。
         RainRewardGenerator::instance().invalidate();
-        refreshChartStatistics();
         const bool userEdit = !d->isLoadingChart;
         if (userEdit)
+        {
             d->isModified = true;
+            if (d->editSessionTimer.isValid())
+                d->editStatistics.editTimeMs += d->editSessionTimer.restart();
+            ++d->editStatistics.editCount;
+            const QString action = d->chartController->nextUndoActionText();
+            if (!action.isEmpty())
+                ++d->editStatistics.operationCounts[action];
+            saveEditorStats(d->editStatisticsPath, d->editStatistics);
+        }
+        refreshChartStatistics();
         d->canvas->update();
         if (userEdit)
         {
@@ -1622,6 +1674,9 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
 MainWindow::~MainWindow()
 {
+    if (d->editSessionTimer.isValid())
+        d->editStatistics.editTimeMs += d->editSessionTimer.elapsed();
+    saveEditorStats(d->editStatisticsPath, d->editStatistics);
     saveDockLayout();
     clearWorkingCopySession(true);
     closePluginPanels();
@@ -2772,9 +2827,15 @@ void MainWindow::refreshChartStatistics()
     const Chart *chart = d->chartController->chart();
     const int offset = chart ? chart->meta().offset : 0;
     const ChartStatistics stats = ChartStatsCalculator::compute(chart, offset);
-    d->statsPanel->setStatistics(stats);
+    ChartStatistics displayStats = stats;
+    displayStats.editTimeMs = d->editStatistics.editTimeMs;
+    displayStats.editCount = d->editStatistics.editCount;
+    displayStats.undoCount = d->editStatistics.undoCount;
+    displayStats.redoCount = d->editStatistics.redoCount;
+    displayStats.operationCounts = d->editStatistics.operationCounts;
+    d->statsPanel->setStatistics(displayStats);
     if (d->detailedStatsDialog)
-        d->detailedStatsDialog->setStatistics(stats);
+        d->detailedStatsDialog->setStatistics(displayStats);
 }
 
 void MainWindow::openDetailedStatsDialog()
@@ -2929,6 +2990,10 @@ void MainWindow::tryRecoverPreviousSession()
     d->sourceChartPath = state.sourcePath;
     d->workingChartPath = state.workingPath;
     d->currentChartPath = state.sourcePath;
+    d->editStatisticsPath = editorStatsPath(state.sourcePath);
+    d->editStatistics = loadEditorStats(state.sourcePath);
+    d->editSessionTimer.restart();
+    refreshChartStatistics();
     if (d->canvas)
         d->canvas->setSourceChartPath(state.sourcePath);
 
@@ -3499,6 +3564,10 @@ void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
     d->sourceChartPath = actualChartPath;
     d->workingChartPath = workingChartPath;
     d->currentChartPath = actualChartPath;
+    d->editStatisticsPath = editorStatsPath(actualChartPath);
+    d->editStatistics = loadEditorStats(actualChartPath);
+    d->editSessionTimer.restart();
+    refreshChartStatistics();
     if (d->reloadChartAction)
         d->reloadChartAction->setEnabled(true);
     if (d->canvas)
@@ -4015,6 +4084,7 @@ void MainWindow::undo()
     if (d->chartController)
     {
         Logger::debug("Undo triggered");
+        ++d->editStatistics.undoCount;
         const QString actionText = d->chartController->nextUndoActionText();
         d->chartController->undo();
         if (d->canvas && d->canvas->noteChainEditor())
@@ -4029,6 +4099,7 @@ void MainWindow::redo()
     if (d->chartController)
     {
         Logger::debug("Redo triggered");
+        ++d->editStatistics.redoCount;
         const QString actionText = d->chartController->nextRedoActionText();
         d->chartController->redo();
         if (d->canvas && d->canvas->noteChainEditor())

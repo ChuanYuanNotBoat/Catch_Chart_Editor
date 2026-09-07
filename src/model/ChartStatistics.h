@@ -2,6 +2,7 @@
 #pragma once
 
 #include <QString>
+#include <QHash>
 
 class Chart;
 
@@ -24,12 +25,28 @@ struct ChartStatistics
     int soundCount = 0;    // 音频 note 数量（仅供参考，不计入任何统计口径）
     int rewardCount = 0;   // rain 奖励音符数量
     int maxCombo = 0;      // 理论 Max Combo = normalCount + rewardCount
+    double averageDensity = 0.0; // 可捕获音符/秒
+    double peakDensity = 0.0;    // 任意连续 1 秒窗口内的最大数量
+    double starRating = 0.0;     // osu!catch Movement difficulty rating
+    int hyperdashCount = 0;
+    qint64 editTimeMs = 0;
+    int editCount = 0;
+    int undoCount = 0;
+    int redoCount = 0;
+    QHash<QString, int> operationCounts;
 
     bool operator==(const ChartStatistics &other) const
     {
         return totalNotes == other.totalNotes && normalCount == other.normalCount
             && rainCount == other.rainCount && soundCount == other.soundCount
-            && rewardCount == other.rewardCount && maxCombo == other.maxCombo;
+            && rewardCount == other.rewardCount && maxCombo == other.maxCombo
+            && qFuzzyCompare(averageDensity + 1.0, other.averageDensity + 1.0)
+            && qFuzzyCompare(peakDensity + 1.0, other.peakDensity + 1.0)
+            && qFuzzyCompare(starRating + 1.0, other.starRating + 1.0)
+            && hyperdashCount == other.hyperdashCount
+            && editTimeMs == other.editTimeMs && editCount == other.editCount
+            && undoCount == other.undoCount && redoCount == other.redoCount
+            && operationCounts == other.operationCounts;
     }
 
     bool operator!=(const ChartStatistics &other) const { return !(*this == other); }

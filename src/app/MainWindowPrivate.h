@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "MainWindow.h"
+#include "model/ChartStatistics.h"
 #include <QHash>
 #include <QList>
 #include <QPointer>
@@ -8,6 +9,7 @@
 #include <QSet>
 #include <QString>
 #include <QByteArray>
+#include <QElapsedTimer>
 #include <QVariantMap>
 #include <limits>
 
@@ -152,6 +154,9 @@ public:
     bool isModified = false;
     bool isLoadingChart = false;
     bool audioPlaybackReady = false;
+    ChartStatistics editStatistics;
+    QString editStatisticsPath;
+    QElapsedTimer editSessionTimer;
 
     // Cached resource paths for detecting changes after undo/redo/plugin edits.
     QString lastLoadedAudioFile;
