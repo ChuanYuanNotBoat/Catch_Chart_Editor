@@ -106,6 +106,7 @@ void LongRangeSelector::setupUi()
     // 起始 beat 行
     QHBoxLayout *startRow = new QHBoxLayout;
     QLabel *startLabel = new QLabel(tr("Start:"), m_group);
+    m_startLabel = startLabel;
     m_startEdit = new QLineEdit(m_group);
     m_startEdit->setPlaceholderText(QStringLiteral("0 0/4"));
     m_startEdit->setText(QStringLiteral("0 0/4"));
@@ -119,6 +120,7 @@ void LongRangeSelector::setupUi()
     // 结束 beat 行
     QHBoxLayout *endRow = new QHBoxLayout;
     QLabel *endLabel = new QLabel(tr("End:"), m_group);
+    m_endLabel = endLabel;
     m_endEdit = new QLineEdit(m_group);
     m_endEdit->setPlaceholderText(QStringLiteral("0 0/4"));
     m_endEdit->setText(QStringLiteral("0 0/4"));
@@ -182,14 +184,12 @@ void LongRangeSelector::retranslateUi()
 {
     if (m_group && !m_inputOnlyMode)
         m_group->setTitle(tr("Range Select"));
-    const auto labels = findChildren<QLabel *>();
-    for (auto *l : labels)
-    {
-        if (l->text().startsWith("Start") || l->text() == "Start:")
-            l->setText(tr("Start:"));
-        else if (l->text().startsWith("End") || l->text() == "End:")
-            l->setText(tr("End:"));
-    }
+    // 直接使用成员指针重新翻译。此前按英文文本 startsWith("Start") 匹配的写法
+    // 在中文环境下标签文本已是「开始:」，无法匹配，导致切换语言后保持中文。
+    if (m_startLabel)
+        m_startLabel->setText(tr("Start:"));
+    if (m_endLabel)
+        m_endLabel->setText(tr("End:"));
     if (m_startNowBtn)
         m_startNowBtn->setText(tr("Now"));
     if (m_endNowBtn)

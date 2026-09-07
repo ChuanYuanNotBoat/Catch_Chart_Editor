@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <QWidget>
 #include <QLineEdit>
@@ -12,6 +12,7 @@ class ChartController;
 class SelectionController;
 class PlaybackController;
 class QGroupBox;
+class QLabel;
 
 class LongRangeSelector : public QWidget
 {
@@ -79,6 +80,8 @@ private:
 
     QLineEdit *m_startEdit;
     QLineEdit *m_endEdit;
+    QLabel *m_startLabel = nullptr;
+    QLabel *m_endLabel = nullptr;
     QGroupBox *m_group;
     QPushButton *m_startNowBtn;
     QPushButton *m_endNowBtn;
