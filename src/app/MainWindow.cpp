@@ -1688,6 +1688,9 @@ void MainWindow::createFileMenu()
     QAction *openFolderAction = fileMenu->addAction(tr("Open &Folder..."), this, &MainWindow::openFolder);
     QAction *openImportedAction = fileMenu->addAction(tr("Open &Imported Charts..."), this, &MainWindow::openImportedLibrary);
     registerShortcutAction(openImportedAction, "file.open_imported_charts", QKeySequence(tr("Ctrl+Shift+O")));
+    d->reloadChartAction = fileMenu->addAction(tr("&Reload Chart"), this, &MainWindow::reloadChart);
+    registerShortcutAction(d->reloadChartAction, "file.reload_chart", QKeySequence(Qt::Key_F5));
+    d->reloadChartAction->setEnabled(false);
     QAction *saveAction = fileMenu->addAction(tr("&Save"), this, &MainWindow::saveChart);
     registerShortcutAction(saveAction, "file.save", QKeySequence::Save);
     QAction *saveAsAction = fileMenu->addAction(tr("Save &As..."), this, &MainWindow::saveChartAs);
@@ -3366,10 +3369,29 @@ bool MainWindow::loadChartForAutomation(const QString &filePath, QString *errorM
     }
     return true;
 }
-void MainWindow::loadChartFile(const QString &filePath)
+// ==================== Reload current chart ====================
+void MainWindow::reloadChart()
+{
+    const QString path = d->sourceChartPath.isEmpty() ? d->currentChartPath : d->sourceChartPath;
+    if (path.isEmpty() || !QFileInfo::exists(path))
+    {
+        statusBar()->showMessage(tr("No chart to reload."), 3000);
+        return;
+    }
+
+    Logger::info(QString("Reloading chart: %1").arg(path));
+    if (!confirmSaveIfModified(tr("Reloading the chart will discard unsaved changes.")))
+        return;
+
+    loadChartFile(path, false);
+    statusBar()->showMessage(tr("Chart reloaded: %1").arg(QFileInfo(path).fileName()), 3000);
+}
+
+void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
 {
     Logger::info(QString("Loading chart file: %1").arg(filePath));
-    if (!confirmSaveIfModified(tr("Opening another chart will replace the current one in editor.")))
+    if (confirmUnsaved
+        && !confirmSaveIfModified(tr("Opening another chart will replace the current one in editor.")))
         return;
     clearWorkingCopySession(true);
 
@@ -3477,6 +3499,8 @@ void MainWindow::loadChartFile(const QString &filePath)
     d->sourceChartPath = actualChartPath;
     d->workingChartPath = workingChartPath;
     d->currentChartPath = actualChartPath;
+    if (d->reloadChartAction)
+        d->reloadChartAction->setEnabled(true);
     if (d->canvas)
         d->canvas->setSourceChartPath(actualChartPath);
     Settings::instance().setLastOpenPath(QFileInfo(actualChartPath).absolutePath());
