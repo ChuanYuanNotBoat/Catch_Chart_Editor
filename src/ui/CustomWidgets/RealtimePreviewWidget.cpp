@@ -5,6 +5,7 @@
 #include "model/Skin.h"
 #include "render/HyperfruitDetector.h"
 #include "render/NoteRenderer.h"
+#include "render/RainRewardGenerator.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackStutterProbe.h"
 #include <cmath>
@@ -151,6 +152,15 @@ void RealtimePreviewWidget::setHyperfruitEnabled(bool enabled)
     m_hyperfruitEnabled = enabled;
     m_noteRenderer->setHyperfruitEnabled(enabled);
     invalidateHyperCache();
+    scheduleUpdate();
+}
+
+void RealtimePreviewWidget::setRainRewardPreviewEnabled(bool enabled)
+{
+    if (m_rainRewardPreviewEnabled == enabled)
+        return;
+    m_rainRewardPreviewEnabled = enabled;
+    m_noteRenderer->setRainRewardPreviewEnabled(enabled);
     scheduleUpdate();
 }
 
@@ -499,7 +509,32 @@ void RealtimePreviewWidget::paintEvent(QPaintEvent *event)
         if (rainRect.height() <= 0.1)
             continue;
 
-        m_noteRenderer->drawRain(painter, note, rainRect, false);
+        // rain 奖励 note 预览点（同一 paint pass 内绘制，无额外图层）。
+        QVector<QPointF> rewardPoints;
+        if (m_rainRewardPreviewEnabled)
+        {
+            auto &generator = RainRewardGenerator::instance();
+            generator.ensureChart(notes, chart->bpmList(), chart->meta().offset);
+            const QVector<RainDrop> drops = generator.dropsFor(note);
+            if (!drops.isEmpty())
+            {
+                const double startBeatFloat =
+                    MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator);
+                rewardPoints.reserve(drops.size());
+                for (const RainDrop &drop : drops)
+                {
+                    const double dropTimeMs = beatToTimeMs(startBeatFloat + drop.beatOffset);
+                    const double dropY = timeToY(dropTimeMs, laneRect, referenceY, upperSpanMs, lowerSpanMs);
+                    if (dropY < laneRect.top() || dropY > laneRect.bottom())
+                        continue;
+                    const double dropX = laneRect.left() + laneRect.width() * drop.xRatio;
+                    rewardPoints.append(QPointF(dropX, dropY));
+                }
+            }
+        }
+
+        m_noteRenderer->drawRain(painter, note, rainRect, false,
+                                 rewardPoints.isEmpty() ? nullptr : &rewardPoints);
     }
 
     const int noteSize = qMax(6, m_noteRenderer->getNoteSize());

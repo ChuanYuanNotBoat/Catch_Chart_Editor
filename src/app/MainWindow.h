@@ -64,6 +64,7 @@ private slots:
     void toggleTimelineDivisionColorMode(bool on);
     void openTimelineDivisionColorSettings();
     void toggleHyperfruitMode(bool on);
+    void toggleRainRewardPreview(bool on);
     void toggleVerticalFlip(bool flipped);
     void togglePlayback();
     void changeSkin(const QString &skinName);
@@ -110,7 +111,8 @@ private:
     bool runPluginActionWithMeta(const QVariantMap &meta);
     void closePluginPanels(const QString &reasonText = QString());
     bool confirmSaveIfModified(const QString &reasonText);
-    void loadChartFile(const QString &filePath);
+    void loadChartFile(const QString &filePath, bool confirmUnsaved = true);
+    void reloadChart();
     void persistRecoveryState();
     void tryRecoverPreviousSession();
     void clearWorkingCopySession(bool removeWorkingFile);
@@ -135,10 +137,13 @@ private:
     void configureCompactToolDock(ads::CDockWidget *dock);
     void updateCompactToolDockHandle(ads::CDockWidget *dock);
     void ensurePlaybackSpeedDockAssigned();
+    void ensureStatsDockAssigned();
     void saveDockLayout();
     void restoreDockLayout();
     void resetDockLayout();
     void updateDockTitles();
+    void refreshChartStatistics();
+    void openDetailedStatsDialog();
 
     class Private;
     Private *d;

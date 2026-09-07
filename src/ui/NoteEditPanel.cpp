@@ -22,7 +22,6 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QMessageBox>
-#include <QDebug>
 #include <QSignalBlocker>
 #include <QSizePolicy>
 
@@ -397,7 +396,7 @@ void NoteEditPanel::onTimeDivisionChanged(int index)
         division = 1;
     if (division > 96)
         division = 96;
-    qDebug() << "NoteEditPanel: Time division changed to" << division;
+    Logger::debug(QString("NoteEditPanel: Time division changed to %1").arg(division));
     if (m_longRangeSelector)
         m_longRangeSelector->setTimeDivision(division);
     emit timeDivisionChanged(division);

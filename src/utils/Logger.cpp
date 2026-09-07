@@ -345,7 +345,18 @@ void Logger::qtMessageHandler(QtMsgType type, const QMessageLogContext &context,
         previousHandler = m_previousHandler;
     }
 
-    std::cerr << formattedMsg.toUtf8().constData() << std::endl;
+    // 控制台输出（与 log() 一致：时间戳 + 带颜色的等级标签）。
+    // qDebug/qWarning/qCritical 等 Qt 消息在上色之前一律经过本处理函数转发，
+    // 因此这里按级别上色即可覆盖所有仍在使用 Qt 日志的模块。
+    const QString timestamp = QDateTime::currentDateTime().toString("hh:mm:ss.zzz");
+    const QString levelPrefixStr = levelPrefix(level);
+    const std::pair<std::string, ConsoleColor> p = getLevelInfo(level);
+
+    std::cout << "[" << timestamp.toUtf8().constData() << "]";
+    setColor(p.second);
+    std::cout << levelPrefixStr.toUtf8().constData();
+    resetColor();
+    std::cout << formattedMsg.toUtf8().constData() << std::endl;
 
     if (previousHandler)
         previousHandler(type, context, msg);

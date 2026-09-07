@@ -3,12 +3,14 @@
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "render/NoteRenderer.h"
+#include "render/RainRewardGenerator.h"
 #include "render/GridRenderer.h"
 #include "render/BackgroundRenderer.h"
 #include "render/HyperfruitDetector.h"
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
 #include "utils/MathUtils.h"
+#include "utils/NativeWindowTheme.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
 #include "utils/PlaybackStutterProbe.h"
@@ -266,7 +268,29 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
                 return;
             QRectF rainRect(lmargin, rectTop, availableWidth, rectHeight);
             bool selected = selectedSet.contains(i);
-            m_noteRenderer->drawRain(painter, notes[i], rainRect, selected);
+            // rain 奖励 note 预览点（同一 paint pass 内绘制，无额外图层；关闭时零开销）。
+            QVector<QPointF> rewardPoints;
+            if (m_noteRenderer->rainRewardPreviewEnabled())
+            {
+                auto &generator = RainRewardGenerator::instance();
+                generator.ensureChart(notes, bpmList, chart()->meta().offset);
+                const QVector<RainDrop> drops = generator.dropsFor(notes[i]);
+                if (!drops.isEmpty())
+                {
+                    rewardPoints.reserve(drops.size());
+                    for (const RainDrop &drop : drops)
+                    {
+                        const double dropBeat = beat + drop.beatOffset;
+                        if (dropBeat < startBeat || dropBeat > endBeat)
+                            continue;
+                        const double dropY = baseY + sign * ((dropBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+                        const double dropX = lmargin + drop.xRatio * availableWidth;
+                        rewardPoints.append(QPointF(dropX, dropY));
+                    }
+                }
+            }
+            m_noteRenderer->drawRain(painter, notes[i], rainRect, selected,
+                                     rewardPoints.isEmpty() ? nullptr : &rewardPoints);
         }
         else
         {
@@ -332,6 +356,25 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     if (m_mirrorPreviewVisible)
         drawMirrorPreview(painter, canvasHeight, lmargin, availableWidth, invVisibleRange, baseY, sign);
 
+    // Pending rain anchor: horizontal dashed guide at the anchored start time
+    // so the first rain click gives immediate visual feedback. Anchored as a
+    // beat, the line follows scrolling and disappears once the rain is placed
+    // or the mode changes.
+    if (m_currentMode == PlaceRain && !m_rainFirst)
+    {
+        const double anchorBeat = MathUtils::beatToFloat(
+            m_rainStartNote.beatNum, m_rainStartNote.numerator, m_rainStartNote.denominator);
+        const int guideY = qRound(beatToY(anchorBeat));
+        const QColor guideColor =
+            NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor()).dark
+                ? QColor(255, 150, 40)  // dark canvas: bright orange
+                : QColor(200, 90, 0);   // light canvas: dark orange
+        painter.setPen(QPen(guideColor, 2, Qt::DashLine));
+        painter.drawLine(lmargin, guideY, canvasWidth - rmargin, guideY);
+    }
+
+    drawRainTailHandles(painter);
+
     if (m_mirrorGuideVisible)
         drawMirrorGuide(painter, canvasHeight, lmargin, availableWidth);
 
@@ -348,7 +391,11 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     if (m_playbackController && m_currentPlayTime > 0)
     {
-        painter.setPen(Qt::black);
+        // Text is painted directly over the user-configurable canvas color,
+        // so pick the readable contrast color for the current background.
+        const QColor overlayTextColor =
+            NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor()).text;
+        painter.setPen(overlayTextColor);
         painter.drawText(canvasWidth - rmargin - 50, baselineY - 5,
                          QString::number(m_currentPlayTime, 'f', 0) + "ms");
         QString autoScrollText = m_autoScrollEnabled ? tr("AutoScroll: ON") : tr("AutoScroll: OFF");
@@ -565,7 +612,29 @@ void ChartCanvas::drawMirrorPreview(QPainter &painter,
             if (rectHeight <= 0.0)
                 continue;
             QRectF rainRect(lmargin, rectTop, availableWidth, rectHeight);
-            m_noteRenderer->drawRain(painter, mirrored, rainRect, false);
+            // 镜像预览：预览点横向沿镜像轴翻转（复用同一份缓存序列）。
+            QVector<QPointF> rewardPoints;
+            if (m_noteRenderer->rainRewardPreviewEnabled())
+            {
+                auto &generator = RainRewardGenerator::instance();
+                generator.ensureChart(notes, chart()->bpmList(), chart()->meta().offset);
+                const QVector<RainDrop> drops = generator.dropsFor(mirrored);
+                if (!drops.isEmpty())
+                {
+                    rewardPoints.reserve(drops.size());
+                    for (const RainDrop &drop : drops)
+                    {
+                        const double dropBeat =
+                            MathUtils::beatToFloat(mirrored.beatNum, mirrored.numerator, mirrored.denominator)
+                            + drop.beatOffset;
+                        const double dropY = baseY + sign * ((dropBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+                        const double dropX = lmargin + (1.0 - drop.xRatio) * availableWidth;
+                        rewardPoints.append(QPointF(dropX, dropY));
+                    }
+                }
+            }
+            m_noteRenderer->drawRain(painter, mirrored, rainRect, false,
+                                     rewardPoints.isEmpty() ? nullptr : &rewardPoints);
         }
         else
         {
@@ -963,6 +1032,88 @@ QRectF ChartCanvas::getRainNoteRect(const Note &note) const
     double rainWidth = qMax(1, width() - lmargin - rmargin);
 
     return QRectF(lmargin, rectTop, rainWidth, rectHeight);
+}
+
+QRectF ChartCanvas::rainTailHandleRect(const Note &note) const
+{
+    if (!chart())
+        return QRectF();
+
+    const double endTime = MathUtils::beatToMs(note.endBeatNum, note.endNumerator, note.endDenominator,
+                                               chart()->bpmList(), chart()->meta().offset);
+    const double tailY = yPosFromTime(endTime);
+
+    const int lmargin = leftMargin();
+    const int rmargin = rightMargin();
+    const double laneCenter = lmargin + (width() - lmargin - rmargin) * 0.5;
+
+    // Small grip centered horizontally inside the rain body, hugging the
+    // tail edge.
+    constexpr double kHandleWidth = 26.0;
+    constexpr double kHandleHeight = 9.0;
+    return QRectF(laneCenter - kHandleWidth * 0.5, tailY - kHandleHeight * 0.5,
+                  kHandleWidth, kHandleHeight);
+}
+
+int ChartCanvas::hitTestRainTailHandle(const QPointF &pos) const
+{
+    if (!chart())
+        return -1;
+    // The grip is an editing affordance only in placement modes; in Select or
+    // Delete mode clicks keep their original meaning.
+    if (m_currentMode != PlaceNote && m_currentMode != PlaceRain)
+        return -1;
+    if (m_rainTailDragIndex >= 0)
+        return m_rainTailDragIndex;
+
+    const auto &notes = chart()->notes();
+    // Topmost (last drawn) rain wins; iterate in reverse draw order.
+    for (int i = notes.size() - 1; i >= 0; --i)
+    {
+        if (notes[i].type != NoteType::RAIN)
+            continue;
+        if (rainTailHandleRect(notes[i]).adjusted(-3, -3, 3, 3).contains(pos))
+            return i;
+    }
+    return -1;
+}
+
+void ChartCanvas::drawRainTailHandles(QPainter &painter)
+{
+    if (!chart())
+        return;
+    if (m_currentMode != PlaceNote && m_currentMode != PlaceRain)
+        return;
+
+    const auto theme = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor());
+    const QColor gripBorder = theme.dark ? QColor(255, 170, 60) : QColor(180, 90, 0);
+    const QColor gripFill = m_rainTailDragIndex >= 0
+                                ? (theme.dark ? QColor(255, 150, 40) : QColor(200, 90, 0))
+                                : theme.button;
+
+    const auto &notes = chart()->notes();
+    for (int i = 0; i < notes.size(); ++i)
+    {
+        if (notes[i].type != NoteType::RAIN)
+            continue;
+        const QRectF handle = rainTailHandleRect(notes[i]);
+        if (!handle.intersects(QRectF(rect())))
+            continue;
+
+        painter.save();
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(QPen(gripBorder, m_rainTailDragIndex == i ? 2 : 1));
+        painter.setBrush(gripFill);
+        painter.drawRoundedRect(handle, 3, 3);
+        painter.setPen(QPen(theme.text, 1));
+        const double cx = handle.center().x();
+        for (int notch = -1; notch <= 1; ++notch)
+        {
+            const double nx = cx + notch * 4.0;
+            painter.drawLine(QPointF(nx, handle.top() + 2), QPointF(nx, handle.bottom() - 2));
+        }
+        painter.restore();
+    }
 }
 
 int ChartCanvas::hitTestNote(const QPointF &pos) const

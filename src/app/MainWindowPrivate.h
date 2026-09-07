@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "MainWindow.h"
+#include "model/ChartStatistics.h"
 #include <QHash>
 #include <QList>
 #include <QPointer>
@@ -8,6 +9,7 @@
 #include <QSet>
 #include <QString>
 #include <QByteArray>
+#include <QElapsedTimer>
 #include <QVariantMap>
 #include <limits>
 
@@ -33,6 +35,8 @@ class QToolBar;
 class QTimer;
 class RealtimePreviewWidget;
 class PluginActionPanel;
+class ChartStatsPanel;
+class DetailedStatsDialog;
 
 namespace ads
 {
@@ -63,6 +67,7 @@ public:
     ads::CDockWidget *pluginToolsDock = nullptr;
     ads::CDockWidget *bpmPanelDock = nullptr;
     ads::CDockWidget *metaPanelDock = nullptr;
+    ads::CDockWidget *statsToolsDock = nullptr;
     QWidget *workspaceContainer = nullptr;
     QSplitter *legacySplitter = nullptr;
     QScrollArea *legacyRightScrollArea = nullptr;
@@ -74,6 +79,8 @@ public:
     PluginActionPanel *pluginActionPanel = nullptr;
     BPMTimePanel *bpmPanel = nullptr;
     MetaEditPanel *metaPanel = nullptr;
+    ChartStatsPanel *statsPanel = nullptr;
+    DetailedStatsDialog *detailedStatsDialog = nullptr;
     LeftPanel *leftPanel = nullptr;
     QAction *undoAction = nullptr;
     QAction *redoAction = nullptr;
@@ -83,6 +90,7 @@ public:
     QAction *timelineDivisionColorAction = nullptr;
     QAction *timelineDivisionColorSettingsAction = nullptr;
     QAction *hyperfruitAction = nullptr;
+    QAction *rainRewardPreviewAction = nullptr;
     QAction *verticalFlipAction = nullptr;
     QAction *playAction = nullptr;
     QActionGroup *speedActionGroup = nullptr;
@@ -113,6 +121,8 @@ public:
     QToolBar *mainToolBar = nullptr;
     QToolBar *pluginToolBar = nullptr;
     QTimer *autoSaveTimer = nullptr;
+    QTimer *statsRefreshTimer = nullptr;
+    QAction *reloadChartAction = nullptr;
     bool compactUiMode = false;
     bool floatingToolWindowsEnabled = true;
     bool floatingToolWindowsInitialized = false;
@@ -121,6 +131,7 @@ public:
     bool rangeToolsWereVisible = true;
     bool mirrorToolsWereVisible = true;
     bool pluginToolsWereVisible = false;
+    bool statsToolsWereVisible = true;
     bool leftPanelWasVisible = true;
     bool previewWasVisible = true;
     bool notePanelWasVisible = true;
@@ -144,6 +155,9 @@ public:
     bool isModified = false;
     bool isLoadingChart = false;
     bool audioPlaybackReady = false;
+    ChartStatistics editStatistics;
+    QString editStatisticsPath;
+    QElapsedTimer editSessionTimer;
 
     // Cached resource paths for detecting changes after undo/redo/plugin edits.
     QString lastLoadedAudioFile;

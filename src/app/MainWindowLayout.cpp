@@ -65,9 +65,22 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         // Preserve the user's real ADS layout before temporarily emptying the
         // tool docks. Layout saves are paused in legacy mode so this snapshot
         // remains available after a restart.
-        if (d->dockManager)
+        // wasInitialized == false means this is the startup conversion where the
+        // dock manager still holds the default layout; saving here would clobber
+        // the user's persisted floating layout snapshot with the default one.
+        if (d->dockManager && wasInitialized)
             Settings::instance().setDockLayoutState(
                 d->dockManager->saveState(kDockLayoutVersion));
+        // Hide every floating container in one step first. Without this they
+        // would close one by one (each with a visible flash) as their docks
+        // are emptied below. showDockWidget() shows them again when floating
+        // mode is re-enabled.
+        for (ads::CFloatingDockContainer *floatingWindow :
+             d->dockManager->floatingWidgets())
+        {
+            if (floatingWindow)
+                floatingWindow->hide();
+        }
         closePluginPanels();
 
         const auto isOpen = [](ads::CDockWidget *dock, bool fallback)
@@ -79,6 +92,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         d->rangeToolsWereVisible = isOpen(d->rangeToolsDock, true);
         d->mirrorToolsWereVisible = isOpen(d->mirrorToolsDock, true);
         d->pluginToolsWereVisible = isOpen(d->pluginToolsDock, false);
+        d->statsToolsWereVisible = isOpen(d->statsToolsDock, true);
         d->leftPanelWasVisible = isOpen(d->leftPanelDock, true);
         d->previewWasVisible = isOpen(d->previewDock, true);
         d->notePanelWasVisible = isOpen(d->notePanelDock, true);
@@ -111,6 +125,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         QWidget *mirrorTools = takeDockContent(d->mirrorToolsDock);
         QWidget *curveTools = takeDockContent(d->curveToolsDock);
         QWidget *pluginTools = takeDockContent(d->pluginToolsDock);
+        QWidget *statsTools = takeDockContent(d->statsToolsDock);
 
         QWidget *leftPanel = takeDockContent(d->leftPanelDock);
         QWidget *preview = takeDockContent(d->previewDock);
@@ -131,6 +146,8 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
                 d->pluginToolsWereVisible);
             d->notePanel->setNoteChainControlsVisible(curveVisible);
         }
+        if (d->leftPanel && statsTools)
+            d->leftPanel->attachStatsSection(statsTools);
 
         if (!d->legacySplitter)
         {
@@ -187,6 +204,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         QWidget *mirrorTools = d->notePanel ? d->notePanel->takeMirrorToolsWidget() : nullptr;
         QWidget *curveTools = d->notePanel ? d->notePanel->takeCurveToolsWidget() : nullptr;
         QWidget *pluginTools = d->notePanel ? d->notePanel->takeEmbeddedPluginToolsWidget() : nullptr;
+        QWidget *statsTools = d->leftPanel ? d->leftPanel->takeStatsSection() : nullptr;
 
         const auto detachLegacyWidget = [](QWidget *widget)
         {
@@ -213,13 +231,17 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         {
             if (!dock || !content)
                 return;
-            content->show();
+            // Reparent the content into the dock widget before showing it.
+            // The content is parentless here, so showing it first would
+            // briefly flash a transient top-level native window per panel.
             dock->setWidget(content, insertMode);
+            content->show();
             dock->toggleView(visible);
         };
         restoreDockContent(d->workspaceDock, d->workspaceContainer, true,
                            ads::CDockWidget::ForceNoScrollArea);
         restoreDockContent(d->leftPanelDock, d->leftPanel, d->leftPanelWasVisible);
+        restoreDockContent(d->statsToolsDock, statsTools, d->statsToolsWereVisible);
         restoreDockContent(d->previewDock, d->previewWidget, d->previewWasVisible,
                            ads::CDockWidget::ForceNoScrollArea);
         restoreDockContent(d->notePanelDock, d->notePanel, d->notePanelWasVisible);
@@ -256,7 +278,7 @@ void MainWindow::updateToolDockActionVisibility()
         d->timingToolsDock, d->playbackSpeedToolsDock,
         d->rangeToolsDock, d->mirrorToolsDock,
         d->curveToolsDock, d->pluginToolsDock, d->bpmPanelDock,
-        d->metaPanelDock};
+        d->metaPanelDock, d->statsToolsDock};
     for (ads::CDockWidget *dock : docks)
     {
         if (dock && dock->toggleViewAction())
@@ -307,6 +329,43 @@ void MainWindow::ensurePlaybackSpeedDockAssigned()
     d->playbackSpeedToolsDock->toggleView(true);
     configureCompactToolDock(d->playbackSpeedToolsDock);
     Logger::info("Added Playback Speed panel to an existing ADS layout.");
+}
+
+void MainWindow::ensureStatsDockAssigned()
+{
+    if (!d->dockManager || !d->statsToolsDock
+        || d->statsToolsDock->dockAreaWidget())
+    {
+        return;
+    }
+
+    ads::CDockAreaWidget *area = nullptr;
+    if (d->leftPanelDock && d->leftPanelDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, d->statsToolsDock,
+            d->leftPanelDock->dockAreaWidget());
+    }
+    else if (d->notePanelDock && d->notePanelDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::BottomDockWidgetArea, d->statsToolsDock,
+            d->notePanelDock->dockAreaWidget());
+    }
+    else if (d->workspaceDock && d->workspaceDock->dockAreaWidget())
+    {
+        area = d->dockManager->addDockWidget(
+            ads::RightDockWidgetArea, d->statsToolsDock,
+            d->workspaceDock->dockAreaWidget());
+    }
+
+    if (!area)
+        return;
+
+    area->setAllowedAreas(ads::OuterDockAreas);
+    d->statsToolsDock->toggleView(true);
+    configureCompactToolDock(d->statsToolsDock);
+    Logger::info("Added Chart Statistics panel to an existing ADS layout.");
 }
 
 void MainWindow::configureNotePanelScrollArea()

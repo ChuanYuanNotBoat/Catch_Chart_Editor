@@ -1,4 +1,4 @@
-#include <QCoreApplication>
+﻿#include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -17,12 +17,15 @@
 #include "file/ChartIO.h"
 #include "file/ChartFileSystem.h"
 #include "audio/PlaybackTiming.h"
+#include "audio/AudioConverter.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
 #include "editor/NoteChain/NoteChainCurveSampler.h"
 #include "editor/NoteChain/NoteChainEditor.h"
 #include "editor/NoteChain/NoteChainPersistence.h"
 #include "model/Chart.h"
+#include "model/ChartStatistics.h"
+#include "render/RainRewardGenerator.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackSpeed.h"
 
@@ -2523,6 +2526,366 @@ namespace
             && controller.nextUndoActionText() == QStringLiteral("Plugin Curve Edit: Move Anchor");
     }
 
+    Note makeRainNote(int startBeatNum, int startNum, int startDen,
+                      int endBeatNum, int endNum, int endDen)
+    {
+        Note rain;
+        rain.type = NoteType::RAIN;
+        rain.beatNum = startBeatNum;
+        rain.numerator = startNum;
+        rain.denominator = startDen;
+        rain.endBeatNum = endBeatNum;
+        rain.endNumerator = endNum;
+        rain.endDenominator = endDen;
+        rain.x = 256;
+        return rain;
+    }
+
+    bool testRainRewardStateCore()
+    {
+        if (RainRewardGenerator::seedForNoteCount(3) != 0xCA7FBEA4u)
+            return false;
+
+        std::uint32_t state[4] = {};
+        RainRewardGenerator::initializeState(
+            RainRewardGenerator::seedForNoteCount(3), state);
+        const std::uint32_t expectedInitial[] = {
+            0x89A034D8u, 0xA89A8FC1u, 0xD1292EA6u, 0x10F97618u};
+        for (int i = 0; i < 4; ++i)
+        {
+            if (state[i] != expectedInitial[i])
+                return false;
+        }
+
+        const std::uint32_t expectedRawX[] = {228u, 155u, 3u, 372u, 148u};
+        for (std::uint32_t expected : expectedRawX)
+        {
+            RainRewardGenerator::advanceState(state);
+            if (RainRewardGenerator::rawXFromState(state) != expected)
+                return false;
+        }
+        return true;
+    }
+
+    bool testRainRewardDropsUseOfficialTimingAndX()
+    {
+        QVector<Note> notes;
+        notes.append(makeRainNote(0, 0, 1, 4, 0, 1));
+        notes.append(makeNormalNote(2, 0, 1, 128, QStringLiteral("n1")));
+        notes.append(makeRainNote(8, 1, 2, 9, 1, 4));
+        const QVector<BpmEntry> bpmList = {BpmEntry(0, 0, 1, 120.0)};
+
+        auto &gen = RainRewardGenerator::instance();
+        gen.invalidate();
+        gen.ensureChart(notes, bpmList, 0);
+
+        const QVector<RainDrop> first = gen.dropsFor(notes[0]);
+        if (first.size() != 21) // round(2000 / 100) + 1
+            return false;
+
+        const std::uint32_t expectedRawX[] = {228u, 155u, 3u, 372u, 148u};
+        for (int i = 0; i < first.size(); ++i)
+        {
+            if (!nearlyEqual(first[i].beatOffset * 500.0, i * 100.0)
+                || first[i].rawX > 512u
+                || !nearlyEqual(first[i].xRatio,
+                                static_cast<double>(first[i].rawX) / 512.0))
+                return false;
+            if (i < 5 && first[i].rawX != expectedRawX[i])
+                return false;
+        }
+        if (!nearlyEqual(first.last().beatOffset, 4.0))
+            return false;
+
+        const QVector<RainDrop> second = gen.dropsFor(notes[2]);
+        if (second.size() != 5) // round(375 / 100) + 1
+            return false;
+        const double expectedOffsetsMs[] = {0.0, 93.0, 187.0, 281.0, 375.0};
+        const std::uint32_t expectedSecondRawX[] = {246u, 33u, 349u, 155u, 107u};
+        for (int i = 0; i < second.size(); ++i)
+        {
+            if (!nearlyEqual(second[i].beatOffset * 500.0, expectedOffsetsMs[i])
+                || second[i].rawX != expectedSecondRawX[i])
+                return false;
+        }
+
+        // The stream is rebuilt deterministically from the chart's gameplay
+        // notes.
+        gen.invalidate();
+        gen.ensureChart(notes, bpmList, 0);
+        const QVector<RainDrop> replay = gen.dropsFor(notes[0]);
+        if (replay.size() != first.size())
+            return false;
+        for (int i = 0; i < first.size(); ++i)
+        {
+            if (replay[i].rawX != first[i].rawX
+                || !nearlyEqual(replay[i].beatOffset, first[i].beatOffset))
+                return false;
+        }
+        return true;
+    }
+
+    bool testRainRewardUsesWholeNoteCountAndCatchRainOnly()
+    {
+        const QVector<BpmEntry> bpmList = {BpmEntry(0, 0, 1, 120.0)};
+        const Note rain = makeRainNote(0, 0, 1, 2, 0, 1);
+
+        QVector<Note> onlyRain;
+        onlyRain.append(rain);
+        QVector<Note> rainAndNormal;
+        rainAndNormal.append(rain);
+        rainAndNormal.append(makeNormalNote(1, 0, 1, 64, QStringLiteral("plain")));
+
+        auto &gen = RainRewardGenerator::instance();
+        gen.invalidate();
+        gen.ensureChart(onlyRain, bpmList, 0);
+        const QVector<RainDrop> oneNote = gen.dropsFor(rain);
+        if (oneNote.size() != 11)
+            return false; // round(1000 / 100) + 1
+
+        gen.invalidate();
+        gen.ensureChart(rainAndNormal, bpmList, 0);
+        const QVector<RainDrop> twoNotes = gen.dropsFor(rainAndNormal[0]);
+        if (twoNotes.size() != oneNote.size()
+            || twoNotes.first().rawX == oneNote.first().rawX)
+            return false;
+        if (gen.dropsFor(rainAndNormal[1]).size() != 0)
+            return false;
+
+        // 437's input vector omits SOUND notes. Adding one must not perturb
+        // the reward stream even though it remains in the editor chart.
+        QVector<Note> rainAndSound;
+        rainAndSound.append(rain);
+        rainAndSound.append(Note(1, 0, 1, QStringLiteral("sound.ogg"), 100, 0));
+        gen.invalidate();
+        gen.ensureChart(rainAndSound, bpmList, 0);
+        if (gen.dropsFor(rainAndSound[0]).first().rawX != oneNote.first().rawX)
+            return false;
+
+        // Rain coordinates do not use the source x field; mirror lookup is
+        // intentionally able to reuse the same generated sequence.
+        Note mirrored = rain;
+        mirrored.x = 512 - rain.x;
+        return gen.dropsFor(mirrored).size() == twoNotes.size();
+    }
+// ---- ChartStatsCalculator ----
+
+    bool testChartStatsCalculatorCounts()
+    {
+        Chart chart;
+        chart.clearNotes();
+        chart.bpmList().clear();
+        chart.addBpm(BpmEntry(0, 0, 1, 120.0));
+        chart.meta().offset = 0;
+
+        // 4 normal, 2 rain(4 拍、1 拍 @120bpm -> 21 与 6 个奖励点), 1 sound, 1 zero-length rain.
+        chart.addNote(makeNormalNote(0, 0, 1, 64, QStringLiteral("n0")));
+        chart.addNote(makeNormalNote(1, 0, 1, 128, QStringLiteral("n1")));
+        chart.addNote(makeNormalNote(2, 0, 1, 256, QStringLiteral("n2")));
+        chart.addNote(makeNormalNote(3, 0, 1, 300, QStringLiteral("n3")));
+        chart.addNote(makeRainNote(0, 0, 1, 4, 0, 1));      // 2000ms -> 21 drops
+        chart.addNote(makeRainNote(4, 0, 1, 5, 0, 1));      // 500ms -> 6 drops
+        chart.addNote(Note(5, 0, 1, QStringLiteral("audio.ogg"), 100, 0)); // SOUND
+        Note zero; // 零长度 rain -> 0 奖励点
+        zero.type = NoteType::RAIN;
+        zero.x = 100;
+        zero.beatNum = 6;
+        zero.numerator = 0;
+        zero.denominator = 1;
+        zero.endBeatNum = 6;
+        zero.endNumerator = 0;
+        zero.endDenominator = 1;
+        chart.addNote(zero);
+
+        const ChartStatistics stats = ChartStatsCalculator::compute(&chart, 0);
+
+        // 全 note 数 = NORMAL + RAIN（不含 SOUND）。
+        if (stats.totalNotes != 7) // 4 normal + 2 rain + 1 zero-length rain
+            return false;
+        if (stats.normalCount != 4)
+            return false;
+        if (stats.rainCount != 3) // 2 常规 rain + 1 零长度 rain
+            return false;
+        if (stats.soundCount != 1)
+            return false;
+        // 奖励数量与预览算法完全一致。
+        if (stats.rewardCount != 21 + 6 + 0)
+            return false;
+        // 理论 Max Combo = NORMAL + 奖励点（rain 本体不重复计）。
+        if (stats.maxCombo != 4 + 27)
+            return false;
+        return true;
+    }
+
+    bool testChartStatsCalculatorSoundExcludedFromEveryField()
+    {
+        Chart chart;
+        chart.clearNotes();
+        chart.bpmList().clear();
+        chart.addBpm(BpmEntry(0, 0, 1, 120.0));
+        chart.meta().offset = 0;
+        chart.addNote(Note(0, 0, 1, QStringLiteral("only_audio.ogg"), 80, 0));
+        chart.addNote(Note(1, 0, 1, QStringLiteral("second.ogg"), 90, 0));
+
+        const ChartStatistics stats = ChartStatsCalculator::compute(&chart, 0);
+        if (stats.totalNotes != 0 || stats.normalCount != 0 || stats.rainCount != 0
+            || stats.rewardCount != 0 || stats.maxCombo != 0 || stats.soundCount != 2)
+            return false;
+        return true;
+    }
+
+    bool testChartStatsCalculatorEmptyChart()
+    {
+        Chart chart;
+        chart.clearNotes();
+        chart.bpmList().clear();
+        chart.meta().offset = 42;
+        const ChartStatistics stats = ChartStatsCalculator::compute(&chart, 42);
+        if (stats.totalNotes != 0 || stats.normalCount != 0 || stats.rainCount != 0
+            || stats.rewardCount != 0 || stats.maxCombo != 0 || stats.soundCount != 0)
+            return false;
+        if (stats.totalNotes != 0)
+            return false;
+        return true;
+    }
+
+    // ---- AudioConverter ----
+
+    bool testAudioConverterIsOggFile()
+    {
+        QTemporaryDir dir;
+        if (!dir.isValid())
+            return false;
+
+        const QString oggPath = dir.filePath(QStringLiteral("real.ogg"));
+        {
+            QFile f(oggPath);
+            if (!f.open(QIODevice::WriteOnly))
+                return false;
+            f.write("OggS\0\0", 6);
+            f.write(QByteArray(30, '\0'));
+            f.write("\x01vorbis", 7);
+        }
+        const QString fakePath = dir.filePath(QStringLiteral("fake.ogg"));
+        {
+            QFile f(fakePath);
+            if (!f.open(QIODevice::WriteOnly))
+                return false;
+            f.write("RIFFxxxx", 8);
+        }
+        const QString noExtPath = dir.filePath(QStringLiteral("stream"));
+        {
+            QFile f(noExtPath);
+            if (!f.open(QIODevice::WriteOnly))
+                return false;
+            f.write("OggS\0\0", 6);
+            f.write(QByteArray(30, '\0'));
+            f.write("\x01vorbis", 7);
+        }
+        // Opus uses the same OggS container but a different codec; Malody
+        // cannot play it, so it must NOT be treated as chart-ready OGG.
+        const QString opusPath = dir.filePath(QStringLiteral("song.opus"));
+        {
+            QFile f(opusPath);
+            if (!f.open(QIODevice::WriteOnly))
+                return false;
+            f.write("OggS\0\0", 6);
+            f.write(QByteArray(30, '\0'));
+            f.write("OpusHead", 8);
+        }
+
+        // Content sniffing wins over extension: a Vorbis-in-Ogg payload is OGG
+        // regardless of the file name, a fake .ogg is not. OggS files carrying
+        // other codecs (Opus) are rejected so they get transcoded instead.
+        return AudioConverter::isOggFile(oggPath) && !AudioConverter::isOggFile(fakePath)
+               && AudioConverter::isOggFile(noExtPath)
+               && !AudioConverter::isOggFile(opusPath)
+               && !AudioConverter::isOggFile(dir.filePath(QStringLiteral("missing.ogg")));
+    }
+
+    // Writes a minimal 16-bit PCM WAV file with a 440 Hz sine tone.
+    bool makeTestWav(const QString &path, int sampleRate, int seconds)
+    {
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly))
+            return false;
+
+        const int numFrames = sampleRate * seconds;
+        const quint32 dataBytes = static_cast<quint32>(numFrames * 2);
+        const quint32 riffSize = 36 + dataBytes;
+
+        f.write("RIFF", 4);
+        f.write(reinterpret_cast<const char *>(&riffSize), 4);
+        f.write("WAVE", 4);
+        f.write("fmt ", 4);
+        const quint32 fmtSize = 16;
+        const quint16 audioFormat = 1; // PCM
+        const quint16 channels = 1;
+        const quint16 bitsPerSample = 16;
+        const quint32 byteRate = static_cast<quint32>(sampleRate) * channels * 2;
+        const quint16 blockAlign = channels * 2;
+        f.write(reinterpret_cast<const char *>(&fmtSize), 4);
+        f.write(reinterpret_cast<const char *>(&audioFormat), 2);
+        f.write(reinterpret_cast<const char *>(&channels), 2);
+        f.write(reinterpret_cast<const char *>(&sampleRate), 4);
+        f.write(reinterpret_cast<const char *>(&byteRate), 4);
+        f.write(reinterpret_cast<const char *>(&blockAlign), 2);
+        f.write(reinterpret_cast<const char *>(&bitsPerSample), 2);
+        f.write("data", 4);
+        f.write(reinterpret_cast<const char *>(&dataBytes), 4);
+
+        for (int i = 0; i < numFrames; ++i)
+        {
+            const double t = static_cast<double>(i) / sampleRate;
+            const double value = 0.5 * std::sin(2.0 * M_PI * 440.0 * t);
+            const qint16 sample = static_cast<qint16>(value * 32767.0);
+            f.write(reinterpret_cast<const char *>(&sample), 2);
+        }
+        return true;
+    }
+
+    bool testAudioConverterConvertsWavToOgg()
+    {
+        QTemporaryDir dir;
+        if (!dir.isValid())
+            return false;
+
+        const QString wavPath = dir.filePath(QStringLiteral("tone.wav"));
+        const QString oggPath = dir.filePath(QStringLiteral("tone.ogg"));
+        if (!makeTestWav(wavPath, 8000, 1))
+            return false;
+
+        QString error;
+        if (!AudioConverter::convertToOgg(wavPath, oggPath, &error))
+        {
+            std::fprintf(stderr, "convertToOgg failed: %s\n", qPrintable(error));
+            return false;
+        }
+
+        QFile out(oggPath);
+        if (!out.open(QIODevice::ReadOnly))
+            return false;
+        const QByteArray bytes = out.readAll();
+        if (bytes.size() <= 44)
+            return false;
+        // Ogg capture pattern must start the stream and the Vorbis
+        // identification header ("\x01vorbis") must be present.
+        if (!bytes.startsWith("OggS"))
+            return false;
+        if (!bytes.contains(QByteArray("\x01vorbis", 7)))
+            return false;
+
+        // A missing input must fail with a non-empty error message.
+        QString missingError;
+        if (AudioConverter::convertToOgg(dir.filePath(QStringLiteral("missing.wav")),
+                                         dir.filePath(QStringLiteral("out.ogg")),
+                                         &missingError))
+            return false;
+        if (missingError.isEmpty())
+            return false;
+        return true;
+    }
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -2644,6 +3007,14 @@ int main(int argc, char **argv)
         {"NoteChain failed project switch is transactional", &testNoteChainEditorFailedProjectSwitchIsTransactional},
         {"NoteChain host note selection sync", &testNoteChainHostNoteSelectionSynchronizesNearestAnchors},
         {"ChartController undo marker text lifecycle", &testChartControllerUndoMarkerTextLifecycle},
+        {"RainReward Catch state core", &testRainRewardStateCore},
+        {"RainReward official timing and x", &testRainRewardDropsUseOfficialTimingAndX},
+        {"RainReward whole note count and Catch-only", &testRainRewardUsesWholeNoteCountAndCatchRainOnly},
+        {"ChartStats counts with sound excluded", &testChartStatsCalculatorCounts},
+        {"ChartStats sound-only chart yields zeros", &testChartStatsCalculatorSoundExcludedFromEveryField},
+        {"ChartStats empty chart yields zeros", &testChartStatsCalculatorEmptyChart},
+        {"AudioConverter isOggFile content sniffing", &testAudioConverterIsOggFile},
+        {"AudioConverter WAV to OGG roundtrip", &testAudioConverterConvertsWavToOgg},
     };
 
     int failed = 0;

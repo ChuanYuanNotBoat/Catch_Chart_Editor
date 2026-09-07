@@ -1,4 +1,6 @@
 #include "BpmMeasureDialog.h"
+#include "utils/NativeWindowTheme.h"
+#include "utils/Settings.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -16,6 +18,7 @@
 BpmMeasureDialog::BpmMeasureDialog(QWidget *parent)
     : QDialog(parent), m_measuredBpm(0.0), m_lastFinalBpm(0.0), m_measureDuration(120)
 {
+    setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     setupUi();
 }
 

@@ -18,6 +18,10 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile
 *.cmake
+# 但第三方库自带 / 必需的 CMake 模块不应被上面的通配规则误伤；
+# 注意不恢复构建生成的 *Config.cmake（如 ADS src/ 下的 in-source 残留）。
+!third_party/**/cmake/**/*.cmake
+third_party/QtAdvancedDockingSystem/src/qtadvanceddockingConfig.cmake
 *.ninja
 *.log
 *.vcxproj*
@@ -114,6 +118,7 @@ AUTOTIMING_BINARY_MAPPING.md
 REVERSE_ENGINEERING_PROGRESS.md
 tmp_impl_plan.md
 render_style_source.txt
+docs/CATCH_RAIN_REVERSE_ENGINEERING.md
 
 # 本地构建 / 工具脚本（个人使用，不提交到仓库）
 retry_build.cmd

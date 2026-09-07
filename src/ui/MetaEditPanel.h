@@ -51,7 +51,6 @@ private:
     QLabel *m_artistOrgLabel;
     QLabel *m_difficultyLabel;
     QLabel *m_chartAuthorLabel;
-    QLabel *m_audioFileLabel;
     QLabel *m_audioOggLabel;
     QLabel *m_backgroundLabel;
     QLabel *m_previewTimeLabel;

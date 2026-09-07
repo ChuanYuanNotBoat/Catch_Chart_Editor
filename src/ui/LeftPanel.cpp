@@ -7,6 +7,8 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QPushButton>
+#include <QSizePolicy>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 LeftPanel::LeftPanel(QWidget *parent)
@@ -17,10 +19,10 @@ LeftPanel::LeftPanel(QWidget *parent)
 
 void LeftPanel::setupUi()
 {
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    m_layout = new QVBoxLayout(this);
 
     m_playPauseBtn = new QPushButton(tr("Play"), this);
-    layout->addWidget(m_playPauseBtn);
+    m_layout->addWidget(m_playPauseBtn);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &LeftPanel::onPlayPauseClicked);
 
     QHBoxLayout *zoomLayout = new QHBoxLayout;
@@ -41,7 +43,7 @@ void LeftPanel::setupUi()
     zoomLayout->addWidget(m_zoomOutBtn);
     zoomLayout->addWidget(m_timeScaleSpin);
     zoomLayout->addWidget(m_zoomInBtn);
-    layout->addLayout(zoomLayout);
+    m_layout->addLayout(zoomLayout);
 
     connect(m_zoomInBtn, &QPushButton::clicked, this, &LeftPanel::onZoomInClicked);
     connect(m_zoomOutBtn, &QPushButton::clicked, this, &LeftPanel::onZoomOutClicked);
@@ -55,10 +57,10 @@ void LeftPanel::setupUi()
     m_pluginButtonsLayout->setSpacing(6);
     m_pluginSectionLabel->setVisible(false);
     m_pluginSectionContainer->setVisible(false);
-    layout->addWidget(m_pluginSectionLabel);
-    layout->addWidget(m_pluginSectionContainer);
+    m_layout->addWidget(m_pluginSectionLabel);
+    m_layout->addWidget(m_pluginSectionContainer);
 
-    layout->addStretch();
+    m_layout->addStretch();
 }
 
 void LeftPanel::onPlayPauseClicked()
@@ -223,6 +225,61 @@ void LeftPanel::setPluginQuickActions(const QList<PluginQuickAction> &actions)
     update();
 }
 
+void LeftPanel::attachStatsSection(QWidget *statsSection)
+{
+    if (!statsSection)
+        return;
+
+    // 防止重复挂载。
+    if (m_statsSection == statsSection)
+    {
+        m_statsSection->setVisible(m_statsToggleBtn ? m_statsToggleBtn->isChecked() : true);
+        return;
+    }
+    if (m_statsSection)
+        takeStatsSection();
+
+    m_statsSection = statsSection;
+    statsSection->setParent(this);
+    // 插到末尾的弹性占位之前，保证统计区块始终贴近左栏底部内容区。
+    m_layout->insertWidget(m_layout->count() - 1, statsSection);
+
+    if (!m_statsToggleBtn)
+    {
+        m_statsToggleBtn = new QToolButton(this);
+        m_statsToggleBtn->setText(tr("Statistics"));
+        m_statsToggleBtn->setCheckable(true);
+        m_statsToggleBtn->setChecked(true);
+        m_statsToggleBtn->setArrowType(Qt::DownArrow);
+        m_statsToggleBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        connect(m_statsToggleBtn, &QToolButton::toggled, this, [this](bool expanded)
+                {
+                    m_statsToggleBtn->setArrowType(expanded ? Qt::DownArrow : Qt::RightArrow);
+                    if (m_statsSection)
+                        m_statsSection->setVisible(expanded);
+                });
+        m_layout->insertWidget(m_layout->count() - 1, m_statsToggleBtn);
+    }
+    m_statsToggleBtn->show();
+    m_statsSection->setVisible(m_statsToggleBtn->isChecked());
+    updateGeometry();
+}
+
+QWidget *LeftPanel::takeStatsSection()
+{
+    if (!m_statsSection)
+        return nullptr;
+    QWidget *section = m_statsSection;
+    m_layout->removeWidget(section);
+    section->setParent(nullptr);
+    section->hide();
+    m_statsSection = nullptr;
+    if (m_statsToggleBtn)
+        m_statsToggleBtn->hide();
+    updateGeometry();
+    return section;
+}
+
 void LeftPanel::retranslateUi()
 {
     if (!m_playPauseBtn)
@@ -234,6 +291,8 @@ void LeftPanel::retranslateUi()
         m_zoomLabel->setText(tr("Zoom:"));
     if (m_pluginSectionLabel)
         m_pluginSectionLabel->setText(tr("Plugin Shortcuts"));
+    if (m_statsToggleBtn)
+        m_statsToggleBtn->setText(tr("Statistics"));
     if (m_timeScaleSpin)
         m_timeScaleSpin->setSuffix(tr("x"));
 }

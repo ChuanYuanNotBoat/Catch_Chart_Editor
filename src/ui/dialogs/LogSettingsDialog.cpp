@@ -1,5 +1,6 @@
 #include "LogSettingsDialog.h"
 #include "utils/Logger.h"
+#include "utils/NativeWindowTheme.h"
 #include "utils/PerformanceTimer.h"
 #include "utils/DiagnosticCollector.h"
 #include "utils/Settings.h"
@@ -21,6 +22,7 @@ LogSettingsDialog::LogSettingsDialog(QWidget *parent)
     setWindowTitle(tr("日志设置"));
     setModal(true);
     setMinimumWidth(500);
+    setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     setupUI();
     loadSettings();
 }

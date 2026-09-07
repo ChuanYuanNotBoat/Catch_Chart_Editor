@@ -15,6 +15,7 @@
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
 #include <QPainter>
+#include <QDir>
 #include <QPen>
 #include <QFileInfo>
 #include <QMouseEvent>
@@ -224,6 +225,19 @@ bool ChartCanvas::isMirrorGuideHandleHit(const QPointF &pos) const
 void ChartCanvas::updateBackgroundCache()
 {
     m_backgroundCacheDirty = true;
+}
+
+QString ChartCanvas::currentBackgroundPath() const
+{
+    if (!m_chartController || !m_chartController->chart())
+        return QString();
+    const QString bg = m_chartController->chart()->meta().backgroundFile;
+    if (bg.isEmpty())
+        return QString();
+    if (QDir::isAbsolutePath(bg))
+        return QDir::cleanPath(bg);
+    const QString chartDir = QFileInfo(m_chartController->chartFilePath()).absolutePath();
+    return QDir::cleanPath(QDir(chartDir).filePath(bg));
 }
 
 void ChartCanvas::invalidateGridCache()

@@ -1,4 +1,4 @@
-﻿// MainWindow.cpp - Main window implementation.
+// MainWindow.cpp - Main window implementation.
 #include "MainWindow.h"
 #include "MainWindowPrivate.h"
 #include "app/Application.h"
@@ -13,12 +13,16 @@
 
 #include "ui/MetaEditPanel.h"
 #include "ui/LeftPanel.h"
+#include "ui/ChartStatsPanel.h"
+#include "ui/dialogs/DetailedStatsDialog.h"
+#include "model/ChartStatistics.h"
 #include "ui/dialogs/LogSettingsDialog.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "audio/AudioPlayer.h"
 #include "audio/BpmDetector.h"
+#include "audio/AudioConverter.h"
 #include "utils/Settings.h"
 #include "utils/Translator.h"
 #include "utils/DiagnosticCollector.h"
@@ -27,6 +31,7 @@
 #include "file/ChartIO.h"
 #include "file/ChartFileSystem.h"
 #include "model/Skin.h"
+#include "render/RainRewardGenerator.h"
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
 #include "utils/NativeWindowTheme.h"
@@ -129,6 +134,13 @@ namespace
     {
         const auto theme = NativeWindowTheme::themeColorsFor(background);
 
+        // Controls painted natively by the Windows style (message boxes,
+        // check/radio indicators, buttons in plain dialogs) ignore QPalette,
+        // so reinforce the theme with a minimal application stylesheet.
+        const QString appStyle = NativeWindowTheme::applicationStyleSheet(background);
+        if (qApp->styleSheet() != appStyle)
+            qApp->setStyleSheet(appStyle);
+
         QPalette palette = qApp->palette();
         if (palette.color(QPalette::Window) == theme.window &&
             palette.color(QPalette::WindowText) == theme.text &&
@@ -149,7 +161,65 @@ namespace
         palette.setColor(QPalette::Disabled, QPalette::WindowText, theme.disabledText);
         palette.setColor(QPalette::Disabled, QPalette::Text, theme.disabledText);
         palette.setColor(QPalette::Disabled, QPalette::ButtonText, theme.disabledText);
+        palette.setColor(QPalette::Disabled, QPalette::Base, theme.base);
+        palette.setColor(QPalette::Disabled, QPalette::Button, theme.button);
+        palette.setColor(QPalette::Disabled, QPalette::Window, theme.window);
+        palette.setColor(QPalette::Disabled, QPalette::Highlight, theme.highlight);
+
+        // Roles consumed by validation messages (QPalette::Link via
+        // "color: palette(link)" stylesheets), input placeholders, tooltips
+        // and rich-text links. Without them these keep the light system
+        // palette and become unreadable on the dark theme.
+        palette.setColor(QPalette::Link, theme.dark ? QColor(102, 179, 255) : QColor(0, 90, 255));
+        palette.setColor(QPalette::LinkVisited, theme.dark ? QColor(173, 127, 255) : QColor(120, 0, 220));
+        palette.setColor(QPalette::PlaceholderText, theme.disabledText);
+        palette.setColor(QPalette::ToolTipBase, theme.base);
+        palette.setColor(QPalette::ToolTipText, theme.text);
+        palette.setColor(QPalette::BrightText, theme.dark ? Qt::white : Qt::black);
         qApp->setPalette(palette);
+    }
+
+    QString editorStatsPath(const QString &chartPath)
+    {
+        return chartPath.isEmpty() ? QString() : chartPath + QStringLiteral(".editor-stats.json");
+    }
+
+    ChartStatistics loadEditorStats(const QString &chartPath)
+    {
+        ChartStatistics stats;
+        const QString path = editorStatsPath(chartPath);
+        QFile file(path);
+        if (!path.isEmpty() && file.open(QIODevice::ReadOnly))
+        {
+            const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
+            stats.editTimeMs = root.value(QStringLiteral("edit_time_ms")).toVariant().toLongLong();
+            stats.editCount = root.value(QStringLiteral("edit_count")).toInt();
+            stats.undoCount = root.value(QStringLiteral("undo_count")).toInt();
+            stats.redoCount = root.value(QStringLiteral("redo_count")).toInt();
+            const QJsonObject operations = root.value(QStringLiteral("operations")).toObject();
+            for (auto it = operations.begin(); it != operations.end(); ++it)
+                stats.operationCounts.insert(it.key(), it.value().toInt());
+        }
+        return stats;
+    }
+
+    void saveEditorStats(const QString &chartPath, const ChartStatistics &stats)
+    {
+        const QString path = editorStatsPath(chartPath);
+        if (path.isEmpty())
+            return;
+        QJsonObject operations;
+        for (auto it = stats.operationCounts.constBegin(); it != stats.operationCounts.constEnd(); ++it)
+            operations.insert(it.key(), it.value());
+        QJsonObject root;
+        root.insert(QStringLiteral("edit_time_ms"), QString::number(stats.editTimeMs));
+        root.insert(QStringLiteral("edit_count"), stats.editCount);
+        root.insert(QStringLiteral("undo_count"), stats.undoCount);
+        root.insert(QStringLiteral("redo_count"), stats.redoCount);
+        root.insert(QStringLiteral("operations"), operations);
+        QFile file(path);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
     }
 
     QString lightweightDockStyle(const NativeWindowTheme::ThemeColors &theme)
@@ -850,6 +920,14 @@ namespace
         appendIfPresent(meta, "background");
         appendIfPresent(meta, "audio");
 
+        // 兼容嵌套 song 对象（部分谱面把 title/audio 等写在 meta.song 内）。
+        if (meta.contains("song") && meta["song"].isObject())
+        {
+            const QJsonObject song = meta["song"].toObject();
+            appendIfPresent(song, "background");
+            appendIfPresent(song, "audio");
+        }
+
         const QJsonArray notes = root.value("note").toArray();
         for (const QJsonValue &v : notes)
         {
@@ -870,6 +948,17 @@ namespace
         return target == root || target.startsWith(prefix, Qt::CaseInsensitive);
     }
 
+    // 将 meta/note 中引用的资源值解析为绝对路径；用于变化检测时统一比较口径。
+    QString resolvedChartResourcePath(const QString &chartPath, const QString &resourceFile)
+    {
+        if (resourceFile.trimmed().isEmpty())
+            return QString();
+        if (QDir::isAbsolutePath(resourceFile))
+            return QDir::cleanPath(resourceFile);
+        const QString chartDir = QFileInfo(chartPath).absolutePath();
+        return QDir::cleanPath(QDir(chartDir).filePath(resourceFile));
+    }
+
     void copyReferencedExternalResources(const QString &sourceChartPath, const QString &workingChartPath)
     {
         if (sourceChartPath.isEmpty() || workingChartPath.isEmpty())
@@ -881,15 +970,42 @@ namespace
         const QStringList resources = collectReferencedResources(sourceChartPath);
         for (const QString &resource : resources)
         {
-            if (resource.isEmpty() || QDir::isAbsolutePath(resource))
+            if (resource.isEmpty())
                 continue;
 
-            const QString sourceAbs = QDir::cleanPath(QDir(sourceChartDir).absoluteFilePath(resource));
+            // 解析源文件绝对路径。支持三种引用写法：
+            // 1) 纯文件名（旧有行为）；
+            // 2) 带路径分隔符的相对路径（含 ../ 等）；
+            // 3) 绝对路径（此前被直接跳过，导致导入 .mc 时外部引用文件未被收集，
+            //    而 ChartIO::load 的“路径补丁”会把这类引用改写为纯文件名）。
+            const QFileInfo resourceInfo(resource);
+            QString sourceAbs;
+            QString targetRelative;
+            if (resourceInfo.isAbsolute())
+            {
+                sourceAbs = QDir::cleanPath(resourceInfo.absoluteFilePath());
+                targetRelative = resourceInfo.fileName();
+            }
+            else if (resource.contains('/') || resource.contains('\\'))
+            {
+                sourceAbs = QDir::cleanPath(QDir(sourceChartDir).absoluteFilePath(resource));
+                targetRelative = resourceInfo.fileName();
+            }
+            else
+            {
+                sourceAbs = QDir::cleanPath(QDir(sourceChartDir).absoluteFilePath(resource));
+                targetRelative = resource;
+            }
+
             const QFileInfo sourceFi(sourceAbs);
             if (!sourceFi.exists())
+            {
+                Logger::warn(QString("Referenced resource not found, skipped: %1 (chart: %2)")
+                                 .arg(resource, sourceChartPath));
                 continue;
+            }
 
-            const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(resource));
+            const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(targetRelative));
             if (!isPathInsideRoot(sessionRoot, targetAbs))
             {
                 Logger::warn(QString("Skip copying referenced resource outside working session root: %1").arg(resource));
@@ -907,7 +1023,15 @@ namespace
             }
 
             QDir().mkpath(QFileInfo(targetAbs).absolutePath());
-            QFile::remove(targetAbs);
+            if (QFileInfo(targetAbs).exists())
+            {
+                // 内容相同（同修改时间与大小）时跳过，避免无谓覆盖。
+                const QFileInfo targetFi(targetAbs);
+                if (targetFi.lastModified() == sourceFi.lastModified()
+                    && targetFi.size() == sourceFi.size())
+                    continue;
+                QFile::remove(targetAbs);
+            }
             if (!QFile::copy(sourceAbs, targetAbs))
             {
                 Logger::warn(QString("Failed to copy referenced resource file: %1").arg(resource));
@@ -1409,12 +1533,32 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     createCentralArea();
     createMenus();
     setupAutoSaveTimer();
+    d->statsRefreshTimer = new QTimer(this);
+    d->statsRefreshTimer->setSingleShot(true);
+    d->statsRefreshTimer->setInterval(120);
+    connect(d->statsRefreshTimer, &QTimer::timeout, this, [this]()
+            {
+        refreshChartStatistics();
+        saveEditorStats(d->editStatisticsPath, d->editStatistics);
+    });
 
     connect(d->chartController, &ChartController::chartChanged, this, [this]()
             {
+        // 谱面数据变化：使奖励 drop 缓存失效（下次渲染时按新谱面重建）。
+        RainRewardGenerator::instance().invalidate();
         const bool userEdit = !d->isLoadingChart;
         if (userEdit)
+        {
             d->isModified = true;
+            if (d->editSessionTimer.isValid())
+                d->editStatistics.editTimeMs += d->editSessionTimer.restart();
+            ++d->editStatistics.editCount;
+            const QString action = d->chartController->nextUndoActionText();
+            if (!action.isEmpty())
+                ++d->editStatistics.operationCounts[action];
+        }
+        if (d->statsRefreshTimer)
+            d->statsRefreshTimer->start();
         d->canvas->update();
         if (userEdit)
         {
@@ -1454,9 +1598,11 @@ MainWindow::MainWindow(ChartController *chartCtrl,
                 }
             }
 
-            if (meta.backgroundFile != d->lastLoadedBackgroundFile)
+            // 使用解析后的绝对路径比较，避免跨目录同名背景漏检。
+            const QString resolvedBg = resolvedChartResourcePath(chartPath, meta.backgroundFile);
+            if (resolvedBg != d->lastLoadedBackgroundFile)
             {
-                d->lastLoadedBackgroundFile = meta.backgroundFile;
+                d->lastLoadedBackgroundFile = resolvedBg;
                 if (d->canvas)
                     d->canvas->refreshBackground();
             }
@@ -1536,6 +1682,9 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
 MainWindow::~MainWindow()
 {
+    if (d->editSessionTimer.isValid())
+        d->editStatistics.editTimeMs += d->editSessionTimer.elapsed();
+    saveEditorStats(d->editStatisticsPath, d->editStatistics);
     saveDockLayout();
     clearWorkingCopySession(true);
     closePluginPanels();
@@ -1602,6 +1751,9 @@ void MainWindow::createFileMenu()
     QAction *openFolderAction = fileMenu->addAction(tr("Open &Folder..."), this, &MainWindow::openFolder);
     QAction *openImportedAction = fileMenu->addAction(tr("Open &Imported Charts..."), this, &MainWindow::openImportedLibrary);
     registerShortcutAction(openImportedAction, "file.open_imported_charts", QKeySequence(tr("Ctrl+Shift+O")));
+    d->reloadChartAction = fileMenu->addAction(tr("&Reload Chart"), this, &MainWindow::reloadChart);
+    registerShortcutAction(d->reloadChartAction, "file.reload_chart", QKeySequence(Qt::Key_F5));
+    d->reloadChartAction->setEnabled(false);
     QAction *saveAction = fileMenu->addAction(tr("&Save"), this, &MainWindow::saveChart);
     registerShortcutAction(saveAction, "file.save", QKeySequence::Save);
     QAction *saveAsAction = fileMenu->addAction(tr("Save &As..."), this, &MainWindow::saveChartAs);
@@ -1711,7 +1863,7 @@ void MainWindow::createViewMenu()
             d->timingToolsDock, d->playbackSpeedToolsDock,
             d->rangeToolsDock, d->mirrorToolsDock,
             d->curveToolsDock, d->pluginToolsDock,
-            d->bpmPanelDock, d->metaPanelDock};
+            d->bpmPanelDock, d->metaPanelDock, d->statsToolsDock};
         for (ads::CDockWidget *dock : docks)
         {
             if (dock)
@@ -1736,6 +1888,10 @@ void MainWindow::createViewMenu()
     d->hyperfruitAction->setCheckable(true);
     d->hyperfruitAction->setChecked(Settings::instance().hyperfruitOutlineEnabled());
     connect(d->hyperfruitAction, &QAction::toggled, this, &MainWindow::toggleHyperfruitMode);
+    d->rainRewardPreviewAction = viewMenu->addAction(tr("Rain Reward Preview"));
+    d->rainRewardPreviewAction->setCheckable(true);
+    d->rainRewardPreviewAction->setChecked(Settings::instance().rainRewardPreviewEnabled());
+    connect(d->rainRewardPreviewAction, &QAction::toggled, this, &MainWindow::toggleRainRewardPreview);
     d->verticalFlipAction = viewMenu->addAction(tr("&Vertical Flip"));
     d->verticalFlipAction->setCheckable(true);
     d->verticalFlipAction->setChecked(Settings::instance().verticalFlip());
@@ -2039,6 +2195,7 @@ void MainWindow::configureShortcuts()
 
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Keyboard Shortcuts"));
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.setMinimumWidth(520);
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
@@ -2162,12 +2319,18 @@ void MainWindow::createCentralArea()
     d->leftPanel->setChartController(d->chartController);
     d->leftPanel->setPlaybackController(d->playbackController);
 
+    d->statsPanel = new ChartStatsPanel(d->dockManager);
+    connect(d->statsPanel, &ChartStatsPanel::detailedStatsRequested,
+            this, &MainWindow::openDetailedStatsDialog);
+    refreshChartStatistics();
+
     d->canvas = new ChartCanvas(d->dockManager);
     d->canvas->setChartController(d->chartController);
     d->canvas->setSelectionController(d->selectionController);
     d->canvas->setPlaybackController(d->playbackController);
     d->canvas->setColorMode(Settings::instance().colorNoteEnabled());
     d->canvas->setHyperfruitEnabled(Settings::instance().hyperfruitOutlineEnabled());
+    d->canvas->setRainRewardPreviewEnabled(Settings::instance().rainRewardPreviewEnabled());
     if (d->skin)
         d->canvas->setSkin(d->skin);
     d->canvas->setNoteSize(Settings::instance().noteSize());
@@ -2186,6 +2349,7 @@ void MainWindow::createCentralArea()
     d->previewWidget->setPlaybackController(d->playbackController);
     d->previewWidget->setColorMode(Settings::instance().colorNoteEnabled());
     d->previewWidget->setHyperfruitEnabled(Settings::instance().hyperfruitOutlineEnabled());
+    d->previewWidget->setRainRewardPreviewEnabled(Settings::instance().rainRewardPreviewEnabled());
     d->previewWidget->setNoteSize(Settings::instance().noteSize());
     d->previewWidget->setCurrentTimeMs(d->canvas->currentPlayTime());
 
@@ -2579,6 +2743,17 @@ void MainWindow::createCentralArea()
     d->metaPanelDock->setObjectName(QStringLiteral("dock.metadata"));
     d->metaPanelDock->setWidget(d->metaPanel, ads::CDockWidget::ForceScrollArea);
     d->dockManager->addDockWidgetTabToArea(d->metaPanelDock, editorArea);
+
+    // 统计面板：默认停靠左侧栏（Navigation）区域底部，可像其它工具块一样拖出。
+    d->statsToolsDock = new ads::CDockWidget(d->dockManager, tr("Chart Statistics"));
+    d->statsToolsDock->setObjectName(QStringLiteral("dock.chart.stats"));
+    d->statsToolsDock->setWidget(d->statsPanel, ads::CDockWidget::ForceScrollArea);
+    ads::CDockAreaWidget *statsArea = d->dockManager->addDockWidget(
+        ads::BottomDockWidgetArea, d->statsToolsDock, leftArea);
+    statsArea->setAllowedAreas(ads::OuterDockAreas);
+    configureCompactToolDock(d->statsToolsDock);
+    d->dockManager->setSplitterSizes(leftArea, {150, 200, 120});
+
     d->notePanelDock->setAsCurrentTab();
     d->curveToolsDock->toggleView(false);
     d->pluginToolsDock->toggleView(false);
@@ -2595,14 +2770,21 @@ void MainWindow::createCentralArea()
                 const QList<ads::CDockWidget *> toolDocks = {
                     d->timingToolsDock, d->playbackSpeedToolsDock,
                     d->rangeToolsDock, d->mirrorToolsDock,
-                    d->curveToolsDock, d->pluginToolsDock};
+                    d->curveToolsDock, d->pluginToolsDock, d->statsToolsDock};
                 for (ads::CDockWidget *dock : toolDocks)
                     configureCompactToolDock(dock);
             });
 
     d->defaultDockLayoutState = d->dockManager->saveState(kDockLayoutVersion);
-    restoreDockLayout();
+    // Only restore the persisted ADS layout when the startup mode is actually
+    // the floating (multi-window) one. Restoring in legacy mode materializes
+    // the saved floating windows for a moment before
+    // setFloatingToolWindowsEnabled(false) tears them down again, which shows
+    // up as a startup flicker of floating windows.
+    if (Settings::instance().floatingToolWindowsEnabled())
+        restoreDockLayout();
     ensurePlaybackSpeedDockAssigned();
+    ensureStatsDockAssigned();
 
     d->mainToolBar = addToolBar(tr("Tools"));
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
@@ -2644,6 +2826,44 @@ void MainWindow::createCentralArea()
     d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
     setFloatingToolWindowsEnabled(Settings::instance().floatingToolWindowsEnabled());
     Logger::debug("Central area created with LeftPanel.");
+}
+
+void MainWindow::refreshChartStatistics()
+{
+    if (!d->statsPanel || !d->chartController)
+        return;
+    const Chart *chart = d->chartController->chart();
+    const int offset = chart ? chart->meta().offset : 0;
+    const ChartStatistics stats = ChartStatsCalculator::compute(chart, offset);
+    ChartStatistics displayStats = stats;
+    displayStats.editTimeMs = d->editStatistics.editTimeMs;
+    displayStats.editCount = d->editStatistics.editCount;
+    displayStats.undoCount = d->editStatistics.undoCount;
+    displayStats.redoCount = d->editStatistics.redoCount;
+    displayStats.operationCounts = d->editStatistics.operationCounts;
+    d->statsPanel->setStatistics(displayStats);
+    if (d->detailedStatsDialog)
+        d->detailedStatsDialog->setStatistics(displayStats);
+}
+
+void MainWindow::openDetailedStatsDialog()
+{
+    if (!d->detailedStatsDialog)
+    {
+        d->detailedStatsDialog = new DetailedStatsDialog(this);
+        // 非模态：show() 而非 exec()，主窗口操作不受阻塞；关闭仅隐藏、复用实例。
+        d->detailedStatsDialog->setModal(false);
+        d->detailedStatsDialog->setAttribute(Qt::WA_DeleteOnClose, false);
+        if (d->statsPanel)
+            d->detailedStatsDialog->setStatistics(d->statsPanel->statistics());
+    }
+    // Always push the latest statistics when (re)showing the dialog, so
+    // stale data from a previous chart is not displayed after switching.
+    if (d->statsPanel)
+        d->detailedStatsDialog->setStatistics(d->statsPanel->statistics());
+    d->detailedStatsDialog->show();
+    d->detailedStatsDialog->raise();
+    d->detailedStatsDialog->activateWindow();
 }
 
 // ==================== beatmap root path ====================
@@ -2778,6 +2998,10 @@ void MainWindow::tryRecoverPreviousSession()
     d->sourceChartPath = state.sourcePath;
     d->workingChartPath = state.workingPath;
     d->currentChartPath = state.sourcePath;
+    d->editStatisticsPath = editorStatsPath(state.sourcePath);
+    d->editStatistics = loadEditorStats(state.sourcePath);
+    d->editSessionTimer.restart();
+    refreshChartStatistics();
     if (d->canvas)
         d->canvas->setSourceChartPath(state.sourcePath);
 
@@ -2948,10 +3172,11 @@ void MainWindow::newChart()
     if (!confirmSaveIfModified(tr("Creating a new chart will replace the current one in editor.")))
         return;
 
-    // Step 1: Select audio file.
+    // Step 1: Select audio file. Non-OGG audio is converted automatically.
     const QString audioPath = QFileDialog::getOpenFileName(
         this, tr("Select Audio File"), beatmapRootPath(),
-        tr("OGG Files (*.ogg);;All Files (*.*)"));
+        tr("Audio Files (*.ogg *.oga *.mp3 *.wav *.flac *.m4a *.aac *.wma "
+           "*.opus *.aif *.aiff *.mka);;All Files (*.*)"));
     if (audioPath.isEmpty())
     {
         Logger::debug("New chart cancelled (no audio selected)");
@@ -2962,11 +3187,17 @@ void MainWindow::newChart()
     const QString audioSuffix = audioInfo.suffix();                 // e.g. "ogg"
     const QString audioStem = audioInfo.completeBaseName();         // e.g. "Astral Sky,非可逆リズム - ..."
 
+    // Malody charts can only reference OGG music, so non-OGG sources are
+    // converted at the destination. Content-hash dedup only makes sense for
+    // OGG sources (a freshly converted file can never byte-match an existing
+    // OGG anyway).
+    const bool sourceIsOgg = AudioConverter::isOggFile(audioPath);
+
     // Step 2: Build time-stamped identifiers up front.
     const uint timestamp = static_cast<uint>(QDateTime::currentSecsSinceEpoch());
 
     // Step 2.5: Check if identical audio already exists in beatmap dirs (dedup).
-    const QString audioHash = computeFileQuickHash(audioPath);
+    const QString audioHash = sourceIsOgg ? computeFileQuickHash(audioPath) : QString();
     QString songDir;
     QString targetAudioName;
     QString targetAudioPath;
@@ -3011,13 +3242,31 @@ void MainWindow::newChart()
         }
 
         // Step 4: Copy audio file using short time-stamped name (avoid long paths).
-        targetAudioName = QString::number(timestamp) + "." + audioSuffix;
+        // Non-OGG sources are transcoded straight to "<timestamp>.ogg".
+        targetAudioName = QString::number(timestamp) +
+                          (sourceIsOgg ? QStringLiteral(".") + audioSuffix
+                                       : QStringLiteral(".ogg"));
         targetAudioPath = QDir(songDir).filePath(targetAudioName);
-        if (!QFile::copy(audioPath, targetAudioPath))
+        if (sourceIsOgg)
         {
-            QMessageBox::critical(this, tr("Error"),
-                                  tr("Failed to copy audio file to:\n%1").arg(targetAudioPath));
-            return;
+            if (!QFile::copy(audioPath, targetAudioPath))
+            {
+                QMessageBox::critical(this, tr("Error"),
+                                      tr("Failed to copy audio file to:\n%1").arg(targetAudioPath));
+                return;
+            }
+        }
+        else
+        {
+            QString convertError;
+            if (AudioConverter::convertToOggWithProgress(this, audioPath, targetAudioPath,
+                                                         &convertError)
+                    .isEmpty())
+            {
+                QMessageBox::critical(this, tr("Error"),
+                                      tr("Failed to convert audio to OGG:\n%1").arg(convertError));
+                return;
+            }
         }
     }
 
@@ -3193,10 +3442,29 @@ bool MainWindow::loadChartForAutomation(const QString &filePath, QString *errorM
     }
     return true;
 }
-void MainWindow::loadChartFile(const QString &filePath)
+// ==================== Reload current chart ====================
+void MainWindow::reloadChart()
+{
+    const QString path = d->sourceChartPath.isEmpty() ? d->currentChartPath : d->sourceChartPath;
+    if (path.isEmpty() || !QFileInfo::exists(path))
+    {
+        statusBar()->showMessage(tr("No chart to reload."), 3000);
+        return;
+    }
+
+    Logger::info(QString("Reloading chart: %1").arg(path));
+    if (!confirmSaveIfModified(tr("Reloading the chart will discard unsaved changes.")))
+        return;
+
+    loadChartFile(path, false);
+    statusBar()->showMessage(tr("Chart reloaded: %1").arg(QFileInfo(path).fileName()), 3000);
+}
+
+void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
 {
     Logger::info(QString("Loading chart file: %1").arg(filePath));
-    if (!confirmSaveIfModified(tr("Opening another chart will replace the current one in editor.")))
+    if (confirmUnsaved
+        && !confirmSaveIfModified(tr("Opening another chart will replace the current one in editor.")))
         return;
     clearWorkingCopySession(true);
 
@@ -3293,6 +3561,8 @@ void MainWindow::loadChartFile(const QString &filePath)
     if (!chartLoaded)
     {
         removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
+        // 加载失败也重推统计：统计面板/详细统计窗口必须与当前实际加载的谱面一致。
+        refreshChartStatistics();
         QMessageBox::critical(this,
                               tr("Error"),
                               loadChartError.isEmpty() ? tr("Failed to load chart.") : loadChartError);
@@ -3302,6 +3572,12 @@ void MainWindow::loadChartFile(const QString &filePath)
     d->sourceChartPath = actualChartPath;
     d->workingChartPath = workingChartPath;
     d->currentChartPath = actualChartPath;
+    d->editStatisticsPath = editorStatsPath(actualChartPath);
+    d->editStatistics = loadEditorStats(actualChartPath);
+    d->editSessionTimer.restart();
+    refreshChartStatistics();
+    if (d->reloadChartAction)
+        d->reloadChartAction->setEnabled(true);
     if (d->canvas)
         d->canvas->setSourceChartPath(actualChartPath);
     Settings::instance().setLastOpenPath(QFileInfo(actualChartPath).absolutePath());
@@ -3338,9 +3614,21 @@ void MainWindow::loadChartFile(const QString &filePath)
         }
     }
 
-    // Initialize resource cache for change detection.
+    // Initialize resource cache for change detection（背景存解析后的绝对路径）。
     d->lastLoadedAudioFile = loadedMeta.audioFile;
-    d->lastLoadedBackgroundFile = loadedMeta.backgroundFile;
+    d->lastLoadedBackgroundFile = resolvedChartResourcePath(d->workingChartPath, loadedMeta.backgroundFile);
+
+    // Force background refresh: during chart loading, isLoadingChart is true
+    // so the chartChanged handler's userEdit block (which normally refreshes
+    // the background) is skipped. The canvas' chartLoaded handler already
+    // invalidates its background cache unconditionally; this repaint keeps
+    // the frame in sync right away.
+    if (d->canvas)
+        d->canvas->refreshBackground();
+
+    // 防御：切换谱面后强制重推统计快照，确保统计面板与详细统计窗口
+    // 始终反映当前谱面，不残留上一个谱面的数据。
+    refreshChartStatistics();
 
     // Reset playback state and position when switching charts
     d->playbackController->stop();
@@ -3362,6 +3650,7 @@ QString MainWindow::selectChartFromList(const QList<QPair<QString, QString>> &ch
 {
     QDialog dialog(this);
     dialog.setWindowTitle(title);
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.setMinimumWidth(350);
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
     layout->addWidget(new QLabel(tr("Select a chart:")));
@@ -3393,6 +3682,7 @@ QString MainWindow::selectChartFromFolder(const QString &rootDir,
 {
     QDialog dialog(this);
     dialog.setWindowTitle(title);
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.resize(620, 460);
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
@@ -3508,6 +3798,7 @@ QString MainWindow::selectChartFromLibrary(const QString &libraryRoot, const QSt
 
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Imported Chart Library"));
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.resize(560, 420);
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
@@ -3801,6 +4092,7 @@ void MainWindow::undo()
     if (d->chartController)
     {
         Logger::debug("Undo triggered");
+        ++d->editStatistics.undoCount;
         const QString actionText = d->chartController->nextUndoActionText();
         d->chartController->undo();
         if (d->canvas && d->canvas->noteChainEditor())
@@ -3815,6 +4107,7 @@ void MainWindow::redo()
     if (d->chartController)
     {
         Logger::debug("Redo triggered");
+        ++d->editStatistics.redoCount;
         const QString actionText = d->chartController->nextRedoActionText();
         d->chartController->redo();
         if (d->canvas && d->canvas->noteChainEditor())
@@ -4006,6 +4299,16 @@ void MainWindow::toggleHyperfruitMode(bool on)
         d->previewWidget->setHyperfruitEnabled(on);
 }
 
+void MainWindow::toggleRainRewardPreview(bool on)
+{
+    Logger::info(QString("Rain reward preview toggled to %1").arg(on));
+    Settings::instance().setRainRewardPreviewEnabled(on);
+    if (d->canvas)
+        d->canvas->setRainRewardPreviewEnabled(on);
+    if (d->previewWidget)
+        d->previewWidget->setRainRewardPreviewEnabled(on);
+}
+
 void MainWindow::toggleVerticalFlip(bool flipped)
 {
     Logger::info(QString("Vertical flip toggled to %1").arg(flipped));
@@ -4091,6 +4394,10 @@ void MainWindow::retranslateUi()
         d->bpmPanel->retranslateUi();
     if (d->metaPanel)
         d->metaPanel->retranslateUi();
+    if (d->statsPanel)
+        d->statsPanel->retranslateUi();
+    if (d->detailedStatsDialog)
+        d->detailedStatsDialog->retranslateUi();
     applySidebarTheme();
     Logger::debug("UI retranslated");
 }
@@ -4266,6 +4573,12 @@ void MainWindow::restoreDockLayout()
     if (!d->dockManager)
         return;
 
+    // Defensive guard: the legacy (non-floating) layout does not use the ADS
+    // state at all, so restoring it here would only create transient floating
+    // containers that get torn down again right away.
+    if (d->floatingToolWindowsInitialized && !d->floatingToolWindowsEnabled)
+        return;
+
     const QByteArray state = Settings::instance().dockLayoutState();
     if (state.isEmpty())
         return;
@@ -4340,6 +4653,8 @@ void MainWindow::updateDockTitles()
         d->bpmPanelDock->setWindowTitle(tr("BPM & Timing"));
     if (d->metaPanelDock)
         d->metaPanelDock->setWindowTitle(tr("Metadata"));
+    if (d->statsToolsDock)
+        d->statsToolsDock->setWindowTitle(tr("Chart Statistics"));
 }
 
 // ==================== Paste 288 division option slot ====================
@@ -4472,6 +4787,7 @@ void MainWindow::showInfoCenter(int initialTab)
 {
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Help Center"));
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     dialog.resize(840, 600);
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
@@ -4783,6 +5099,8 @@ void MainWindow::applySidebarTheme()
             applyPanelStyle(d->mirrorToolsDock->widget(), "mirrorToolsRoot", true);
         if (d->curveToolsDock)
             applyPanelStyle(d->curveToolsDock->widget(), "curveToolsRoot", true);
+        if (d->statsToolsDock)
+            applyPanelStyle(d->statsToolsDock->widget(), "chartStatsRoot", true);
         applyPanelStyle(d->pluginActionPanel, "pluginActionPanelRoot", true);
         applyPanelStyle(d->bpmPanel, "bpmPanelRoot");
         applyPanelStyle(d->metaPanel, "metaPanelRoot");

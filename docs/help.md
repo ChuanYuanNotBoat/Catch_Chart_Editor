@@ -1,6 +1,6 @@
 # Malody Catch Editor 帮助文档
 
-> 适用版本：Beta v1.11.0
+> 适用版本：Beta v1.11.1
 > 其他文档：[文档总索引](README.md)
 
 本文按界面中的功能位置说明用途、使用方法和默认快捷键。第一次使用时，建议按“快速上手”走一遍，再按菜单查找具体功能。
@@ -24,11 +24,13 @@
 - `Realtime Preview` 面板：实时预览当前谱面效果。
 - `Chart Workspace`：不可关闭的中央谱面画布与时间密度导航条。
 - `Note Input`、`Timing & Grid`、`Playback Speed`、`Range Select`、`Mirror Flip`、`Curve Tools`、`Plugin Tools`：按功能组成中等粒度工具块；`BPM & Timing` 和 `Metadata` 保持独立面板。
+- `Chart Statistics` 统计面板：展示全 note 数、常规 note 数、rain 数量、奖励音符数与理论 Max Combo，默认停靠在 Navigation 下方，两种窗口模式均可用。
 
 ### 可组合面板布局
 
 - `View -> Enable Floating Windows`：切换是否使用 ADS 可组合工作区，设置会在重启后保留。默认启用。
 - 关闭浮动窗口后，界面恢复为引入 ADS 前的固定四栏布局：Navigation、Realtime Preview、Chart Workspace 和最右侧单一编辑栏；顶部 `Note` / `BPM` / `Meta` 仍按旧方式切换右栏内容，不显示停靠标题、标签、拆分手柄或浮动入口。
+- 固定布局下 `Chart Statistics` 面板位于左侧 Navigation 栏底部，可点击标题栏箭头折叠/展开。
 - 固定布局的右侧编辑栏只提供按需显示的纵向滚动条，可直接用滚轮上下浏览；横向滚动条始终禁用。Timing、Playback Speed、Range、Mirror、Curve 和 Plugin Tools 回到 Note 栏的原顺序，格式化颜色快捷按钮会在同一栏内展开插件 GUI。
 - 重新启用浮动窗口后，会恢复关闭前保存的 ADS 停靠位置和面板开关状态；固定布局期间不会覆盖该布局快照。
 - 拖动普通面板标题或标签可以改变停靠位置；BPM、Meta 等完整面板仍可组合成标签页。
@@ -135,6 +137,20 @@ Grid Settings、范围选择、镜像执行、曲线操作、复制、BPM/Meta �
 - `Mirror Flip`：按指定 `Axis X` 镜像翻转选中音符。`Show Guide` 显示可拖动参考线，`Show Preview` 显示翻转预览，`Flip Selected` 执行翻转。
 - 原生曲线控制：启用 `Curve` 或 `Place Anchor` 后出现，包含锚点放置、曲线显示、折线模式、音符吸附、选择目标、提交、连接、断开、删除和重置。
 
+### 统计面板
+
+`Chart Statistics` 面板展示当前谱面的统计信息（音频 note 不进入任何统计口径）：
+
+- 全部音符：常规 note 数 + rain 数量（每个 rain 计 1 个）。
+- 常规音符：`NORMAL` 音符数量。
+- Rain 数量：`RAIN` 音符数量。
+- 奖励音符：按官方 Rain 奖励算法生成的奖励 note 总数（与画布上的 Rain 奖励预览点完全一致）。
+- 最大连击（Max Combo）：常规音符 + 奖励音符。rain 本体不计入连击，因为 rain 在游玩时由其奖励 note 构成。
+
+点击面板底部 `详细统计...` 可打开非模态详细统计窗口；该窗口不阻塞主窗口操作，会随谱面编辑实时刷新。详细统计的内容为后续版本预留扩展接口。
+
+统计在音符增删改、雨滴拖动、撤销/重做等编辑后自动刷新。
+
 ### BPM & Timing 面板
 
 - BPM 列表：显示当前谱面所有 BPM 点，格式为 `小节:分子/分母  BPM`。
@@ -151,7 +167,7 @@ Grid Settings、范围选择、镜像执行、曲线操作、复制、BPM/Meta �
 - `Artist` / `Original Artist`：曲师与原始曲师名。
 - `Difficulty`：难度名。
 - `Chart Author`：谱师。
-- `Audio (ogg)`：选择或填写音频文件路径。
+- `Audio (ogg)`：选择或填写音频文件路径。选择非 OGG 音频（mp3/wav/flac/m4a/aac/wma/opus/aiff 等）时会自动转换为 OGG（带进度对话框，可取消），谱面始终引用 OGG 文件。选择无法解码的文件会弹窗提示且不改动谱面。
 - `Background (jpg)`：选择或填写背景图路径。
 - `Preview Time`：试听预览时间，单位毫秒。
 - `First BPM`：首个 BPM。
@@ -256,7 +272,7 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 
 内置文件类型包括：
 - `.mc`：谱面文件
-- 音频格式：`.ogg`, `.mp3`, `.wav`, `.flac`, `.m4a`, `.aac`
+- 音频格式：`.ogg`, `.oga`, `.mp3`, `.wav`, `.flac`, `.m4a`, `.aac`, `.wma`, `.opus`, `.aif`, `.aiff`, `.mka`（非 Vorbis OGG 的格式在作为谱面音乐导入时会被自动转换为 `.ogg`；仅接受 Vorbis 编码的 Ogg 容器，Opus 等其他编码的 Ogg 文件同样会被转码）
 - 图片格式：`.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`, `.gif`
 - 视频格式：`.mp4`, `.mkv`, `.avi`, `.webm`, `.mov`
 - Sidecar 文件：`.curve_tbd.json`, `.bpm_excludes.json`, `.song_bpm.json`

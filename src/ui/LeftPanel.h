@@ -12,6 +12,8 @@ class QPushButton;
 class QDoubleSpinBox;
 class QLabel;
 class QVBoxLayout;
+class QToolButton;
+
 
 class LeftPanel : public QWidget
 {
@@ -35,6 +37,11 @@ public:
     void setPluginQuickActions(const QList<PluginQuickAction> &actions);
     void retranslateUi();
 
+    // 统计面板区块（旧模式专用）：挂到左栏底部，可折叠。
+    // 新旧模式共用同一个面板实例，切换窗口模式时通过本组方法迁移。
+    void attachStatsSection(QWidget *statsSection);
+    QWidget *takeStatsSection();
+
 signals:
     void pluginQuickActionTriggered(const QString &pluginId, const QString &actionId);
 
@@ -47,6 +54,7 @@ private slots:
 private:
     void setupUi();
 
+    QVBoxLayout *m_layout = nullptr;
     ChartController *m_chartController = nullptr;
     PlaybackController *m_playbackController = nullptr;
     ChartCanvas *m_chartCanvas = nullptr;
@@ -59,4 +67,6 @@ private:
     QWidget *m_pluginSectionContainer = nullptr;
     QVBoxLayout *m_pluginButtonsLayout = nullptr;
     QHash<QString, bool> m_pluginSectionExpanded;
+    QToolButton *m_statsToggleBtn = nullptr;
+    QWidget *m_statsSection = nullptr;
 };

@@ -1,6 +1,6 @@
 ﻿#include "Chart.h"
+#include "utils/Logger.h"
 #include <algorithm>
-#include <QDebug>
 
 namespace
 {
@@ -56,8 +56,8 @@ void Chart::removeNote(const Note &note)
         return;
     }
 
-    qDebug() << "[Chart] removeNote: failed to find note with id" << note.id
-             << "for removal, beat" << note.getStartBeat();
+    Logger::debug(QString("[Chart] removeNote: failed to find note with id %1 for removal, beat %2")
+                 .arg(note.id).arg(note.getStartBeat()));
 }
 
 void Chart::clearNotes() { m_notes.clear(); }

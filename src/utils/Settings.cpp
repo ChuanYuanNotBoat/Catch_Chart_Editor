@@ -137,6 +137,16 @@ void Settings::setHyperfruitOutlineEnabled(bool enabled)
     m_settings.setValue("hyperfruitOutlineEnabled", enabled);
 }
 
+bool Settings::rainRewardPreviewEnabled() const
+{
+    return m_settings.value("render/rainRewardPreviewEnabled", false).toBool();
+}
+
+void Settings::setRainRewardPreviewEnabled(bool enabled)
+{
+    m_settings.setValue("render/rainRewardPreviewEnabled", enabled);
+}
+
 double Settings::playbackSpeed() const
 {
     return PlaybackSpeed::sanitize(

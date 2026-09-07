@@ -50,9 +50,11 @@ public:
     void setChartController(ChartController *controller);
     void setSelectionController(SelectionController *controller);
     void setSkin(Skin *skin);
+    void invalidateSkinCache();
     void setPlaybackController(PlaybackController *controller);
     void setColorMode(bool enabled);
     void setHyperfruitEnabled(bool enabled);
+    void setRainRewardPreviewEnabled(bool enabled);
     void setTimeDivision(int division);
     void setGridDivision(int division);
     void setGridSnap(bool snap);
@@ -189,8 +191,16 @@ private:
     int hitTestNote(const QPointF &pos) const;
     QRectF getRainNoteRect(const Note &note) const;
     void updateBackgroundCache();
+    // 解析后的背景图绝对路径（chart 目录 + backgroundFile）；用于跨目录同名背景的变化检测。
+    QString currentBackgroundPath() const;
     int hitTestRangeHandle(const QPointF &pos) const;
     double snapBeatToTimeDivision(double beat) const;
+    QRectF rainTailHandleRect(const Note &note) const;
+    int hitTestRainTailHandle(const QPointF &pos) const;
+    void drawRainTailHandles(QPainter &painter);
+    void beginRainTailDrag(int noteIndex);
+    void updateRainTailDrag(const QPointF &pos);
+    bool endRainTailDrag();
     void drawRangeOverlay(QPainter &painter, int lmargin, int rmargin, int canvasHeight);
     void drawRangeSelectionHighlight(QPainter &painter, int lmargin, int availableWidth, int canvasHeight);
 
@@ -212,6 +222,9 @@ private:
     void handleLeftMousePress(QMouseEvent *event);
     bool handlePastePreviewLeftClick(const QPoint &pos);
     bool handleRainPlacementLeftClick(const QPointF &pos);
+    // Cancels a pending two-step rain anchor (first click), if any. Returns
+    // true when an anchor was actually cleared.
+    bool cancelPendingRainAnchor();
     bool handleHitNoteLeftClick(int hitIndex, Qt::KeyboardModifiers modifiers, const QPointF &pos);
     bool handleMirrorGuidePress(const QPointF &pos);
     bool handleSelectionRelease();
@@ -375,7 +388,9 @@ private:
     bool m_hyperfruitEnabledBackup;
 
     bool m_rainFirst;
-    QPointF m_rainStartPos;
+    Note m_rainStartNote; // rain anchor converted to beat at click time (scroll-safe)
+    int m_rainTailDragIndex = -1; // rain note currently being tail-dragged
+    Note m_rainTailDragOriginal;  // snapshot of the dragged rain for rollback/commit
 
     bool m_snapToGrid;
     int m_snapTimerId;

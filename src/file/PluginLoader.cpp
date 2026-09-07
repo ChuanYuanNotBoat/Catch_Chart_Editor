@@ -1,6 +1,6 @@
 #include "PluginLoader.h"
 #include "plugin/ExternalProcessPlugin.h"
-#include <QDebug>
+#include "utils/Logger.h"
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
@@ -64,7 +64,7 @@ namespace
         QFile f(manifestPath);
         if (!f.open(QIODevice::ReadOnly))
         {
-            qWarning() << "Failed to open process plugin manifest:" << manifestPath;
+            Logger::warn(QString("Failed to open process plugin manifest: %1").arg(manifestPath));
             return manifest;
         }
 
@@ -72,7 +72,7 @@ namespace
         const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &parseError);
         if (parseError.error != QJsonParseError::NoError || !doc.isObject())
         {
-            qWarning() << "Invalid process plugin manifest JSON:" << manifestPath << parseError.errorString();
+            Logger::warn(QString("Invalid process plugin manifest JSON: %1 %2").arg(manifestPath, parseError.errorString()));
             return manifest;
         }
 
@@ -109,7 +109,7 @@ namespace
                                  manifest.apiVersion > 0;
         if (!hasRequired)
         {
-            qWarning() << "Process plugin manifest missing required fields:" << manifestPath;
+            Logger::warn(QString("Process plugin manifest missing required fields: %1").arg(manifestPath));
             return manifest;
         }
 
@@ -124,7 +124,7 @@ QVector<PluginInterface *> PluginLoader::loadPlugins(const QString &pluginsDir)
     QDir dir(pluginsDir);
     if (!dir.exists())
     {
-        qWarning() << "Plugin directory does not exist:" << pluginsDir;
+        Logger::warn(QString("Plugin directory does not exist: %1").arg(pluginsDir));
         return plugins;
     }
 
@@ -148,7 +148,7 @@ QVector<PluginInterface *> PluginLoader::loadPlugins(const QString &pluginsDir)
         QLibrary *lib = new QLibrary(absPath);
         if (!lib->load())
         {
-            qWarning() << "Failed to load plugin library:" << absPath << lib->errorString();
+            Logger::warn(QString("Failed to load plugin library: %1 %2").arg(absPath, lib->errorString()));
             delete lib;
             continue;
         }
@@ -159,7 +159,7 @@ QVector<PluginInterface *> PluginLoader::loadPlugins(const QString &pluginsDir)
 
         if (!getApiVersion || !create || !destroy)
         {
-            qWarning() << "Plugin missing required exports (pluginApiVersion/createPlugin/destroyPlugin):" << absPath;
+            Logger::warn(QString("Plugin missing required exports (pluginApiVersion/createPlugin/destroyPlugin): %1").arg(absPath));
             lib->unload();
             delete lib;
             continue;
@@ -169,9 +169,11 @@ QVector<PluginInterface *> PluginLoader::loadPlugins(const QString &pluginsDir)
         if (runtimeApiVersion < PluginInterface::kMinSupportedPluginApiVersion ||
             runtimeApiVersion > PluginInterface::kHostApiVersion)
         {
-            qWarning() << "Plugin API mismatch:" << absPath << "plugin=" << runtimeApiVersion
-                       << "supported=[" << PluginInterface::kMinSupportedPluginApiVersion
-                       << ".." << PluginInterface::kHostApiVersion << "]";
+            Logger::warn(QString("Plugin API mismatch: %1 plugin=%2 supported=[%3..%4]")
+                             .arg(absPath)
+                             .arg(runtimeApiVersion)
+                             .arg(PluginInterface::kMinSupportedPluginApiVersion)
+                             .arg(PluginInterface::kHostApiVersion));
             lib->unload();
             delete lib;
             continue;
@@ -184,14 +186,14 @@ QVector<PluginInterface *> PluginLoader::loadPlugins(const QString &pluginsDir)
         }
         catch (const std::exception &e)
         {
-            qWarning() << "Plugin createPlugin exception:" << absPath << e.what();
+            Logger::warn(QString("Plugin createPlugin exception: %1 %2").arg(absPath, QString::fromUtf8(e.what())));
             lib->unload();
             delete lib;
             continue;
         }
         catch (...)
         {
-            qWarning() << "Plugin createPlugin unknown exception:" << absPath;
+            Logger::warn(QString("Plugin createPlugin unknown exception: %1").arg(absPath));
             lib->unload();
             delete lib;
             continue;
@@ -199,7 +201,7 @@ QVector<PluginInterface *> PluginLoader::loadPlugins(const QString &pluginsDir)
 
         if (!plugin)
         {
-            qWarning() << "Plugin createPlugin returned null:" << absPath;
+            Logger::warn(QString("Plugin createPlugin returned null: %1").arg(absPath));
             lib->unload();
             delete lib;
             continue;
@@ -209,9 +211,11 @@ QVector<PluginInterface *> PluginLoader::loadPlugins(const QString &pluginsDir)
         if (pluginApi < PluginInterface::kMinSupportedPluginApiVersion ||
             pluginApi > PluginInterface::kHostApiVersion)
         {
-            qWarning() << "Plugin instance API mismatch:" << absPath << "plugin=" << pluginApi
-                       << "supported=[" << PluginInterface::kMinSupportedPluginApiVersion
-                       << ".." << PluginInterface::kHostApiVersion << "]";
+            Logger::warn(QString("Plugin instance API mismatch: %1 plugin=%2 supported=[%3..%4]")
+                             .arg(absPath)
+                             .arg(pluginApi)
+                             .arg(PluginInterface::kMinSupportedPluginApiVersion)
+                             .arg(PluginInterface::kHostApiVersion));
             destroy(plugin);
             lib->unload();
             delete lib;
@@ -238,9 +242,11 @@ QVector<PluginInterface *> PluginLoader::loadPlugins(const QString &pluginsDir)
         if (manifest.apiVersion < PluginInterface::kMinSupportedPluginApiVersion ||
             manifest.apiVersion > PluginInterface::kHostApiVersion)
         {
-            qWarning() << "Process plugin API mismatch:" << manifestPath << "plugin=" << manifest.apiVersion
-                       << "supported=[" << PluginInterface::kMinSupportedPluginApiVersion
-                       << ".." << PluginInterface::kHostApiVersion << "]";
+            Logger::warn(QString("Process plugin API mismatch: %1 plugin=%2 supported=[%3..%4]")
+                             .arg(manifestPath)
+                             .arg(manifest.apiVersion)
+                             .arg(PluginInterface::kMinSupportedPluginApiVersion)
+                             .arg(PluginInterface::kHostApiVersion));
             continue;
         }
 
@@ -266,7 +272,7 @@ void PluginLoader::unloadPlugins(QVector<PluginInterface *> &plugins)
             }
             catch (...)
             {
-                qWarning() << "Plugin destroyPlugin threw exception:" << runtime.filePath;
+                Logger::warn(QString("Plugin destroyPlugin threw exception: %1").arg(runtime.filePath));
             }
         }
 
