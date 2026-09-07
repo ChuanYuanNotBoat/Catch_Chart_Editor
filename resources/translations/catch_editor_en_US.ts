@@ -678,7 +678,51 @@
         <source>Max Combo</source>
         <translation>Max Combo</translation>
     </message>
-    
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="95"/>
+        <source>Average Density</source>
+        <translation>Average Density</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="97"/>
+        <source>Peak Density (1 sec)</source>
+        <translation>Peak Density (1 sec)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="99"/>
+        <source>Star Rating</source>
+        <translation>Star Rating</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="101"/>
+        <source>Hyperdash Count</source>
+        <translation>Hyperdash Count</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="103"/>
+        <source>Time Spent Editing</source>
+        <translation>Time Spent Editing</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="105"/>
+        <source>Edit Operations</source>
+        <translation>Edit Operations</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="107"/>
+        <source>Undo Operations</source>
+        <translation>Undo Operations</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="109"/>
+        <source>Redo Operations</source>
+        <translation>Redo Operations</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="156"/>
+        <source> /s</source>
+        <translation> /s</translation>
+    </message>
     <message>
         <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="86"/>
         <source>Close</source>

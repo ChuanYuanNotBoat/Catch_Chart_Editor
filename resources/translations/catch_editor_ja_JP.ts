@@ -678,7 +678,51 @@
         <source>Max Combo</source>
         <translation>最大コンボ</translation>
     </message>
-    
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="95"/>
+        <source>Average Density</source>
+        <translation>平均密度</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="97"/>
+        <source>Peak Density (1 sec)</source>
+        <translation>ピーク密度（1秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="99"/>
+        <source>Star Rating</source>
+        <translation>星評価</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="101"/>
+        <source>Hyperdash Count</source>
+        <translation>Hyperdash 数</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="103"/>
+        <source>Time Spent Editing</source>
+        <translation>編集時間</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="105"/>
+        <source>Edit Operations</source>
+        <translation>編集操作数</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="107"/>
+        <source>Undo Operations</source>
+        <translation>元に戻す操作数</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="109"/>
+        <source>Redo Operations</source>
+        <translation>やり直し操作数</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="156"/>
+        <source> /s</source>
+        <translation> /秒</translation>
+    </message>
     <message>
         <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="86"/>
         <source>Close</source>

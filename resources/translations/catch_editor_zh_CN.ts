@@ -678,7 +678,51 @@
         <source>Max Combo</source>
         <translation>最大连击</translation>
     </message>
-    
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="95"/>
+        <source>Average Density</source>
+        <translation>平均密度</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="97"/>
+        <source>Peak Density (1 sec)</source>
+        <translation>峰值密度（1 秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="99"/>
+        <source>Star Rating</source>
+        <translation>星级难度</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="101"/>
+        <source>Hyperdash Count</source>
+        <translation>Hyperdash 数量</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="103"/>
+        <source>Time Spent Editing</source>
+        <translation>编辑用时</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="105"/>
+        <source>Edit Operations</source>
+        <translation>编辑操作次数</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="107"/>
+        <source>Undo Operations</source>
+        <translation>撤销次数</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="109"/>
+        <source>Redo Operations</source>
+        <translation>重做次数</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="156"/>
+        <source> /s</source>
+        <translation> /秒</translation>
+    </message>
     <message>
         <location filename="../../src/ui/dialogs/DetailedStatsDialog.cpp" line="86"/>
         <source>Close</source>
@@ -2830,7 +2874,7 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="378"/>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="400"/>
         <source>Error</source>
-        <translation type="unfinished">错误</translation>
+        <translation>错误</translation>
     </message>
     <message>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="379"/>
