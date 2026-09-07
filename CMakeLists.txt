@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.16)
-project(CatchChartEditor VERSION 1.11.0 LANGUAGES C CXX)
+project(CatchChartEditor VERSION 1.11.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
