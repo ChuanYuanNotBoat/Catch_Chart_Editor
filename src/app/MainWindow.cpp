@@ -877,6 +877,14 @@ namespace
         appendIfPresent(meta, "background");
         appendIfPresent(meta, "audio");
 
+        // 兼容嵌套 song 对象（部分谱面把 title/audio 等写在 meta.song 内）。
+        if (meta.contains("song") && meta["song"].isObject())
+        {
+            const QJsonObject song = meta["song"].toObject();
+            appendIfPresent(song, "background");
+            appendIfPresent(song, "audio");
+        }
+
         const QJsonArray notes = root.value("note").toArray();
         for (const QJsonValue &v : notes)
         {
@@ -919,15 +927,42 @@ namespace
         const QStringList resources = collectReferencedResources(sourceChartPath);
         for (const QString &resource : resources)
         {
-            if (resource.isEmpty() || QDir::isAbsolutePath(resource))
+            if (resource.isEmpty())
                 continue;
 
-            const QString sourceAbs = QDir::cleanPath(QDir(sourceChartDir).absoluteFilePath(resource));
+            // 解析源文件绝对路径。支持三种引用写法：
+            // 1) 纯文件名（旧有行为）；
+            // 2) 带路径分隔符的相对路径（含 ../ 等）；
+            // 3) 绝对路径（此前被直接跳过，导致导入 .mc 时外部引用文件未被收集，
+            //    而 ChartIO::load 的“路径补丁”会把这类引用改写为纯文件名）。
+            const QFileInfo resourceInfo(resource);
+            QString sourceAbs;
+            QString targetRelative;
+            if (resourceInfo.isAbsolute())
+            {
+                sourceAbs = QDir::cleanPath(resourceInfo.absoluteFilePath());
+                targetRelative = resourceInfo.fileName();
+            }
+            else if (resource.contains('/') || resource.contains('\\'))
+            {
+                sourceAbs = QDir::cleanPath(QDir(sourceChartDir).absoluteFilePath(resource));
+                targetRelative = resourceInfo.fileName();
+            }
+            else
+            {
+                sourceAbs = QDir::cleanPath(QDir(sourceChartDir).absoluteFilePath(resource));
+                targetRelative = resource;
+            }
+
             const QFileInfo sourceFi(sourceAbs);
             if (!sourceFi.exists())
+            {
+                Logger::warn(QString("Referenced resource not found, skipped: %1 (chart: %2)")
+                                 .arg(resource, sourceChartPath));
                 continue;
+            }
 
-            const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(resource));
+            const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(targetRelative));
             if (!isPathInsideRoot(sessionRoot, targetAbs))
             {
                 Logger::warn(QString("Skip copying referenced resource outside working session root: %1").arg(resource));
@@ -945,7 +980,15 @@ namespace
             }
 
             QDir().mkpath(QFileInfo(targetAbs).absolutePath());
-            QFile::remove(targetAbs);
+            if (QFileInfo(targetAbs).exists())
+            {
+                // 内容相同（同修改时间与大小）时跳过，避免无谓覆盖。
+                const QFileInfo targetFi(targetAbs);
+                if (targetFi.lastModified() == sourceFi.lastModified()
+                    && targetFi.size() == sourceFi.size())
+                    continue;
+                QFile::remove(targetAbs);
+            }
             if (!QFile::copy(sourceAbs, targetAbs))
             {
                 Logger::warn(QString("Failed to copy referenced resource file: %1").arg(resource));
