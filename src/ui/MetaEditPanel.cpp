@@ -56,8 +56,6 @@ void MetaEditPanel::setupUi()
     m_chartAuthorLabel = new QLabel(tr("Chart Author:"), this);
     m_formLayout->addRow(m_chartAuthorLabel, m_chartAuthorEdit);
     m_audioFileEdit = new QLineEdit(this);
-    m_audioFileLabel = new QLabel(tr("Audio File:"), this);
-    m_formLayout->addRow(m_audioFileLabel, m_audioFileEdit);
     m_audioBrowseBtn = new QPushButton(tr("Browse..."), this);
     QHBoxLayout *audioLayout = new QHBoxLayout;
     audioLayout->addWidget(m_audioFileEdit);
@@ -225,8 +223,6 @@ void MetaEditPanel::retranslateUi()
         m_difficultyLabel->setText(tr("Difficulty:"));
     if (m_chartAuthorLabel)
         m_chartAuthorLabel->setText(tr("Chart Author:"));
-    if (m_audioFileLabel)
-        m_audioFileLabel->setText(tr("Audio File:"));
     if (m_audioOggLabel)
         m_audioOggLabel->setText(tr("Audio (ogg):"));
     if (m_backgroundLabel)
