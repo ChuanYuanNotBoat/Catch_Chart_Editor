@@ -1,5 +1,6 @@
 #include "PlaybackController.h"
 #include "DisplayFrameScheduler.h"
+#include "audio/PlaybackTiming.h"
 #include "utils/MathUtils.h"
 #include "utils/Logger.h"
 #include "utils/PlaybackSpeed.h"
@@ -19,9 +20,6 @@
 namespace
 {
     constexpr qint64 kSeekSameValueThresholdMs = 2;
-    constexpr double kClockSlewConvergenceWallMs = 1500.0;
-    constexpr double kClockSlewMaxRateFraction = 0.005;
-    constexpr double kClockSlewFilterGain = 0.15;
 
     QEvent::Type scheduledFrameEventType()
     {
@@ -52,7 +50,7 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
       m_frameAnchorTimeMs(0.0),
       m_frameAnchorWallNs(0),
       m_frameRateCorrection(0.0),
-      m_waitingForAudioProgress(false),
+      m_awaitingInitialAudioProgress(false),
       m_audioProgressStartMs(0.0),
       m_frameSeq(0),
       m_lastFrameTickMs(0.0),
@@ -140,9 +138,10 @@ void PlaybackController::play()
         m_lastFrameTickMs = static_cast<double>(m_audioPlayer->adjustedPosition());
         m_frameRateCorrection = 0.0;
         resetFrameAnchor(m_lastFrameTickMs, m_frameClock.nsecsElapsed());
-        // QMediaPlayer can report PlayingState before decoded audio reaches the
-        // output. Hold the editor clock until the media position really moves.
-        m_waitingForAudioProgress = true;
+        // Track when QMediaPlayer first advances so its coarse startup sample
+        // can calibrate the clock. Presentation frames keep running meanwhile;
+        // freezing them here creates a visible hold followed by a catch-up jump.
+        m_awaitingInitialAudioProgress = true;
         m_audioProgressStartMs = m_lastFrameTickMs;
         m_frameInFlight.store(false, std::memory_order_release);
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
@@ -191,7 +190,7 @@ void PlaybackController::pause()
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_frameAnchorValid = false;
         m_frameRateCorrection = 0.0;
-        m_waitingForAudioProgress = false;
+        m_awaitingInitialAudioProgress = false;
         m_lastPulseProbeNs = 0;
         m_lastPulseIntervalMs = -1.0;
         m_audioPlayer->pause();
@@ -214,7 +213,7 @@ void PlaybackController::stop()
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_frameAnchorValid = false;
         m_frameRateCorrection = 0.0;
-        m_waitingForAudioProgress = false;
+        m_awaitingInitialAudioProgress = false;
         m_frameSeq = 0;
         m_lastPulseProbeNs = 0;
         m_lastPulseIntervalMs = -1.0;
@@ -243,7 +242,7 @@ void PlaybackController::setSpeed(double speed)
     {
         resetFrameAnchor(continuousTimeMs, nowNs);
         m_lastFrameTickMs = continuousTimeMs;
-        m_waitingForAudioProgress = true;
+        m_awaitingInitialAudioProgress = true;
         m_audioProgressStartMs = static_cast<double>(m_audioPlayer->adjustedPosition());
     }
     else
@@ -340,7 +339,7 @@ void PlaybackController::seekTo(double timeMs)
     m_frameRateCorrection = 0.0;
     resetFrameAnchor(static_cast<double>(targetMs), nowNs);
     m_lastFrameTickMs = static_cast<double>(targetMs);
-    m_waitingForAudioProgress = (m_state == Playing);
+    m_awaitingInitialAudioProgress = (m_state == Playing);
     m_audioProgressStartMs = static_cast<double>(targetMs);
     applySeekNow(targetMs, "direct");
     emit positionChanged(static_cast<double>(targetMs));
@@ -425,16 +424,32 @@ void PlaybackController::onAudioPositionChanged(qint64 position)
     if (m_state == Playing)
     {
         const qint64 nowNs = m_frameClock.nsecsElapsed();
-        if (m_waitingForAudioProgress)
+        if (m_awaitingInitialAudioProgress)
         {
-            if (std::abs(observedMs - m_audioProgressStartMs) <= kAudioProgressEpsilonMs)
+            if (observedMs - m_audioProgressStartMs <= kAudioProgressEpsilonMs)
                 return;
-            m_waitingForAudioProgress = false;
-            m_frameRateCorrection = 0.0;
-            resetFrameAnchor(observedMs, nowNs);
-            m_lastFrameTickMs = qMax(m_lastFrameTickMs, observedMs);
+            const double predictedMs = predictedTimeAt(nowNs);
+            const double waitMs = qMax(
+                0.0,
+                static_cast<double>(nowNs - m_frameAnchorWallNs) / 1000000.0);
+            m_awaitingInitialAudioProgress = false;
+            // The first position callback is commonly tens of milliseconds
+            // late and can itself be quantized ahead of wall time. Keep the
+            // presentation clock continuous and only use that sample to begin
+            // a bounded drift correction.
+            applyObservedTimeToAnchor(observedMs, nowNs, false);
             if (PlaybackStutterProbe::enabled())
-                PlaybackStutterProbe::recordCounter("playback.anchor_startup_resync", 1, true);
+            {
+                PlaybackStutterProbe::recordDuration(
+                    "playback.audio_progress_wait_ms", waitMs, 100.0, true);
+                PlaybackStutterProbe::recordDuration(
+                    "playback.initial_clock_error_abs_ms",
+                    std::abs(observedMs - predictedMs),
+                    qMax(1.0, 32.0 * m_speed),
+                    true);
+                PlaybackStutterProbe::recordCounter(
+                    "playback.audio_progress_acquired", 1, true);
+            }
             return;
         }
         applyObservedTimeToAnchor(observedMs, nowNs);
@@ -453,7 +468,7 @@ void PlaybackController::onAudioStateChanged(QMediaPlayer::PlaybackState state)
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_frameAnchorValid = false;
         m_frameRateCorrection = 0.0;
-        m_waitingForAudioProgress = false;
+        m_awaitingInitialAudioProgress = false;
         m_frameSeq = 0;
         m_lastFrameTickMs = 0.0;
         m_lastPulseProbeNs = 0;
@@ -479,7 +494,7 @@ void PlaybackController::onAudioError(const QString &error)
         m_pendingPaintFrameSeq.store(0, std::memory_order_release);
         m_frameAnchorValid = false;
         m_frameRateCorrection = 0.0;
-        m_waitingForAudioProgress = false;
+        m_awaitingInitialAudioProgress = false;
         m_frameSeq = 0;
         m_lastPulseProbeNs = 0;
         m_lastPulseIntervalMs = -1.0;
@@ -620,9 +635,6 @@ void PlaybackController::dispatchScheduledFrame()
 
 bool PlaybackController::emitFramePulse(qint64 nowNs)
 {
-    if (m_waitingForAudioProgress)
-        return false;
-
     if (PlaybackStutterProbe::enabled())
     {
         if (m_lastPulseProbeNs > 0 && nowNs > m_lastPulseProbeNs)
@@ -669,8 +681,6 @@ double PlaybackController::predictedTimeAt(qint64 nowNs) const
 {
     if (!m_frameAnchorValid)
         return qMax(0.0, static_cast<double>(m_audioPlayer->adjustedPosition()));
-    if (m_waitingForAudioProgress)
-        return m_frameAnchorTimeMs;
 
     const double elapsedMs = static_cast<double>(nowNs - m_frameAnchorWallNs) / 1000000.0;
     const double effectiveRate = qMax(0.0, m_speed + m_frameRateCorrection);
@@ -682,7 +692,9 @@ double PlaybackController::predictedTimeAt(qint64 nowNs) const
     return predictedMs;
 }
 
-void PlaybackController::applyObservedTimeToAnchor(double observedMs, qint64 nowNs)
+void PlaybackController::applyObservedTimeToAnchor(double observedMs,
+                                                   qint64 nowNs,
+                                                   bool allowHardResync)
 {
     const double clampedObserved = qMax(0.0, observedMs);
     if (!m_frameAnchorValid)
@@ -694,12 +706,13 @@ void PlaybackController::applyObservedTimeToAnchor(double observedMs, qint64 now
     const double predictedMs = predictedTimeAt(nowNs);
     const double errorMs = clampedObserved - predictedMs;
     const double absoluteErrorMs = std::abs(errorMs);
-    const double deadZoneMs = qMax(0.15, 0.75 * m_speed);
-    // Backend positions are particularly coarse at low playback rates. A
-    // 20 ms media-time observation error at 0.1x can still be a harmless
-    // decoder callback quantization artifact, so it must not teleport the
-    // visual clock. Explicit seeks and startup already reset the anchor.
-    const double hardResyncMs = qMax(50.0, 120.0 * m_speed);
+    const PlaybackTiming::ClockAdjustment adjustment =
+        PlaybackTiming::adjustClockTowardObservation(
+            predictedMs,
+            clampedObserved,
+            m_speed,
+            m_frameRateCorrection,
+            allowHardResync);
 
     if (PlaybackStutterProbe::enabled())
     {
@@ -710,40 +723,16 @@ void PlaybackController::applyObservedTimeToAnchor(double observedMs, qint64 now
             true);
     }
 
-    if (absoluteErrorMs >= hardResyncMs)
-    {
-        m_frameRateCorrection = 0.0;
-        resetFrameAnchor(clampedObserved, nowNs);
-        if (PlaybackStutterProbe::enabled())
-            PlaybackStutterProbe::recordCounter("playback.anchor_hard_resync", 1, true);
-        return;
-    }
-
-    double targetRateCorrection = 0.0;
-    if (absoluteErrorMs > deadZoneMs)
-    {
-        const double maxRateCorrection = qMax(1e-6, m_speed * kClockSlewMaxRateFraction);
-        targetRateCorrection = qBound(
-            -maxRateCorrection,
-            errorMs / kClockSlewConvergenceWallMs,
-            maxRateCorrection);
-    }
-
-    // Keep the predicted position continuous. Applying a fraction of the
-    // backend error directly to the anchor creates a visible one-frame jump
-    // every time QMediaPlayer publishes its coarse position. Slewing the rate
-    // converges to the audio clock without moving the current frame.
-    m_frameRateCorrection +=
-        (targetRateCorrection - m_frameRateCorrection) * kClockSlewFilterGain;
-    if (std::abs(m_frameRateCorrection) < 1e-7)
-        m_frameRateCorrection = 0.0;
-    resetFrameAnchor(predictedMs, nowNs);
+    m_frameRateCorrection = adjustment.rateCorrection;
+    resetFrameAnchor(adjustment.anchorTimeMs, nowNs);
     if (PlaybackStutterProbe::enabled())
     {
+        if (adjustment.hardResync)
+            PlaybackStutterProbe::recordCounter("playback.anchor_hard_resync", 1, true);
         PlaybackStutterProbe::recordDuration(
             "playback.anchor_slew_rate_pct",
             std::abs(m_frameRateCorrection) * 100.0 / qMax(1e-6, m_speed),
-            kClockSlewMaxRateFraction * 100.0,
+            0.5,
             true);
     }
 }

@@ -107,6 +107,23 @@ p95 2.786-3.288 ms、MainWindow update p95 6.002-9.670 ms，均为 0 skipped ref
 解析 32 ms。单次 Windows 调度毛刺
 应保留失败结果并同参数复跑确认，不得只看平均 FPS。
 
+播放启动连续性必须另做零预热回归；常规 3 秒 warm-up 会隐藏首个音频位置回调前的
+冻结或跳变：
+
+```powershell
+build\Release\CatchChartEditor.exe `
+  --benchmark-chart $chartPath `
+  --benchmark-fps 0 `
+  --benchmark-warmup-ms 0 `
+  --benchmark-duration-ms 3000 `
+  --benchmark-output artifacts\local_playback_startup.json
+```
+
+除常规判定外，检查 `playback.audio_progress_wait_ms`、
+`playback.initial_clock_error_abs_ms`、`playback.time_step_ms` 和
+`visual.scroll_step_change_pct`。音频后端首个位置样本可以延迟到达，但画面帧在等待期间
+必须继续推进，首次样本不得直接重设显示时钟。0.1×、0.25×、1×、2×、10× 至少各跑一次。
+
 ## 手工回归清单
 
 自动化测试不替代以下真实交互：

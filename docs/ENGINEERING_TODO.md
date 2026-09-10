@@ -52,6 +52,7 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [x] Disconnect every signal when swapping chart controllers.
 - [x] Coalesce density/stat refreshes and avoid work on unrelated chart changes.
 - [x] Replace in-place drag mutations with lightweight visual previews, committing only once through the undo stack.
+- [x] Keep the presentation clock continuous before the first audio-position callback and cover zero-warmup startup at 0.1x-10x.
 - [x] Re-run Release tests and the `Yugami - Nyanpasu- Lv.16` benchmark; record before/after numbers.
 
 ## P1 — measured follow-up

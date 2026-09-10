@@ -689,6 +689,73 @@ namespace
                && nearlyEqual(PlaybackTiming::wallDurationToMediaMs(12.0, 0.0), 12.0);
     }
 
+    bool testPlaybackStartupContinuity()
+    {
+        constexpr double frameWallMs = 1000.0 / 60.0;
+        for (double rate : {0.1, 1.0, 10.0})
+        {
+            const double startMs = 1200.0;
+            const double backendWaitWallMs = 50.0;
+            const double predictedAtFirstSample =
+                startMs + PlaybackTiming::wallDurationToMediaMs(backendWaitWallMs, rate);
+            const double coarseObservedMs =
+                startMs + PlaybackTiming::wallDurationToMediaMs(71.0, rate);
+
+            // The presentation clock must continue at normal speed while the
+            // audio backend has not emitted its first position callback.
+            const double expectedFrameStep =
+                PlaybackTiming::wallDurationToMediaMs(frameWallMs, rate);
+            double previous = startMs;
+            for (double elapsedWallMs = frameWallMs;
+                 elapsedWallMs <= backendWaitWallMs;
+                 elapsedWallMs += frameWallMs)
+            {
+                const double visual = startMs +
+                                      PlaybackTiming::wallDurationToMediaMs(elapsedWallMs, rate);
+                if (!nearlyEqual(visual - previous, expectedFrameStep, 1e-6))
+                    return false;
+                previous = visual;
+            }
+
+            const PlaybackTiming::ClockAdjustment initialAdjustment =
+                PlaybackTiming::adjustClockTowardObservation(
+                    predictedAtFirstSample,
+                    coarseObservedMs,
+                    rate,
+                    0.0,
+                    false);
+            if (initialAdjustment.hardResync ||
+                !nearlyEqual(initialAdjustment.anchorTimeMs, predictedAtFirstSample, 1e-6) ||
+                std::abs(initialAdjustment.rateCorrection) > rate * 0.005 + 1e-9)
+            {
+                return false;
+            }
+
+            // Acquiring the first backend sample may alter speed by at most
+            // the normal 0.5% slew limit; it must not add a catch-up step.
+            const double nextVisual = initialAdjustment.anchorTimeMs +
+                                      frameWallMs * (rate + initialAdjustment.rateCorrection);
+            if (nextVisual < initialAdjustment.anchorTimeMs ||
+                nextVisual - initialAdjustment.anchorTimeMs > expectedFrameStep * 1.0051)
+            {
+                return false;
+            }
+        }
+
+        const PlaybackTiming::ClockAdjustment startupLargeError =
+            PlaybackTiming::adjustClockTowardObservation(1000.0, 2000.0, 1.0, 0.0, false);
+        const PlaybackTiming::ClockAdjustment establishedLargeError =
+            PlaybackTiming::adjustClockTowardObservation(1000.0, 2000.0, 1.0, 0.0, true);
+        if (startupLargeError.hardResync ||
+            !nearlyEqual(startupLargeError.anchorTimeMs, 1000.0) ||
+            !establishedLargeError.hardResync ||
+            !nearlyEqual(establishedLargeError.anchorTimeMs, 2000.0))
+        {
+            return false;
+        }
+        return true;
+    }
+
     bool testMathUtilsQuantizeBeatTo288Division()
     {
         int beatNum = 0;
@@ -3053,6 +3120,7 @@ int main(int argc, char **argv)
     const Case cases[] = {
         {"Playback speed 0.1x-10x bounds", &testPlaybackSpeedBounds},
         {"Playback wall time scales with rate", &testPlaybackWallTimeConversion},
+        {"Playback startup remains continuous at all rates", &testPlaybackStartupContinuity},
         {"MathUtils round-trip", &testMathUtilsRoundTrip},
         {"MathUtils cache consistency", &testMathUtilsCacheConsistency},
         {"MathUtils empty BPM boundary", &testMathUtilsEmptyBpmBoundary},

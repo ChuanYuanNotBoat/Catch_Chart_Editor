@@ -49,6 +49,7 @@ void TimelineWidget::setPlaybackController(PlaybackController *controller)
     if (m_playbackController)
     {
         disconnect(m_playbackController, &PlaybackController::positionChanged, this, &TimelineWidget::updateFromPlayback);
+        disconnect(m_playbackController, &PlaybackController::playbackFrameTick, this, nullptr);
         disconnect(this, &TimelineWidget::seekRequested, m_playbackController, &PlaybackController::seekTo);
     }
 
@@ -57,6 +58,22 @@ void TimelineWidget::setPlaybackController(PlaybackController *controller)
         return;
 
     connect(m_playbackController, &PlaybackController::positionChanged, this, &TimelineWidget::updateFromPlayback);
+    connect(m_playbackController,
+            &PlaybackController::playbackFrameTick,
+            this,
+            [this](double predictedTimeMs, qint64 frameSeq)
+            {
+        // Match the display clock used by the canvas instead of jumping to
+        // sparse raw QMediaPlayer callbacks. Twenty updates per second are
+        // sufficient for this compact indicator and avoid extra paint work.
+        const int updateDivider = qMax(
+            1,
+            qRound(m_playbackController->effectiveFrameRate() / 20.0));
+        if ((frameSeq % updateDivider) != 0 || m_dragging)
+            return;
+        m_currentTime = qMax(0.0, predictedTimeMs - m_offset);
+        update();
+    });
     connect(this, &TimelineWidget::seekRequested, m_playbackController, &PlaybackController::seekTo);
 }
 
@@ -64,6 +81,11 @@ void TimelineWidget::updateFromPlayback(double timeMs)
 {
     if (m_dragging)
         return;
+    if (m_playbackController &&
+        m_playbackController->state() == PlaybackController::Playing)
+    {
+        return;
+    }
     // 音频位置转谱面时间：减去offset
     m_currentTime = timeMs - m_offset;
     if (m_currentTime < 0)
