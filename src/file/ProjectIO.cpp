@@ -1,5 +1,6 @@
 ﻿#include "ProjectIO.h"
 #include "utils/Logger.h"
+#include "utils/FileUtils.h"
 #include "file/ChartFileSystem.h"
 #include <QDir>
 #include <QFile>
@@ -242,12 +243,11 @@ namespace
             return false;
         }
 
-        if (QFile::exists(outputMczPath))
-            QFile::remove(outputMczPath);
-
-        if (!QFile::rename(tempZipPath, outputMczPath))
+        QString replaceError;
+        if (!FileUtils::copyFileAtomically(tempZipPath, outputMczPath, &replaceError))
         {
-            Logger::error(QString("%1 - Failed to rename zip to mcz").arg(logTag));
+            Logger::error(QString("%1 - Failed to publish MCZ atomically: %2")
+                              .arg(logTag, replaceError));
             return false;
         }
 
@@ -267,8 +267,7 @@ namespace
         const QString dstDir = QFileInfo(dst).absolutePath();
         if (!QDir().mkpath(dstDir))
             return false;
-        QFile::remove(dst);
-        return QFile::copy(src, dst);
+        return FileUtils::copyFileSafely(src, dst);
     }
 }
 

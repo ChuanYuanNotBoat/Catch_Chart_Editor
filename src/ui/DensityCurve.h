@@ -36,6 +36,7 @@ private:
     void syncDuration();
     void syncCurrentTime(double timeMs);
     void refreshFromChart();
+    void scheduleRefreshFromChart();
     void updateFromCanvasBeat(double beat);
     void updateFromPointer(const QPoint &pos, bool commitSeek);
     void computeDensity();
@@ -53,4 +54,5 @@ private:
     double m_tipTimeMs;
     bool m_dragging;
     bool m_showTip;
+    bool m_refreshScheduled = false;
 };

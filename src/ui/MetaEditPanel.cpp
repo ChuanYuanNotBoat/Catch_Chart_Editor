@@ -192,7 +192,6 @@ void MetaEditPanel::setChartController(ChartController *controller)
     if (m_chartController)
     {
         disconnect(m_chartController, &ChartController::metaDataChanged, this, &MetaEditPanel::refreshMeta);
-        disconnect(m_chartController, &ChartController::chartLoaded, this, &MetaEditPanel::refreshMeta);
     }
 
     m_chartController = controller;
@@ -200,7 +199,6 @@ void MetaEditPanel::setChartController(ChartController *controller)
         return;
 
     connect(m_chartController, &ChartController::metaDataChanged, this, &MetaEditPanel::refreshMeta, Qt::UniqueConnection);
-    connect(m_chartController, &ChartController::chartLoaded, this, &MetaEditPanel::refreshMeta, Qt::UniqueConnection);
     refreshMeta();
 }
 

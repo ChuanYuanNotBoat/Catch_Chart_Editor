@@ -2,6 +2,9 @@
 
 A runnable Host API v3 sample focused on pen-like curve editing:
 
+> Protocol reference only; last verified: 2026-09-10. The authoritative production
+> Note Chain implementation is `src/editor/NoteChain/` and does not start this process plugin.
+
 - capabilities: `tool_actions`, `canvas_overlay`, `canvas_interaction`, `panel_workspace`, `host_batch_edit`
 - interactive features:
   - left click empty area: add anchor

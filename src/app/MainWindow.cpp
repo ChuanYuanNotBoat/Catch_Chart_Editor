@@ -2,6 +2,7 @@
 #include "MainWindow.h"
 #include "MainWindowPrivate.h"
 #include "app/Application.h"
+#include "app/SessionPathUtils.h"
 #include "plugin/PluginManager.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "ui/CustomWidgets/RealtimePreviewWidget.h"
@@ -32,6 +33,7 @@
 #include "file/ChartFileSystem.h"
 #include "model/Skin.h"
 #include "render/RainRewardGenerator.h"
+#include "utils/FileUtils.h"
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
 #include "utils/NativeWindowTheme.h"
@@ -80,6 +82,7 @@
 #include <QSysInfo>
 #include <QGroupBox>
 #include <QFile>
+#include <QSaveFile>
 #include <QTextStream>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -110,10 +113,12 @@
 #include <QScopedValueRollback>
 #include <QUuid>
 #include <QDirIterator>
+#include <QtConcurrentRun>
 #include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace
 {
@@ -217,9 +222,12 @@ namespace
         root.insert(QStringLiteral("undo_count"), stats.undoCount);
         root.insert(QStringLiteral("redo_count"), stats.redoCount);
         root.insert(QStringLiteral("operations"), operations);
-        QFile file(path);
-        if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-            file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        QSaveFile file(path);
+        if (!file.open(QIODevice::WriteOnly))
+            return;
+        const QByteArray data = QJsonDocument(root).toJson(QJsonDocument::Indented);
+        if (file.write(data) != data.size() || !file.commit())
+            Logger::warn(QString("Failed to atomically save editor statistics: %1").arg(path));
     }
 
     QString lightweightDockStyle(const NativeWindowTheme::ThemeColors &theme)
@@ -682,11 +690,12 @@ namespace
             {"working_path", state.workingPath},
             {"modified", state.modified},
             {"updated_at_utc", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
-        QFile file(recoveryManifestPath());
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+        QSaveFile file(recoveryManifestPath());
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
             return false;
         const QJsonDocument doc(obj);
-        return file.write(doc.toJson(QJsonDocument::Indented)) > 0;
+        const QByteArray data = doc.toJson(QJsonDocument::Indented);
+        return file.write(data) == data.size() && file.commit();
     }
 
     bool readRecoveryState(RecoverySessionState *state)
@@ -718,19 +727,8 @@ namespace
 
     QString workingSessionDirFromWorkingPath(const QString &workingPath)
     {
-        if (workingPath.isEmpty())
-            return QString();
-
-        const QString baseRoot = QDir(sessionWorkingCopyRootDir()).absolutePath();
-        const QString workingDir = QFileInfo(workingPath).absoluteDir().absolutePath();
-        const QString rel = QDir(baseRoot).relativeFilePath(workingDir);
-        if (rel.isEmpty() || rel.startsWith(".."))
-            return workingDir;
-
-        const QString firstSegment = rel.section('/', 0, 0);
-        if (firstSegment.isEmpty() || firstSegment == ".")
-            return workingDir;
-        return QDir(baseRoot).filePath(firstSegment);
+        return SessionPathUtils::sessionDirectoryForWorkingPath(
+            sessionWorkingCopyRootDir(), workingPath);
     }
 
     void removePathRecursively(const QString &path)
@@ -738,17 +736,33 @@ namespace
         if (path.isEmpty())
             return;
 
-        const QFileInfo fi(path);
+        // Every recursive removal in this file targets one direct child of
+        // the dedicated session root. Re-derive that child through the same
+        // canonical containment guard even for generated/cleanup paths, so a
+        // corrupt manifest or a junction cannot broaden the delete scope.
+        const QString absoluteTarget = QFileInfo(path).absoluteFilePath();
+        const QString guardWorkingPath = QDir(absoluteTarget).filePath(
+            QStringLiteral(".session-delete-guard.mc"));
+        const QString validatedTarget = workingSessionDirFromWorkingPath(guardWorkingPath);
+        if (validatedTarget.isEmpty() ||
+            QDir::cleanPath(validatedTarget) != QDir::cleanPath(absoluteTarget))
+        {
+            Logger::warn(QString("Refusing recursive removal outside a direct session child: %1")
+                             .arg(path));
+            return;
+        }
+
+        const QFileInfo fi(absoluteTarget);
         if (!fi.exists() && !fi.isSymLink())
             return;
 
         if (fi.isDir() && !fi.isSymLink())
         {
-            QDir(path).removeRecursively();
+            QDir(absoluteTarget).removeRecursively();
             return;
         }
 
-        QFile::remove(path);
+        QFile::remove(absoluteTarget);
     }
 
     struct CopyProgressState
@@ -852,11 +866,11 @@ namespace
 
             QElapsedTimer fileTimer;
             fileTimer.start();
-            QFile::remove(targetPath);
-            if (!QFile::copy(entry.absoluteFilePath(), targetPath))
+            QString copyError;
+            if (!FileUtils::copyFileSafely(entry.absoluteFilePath(), targetPath, &copyError))
             {
                 if (errorOut)
-                    *errorOut = QObject::tr("Failed to copy required file:\n%1").arg(entry.absoluteFilePath());
+                    *errorOut = copyError;
                 return false;
             }
 
@@ -940,14 +954,6 @@ namespace
         return resources;
     }
 
-    bool isPathInsideRoot(const QString &rootPath, const QString &targetPath)
-    {
-        const QString root = QDir::cleanPath(rootPath);
-        const QString target = QDir::cleanPath(targetPath);
-        const QString prefix = root.endsWith('/') ? root : (root + '/');
-        return target == root || target.startsWith(prefix, Qt::CaseInsensitive);
-    }
-
     // 将 meta/note 中引用的资源值解析为绝对路径；用于变化检测时统一比较口径。
     QString resolvedChartResourcePath(const QString &chartPath, const QString &resourceFile)
     {
@@ -1006,7 +1012,7 @@ namespace
             }
 
             const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(targetRelative));
-            if (!isPathInsideRoot(sessionRoot, targetAbs))
+            if (!SessionPathUtils::isPathInsideRoot(sessionRoot, targetAbs))
             {
                 Logger::warn(QString("Skip copying referenced resource outside working session root: %1").arg(resource));
                 continue;
@@ -1030,11 +1036,12 @@ namespace
                 if (targetFi.lastModified() == sourceFi.lastModified()
                     && targetFi.size() == sourceFi.size())
                     continue;
-                QFile::remove(targetAbs);
             }
-            if (!QFile::copy(sourceAbs, targetAbs))
+            QString copyError;
+            if (!FileUtils::copyFileSafely(sourceAbs, targetAbs, &copyError))
             {
-                Logger::warn(QString("Failed to copy referenced resource file: %1").arg(resource));
+                Logger::warn(QString("Failed to copy referenced resource file: %1 (%2)")
+                                 .arg(resource, copyError));
             }
         }
     }
@@ -1108,14 +1115,15 @@ namespace
 
             if (QFile::exists(sourceFile))
             {
-                QFile::remove(targetFile);
-                if (QFile::copy(sourceFile, targetFile))
+                QString copyError;
+                if (FileUtils::copyFileSafely(sourceFile, targetFile, &copyError))
                 {
                     Logger::debug(QString("syncAllKnownSidecars - Copied sidecar: %1").arg(ext));
                 }
                 else
                 {
-                    Logger::warn(QString("syncAllKnownSidecars - Failed to copy sidecar: %1").arg(ext));
+                    Logger::warn(QString("syncAllKnownSidecars - Failed to copy sidecar: %1 (%2)")
+                                     .arg(ext, copyError));
                 }
             }
         }
@@ -1533,19 +1541,53 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     createCentralArea();
     createMenus();
     setupAutoSaveTimer();
+    d->recoverySnapshotTimer = new QTimer(this);
+    d->recoverySnapshotTimer->setSingleShot(true);
+    d->recoverySnapshotTimer->setInterval(750);
+    connect(d->recoverySnapshotTimer, &QTimer::timeout,
+            this, &MainWindow::flushRecoverySnapshot);
     d->statsRefreshTimer = new QTimer(this);
     d->statsRefreshTimer->setSingleShot(true);
     d->statsRefreshTimer->setInterval(120);
     connect(d->statsRefreshTimer, &QTimer::timeout, this, [this]()
             {
         refreshChartStatistics();
-        saveEditorStats(d->editStatisticsPath, d->editStatistics);
+        saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+    });
+    d->statsWatcher = new QFutureWatcher<ChartStatistics>(this);
+    connect(d->statsWatcher, &QFutureWatcher<ChartStatistics>::finished, this, [this]()
+            {
+        const bool resultIsCurrent = d->statsFutureRevision == d->chartRevision;
+        if (resultIsCurrent && d->statsPanel)
+        {
+            ChartStatistics displayStats = d->statsWatcher->result();
+            displayStats.editTimeMs = d->editStatistics.editTimeMs;
+            displayStats.editCount = d->editStatistics.editCount;
+            displayStats.undoCount = d->editStatistics.undoCount;
+            displayStats.redoCount = d->editStatistics.redoCount;
+            displayStats.operationCounts = d->editStatistics.operationCounts;
+            d->statsPanel->setStatistics(displayStats);
+            if (d->detailedStatsDialog)
+                d->detailedStatsDialog->setStatistics(displayStats);
+        }
+
+        const bool rerun = d->statsRefreshPending || !resultIsCurrent;
+        d->statsRefreshPending = false;
+        if (rerun)
+        {
+            // Re-enter through the debounce timer so a long analysis cannot
+            // create a continuous stale-result/restart loop while the user is
+            // still editing.
+            if (d->statsRefreshTimer)
+                d->statsRefreshTimer->start();
+            else
+                QTimer::singleShot(0, this, &MainWindow::refreshChartStatistics);
+        }
     });
 
     connect(d->chartController, &ChartController::chartChanged, this, [this]()
             {
-        // 谱面数据变化：使奖励 drop 缓存失效（下次渲染时按新谱面重建）。
-        RainRewardGenerator::instance().invalidate();
+        ++d->chartRevision;
         const bool userEdit = !d->isLoadingChart;
         if (userEdit)
         {
@@ -1557,24 +1599,34 @@ MainWindow::MainWindow(ChartController *chartCtrl,
             if (!action.isEmpty())
                 ++d->editStatistics.operationCounts[action];
         }
-        if (d->statsRefreshTimer)
+        if (userEdit && d->statsRefreshTimer)
             d->statsRefreshTimer->start();
-        d->canvas->update();
         if (userEdit)
         {
             persistRecoveryState();
+            scheduleRecoverySnapshot();
             if (d->undoAction)
                 d->undoAction->setEnabled(true);
             if (d->redoAction)
                 d->redoAction->setEnabled(true);
         }
-        if (d->selectionController) {
+    });
+    connect(d->chartController, &ChartController::notesChanged, this, [this]()
+            {
+        RainRewardGenerator::instance().invalidate();
+        if (d->selectionController && d->chartController && d->chartController->chart())
+        {
             d->selectionController->setNotes(&(d->chartController->chart()->notes()));
             d->selectionController->updateSelectionFromNotes();
         }
-
-        // Detect resource file changes (e.g. undo/redo on meta) and reload.
-        if (userEdit && d->chartController && d->chartController->chart() &&
+    });
+    connect(d->chartController, &ChartController::bpmListChanged, this, []()
+            { RainRewardGenerator::instance().invalidate(); });
+    connect(d->chartController, &ChartController::metaDataChanged, this, [this]()
+            {
+        // Resource reload is metadata-specific; note and BPM edits no longer
+        // pay for path resolution or filesystem checks.
+        if (!d->isLoadingChart && d->chartController && d->chartController->chart() &&
             d->playbackController && d->playbackController->audioPlayer())
         {
             const MetaData &meta = d->chartController->chart()->meta();
@@ -1593,7 +1645,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
                     {
                         d->playbackController->audioPlayer()->load(audioPath);
                         updatePlaybackAvailability(d->playbackController->audioPlayer()->canPlay());
-                        Logger::info(QString("chartChanged - Reloaded audio after meta change: %1").arg(audioPath));
+                        Logger::info(QString("metaDataChanged - Reloaded audio: %1").arg(audioPath));
                     }
                 }
             }
@@ -1682,9 +1734,15 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
 MainWindow::~MainWindow()
 {
+    // Private is deleted before QObject tears down child objects. Destroy the
+    // watcher explicitly so a background completion cannot deliver a lambda
+    // that reads Private during that gap. The worker owns only its Chart
+    // snapshot and may finish independently.
+    delete d->statsWatcher;
+    d->statsWatcher = nullptr;
     if (d->editSessionTimer.isValid())
         d->editStatistics.editTimeMs += d->editSessionTimer.elapsed();
-    saveEditorStats(d->editStatisticsPath, d->editStatistics);
+    saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
     saveDockLayout();
     clearWorkingCopySession(true);
     closePluginPanels();
@@ -2830,20 +2888,25 @@ void MainWindow::createCentralArea()
 
 void MainWindow::refreshChartStatistics()
 {
-    if (!d->statsPanel || !d->chartController)
+    if (!d->statsPanel || !d->chartController || !d->statsWatcher)
         return;
     const Chart *chart = d->chartController->chart();
-    const int offset = chart ? chart->meta().offset : 0;
-    const ChartStatistics stats = ChartStatsCalculator::compute(chart, offset);
-    ChartStatistics displayStats = stats;
-    displayStats.editTimeMs = d->editStatistics.editTimeMs;
-    displayStats.editCount = d->editStatistics.editCount;
-    displayStats.undoCount = d->editStatistics.undoCount;
-    displayStats.redoCount = d->editStatistics.redoCount;
-    displayStats.operationCounts = d->editStatistics.operationCounts;
-    d->statsPanel->setStatistics(displayStats);
-    if (d->detailedStatsDialog)
-        d->detailedStatsDialog->setStatistics(displayStats);
+    if (!chart)
+        return;
+    if (d->statsWatcher->isRunning())
+    {
+        d->statsRefreshPending = true;
+        return;
+    }
+
+    Chart snapshot = *chart;
+    const int offset = snapshot.meta().offset;
+    d->statsFutureRevision = d->chartRevision;
+    d->statsWatcher->setFuture(QtConcurrent::run(
+        [snapshot = std::move(snapshot), offset]()
+        {
+            return ChartStatsCalculator::compute(&snapshot, offset);
+        }));
 }
 
 void MainWindow::openDetailedStatsDialog()
@@ -2879,6 +2942,13 @@ void MainWindow::persistRecoveryState()
         removeRecoveryState();
         return;
     }
+    if (workingSessionDirFromWorkingPath(d->workingChartPath).isEmpty())
+    {
+        Logger::warn(QString("Refusing to persist a recovery manifest for an out-of-root working path: %1")
+                         .arg(d->workingChartPath));
+        removeRecoveryState();
+        return;
+    }
 
     RecoverySessionState state;
     state.sourcePath = d->sourceChartPath;
@@ -2887,8 +2957,39 @@ void MainWindow::persistRecoveryState()
     writeRecoveryState(state);
 }
 
+void MainWindow::scheduleRecoverySnapshot()
+{
+    if (!d->isModified || d->workingChartPath.isEmpty() || !d->chartController)
+        return;
+    if (d->recoverySnapshotTimer)
+        d->recoverySnapshotTimer->start();
+}
+
+void MainWindow::flushRecoverySnapshot()
+{
+    if (!d->isModified || d->workingChartPath.isEmpty() || !d->chartController)
+        return;
+    if (workingSessionDirFromWorkingPath(d->workingChartPath).isEmpty())
+    {
+        Logger::warn(QString("Refusing to write a recovery snapshot outside the session root: %1")
+                         .arg(d->workingChartPath));
+        removeRecoveryState();
+        return;
+    }
+
+    if (!d->chartController->saveChart(d->workingChartPath))
+    {
+        Logger::warn(QString("Failed to persist recovery snapshot: %1")
+                         .arg(d->workingChartPath));
+        return;
+    }
+    persistRecoveryState();
+}
+
 void MainWindow::clearWorkingCopySession(bool removeWorkingFile)
 {
+    if (d->recoverySnapshotTimer)
+        d->recoverySnapshotTimer->stop();
     if (removeWorkingFile && !d->workingChartPath.isEmpty())
         removePathRecursively(workingSessionDirFromWorkingPath(d->workingChartPath));
     d->workingChartPath.clear();
@@ -2943,8 +3044,6 @@ void MainWindow::performAutoSaveTick()
         d->chartController->saveChart(d->workingChartPath);
     syncReferencedResourcesForSavedChart(d->workingChartPath, sourcePath);
     syncSidecarDirectoryForChart(d->workingChartPath, sourcePath);
-    if (!d->workingChartPath.isEmpty())
-        d->chartController->saveChart(d->workingChartPath);
     persistRecoveryState();
     statusBar()->showMessage(tr("Auto-saved: %1").arg(sourcePath), 1200);
 }
@@ -2954,6 +3053,14 @@ void MainWindow::tryRecoverPreviousSession()
     RecoverySessionState state;
     if (!readRecoveryState(&state))
     {
+        cleanupSessionWorkingCopies(QString());
+        return;
+    }
+    if (workingSessionDirFromWorkingPath(state.workingPath).isEmpty())
+    {
+        Logger::warn(QString("Ignoring recovery manifest with an out-of-root working path: %1")
+                         .arg(state.workingPath));
+        removeRecoveryState();
         cleanupSessionWorkingCopies(QString());
         return;
     }
@@ -2986,7 +3093,12 @@ void MainWindow::tryRecoverPreviousSession()
         return;
     }
 
-    if (!d->chartController->loadChart(state.workingPath))
+    bool recovered = false;
+    {
+        QScopedValueRollback<bool> loadingGuard(d->isLoadingChart, true);
+        recovered = d->chartController->loadChart(state.workingPath);
+    }
+    if (!recovered)
     {
         QMessageBox::warning(this, tr("Recovery Failed"), tr("Failed to load the recovery working copy."));
         removePathRecursively(workingSessionDirFromWorkingPath(state.workingPath));
@@ -2998,7 +3110,7 @@ void MainWindow::tryRecoverPreviousSession()
     d->sourceChartPath = state.sourcePath;
     d->workingChartPath = state.workingPath;
     d->currentChartPath = state.sourcePath;
-    d->editStatisticsPath = editorStatsPath(state.sourcePath);
+    d->editStatisticsChartPath = state.sourcePath;
     d->editStatistics = loadEditorStats(state.sourcePath);
     d->editSessionTimer.restart();
     refreshChartStatistics();
@@ -3026,7 +3138,8 @@ void MainWindow::tryRecoverPreviousSession()
             }
         }
         d->lastLoadedAudioFile = recoveryMeta.audioFile;
-        d->lastLoadedBackgroundFile = recoveryMeta.backgroundFile;
+        d->lastLoadedBackgroundFile = resolvedChartResourcePath(
+            state.workingPath, recoveryMeta.backgroundFile);
     }
 
     d->isModified = true;
@@ -3143,6 +3256,11 @@ bool MainWindow::confirmSaveIfModified(const QString &reasonText)
         return false;
     }
 
+    if (d->editStatisticsChartPath != savePath)
+    {
+        saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+        d->editStatisticsChartPath = savePath;
+    }
     d->sourceChartPath = savePath;
     d->currentChartPath = savePath;
     if (d->canvas)
@@ -3153,9 +3271,7 @@ bool MainWindow::confirmSaveIfModified(const QString &reasonText)
         d->chartController->saveChart(d->workingChartPath);
     syncReferencedResourcesForSavedChart(d->workingChartPath, savePath);
     syncSidecarDirectoryForChart(d->workingChartPath, savePath);
-    if (!d->workingChartPath.isEmpty())
-        d->chartController->saveChart(d->workingChartPath);
-    else
+    if (d->workingChartPath.isEmpty())
         createWorkingCopyFromSource(savePath, &d->workingChartPath, nullptr);
     persistRecoveryState();
     statusBar()->showMessage(tr("Saved: %1").arg(savePath), 2000);
@@ -3342,7 +3458,9 @@ void MainWindow::newChart()
                      .arg(mcPath, meta.title, QString::number(chart.meta().firstBpm, 'f', 1)));
 
     // Step 8: Open the chart in editor.
-    loadChartFile(mcPath);
+    // The replacement was confirmed before the potentially long copy/
+    // conversion/detection flow. Do not ask a second time when opening it.
+    loadChartFile(mcPath, false);
 }
 
 // ==================== Open chart file (.mc/.mcz) ====================
@@ -3466,7 +3584,18 @@ void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
     if (confirmUnsaved
         && !confirmSaveIfModified(tr("Opening another chart will replace the current one in editor.")))
         return;
-    clearWorkingCopySession(true);
+    if (d->statsRefreshTimer)
+        d->statsRefreshTimer->stop();
+    if (!d->editStatisticsChartPath.isEmpty())
+    {
+        if (d->editSessionTimer.isValid())
+            d->editStatistics.editTimeMs += d->editSessionTimer.restart();
+        saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+    }
+    // Keep the current session and recovery manifest alive until the
+    // replacement working copy has parsed and applied successfully. Every
+    // early-return path below therefore leaves the open document recoverable.
+    const QString previousWorkingChartPath = d->workingChartPath;
 
     QString actualChartPath = filePath;
     QFileInfo fi(filePath);
@@ -3569,10 +3698,20 @@ void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
         return;
     }
 
+    if (d->recoverySnapshotTimer)
+        d->recoverySnapshotTimer->stop();
+    if (!previousWorkingChartPath.isEmpty() &&
+        QDir::cleanPath(previousWorkingChartPath) != QDir::cleanPath(workingChartPath))
+    {
+        removePathRecursively(workingSessionDirFromWorkingPath(previousWorkingChartPath));
+    }
+    removeRecoveryState();
+    cleanupSessionWorkingCopies(workingChartPath);
+
     d->sourceChartPath = actualChartPath;
     d->workingChartPath = workingChartPath;
     d->currentChartPath = actualChartPath;
-    d->editStatisticsPath = editorStatsPath(actualChartPath);
+    d->editStatisticsChartPath = actualChartPath;
     d->editStatistics = loadEditorStats(actualChartPath);
     d->editSessionTimer.restart();
     refreshChartStatistics();
@@ -3625,10 +3764,6 @@ void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
     // the frame in sync right away.
     if (d->canvas)
         d->canvas->refreshBackground();
-
-    // 防御：切换谱面后强制重推统计快照，确保统计面板与详细统计窗口
-    // 始终反映当前谱面，不残留上一个谱面的数据。
-    refreshChartStatistics();
 
     // Reset playback state and position when switching charts
     d->playbackController->stop();
@@ -3937,6 +4072,11 @@ void MainWindow::saveChart()
 
     if (d->chartController->saveChart(currentPath))
     {
+        if (d->editStatisticsChartPath != currentPath)
+        {
+            saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+            d->editStatisticsChartPath = currentPath;
+        }
         d->sourceChartPath = currentPath;
         d->currentChartPath = currentPath;
         if (d->canvas)
@@ -3947,9 +4087,7 @@ void MainWindow::saveChart()
             d->chartController->saveChart(d->workingChartPath);
         syncReferencedResourcesForSavedChart(d->workingChartPath, currentPath);
         syncSidecarDirectoryForChart(d->workingChartPath, currentPath);
-        if (!d->workingChartPath.isEmpty())
-            d->chartController->saveChart(d->workingChartPath);
-        else
+        if (d->workingChartPath.isEmpty())
             createWorkingCopyFromSource(currentPath, &d->workingChartPath, nullptr);
         persistRecoveryState();
         statusBar()->showMessage(tr("Saved: %1").arg(currentPath), 2000);
@@ -3976,6 +4114,11 @@ void MainWindow::saveChartAs()
     }
     if (d->chartController->saveChart(fileName))
     {
+        if (d->editStatisticsChartPath != fileName)
+        {
+            saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+            d->editStatisticsChartPath = fileName;
+        }
         d->sourceChartPath = fileName;
         d->currentChartPath = fileName;
         if (d->canvas)
@@ -3985,9 +4128,7 @@ void MainWindow::saveChartAs()
             d->chartController->saveChart(d->workingChartPath);
         syncReferencedResourcesForSavedChart(d->workingChartPath, fileName);
         syncSidecarDirectoryForChart(d->workingChartPath, fileName);
-        if (!d->workingChartPath.isEmpty())
-            d->chartController->saveChart(d->workingChartPath);
-        else
+        if (d->workingChartPath.isEmpty())
             createWorkingCopyFromSource(fileName, &d->workingChartPath, nullptr);
         persistRecoveryState();
         statusBar()->showMessage(tr("Saved: %1").arg(fileName), 2000);

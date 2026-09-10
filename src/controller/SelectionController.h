@@ -30,6 +30,7 @@ public:
                       std::function<QPointF(const Note &)> noteToPos);
 
     void copySelected(const QVector<Note> &notes); // 复制当前选中的音符到剪贴板
+    void setClipboard(const QVector<Note> &notes);
     QVector<Note> getClipboard() const;
     void clearClipboard();
 

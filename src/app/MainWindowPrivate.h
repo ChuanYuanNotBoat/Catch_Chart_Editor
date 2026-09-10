@@ -11,6 +11,7 @@
 #include <QByteArray>
 #include <QElapsedTimer>
 #include <QVariantMap>
+#include <QFutureWatcher>
 #include <limits>
 
 class ChartController;
@@ -122,6 +123,8 @@ public:
     QToolBar *pluginToolBar = nullptr;
     QTimer *autoSaveTimer = nullptr;
     QTimer *statsRefreshTimer = nullptr;
+    QFutureWatcher<ChartStatistics> *statsWatcher = nullptr;
+    QTimer *recoverySnapshotTimer = nullptr;
     QAction *reloadChartAction = nullptr;
     bool compactUiMode = false;
     bool floatingToolWindowsEnabled = true;
@@ -156,8 +159,11 @@ public:
     bool isLoadingChart = false;
     bool audioPlaybackReady = false;
     ChartStatistics editStatistics;
-    QString editStatisticsPath;
+    QString editStatisticsChartPath;
     QElapsedTimer editSessionTimer;
+    quint64 chartRevision = 0;
+    quint64 statsFutureRevision = 0;
+    bool statsRefreshPending = false;
 
     // Cached resource paths for detecting changes after undo/redo/plugin edits.
     QString lastLoadedAudioFile;

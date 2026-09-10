@@ -1,7 +1,7 @@
 # Testing Guide
 
-> 适用版本：Beta v1.11.1 发布候选
-> 最后核对：2026-09-07
+> 适用版本：Beta v1.11.1 + Unreleased maintenance
+> 最后核对：2026-09-10
 
 ## 测试目标
 
@@ -22,7 +22,10 @@ CTest 名称：`core_minimal_tests`
 - `MathUtils` beat/ms、BPM cache、吸附与边界；
 - Chart、Note、BPM、MetaData 的排序、增删改和信号；
 - `ChartController` 批量编辑、撤销/重做及细分变更信号；
+- 5,000 Note 批量增删移动后的稳定身份、数量与排序；
 - `ChartIO` / `ProjectIO` / `ChartFileSystem` 路径、扫描、资源和格式行为；
+- 恢复工作副本的根目录边界、路径穿越和相似前缀拒绝；
+- 非单调 Rain 结束拍下的可见区前缀索引与统计/Rain reward 一致性；
 - SHA256 与诊断相关工具；
 - Note Chain legacy 导入、锚点/控制柄、采样、密度、V3 元数据、CAS、损坏数据保护、事务式切谱及宿主选择同步。
 
@@ -80,6 +83,30 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --output-on-failure
 ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:20 --output-on-failure
 ```
 
+## Release 播放性能基准
+
+主编辑区或 MainWindow 高频路径有改动时，使用实际谱面运行内置基准。开发机的主要
+压力用例是 `Yugami - Nyanpasu- Lv.16`（4,461 notes、1 BPM）：
+
+```powershell
+$chartPath = 'C:\path\to\Yugami - Nyanpasu- Lv.16.mc'
+build\Release\CatchChartEditor.exe `
+  --benchmark-chart $chartPath `
+  --benchmark-fps 0 `
+  --benchmark-warmup-ms 3000 `
+  --benchmark-duration-ms 10000 `
+  --benchmark-output artifacts\local_playback_benchmark.json
+```
+
+验收时至少检查：`verdict.passed`、canvas/preview FPS、paint p95、
+`ui_stall_events`、`skipped_display_refreshes`、`window_update_request_p95_ms`。
+基准产物属于本机诊断文件，不提交 Git。2026-09-09 至 2026-09-10 的同机对比中，
+Chart parse 从 195 ms 降至 31-35 ms；通过样本为 59.89-59.99 FPS、canvas paint
+p95 2.786-3.288 ms、MainWindow update p95 6.002-9.670 ms，均为 0 skipped refresh、
+0 UI stall。最终交付代码复跑为 59.988 FPS / 3.191 ms / 6.638 ms，工作副本创建 89 ms、
+解析 32 ms。单次 Windows 调度毛刺
+应保留失败结果并同参数复跑确认，不得只看平均 FPS。
+
 ## 手工回归清单
 
 自动化测试不替代以下真实交互：
@@ -87,6 +114,7 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 - 打开、新建、切换难度、保存、另存和导出 `.mcz`；
 - 播放/暂停、变速、滚轮导航、缩放和拖动 seek；
 - Note/Rain 放置、框选、范围选择、复制粘贴、镜像和撤销重做；
+- 在压力谱面中分别拖动 1 / 100 / 4,000 个 Note 和 Rain 尾部，确认拖动期间顺滑、预览位置正确、松手只增加一个 Undo 项，撤销后谱面完全恢复；
 - 默认粘贴优先保持原分母；无法精确表达时允许自动约分；仅在手动启用时把预览和最终 Note 统一量化为 `/288`；
 - 曲线锚点/控制柄拖动、连接、段密度、整曲线/目标段提交、样式导入导出和 sidecar 重开；
 - 大谱面启用曲线工具后持续移动鼠标，确认 hover 不随 Note 数量明显卡顿，并验证主窗口级 `Delete` 可删除锚点/曲线段；

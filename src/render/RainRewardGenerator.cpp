@@ -167,6 +167,19 @@ void RainRewardGenerator::ensureChart(const QVector<Note> &notes,
 {
     const Note *noteData = notes.constData();
     const BpmEntry *bpmData = bpmList.constData();
+    if (!m_dirty
+        && noteData == m_lastNotesData
+        && notes.size() == m_lastNotesSize
+        && bpmData == m_lastBpmData
+        && bpmList.size() == m_lastBpmSize
+        && offsetMs == m_lastOffsetMs)
+    {
+        return;
+    }
+
+    // Fingerprints are an integrity fallback when the cache was explicitly
+    // invalidated or its storage identity changed. They must not turn every
+    // paint into another full-chart scan.
     const std::uint64_t fingerprint = noteFingerprint(notes);
     const std::uint64_t bpmFingerprintValue = bpmFingerprint(bpmList);
     if (!m_dirty
@@ -236,13 +249,14 @@ QString RainRewardGenerator::cacheKey(const Note &rain) const
         .arg(rain.endDenominator);
 }
 
-QVector<RainDrop> RainRewardGenerator::dropsFor(const Note &rain) const
+const QVector<RainDrop> &RainRewardGenerator::dropsFor(const Note &rain) const
 {
+    static const QVector<RainDrop> empty;
     if (rain.type != NoteType::RAIN)
-        return {};
+        return empty;
 
     const auto it = m_cache.constFind(cacheKey(rain));
-    return it == m_cache.constEnd() ? QVector<RainDrop>{} : it.value();
+    return it == m_cache.constEnd() ? empty : it.value();
 }
 
 void RainRewardGenerator::fillDrops(const Note &rain, QVector<RainDrop> &out)

@@ -23,7 +23,9 @@ struct CatchObject
     bool hyperdash = false;
 };
 
-QVector<CatchObject> catchObjects(const Chart *chart, int offsetMs)
+QVector<CatchObject> catchObjects(const Chart *chart,
+                                  int offsetMs,
+                                  const RainRewardGenerator &generator)
 {
     QVector<CatchObject> objects;
     // osu!catch difficulty uses CS 3.8 and normalizes positions against the
@@ -35,13 +37,19 @@ QVector<CatchObject> catchObjects(const Chart *chart, int offsetMs)
     const double catcherScale = 1.0 - 0.7 * difficultyRange;
     const double catcherHalfWidth = catcherBaseSize * catcherScale * allowedCatchRange;
     const double positionScale = 41.0 / (catcherHalfWidth * 0.5);
-    auto &generator = RainRewardGenerator::instance();
+    const QVector<MathUtils::BpmCacheEntry> bpmCache =
+        MathUtils::buildBpmTimeCache(chart->bpmList(), offsetMs);
+    const auto beatToMs = [&bpmCache, offsetMs](int beatNum, int numerator, int denominator)
+    {
+        return bpmCache.isEmpty()
+                   ? -static_cast<double>(offsetMs)
+                   : MathUtils::beatToMs(beatNum, numerator, denominator, bpmCache);
+    };
     for (const Note &note : chart->notes())
     {
         if (note.type == NoteType::SOUND)
             continue;
-        const double noteTime = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator,
-                                                     chart->bpmList(), offsetMs);
+        const double noteTime = beatToMs(note.beatNum, note.numerator, note.denominator);
         if (note.type == NoteType::RAIN)
         {
             for (const RainDrop &drop : generator.dropsFor(note))
@@ -52,8 +60,7 @@ QVector<CatchObject> catchObjects(const Chart *chart, int offsetMs)
                 MathUtils::floatToBeat(MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator) +
                                            drop.beatOffset,
                                        beatNum, numerator, denominator, 1000000);
-                objects.append({MathUtils::beatToMs(beatNum, numerator, denominator,
-                                                     chart->bpmList(), offsetMs),
+                objects.append({beatToMs(beatNum, numerator, denominator),
                                 static_cast<double>(drop.rawX) * positionScale});
             }
         }
@@ -220,7 +227,7 @@ ChartStatistics ChartStatsCalculator::compute(const Chart *chart, int offsetMs)
     if (!chart)
         return stats;
 
-    auto &generator = RainRewardGenerator::instance();
+    RainRewardGenerator generator;
     generator.ensureChart(chart->notes(), chart->bpmList(), offsetMs);
 
     for (const Note &note : chart->notes())
@@ -245,7 +252,7 @@ ChartStatistics ChartStatsCalculator::compute(const Chart *chart, int offsetMs)
     stats.totalNotes = stats.normalCount + stats.rainCount;
     stats.maxCombo = stats.normalCount + stats.rewardCount;
 
-    QVector<CatchObject> objects = catchObjects(chart, offsetMs);
+    QVector<CatchObject> objects = catchObjects(chart, offsetMs, generator);
     if (objects.size() >= 2)
     {
         const double durationMs = objects.last().timeMs - objects.first().timeMs;

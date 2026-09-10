@@ -16,6 +16,7 @@
 #include "file/ChartIO.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
+#include "utils/FileUtils.h"
 #include "utils/DiagnosticCollector.h"
 #include "utils/NativeWindowTheme.h"
 #include "model/Skin.h"
@@ -172,8 +173,9 @@ namespace
             return;
 
         QDir().mkpath(QFileInfo(workingCurve).absolutePath());
-        QFile::remove(workingCurve);
-        QFile::copy(sourceCurve, workingCurve);
+        QString copyError;
+        if (!FileUtils::copyFileSafely(sourceCurve, workingCurve, &copyError))
+            Logger::warn(QString("Failed to seed curve sidecar: %1").arg(copyError));
     }
 
     void enrichContextWithSidecarPaths(QVariantMap *context, const QString &chartPath, const QString &sourceChartPath = QString())

@@ -114,6 +114,8 @@ private:
     void loadChartFile(const QString &filePath, bool confirmUnsaved = true);
     void reloadChart();
     void persistRecoveryState();
+    void scheduleRecoverySnapshot();
+    void flushRecoverySnapshot();
     void tryRecoverPreviousSession();
     void clearWorkingCopySession(bool removeWorkingFile);
     void setupAutoSaveTimer();

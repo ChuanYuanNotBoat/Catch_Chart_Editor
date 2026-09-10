@@ -6,6 +6,7 @@
 #include "utils/CalcHash.h"
 #include <QDir>
 #include <QFile>
+#include <QSaveFile>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -18,6 +19,7 @@
 #include <QPushButton>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace
 {
@@ -228,6 +230,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
     // 读取 note 数组
     int normalNoteCount = 0, rainNoteCount = 0, soundNoteCount = 0, skippedNoteCount = 0;
     int totalNoteCount = 0; // 用于统计成功率
+    QVector<Note> loadedNotes;
 
     if (root.contains("note") && root["note"].isArray())
     {
@@ -237,6 +240,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
         Logger::info(QStringLiteral("ChartIO::load - SHA256: %1").arg(noteHashHex));
 
         totalNoteCount = noteArray.size();
+        loadedNotes.reserve(totalNoteCount);
         Logger::debug(QString("ChartIO::load - Found 'note' array with %1 entries").arg(totalNoteCount));
 
         for (int i = 0; i < noteArray.size(); i++)
@@ -273,7 +277,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
                 QString sound = obj["sound"].toString();
                 int vol = obj.value("vol").toInt(100);
                 int offset = obj.value("offset").toInt(0);
-                outChart.addNote(Note(beatNum, num, den, sound, vol, offset));
+                loadedNotes.append(Note(beatNum, num, den, sound, vol, offset));
                 soundNoteCount++;
                 if (Logger::isVerbose())
                 {
@@ -298,7 +302,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
                         continue;
                     }
                     x = std::clamp(x, 0, 512);
-                    outChart.addNote(Note(beatNum, num, den, endBeatNum, endNum, endDen, x));
+                    loadedNotes.append(Note(beatNum, num, den, endBeatNum, endNum, endDen, x));
                     rainNoteCount++;
                     if (Logger::isVerbose())
                     {
@@ -325,7 +329,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
             else if (obj.contains("x"))
             {
                 int x = std::clamp(obj["x"].toInt(), 0, 512);
-                outChart.addNote(Note(beatNum, num, den, x));
+                loadedNotes.append(Note(beatNum, num, den, x));
                 normalNoteCount++;
                 if (Logger::isVerbose())
                 {
@@ -579,7 +583,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
         Logger::info("ChartIO::load - No 'meta' object found in file");
     }
 
-    outChart.sortNotes();
+    outChart.setNotes(std::move(loadedNotes));
     Logger::info(QString("ChartIO::load - Chart loaded successfully from: %1").arg(filePath));
     Logger::setVerbose(previousVerbose); // 恢复原来的设置
     return true;
@@ -875,7 +879,7 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     Logger::debug("ChartIO::save - Extra (test config) saved");
 
     QJsonDocument doc(root);
-    QFile file(filePath);
+    QSaveFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
     {
         Logger::error(QString("ChartIO::save - Cannot open file for writing: %1").arg(filePath));
@@ -883,8 +887,17 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     }
 
     QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
-    file.write(jsonData);
-    file.close();
+    if (file.write(jsonData) != jsonData.size())
+    {
+        Logger::error(QString("ChartIO::save - Failed while writing temporary file for: %1").arg(filePath));
+        file.cancelWriting();
+        return false;
+    }
+    if (!file.commit())
+    {
+        Logger::error(QString("ChartIO::save - Failed to atomically replace file: %1").arg(filePath));
+        return false;
+    }
 
     Logger::info(QString("ChartIO::save - Chart saved successfully (%1 bytes) to: %2").arg(jsonData.size()).arg(filePath));
 

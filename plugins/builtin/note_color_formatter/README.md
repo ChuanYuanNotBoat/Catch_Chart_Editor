@@ -2,6 +2,10 @@
 
 This plugin formats note timing division values used by color grouping logic.
 
+Status: built-in process plugin, Host API v2-compatible on the current v3 host.
+
+Last verified: 2026-09-10.
+
 The toolbar action opens and focuses the host's dockable Plugin Tools panel. The
 panel provides a persistent scope selector, beat-range editor, selection count,
 and an explicit Format button. It can format selected Normal/Rain notes, notes

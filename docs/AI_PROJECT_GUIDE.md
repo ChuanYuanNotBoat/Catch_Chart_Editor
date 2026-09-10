@@ -2,8 +2,9 @@
 
 > 面向新开发者和代码代理的当前仓库速查。
 > 当前版本：**Beta v1.11.1（2026-09-07）**
+> 仓库状态：**Unreleased maintenance（2026-09-10）**
 > Git 标签：待发布
-> 最后核对：2026-09-07
+> 最后核对：2026-09-10
 
 ## 1. 项目边界
 
@@ -24,6 +25,7 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 | 语言 | C++17 |
 | UI | Qt 6 Widgets |
 | 音频 | Qt 6 Multimedia |
+| 后台任务 | Qt 6 Concurrent（当前用于全谱统计快照） |
 | 构建 | CMake 3.16+ |
 | 面板 | Qt Advanced Docking System 5.1.1（静态 vendored） |
 | 翻译 | Qt Linguist，`resources/translations/*.ts` |
@@ -64,13 +66,13 @@ cmake --build build --config Debug --target CatchChartEditor --parallel
 | 路径 | 责任 |
 |------|------|
 | `src/main.cpp` | Qt 应用入口与运行时版本字符串 |
-| `src/app/` | Application、MainWindow、菜单、对话框、主题和工作区装配 |
+| `src/app/` | Application、MainWindow、会话路径安全、菜单、对话框、主题和工作区装配 |
 | `src/model/` | Note、BPM、MetaData、Chart、Skin 数据模型 |
 | `src/controller/` | Chart、Selection、Playback 的业务编排与信号 |
 | `src/ui/` | 编辑面板、对话框、时间线、预览和 ChartCanvas |
 | `src/ui/CustomWidgets/ChartCanvas/` | 画布输入、播放、粘贴、渲染和 Note Chain 接线 |
 | `src/editor/NoteChain/` | 原生曲线状态、采样、交互与 V3 sidecar |
-| `src/render/` | Note、网格、背景、分度颜色和 Hyperfruit 渲染 |
+| `src/render/` | Note、Rain 可见区/奖励点、网格、背景、分度颜色和 Hyperfruit 渲染 |
 | `src/file/` | `.mc` / `.mcz`、工作副本、皮肤、插件加载和文件注册表 |
 | `src/audio/` | 音频、音效、BPM 测量和 AutoTiming |
 | `src/plugin/` | 插件接口、管理器和外部进程适配器 |
@@ -90,6 +92,7 @@ MainWindow
   ├─ ChartCanvas ── render/*
   │    └─ NoteChainEditor ── NoteChainState / Persistence
   ├─ CDockManager ── Navigation / Preview / Note / BPM / Meta / plugin panels
+  ├─ QFutureWatcher ── Chart snapshot statistics
   └─ PluginManager ── native plugins / ExternalProcessPlugin
 ```
 
@@ -97,8 +100,12 @@ MainWindow
 
 - 数据修改优先经 Controller 完成，避免 UI 直接产生无法撤销的模型变更。
 - `ChartController` 已把粗粒度 `chartChanged` 拆分为 notes/BPM/meta 信号；新增监听时选最小范围。
+- 大批量 Note 修改使用 `Chart::addNotes/removeNotes/replaceNotes/applyNoteBatch`，只在变更边界排序一次。
+- Note/Rain 拖动期间只维护绘制预览，松手后经 Controller 提交一次；不要恢复每个 pointer event 修改模型的做法。
 - 播放态视觉刷新由 `PlaybackController` 帧信号驱动，不要再增加独立高频定时器。
-- 工作副本和源文件同步由 `MainWindow`、`ProjectIO`、`ChartFileSystem` 协作；不要绕过该链路直接保存 sidecar。
+- 全谱统计复制 Chart 快照后通过 Qt Concurrent 执行，并以 `chartRevision` 拒绝切谱/继续编辑后返回的旧结果。
+- 工作副本和源文件同步由 `MainWindow`、`ProjectIO`、`ChartFileSystem` 协作；编辑后 750 ms 防抖刷新恢复副本，不要绕过该链路直接保存 sidecar。
+- `.mc`、恢复清单、编辑统计、已有资源/sidecar 覆盖和 `.mcz` 最终发布使用原子提交；新工作副本走快速复制；会话清理目标必须先通过 `SessionPathUtils` 边界检查。
 
 ## 6. 可组合工作区
 
@@ -170,13 +177,13 @@ Host API 当前为 v3，扩展点包括 tool actions、floating panels、canvas 
 - `builtin.note_color_formatter` 是当前内置进程插件；
 - `builtin.note_chain_assist` 源码仅保留 legacy 兼容参考，宿主明确跳过；
 - 新插件从 [../src/plugin/README.md](../src/plugin/README.md) 和 `plugins/samples/` 开始。
+- 当前进程插件 request/response 仍会同步等待；高频画布工具优先留在原生 C++，异步请求、取消和有界 payload 属于后续协议重构。
 
 ## 10. 文档与版本规则
 
-- 当前版本是 Beta v1.11.0，上一版本是 Beta v1.10.5。
-- v1.11.0 的变更记录位于 `history.md` 顶部。
-- 已发布版本段落冻结，不把后续工作追加到 v1.10.5。
-- 临时审计、分支状态和迁移 TODO 不作为长期文档提交。
+- 当前发布版本是 Beta v1.11.1；开发中的维护内容写入 `history.md` 顶部 `Unreleased`。
+- 已发布版本段落冻结，不把后续工作回填到 Beta v1.11.1。
+- 可验证的长期优化/重构事项维护在 [ENGINEERING_TODO.md](ENGINEERING_TODO.md)；临时审计快照和重复迁移草稿不提交。
 - 新增或删除文档时同步 [README.md](README.md) 总索引。
 
 ## 11. 修改后的最小验证
@@ -186,5 +193,6 @@ Host API 当前为 v3，扩展点包括 tool actions、floating panels、canvas 
 | 模型、I/O、Controller、Note Chain | `core_minimal_tests` |
 | ADS、面板、原生窗口主题 | `ui_docking_layout_tests` |
 | CMake、依赖、资源部署 | Debug + Release 主程序构建 |
+| MainWindow、画布、缓存、统计 | Release 极限曲基准 + 对应交互回归 |
 | 用户交互、音频、拖放、主题 | 对应手工回归 + 自动化测试 |
 | 翻译可见字符串 | 更新 `.ts` 并至少检查 zh_CN/en_US/ja_JP |

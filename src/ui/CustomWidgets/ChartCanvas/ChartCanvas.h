@@ -314,6 +314,7 @@ private:
     QVector<NoteType> m_noteTypes;
     QVector<int> m_sortedNormalNoteIndicesByBeat;
     QVector<int> m_sortedRainNoteIndicesByBeat;
+    QVector<double> m_sortedRainPrefixMaxEndBeats;
     bool m_noteDataDirty;
     bool m_timesDirty;
     mutable QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
@@ -390,7 +391,8 @@ private:
     bool m_rainFirst;
     Note m_rainStartNote; // rain anchor converted to beat at click time (scroll-safe)
     int m_rainTailDragIndex = -1; // rain note currently being tail-dragged
-    Note m_rainTailDragOriginal;  // snapshot of the dragged rain for rollback/commit
+    Note m_rainTailDragOriginal;  // committed snapshot for the undo command
+    Note m_rainTailDragPreview;   // render-only snapshot during pointer movement
 
     bool m_snapToGrid;
     int m_snapTimerId;

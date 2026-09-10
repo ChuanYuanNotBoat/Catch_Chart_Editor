@@ -1,6 +1,8 @@
-# Process Plugin Protocol (Host API v2)
+# Process Plugin Protocol (Host API v2-v3)
 
 适用于 Python / Node.js / Rust / Go 等任意语言插件。
+
+> 当前宿主 API：v3；兼容清单版本：v2-v3；最后核对：2026-09-10。
 
 ## 1. Discovery
 
@@ -61,7 +63,7 @@
 ### 4.1 Notification (Host -> Plugin)
 
 ```json
-{"type":"notify","event":"initialize","payload":{"plugin_id":"demo.py.echo","locale":"zh_CN","host_api_version":2}}
+{"type":"notify","event":"initialize","payload":{"plugin_id":"demo.py.echo","locale":"zh_CN","host_api_version":3}}
 {"type":"notify","event":"onChartChanged"}
 {"type":"notify","event":"onChartLoaded","payload":{"chart_path":"D:/beatmap/test.mc"}}
 {"type":"notify","event":"onChartSaved","payload":{"chart_path":"D:/beatmap/test.mc"}}
@@ -207,6 +209,9 @@ tool panels remain simultaneously visible rather than becoming switching tabs.
 - 插件应忽略未知 `event` / `method`
 - 插件内部异常不应导致进程崩溃
 - 对无法处理的 `request` 返回 `result=false`
+- `stdout` 只写单行 JSON 协议响应；诊断日志写到 `stderr`
+- 建议日志至少包含 `level`、稳定错误码、`message`，并附带 `action_id` / `method` / `chart_path` 等上下文
+- 建议错误码分区：`I1xxx` 正常生命周期、`W14xx` 可恢复输入、`E12xx` 协议/传输、`E15xx` 请求处理异常
 
 
 ## 7. Optional Locale Context
@@ -223,6 +228,9 @@ When plugin declares `pluginApiVersion: 3`, host may call additional methods:
 
 - `handleCanvasInput` (interactive canvas tool-mode input)
 - `getPanelWorkspaceConfig` (dock/merge workspace hints)
+
+API v2 插件仍受支持；只有依赖画布交互或 workspace 扩展时才必须声明 v3。可复制的
+真实运行样例位于 `plugins/samples/`，不再维护与仓库文件脱节的静态 echo 伪样例。
 
 ### 8.1 handleCanvasInput
 

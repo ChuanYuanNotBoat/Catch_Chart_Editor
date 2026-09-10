@@ -1,4 +1,6 @@
-# Minimal Native Plugin Template (Host API v2)
+# Minimal Native Plugin Template (Host API v3)
+
+> Current host API: v3; accepted range: v2-v3; last verified: 2026-09-10.
 
 ```cpp
 #include "plugin/PluginInterface.h"
@@ -71,6 +73,6 @@ PLUGIN_EXPORT_DESTROY
 ## Notes
 
 - Native plugin must export `pluginApiVersion/createPlugin/destroyPlugin`.
-- Plugin API version must match host API version.
+- The exported and instance API versions must be within the host-supported range; new plugins should compile against and return `kHostApiVersion`.
 - Host unload flow calls `shutdown()` first, then `destroyPlugin()`.
 - For non-C++ plugins, use `*.plugin.json` + process protocol (`PROCESS_PLUGIN_PROTOCOL.md`).

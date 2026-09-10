@@ -7,7 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Multimedia LinguistTools Test)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Multimedia LinguistTools Test Concurrent)
 
 if(COMMAND qt_standard_project_setup)
     qt_standard_project_setup()
@@ -61,6 +61,7 @@ include(CTest)
 if(BUILD_TESTING)
     add_executable(CatchChartEditorTests
         tests/minimal_tests.cpp
+        src/app/SessionPathUtils.cpp
         src/model/Note.cpp
         src/model/BpmEntry.cpp
         src/model/MetaData.cpp
@@ -70,6 +71,7 @@ if(BUILD_TESTING)
         src/utils/PerformanceTimer.cpp
         src/utils/DiagnosticCollector.cpp
         src/utils/CalcHash.cpp
+        src/utils/FileUtils.cpp
         src/controller/ChartController.cpp
         src/controller/SelectionController.cpp
         src/render/RainRewardGenerator.cpp

@@ -18,6 +18,7 @@
 #include "file/ChartFileSystem.h"
 #include "audio/PlaybackTiming.h"
 #include "audio/AudioConverter.h"
+#include "app/SessionPathUtils.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
 #include "editor/NoteChain/NoteChainCurveSampler.h"
@@ -26,6 +27,8 @@
 #include "model/Chart.h"
 #include "model/ChartStatistics.h"
 #include "render/RainRewardGenerator.h"
+#include "render/RainVisibilityIndex.h"
+#include "utils/FileUtils.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackSpeed.h"
 
@@ -229,6 +232,155 @@ namespace
 
         selection.removeFromSelection(1);
         return selection.selectedIndices() == QSet<int>({2});
+    }
+
+    bool testSelectionControllerClipboardSetter()
+    {
+        SelectionController selection;
+        const QVector<Note> copied = {
+            makeNormalNote(1, 0, 1, 64, "clipboard-a"),
+            makeNormalNote(2, 0, 1, 192, "clipboard-b")};
+        selection.setClipboard(copied);
+        const QVector<Note> stored = selection.getClipboard();
+        return stored.size() == 2 &&
+               stored[0].id == "clipboard-a" &&
+               stored[1].id == "clipboard-b";
+    }
+
+    bool testSessionWorkingPathContainment()
+    {
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+            return false;
+
+        const QString root = QDir(tempDir.path()).filePath("sessions");
+        const QString session = QDir(root).filePath("session-a");
+        const QString chartDir = QDir(session).filePath("song");
+        const QString outsideDir = QDir(tempDir.path()).filePath("sessions-other/session-b/song");
+        if (!QDir().mkpath(chartDir) || !QDir().mkpath(outsideDir))
+            return false;
+
+        const QString validWorking = QDir(chartDir).filePath("chart.mc");
+        const QString outsideWorking = QDir(outsideDir).filePath("chart.mc");
+        const QString directRootWorking = QDir(root).filePath("chart.mc");
+        const QString traversalWorking = QDir(root).filePath("../outside/chart.mc");
+
+        const QString resolved = SessionPathUtils::sessionDirectoryForWorkingPath(root, validWorking);
+        return QDir::cleanPath(resolved) == QDir::cleanPath(session) &&
+               SessionPathUtils::sessionDirectoryForWorkingPath(root, outsideWorking).isEmpty() &&
+               SessionPathUtils::sessionDirectoryForWorkingPath(root, directRootWorking).isEmpty() &&
+               SessionPathUtils::sessionDirectoryForWorkingPath(root, traversalWorking).isEmpty() &&
+               SessionPathUtils::isPathInsideRoot(root, chartDir) &&
+               !SessionPathUtils::isPathInsideRoot(root, outsideDir);
+    }
+
+    bool testSafeFileCopyPreservesExistingTargetOnFailure()
+    {
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+            return false;
+
+        const auto writeBytes = [](const QString &path, const QByteArray &data)
+        {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+                   file.write(data) == data.size();
+        };
+        const auto readBytes = [](const QString &path)
+        {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+
+        const QString source = QDir(tempDir.path()).filePath("source.bin");
+        const QString existingTarget = QDir(tempDir.path()).filePath("existing.bin");
+        const QString newTarget = QDir(tempDir.path()).filePath("new.bin");
+        const QString atomicTarget = QDir(tempDir.path()).filePath("atomic.bin");
+        if (!writeBytes(source, "replacement") || !writeBytes(existingTarget, "original"))
+            return false;
+
+        QString error;
+        if (!FileUtils::copyFileSafely(source, existingTarget, &error) ||
+            readBytes(existingTarget) != QByteArray("replacement"))
+        {
+            return false;
+        }
+        if (!FileUtils::copyFileSafely(source, newTarget, &error) ||
+            readBytes(newTarget) != QByteArray("replacement"))
+        {
+            return false;
+        }
+        if (!FileUtils::copyFileAtomically(source, atomicTarget, &error) ||
+            readBytes(atomicTarget) != QByteArray("replacement"))
+        {
+            return false;
+        }
+
+        const QString missingSource = QDir(tempDir.path()).filePath("missing.bin");
+        if (FileUtils::copyFileSafely(missingSource, existingTarget, &error))
+            return false;
+        return !error.isEmpty() && readBytes(existingTarget) == QByteArray("replacement");
+    }
+
+    bool testRainVisibilityPrefixHandlesNonMonotonicEnds()
+    {
+        const QVector<int> sortedIndices = {0, 1, 2, 3};
+        const QVector<double> endBeats = {100.0, 3.0, 4.0, 12.0};
+        const QVector<double> prefix =
+            RainVisibilityIndex::buildPrefixMaxEndBeats(sortedIndices, endBeats);
+        if (prefix != QVector<double>({100.0, 100.0, 100.0, 100.0}))
+            return false;
+
+        // The lower bound for a view starting at beat 10 is position 3. A
+        // backwards walk would stop at the short rain at position 2 and miss
+        // the rain ending at beat 100; the prefix lookup must return 0.
+        if (RainVisibilityIndex::firstPotentiallyVisible(prefix, 3, 10.0) != 0)
+            return false;
+
+        const QVector<double> nonOverlapping = {1.0, 2.0, 3.0};
+        return RainVisibilityIndex::firstPotentiallyVisible(nonOverlapping, 3, 10.0) == 3;
+    }
+
+    bool testChartBulkMutationKeepsIdentityAndSortOrder()
+    {
+        Chart chart;
+        chart.clearNotes();
+        QVector<Note> initial;
+        initial.reserve(5000);
+        for (int i = 4999; i >= 0; --i)
+            initial.append(makeNormalNote(i, 0, 1, i % 513, QString("bulk-%1").arg(i)));
+        chart.addNotes(initial);
+        if (chart.notes().size() != 5000 || chart.notes().front().beatNum != 0 ||
+            chart.notes().back().beatNum != 4999)
+            return false;
+
+        QVector<Note> removed;
+        removed.reserve(2500);
+        for (int i = 0; i < chart.notes().size(); i += 2)
+            removed.append(chart.notes()[i]);
+        chart.removeNotes(removed);
+        if (chart.notes().size() != 2500)
+            return false;
+
+        QList<QPair<Note, Note>> moved;
+        moved.reserve(1000);
+        for (int i = 0; i < 1000; ++i)
+        {
+            Note target = chart.notes()[i];
+            target.beatNum += 6000;
+            moved.append(qMakePair(chart.notes()[i], target));
+        }
+        chart.replaceNotes(moved);
+        if (chart.notes().size() != 2500)
+            return false;
+        for (int i = 1; i < chart.notes().size(); ++i)
+        {
+            if (chart.notes()[i - 1].getStartBeat() > chart.notes()[i].getStartBeat())
+                return false;
+        }
+        return std::any_of(chart.notes().cbegin(), chart.notes().cend(),
+                           [](const Note &note)
+                           { return note.id == "bulk-1" && note.beatNum == 6001; });
     }
 
     bool writeTextFile(const QString &path, const QByteArray &content)
@@ -2910,6 +3062,11 @@ int main(int argc, char **argv)
         {"Chart removeNote by id", &testChartRemoveById},
         {"Chart BPM sorting", &testChartBpmSort},
         {"SelectionController cached indices refresh", &testSelectionControllerRefreshesCachedIndices},
+        {"SelectionController clipboard setter", &testSelectionControllerClipboardSetter},
+        {"Recovery working path containment", &testSessionWorkingPathContainment},
+        {"Safe file copy preserves target", &testSafeFileCopyPreservesExistingTargetOnFailure},
+        {"Rain visibility non-monotonic end prefix", &testRainVisibilityPrefixHandlesNonMonotonicEnds},
+        {"Chart bulk mutation identity + sorting", &testChartBulkMutationKeepsIdentityAndSortOrder},
         {"ProjectIO scan + difficulty", &testProjectIoReadDifficultyAndScan},
         {"ProjectIO invalid difficulty json", &testProjectIoGetDifficultyInvalidJsonReturnsEmpty},
         {"ProjectIO find charts missing dir", &testProjectIoFindChartsMissingDirReturnsEmpty},

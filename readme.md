@@ -6,10 +6,11 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 ## Version status / 版本状态
 
 - Current release / 当前版本：**Beta v1.11.1（2026-09-07）**
+- Repository state / 仓库状态：**Unreleased maintenance（2026-09-10）**
 - Git tag / 标签：待发布
 - Download / 下载：[GitHub Releases](https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor/releases/latest)
 
-`docs/history.md` 中已经发布的版本段落视为冻结记录。Beta v1.11.1 的发布记录位于文件顶部，不回填已发布版本。
+`docs/history.md` 中已经发布的版本段落视为冻结记录；当前未发布维护内容记录在文件顶部的 `Unreleased` 段。
 
 ## Documentation / 文档
 
@@ -18,21 +19,20 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - [版本状态与升级说明](docs/version.md)
 - [完整更新历史](docs/history.md)
 - [开发者项目指南](docs/AI_PROJECT_GUIDE.md)
+- [工程优化与重构 TODO](docs/ENGINEERING_TODO.md)
 - [测试指南](TESTING.md)
 - [插件 SDK](src/plugin/README.md)
 
-## Beta v1.11.0 focus / 本版本重点
+## Current focus / 当前重点
 
-- Native C++ Note Chain editor with direct canvas interaction, curve sampling, note snapping, unified undo/redo, and V3 sidecar compatibility.
-  原生 C++ 曲线编辑器：画布直操、曲线采样、音符吸附、统一撤销/重做和 V3 sidecar 兼容。
-- Composable ADS workspace: panels can dock, split, tab, float, persist, and restore like modern creative tools.
-  ADS 可组合工作区：面板支持停靠、拆分、标签组合、浮动及布局持久化。
-- Smooth native floating windows with themed Windows title bars and non-blocking first-frame layout.
-  浮动窗口原生标题栏跟随主题，并使用非阻塞首帧布局以减少吸附和创建卡顿。
-- Updated architecture, format, AutoTiming, Note Chain, testing, and plugin documentation.
-  更新架构、格式、AutoTiming、曲线编辑器、测试及插件文档。
+- Beta v1.11.1 adds chart statistics, Catch Star analysis, official-style Rain reward preview, Rain-tail editing, chart refresh, and automatic OGG conversion.
+  Beta v1.11.1 新增谱面统计、Catch Star 分析、官方逻辑 Rain 奖励点预览、Rain 尾部编辑、谱面刷新和自动 OGG 转换。
+- The current maintenance line hardens atomic save/recovery and removes large-chart editor hot paths through bulk mutations, render-only drag previews, typed invalidation, and asynchronous statistics.
+  当前维护线加强原子保存与崩溃恢复，并通过批量变更、纯渲染拖拽预览、细分失效信号和异步统计消除大谱面编辑热点。
+- The next structural refactor is intentionally waiting for written future-design requirements; see the engineering TODO.
+  下一轮结构性重构会在未来设计需求明确后进行，详见工程 TODO。
 
-完整变更见 [docs/history.md](docs/history.md) 顶部的 Beta v1.11.0 段落。
+完整变更见 [docs/history.md](docs/history.md) 顶部，维护计划见 [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md)。
 
 ## Features / 功能
 
@@ -52,7 +52,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 - CMake 3.16+
 - C++17 compiler
-- Qt 6 components: Core, Widgets, Multimedia, LinguistTools, Test
+- Qt 6 components: Core, Widgets, Multimedia, Concurrent, LinguistTools, Test
 
 Qt Advanced Docking System 5.1.1 is vendored in `third_party/QtAdvancedDockingSystem`; building does not download it from the network.
 

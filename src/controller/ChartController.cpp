@@ -267,15 +267,13 @@ public:
         : ChartCommand(controller, QString("Add %1 Notes").arg(notes.size())), m_notes(notes) {}
     void undo() override
     {
-        for (const Note &note : m_notes)
-            m_controller->m_chart.removeNote(note);
+        m_controller->m_chart.removeNotes(m_notes);
         m_controller->chartChanged();
         m_controller->notesChanged();
     }
     void redo() override
     {
-        for (const Note &note : m_notes)
-            m_controller->m_chart.addNote(note);
+        m_controller->m_chart.addNotes(m_notes);
         m_controller->chartChanged();
         m_controller->notesChanged();
     }
@@ -314,15 +312,13 @@ public:
         : ChartCommand(controller, QString("Remove %1 Notes").arg(notes.size())), m_notes(notes) {}
     void undo() override
     {
-        for (const Note &note : m_notes)
-            m_controller->m_chart.addNote(note);
+        m_controller->m_chart.addNotes(m_notes);
         m_controller->chartChanged();
         m_controller->notesChanged();
     }
     void redo() override
     {
-        for (const Note &note : m_notes)
-            m_controller->m_chart.removeNote(note);
+        m_controller->m_chart.removeNotes(m_notes);
         m_controller->chartChanged();
         m_controller->notesChanged();
     }
@@ -339,15 +335,15 @@ public:
         : ChartCommand(controller, "Move Note"), m_original(original), m_new(newNote) {}
     void undo() override
     {
-        m_controller->m_chart.removeNote(m_new);
-        m_controller->m_chart.addNote(m_original);
+        m_controller->m_chart.replaceNotes(
+            QList<QPair<Note, Note>>{qMakePair(m_new, m_original)});
         m_controller->chartChanged();
         m_controller->notesChanged();
     }
     void redo() override
     {
-        m_controller->m_chart.removeNote(m_original);
-        m_controller->m_chart.addNote(m_new);
+        m_controller->m_chart.replaceNotes(
+            QList<QPair<Note, Note>>{qMakePair(m_original, m_new)});
         m_controller->chartChanged();
         m_controller->notesChanged();
     }
@@ -364,19 +360,17 @@ public:
         : ChartCommand(controller, "Move Notes"), m_changes(changes) {}
     void undo() override
     {
+        QList<QPair<Note, Note>> reverseChanges;
+        reverseChanges.reserve(m_changes.size());
         for (const auto &change : m_changes)
-            m_controller->m_chart.removeNote(change.second);
-        for (const auto &change : m_changes)
-            m_controller->m_chart.addNote(change.first);
+            reverseChanges.append(qMakePair(change.second, change.first));
+        m_controller->m_chart.replaceNotes(reverseChanges);
         m_controller->chartChanged();
         m_controller->notesChanged();
     }
     void redo() override
     {
-        for (const auto &change : m_changes)
-            m_controller->m_chart.removeNote(change.first);
-        for (const auto &change : m_changes)
-            m_controller->m_chart.addNote(change.second);
+        m_controller->m_chart.replaceNotes(m_changes);
         m_controller->chartChanged();
         m_controller->notesChanged();
     }
@@ -484,20 +478,16 @@ public:
     ExternalMutationCommand(ChartController *controller,
                             const QString &actionName,
                             const Chart &before,
-                            const Chart &after,
-                            const QString &chartPath)
+                            const Chart &after)
         : ChartCommand(controller, actionName.isEmpty() ? "Plugin Mutation" : actionName),
           m_before(before),
-          m_after(after),
-          m_chartPath(chartPath)
+          m_after(after)
     {
     }
 
     void undo() override
     {
         m_controller->m_chart = m_before;
-        if (!m_chartPath.isEmpty())
-            ChartIO::save(m_chartPath, m_controller->m_chart);
         m_controller->chartChanged();
         m_controller->notesChanged();
         m_controller->bpmListChanged();
@@ -507,8 +497,6 @@ public:
     void redo() override
     {
         m_controller->m_chart = m_after;
-        if (!m_chartPath.isEmpty())
-            ChartIO::save(m_chartPath, m_controller->m_chart);
         m_controller->chartChanged();
         m_controller->notesChanged();
         m_controller->bpmListChanged();
@@ -518,7 +506,6 @@ public:
 private:
     Chart m_before;
     Chart m_after;
-    QString m_chartPath;
 };
 
 class ChartController::UndoMarkerCommand : public QUndoCommand
@@ -786,7 +773,7 @@ bool ChartController::saveChart(const QString &path)
 
 bool ChartController::applyExternalChartMutation(const QString &actionName, const Chart &mutatedChart)
 {
-    m_undoStack->push(new ExternalMutationCommand(this, actionName, m_chart, mutatedChart, m_currentChartPath));
+    m_undoStack->push(new ExternalMutationCommand(this, actionName, m_chart, mutatedChart));
     return true;
 }
 
@@ -808,21 +795,12 @@ bool ChartController::applyBatchEdit(const QString &actionName,
     }
 
     Chart mutated = m_chart;
-    for (const Note &note : notesToRemove)
-        mutated.removeNote(note);
-    for (const auto &mv : notesToMove)
-    {
-        mutated.removeNote(mv.first);
-        mutated.addNote(mv.second);
-    }
-    for (const Note &note : notesToAdd)
-        mutated.addNote(note);
+    mutated.applyNoteBatch(notesToAdd, notesToRemove, notesToMove);
 
     m_undoStack->push(new ExternalMutationCommand(
         this,
         actionName.isEmpty() ? "Plugin Batch Edit" : actionName,
         m_chart,
-        mutated,
-        m_currentChartPath));
+        mutated));
     return true;
 }

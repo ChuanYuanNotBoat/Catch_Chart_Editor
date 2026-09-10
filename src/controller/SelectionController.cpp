@@ -14,7 +14,7 @@ QSet<int> SelectionController::selectedIndices() const
         return m_selectedIndicesCache;
 
     m_selectedIndicesCache.clear();
-    if (!m_notes)
+    if (!m_notes || m_selectedIds.isEmpty())
     {
         m_selectedIndicesDirty = false;
         return m_selectedIndicesCache;
@@ -128,4 +128,9 @@ QVector<Note> SelectionController::getClipboard() const
 void SelectionController::clearClipboard()
 {
     m_clipboard.clear();
+}
+
+void SelectionController::setClipboard(const QVector<Note> &notes)
+{
+    m_clipboard = notes;
 }

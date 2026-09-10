@@ -1,6 +1,7 @@
 set(SOURCES
     main.cpp
     app/Application.cpp
+    app/SessionPathUtils.cpp
     app/PlaybackBenchmarkRunner.cpp
     app/MainWindow.cpp
     app/MainWindowLayout.cpp
@@ -87,6 +88,7 @@ target_link_libraries(CatchChartEditor
     Qt6::Core
     Qt6::Widgets
     Qt6::Multimedia
+    Qt6::Concurrent
     ads::qtadvanceddocking-qt6
     Vorbis::vorbis
 )

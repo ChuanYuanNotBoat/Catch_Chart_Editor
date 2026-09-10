@@ -78,9 +78,7 @@ void ChartCanvas::completeIntervalSelection()
         return;
     }
 
-    m_selectionController->clearClipboard();
-    for (const Note &note : m_intervalNotes)
-        m_selectionController->getClipboard().append(note);
+    m_selectionController->setClipboard(m_intervalNotes);
 
     beginPastePreview(m_intervalNotes);
     emit statusMessage(tr("Interval copied (%1 notes). Drag preview to adjust position, then click Confirm.").arg(m_intervalNotes.size()));

@@ -1,4 +1,8 @@
-AutoTiming 自动节拍检测模块技术文档
+# AutoTiming 自动节拍检测模块技术文档
+
+> 适用版本：Beta v1.11.1 + Unreleased maintenance
+> 权威实现：`src/audio/autotiming/`，桌面集成入口：`src/audio/BpmDetector.cpp`
+> 最后核对：2026-09-10
 
 1. 引言
 
@@ -258,7 +262,7 @@ BPM 不确定度由回归残差和样本数量推算，并考虑自相关峰值�
 
 · 特征提取、自相关等主要计算均利用 FFT 和 SIMD 指令加速。
 · 降采样至 1 kHz 后，后续 BPM 估计的计算量大幅降低。
-· 对于典型 3–5 分钟音频，检测时间在毫秒至秒级，可满足实时或准实时需求。
+· 检测是 CPU 密集型工作，耗时随分析片段、采样率和硬件变化；桌面 UI 应通过 `BpmDetector` 的现行调用链执行并显示进度，不应在播放/绘制回调内调用。
 
 7.2 限制
 
@@ -273,9 +277,10 @@ BPM 不确定度由回归残差和样本数量推算，并考虑自相关峰值�
 8. 使用示例
 
 ```cpp
-// 假设已有音频数据指针 data，长度 size，采样率 44100，立体声
+// 假设已有 PCM16 数据指针 data，长度 size，采样率 44100，立体声。
+// format 使用与 FMOD_SOUND_FORMAT 相同的数值；PCM16 = 2。
 AutoTiming::Result res = AutoTiming::detect(
-    data, size, kFmodSoundFormatPcm16, 44100, 2);
+    data, size, 2, 44100, 2);
 if (res.bpm > 0) {
     printf("BPM: %.2f\n", res.bpm);
     printf("Offset: %.2f ms\n", res.offset);
@@ -286,7 +291,7 @@ if (res.bpm > 0) {
 
 // 获取所有起始点
 std::vector<double> onsets = AutoTiming::detectOnset(
-    data, size, kFmodSoundFormatPcm16, 44100, 2);
+    data, size, 2, 44100, 2);
 for (double t : onsets) {
     printf("Onset at %.3f s\n", t);
 }

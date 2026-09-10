@@ -484,6 +484,9 @@ void RealtimePreviewWidget::paintEvent(QPaintEvent *event)
         return;
 
     ensureHyperCache();
+    if (m_rainRewardPreviewEnabled)
+        RainRewardGenerator::instance().ensureChart(
+            notes, chart->bpmList(), chart->meta().offset);
 
     for (int idx : m_rainIndices)
     {
@@ -514,8 +517,7 @@ void RealtimePreviewWidget::paintEvent(QPaintEvent *event)
         if (m_rainRewardPreviewEnabled)
         {
             auto &generator = RainRewardGenerator::instance();
-            generator.ensureChart(notes, chart->bpmList(), chart->meta().offset);
-            const QVector<RainDrop> drops = generator.dropsFor(note);
+            const QVector<RainDrop> &drops = generator.dropsFor(note);
             if (!drops.isEmpty())
             {
                 const double startBeatFloat =

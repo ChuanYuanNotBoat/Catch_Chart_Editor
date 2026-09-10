@@ -7,6 +7,7 @@
 #include "render/GridRenderer.h"
 #include "render/BackgroundRenderer.h"
 #include "render/HyperfruitDetector.h"
+#include "render/RainVisibilityIndex.h"
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
@@ -303,6 +304,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteTypes.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
+        m_sortedRainPrefixMaxEndBeats.clear();
         m_playableNoteTimesMs.clear();
         m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
@@ -322,6 +324,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteTypes.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
+        m_sortedRainPrefixMaxEndBeats.clear();
         m_playableNoteTimesMs.clear();
         m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
@@ -339,6 +342,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteTypes.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
+        m_sortedRainPrefixMaxEndBeats.clear();
         m_playableNoteTimesMs.clear();
         m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
@@ -354,6 +358,7 @@ void ChartCanvas::rebuildNoteTimesCache()
     m_noteTypes.resize(N);
     m_sortedNormalNoteIndicesByBeat.clear();
     m_sortedRainNoteIndicesByBeat.clear();
+    m_sortedRainPrefixMaxEndBeats.clear();
     m_sortedNormalNoteIndicesByBeat.reserve(N);
     m_sortedRainNoteIndicesByBeat.reserve(N);
     m_playableNoteTimesMs.clear();
@@ -401,6 +406,8 @@ void ChartCanvas::rebuildNoteTimesCache()
               {
                   return m_noteBeatPositions[a] < m_noteBeatPositions[b];
               });
+    m_sortedRainPrefixMaxEndBeats = RainVisibilityIndex::buildPrefixMaxEndBeats(
+        m_sortedRainNoteIndicesByBeat, m_noteEndBeatPositions);
 
     std::sort(m_playableNoteTimesMs.begin(), m_playableNoteTimesMs.end());
     m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
@@ -422,30 +429,22 @@ void ChartCanvas::setChartController(ChartController *controller)
     {
         disconnect(m_chartController, &ChartController::chartChanged, this, nullptr);
         disconnect(m_chartController, &ChartController::notesChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::bpmListChanged, this, nullptr);
         disconnect(m_chartController, &ChartController::metaDataChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::chartLoaded, this, nullptr);
     }
     m_chartController = controller;
     if (m_noteChainEditor)
         m_noteChainEditor->setChartController(controller);
     if (controller)
     {
-        connect(controller, &ChartController::chartChanged, this, [this]()
-                {
-            // Only dirty background cache when the resolved background path actually changed.
-            // Note/BPM edits should not trigger expensive background regeneration.
-            // 比较解析后的绝对路径（chart 目录 + 文件名），避免跨目录同名背景误判为未变化。
-            bool bgChanged = false;
-            if (m_chartController && m_chartController->chart()) {
-                const QString currentBg = currentBackgroundPath();
-                if (currentBg != m_lastKnownBackgroundFile) {
-                    bgChanged = true;
-                    m_lastKnownBackgroundFile = currentBg;
-                }
-            }
-            invalidateChartCaches(bgChanged);
-            update(); });
-        // Note changes: invalidate caches but skip background check (handled separately via metaDataChanged)
+        // Fine-grained controller signals avoid rebuilding the same caches
+        // twice (commands emit both chartChanged and a typed signal).
         connect(controller, &ChartController::notesChanged, this, [this]() {
+            invalidateChartCaches(false);
+            update();
+        });
+        connect(controller, &ChartController::bpmListChanged, this, [this]() {
             invalidateChartCaches(false);
             update();
         });
@@ -460,8 +459,9 @@ void ChartCanvas::setChartController(ChartController *controller)
                     m_lastKnownBackgroundFile = currentBg;
                 }
             }
-            if (bgChanged)
-                invalidateChartCaches(true);
+            // Offset changes affect every cached note time even when the
+            // background resource itself is unchanged.
+            invalidateChartCaches(bgChanged);
             update();
         });
 

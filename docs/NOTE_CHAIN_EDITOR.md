@@ -1,8 +1,8 @@
 # 原生 Note Chain 曲线编辑器
 
-> 适用版本：Beta v1.11.0
+> 适用版本：Beta v1.11.1 + Unreleased maintenance
 > 权威实现：`src/editor/NoteChain/`
-> 最后核对：2026-08-24
+> 最后核对：2026-09-10
 
 ## 定位
 
@@ -77,7 +77,7 @@ V3 数据覆盖：
 - 有效变更才写入历史；拖拽在手势结束时提交一次最终状态。
 - 通过 `requestHostUndoCheckpoint` 把曲线编辑接入主程序统一撤销时间线。
 - `onHostUndo` / `onHostRedo` 根据曲线 checkpoint 恢复内部快照。
-- 曲线提交为音符时经 `ChartController` 批量修改，必须保持单个可撤销动作。
+- 曲线提交为音符时经 `ChartController` 批量修改，并由 Chart 批量 mutation API 在单一排序边界内完成；必须保持单个可撤销动作。
 
 ## 绘制与性能约束
 

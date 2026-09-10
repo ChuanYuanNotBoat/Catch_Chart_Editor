@@ -12,6 +12,7 @@
 #include <QEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QTimer>
 #include <QtMath>
 
 DensityCurve::DensityCurve(QWidget *parent)
@@ -37,18 +38,34 @@ void DensityCurve::setChartController(ChartController *controller)
     {
         disconnect(m_chartController, &ChartController::notesChanged, this, nullptr);
         disconnect(m_chartController, &ChartController::bpmListChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::metaDataChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::chartChanged, this, nullptr);
         disconnect(m_chartController, &ChartController::chartLoaded, this, nullptr);
     }
     m_chartController = controller;
     m_chart = (m_chartController ? m_chartController->chart() : nullptr);
     if (m_chartController)
     {
-        connect(m_chartController, &ChartController::notesChanged, this, &DensityCurve::refreshFromChart, Qt::UniqueConnection);
-        connect(m_chartController, &ChartController::bpmListChanged, this, &DensityCurve::refreshFromChart, Qt::UniqueConnection);
-        connect(m_chartController, &ChartController::chartChanged, this, &DensityCurve::refreshFromChart, Qt::UniqueConnection);
-        connect(m_chartController, &ChartController::chartLoaded, this, &DensityCurve::refreshFromChart, Qt::UniqueConnection);
+        connect(m_chartController, &ChartController::notesChanged, this, &DensityCurve::scheduleRefreshFromChart, Qt::UniqueConnection);
+        connect(m_chartController, &ChartController::bpmListChanged, this, &DensityCurve::scheduleRefreshFromChart, Qt::UniqueConnection);
+        // The density timeline is expressed in milliseconds, so metadata
+        // offset changes must invalidate it as well.
+        connect(m_chartController, &ChartController::metaDataChanged, this, &DensityCurve::scheduleRefreshFromChart, Qt::UniqueConnection);
+        connect(m_chartController, &ChartController::chartLoaded, this, &DensityCurve::scheduleRefreshFromChart, Qt::UniqueConnection);
     }
     refreshFromChart();
+}
+
+void DensityCurve::scheduleRefreshFromChart()
+{
+    if (m_refreshScheduled)
+        return;
+    m_refreshScheduled = true;
+    QTimer::singleShot(0, this, [this]()
+                       {
+        m_refreshScheduled = false;
+        refreshFromChart();
+    });
 }
 
 void DensityCurve::setPlaybackController(PlaybackController *controller)
@@ -135,10 +152,15 @@ void DensityCurve::syncDuration()
     {
         double maxNoteMs = 0.0;
         const auto &notes = m_chart->notes();
+        const int offset = m_chart->meta().offset;
+        const QVector<MathUtils::BpmCacheEntry> bpmCache =
+            MathUtils::buildBpmTimeCache(m_chart->bpmList(), offset);
         for (const Note &note : notes)
         {
-            const double t = MathUtils::beatToMs(
-                note.beatNum, note.numerator, note.denominator, m_chart->bpmList(), m_chart->meta().offset);
+            const double t = bpmCache.isEmpty()
+                                 ? -static_cast<double>(offset)
+                                 : MathUtils::beatToMs(
+                                       note.beatNum, note.numerator, note.denominator, bpmCache);
             if (t > maxNoteMs)
                 maxNoteMs = t;
         }
@@ -190,13 +212,18 @@ void DensityCurve::computeDensity()
         return;
 
     const auto &notes = m_chart->notes();
+    const int offset = m_chart->meta().offset;
+    const QVector<MathUtils::BpmCacheEntry> bpmCache =
+        MathUtils::buildBpmTimeCache(m_chart->bpmList(), offset);
     for (const Note &note : notes)
     {
         if (note.type != NoteType::NORMAL && note.type != NoteType::RAIN)
             continue;
 
-        const double t = MathUtils::beatToMs(
-            note.beatNum, note.numerator, note.denominator, m_chart->bpmList(), m_chart->meta().offset);
+        const double t = bpmCache.isEmpty()
+                             ? -static_cast<double>(offset)
+                             : MathUtils::beatToMs(
+                                   note.beatNum, note.numerator, note.denominator, bpmCache);
         const double clamped = qBound(0.0, t, m_durationMs);
         int bin = static_cast<int>(qFloor((clamped / m_durationMs) * kBinCount));
         if (bin >= kBinCount)
