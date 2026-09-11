@@ -19,6 +19,8 @@
 
 #include "ui/PlaybackSpeedPanel.h"
 #include "ui/DockLayoutPolicy.h"
+#include "ui/PaneContainer.h"
+#include "ui/WorkbenchLayout.h"
 #include "utils/NativeWindowTheme.h"
 #include "utils/Settings.h"
 #include <DockAreaWidget.h>
@@ -595,6 +597,66 @@ int main(int argc, char **argv)
     app.processEvents();
     ok &= require(!panelDock->isFloating() && !panelDock->isClosed(),
                   "restoring the layout must redock and reopen the panel");
+
+    // Stable workbench parts keep pane identity and local state independent
+    // from the ADS leaf layout. Unknown panes can be added later without
+    // invalidating a saved state for the existing panes.
+    WorkbenchLayout workbench;
+    workbench.resize(900, 640);
+    ok &= require(workbench.setEditorWidget(new QWidget),
+                  "workbench must accept one stable editor part");
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                                    QStringLiteral("navigation"), new QWidget,
+                                    true, false),
+                  "primary sidebar must register panes by stable id");
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                                    QStringLiteral("statistics"), new QWidget,
+                                    true, false),
+                  "primary sidebar must retain a second pane");
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::AuxiliarySidebar,
+                                    QStringLiteral("note"), new QWidget,
+                                    true, true),
+                  "auxiliary sidebar must register scrollable panes");
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::BottomPanel,
+                                    QStringLiteral("diagnostics"), new QWidget,
+                                    true, false),
+                  "bottom panel must be a stable top-level part");
+    workbench.show();
+    app.processEvents();
+
+    PaneContainer *primarySidebar = workbench.primarySidebar();
+    ok &= require(primarySidebar->setPaneSize(QStringLiteral("navigation"), 145)
+                      && primarySidebar->movePane(QStringLiteral("statistics"), 0)
+                      && primarySidebar->setPaneExpanded(QStringLiteral("navigation"), false),
+                  "pane containers must cache size, order, and expansion state");
+    ok &= require(workbench.auxiliarySidebar()->setPaneVisible(QStringLiteral("note"), false),
+                  "pane visibility must be independently restorable");
+    const QByteArray workbenchState = workbench.saveState();
+
+    WorkbenchLayout restoredWorkbench;
+    restoredWorkbench.setEditorWidget(new QWidget);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                              QStringLiteral("navigation"), new QWidget, true, false);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                              QStringLiteral("statistics"), new QWidget, true, false);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::AuxiliarySidebar,
+                              QStringLiteral("note"), new QWidget, true, true);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::BottomPanel,
+                              QStringLiteral("diagnostics"), new QWidget, true, false);
+    ok &= require(restoredWorkbench.restoreState(workbenchState),
+                  "workbench state must restore across fresh pane containers");
+    ok &= require(restoredWorkbench.primarySidebar()->paneOrder()
+                      == QStringList({QStringLiteral("statistics"), QStringLiteral("navigation")})
+                      && !restoredWorkbench.primarySidebar()->paneExpanded(QStringLiteral("navigation"))
+                      && !restoredWorkbench.auxiliarySidebar()->paneVisible(QStringLiteral("note")),
+                  "stable pane ids must restore order, expansion, and visibility");
+    ok &= require(restoredWorkbench.primarySidebar()->paneSize(QStringLiteral("navigation")) >= 100,
+                  "hidden or collapsed panes must retain a usable cached size");
+    ok &= require(restoredWorkbench.auxiliarySidebar()->scrollAreaForPane(QStringLiteral("note")),
+                  "scrollable pane state must retain its scroll host");
+    workbench.close();
+    restoredWorkbench.close();
+    app.processEvents();
 
     window.close();
     app.processEvents();

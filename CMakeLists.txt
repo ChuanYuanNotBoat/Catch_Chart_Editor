@@ -98,6 +98,8 @@ if(BUILD_TESTING)
         src/utils/NativeWindowTheme.cpp
         src/utils/Settings.cpp
         src/ui/DockLayoutPolicy.cpp
+        src/ui/PaneContainer.cpp
+        src/ui/WorkbenchLayout.cpp
         src/ui/PlaybackSpeedPanel.cpp
     )
     target_include_directories(DockingLayoutTests PRIVATE src)
