@@ -24,7 +24,11 @@ namespace
     }
 }
 
-Settings::Settings() : m_settings("CatchEditor", "CatchChartEditor") {}
+Settings::Settings()
+    : m_settings(QSettings::defaultFormat(), QSettings::UserScope,
+                 "CatchEditor", "CatchChartEditor")
+{
+}
 
 Settings &Settings::instance()
 {

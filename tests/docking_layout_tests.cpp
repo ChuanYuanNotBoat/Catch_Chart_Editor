@@ -71,6 +71,16 @@ namespace
         const double darker = std::min(lumA, lumB);
         return (lighter + 0.05) / (darker + 0.05);
     }
+
+    QWidget *createCompactPanel(const QString &label)
+    {
+        auto *panel = new QWidget;
+        auto *layout = new QVBoxLayout(panel);
+        layout->setContentsMargins(4, 4, 4, 4);
+        layout->addWidget(new QPushButton(label, panel));
+        layout->addWidget(new QPushButton(label + QStringLiteral(" 2"), panel));
+        return panel;
+    }
 }
 
 int main(int argc, char **argv)
@@ -78,16 +88,18 @@ int main(int argc, char **argv)
 #if defined(Q_OS_LINUX)
     qputenv("QT_QPA_PLATFORM", QByteArrayLiteral("offscreen"));
 #endif
-    QApplication app(argc, argv);
-
-    bool ok = true;
-
     QTemporaryDir settingsDirectory;
-    ok &= require(settingsDirectory.isValid(),
-                  "layout settings test directory must be available");
+    if (!settingsDirectory.isValid())
+    {
+        std::fprintf(stderr, "FAILED: layout settings test directory must be available\n");
+        return 1;
+    }
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
                        settingsDirectory.path());
+    QApplication app(argc, argv);
+
+    bool ok = true;
     Settings &layoutSettings = Settings::instance();
     layoutSettings.clearDockLayoutState();
     layoutSettings.clearClassicLayoutState();
@@ -159,9 +171,12 @@ int main(int argc, char **argv)
 
     ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewShowsContentPixmap, false);
-    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewHasWindowFrame, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DisableStylesheet, true);
+    ok &= require(ads::CDockManager::testConfigFlag(
+                      ads::CDockManager::DragPreviewIsDynamic),
+                  "dock target preview must track the active drop region");
 
     QMainWindow window;
     window.resize(900, 600);
@@ -174,8 +189,10 @@ int main(int argc, char **argv)
     workspaceDock->setFeature(ads::CDockWidget::DockWidgetClosable, false);
     ok &= require(!workspaceDock->features().testFlag(ads::CDockWidget::DockWidgetClosable),
                   "the primary chart workspace must not expose a close action");
-    workspaceDock->setWidget(new QWidget, ads::CDockWidget::ForceNoScrollArea);
+    auto *workspaceSurface = new QWidget;
+    workspaceDock->setWidget(workspaceSurface, ads::CDockWidget::ForceNoScrollArea);
     ads::CDockAreaWidget *workspaceArea = manager->setCentralWidget(workspaceDock);
+    DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(workspaceDock);
 
     auto *tallContent = new QWidget;
     tallContent->setMinimumSize(280, 2400);
@@ -197,35 +214,66 @@ int main(int argc, char **argv)
 
     auto *rangeDock = new ads::CDockWidget(manager, QStringLiteral("Range Select"));
     rangeDock->setObjectName(QStringLiteral("test.range"));
-    rangeDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
+    rangeDock->setWidget(createCompactPanel(QStringLiteral("Range")),
+                         ads::CDockWidget::ForceScrollArea);
     ads::CDockAreaWidget *rangeArea = manager->addDockWidget(
         ads::BottomDockWidgetArea, rangeDock, speedArea);
     rangeArea->setAllowedAreas(ads::OuterDockAreas);
 
     auto *mirrorDock = new ads::CDockWidget(manager, QStringLiteral("Mirror Flip"));
     mirrorDock->setObjectName(QStringLiteral("test.mirror"));
-    mirrorDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
+    mirrorDock->setWidget(createCompactPanel(QStringLiteral("Mirror")),
+                          ads::CDockWidget::ForceScrollArea);
     ads::CDockAreaWidget *mirrorArea = manager->addDockWidget(
         ads::BottomDockWidgetArea, mirrorDock, rangeArea);
     mirrorArea->setAllowedAreas(ads::OuterDockAreas);
 
     auto *pluginToolsDock = new ads::CDockWidget(manager, QStringLiteral("Plugin Tools"));
     pluginToolsDock->setObjectName(QStringLiteral("test.plugin-tools"));
-    pluginToolsDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
+    pluginToolsDock->setWidget(createCompactPanel(QStringLiteral("Plugin")),
+                               ads::CDockWidget::ForceScrollArea);
     ads::CDockAreaWidget *pluginToolsArea = manager->addDockWidget(
         ads::BottomDockWidgetArea, pluginToolsDock, mirrorArea);
     pluginToolsArea->setAllowedAreas(ads::OuterDockAreas);
 
     for (ads::CDockWidget *dock : {speedDock, rangeDock, mirrorDock, pluginToolsDock})
         DockLayoutPolicy::applyCompactToolDockPolicy(dock);
+    DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(workspaceDock);
     QObject::connect(manager, &ads::CDockManager::stateRestored,
-                     [speedDock, rangeDock, mirrorDock, pluginToolsDock]()
+                     [manager, workspaceDock]()
                      {
-        for (ads::CDockWidget *dock : {speedDock, rangeDock, mirrorDock, pluginToolsDock})
-            DockLayoutPolicy::applyCompactToolDockPolicy(dock);
+        DockLayoutPolicy::refreshCompactToolDockPolicies(manager);
+        DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(workspaceDock);
     });
 
     window.show();
+    app.processEvents();
+
+    const QSize requiredWorkspaceSize = DockLayoutPolicy::primaryWorkspaceMinimumSize();
+    ok &= require(workspaceSurface->minimumWidth() >= requiredWorkspaceSize.width()
+                      && workspaceSurface->minimumHeight() >= requiredWorkspaceSize.height(),
+                  "the primary editor must retain a usable interaction surface");
+    ok &= require(!workspaceDock->features().testFlag(ads::CDockWidget::DockWidgetClosable)
+                      && !workspaceDock->features().testFlag(ads::CDockWidget::DockWidgetMovable)
+                      && !workspaceDock->features().testFlag(ads::CDockWidget::DockWidgetFloatable),
+                  "the primary editor must remain a stable workbench part");
+    ok &= require(workspaceArea->allowedAreas()
+                      == (ads::LeftDockWidgetArea | ads::RightDockWidgetArea),
+                  "drops on the primary editor must create side regions only");
+    QWidget *workspaceBranch = workspaceArea;
+    while (auto *splitter = qobject_cast<QSplitter *>(workspaceBranch->parentWidget()))
+    {
+        const int index = splitter->indexOf(workspaceBranch);
+        ok &= require(index >= 0 && !splitter->isCollapsible(index),
+                      "every primary editor splitter branch must be non-collapsible");
+        workspaceBranch = splitter;
+    }
+    window.resize(640, 420);
+    app.processEvents();
+    ok &= require(workspaceSurface->width() >= requiredWorkspaceSize.width()
+                      && workspaceSurface->height() >= requiredWorkspaceSize.height(),
+                  "side panels must yield before the primary editor becomes unusable");
+    window.resize(900, 600);
     app.processEvents();
 
     auto *speedInput = speedPanel->findChild<QDoubleSpinBox *>(
@@ -289,6 +337,11 @@ int main(int argc, char **argv)
                   "docked tool blocks must preserve the original vertical reading order");
     ok &= require(speedPanel->sizePolicy().verticalPolicy() == QSizePolicy::Maximum,
                   "compact tool content must remain content-height instead of stretching");
+    ok &= require(speedArea->maximumHeight() < QWIDGETSIZE_MAX
+                      && rangeArea->maximumHeight() < QWIDGETSIZE_MAX
+                      && mirrorArea->maximumHeight() < QWIDGETSIZE_MAX
+                      && pluginToolsArea->maximumHeight() < QWIDGETSIZE_MAX,
+                  "compact dock frames must be capped at their natural heights");
     ok &= require(panelArea->sizePolicy().verticalStretch() == 1
                       && speedArea->sizePolicy().verticalStretch() == 0
                       && rangeArea->sizePolicy().verticalStretch() == 0
@@ -302,8 +355,10 @@ int main(int argc, char **argv)
                   "tool blocks must reject switching-tab merges");
 
     if (toolSplitter)
-        toolSplitter->setSizes({220, 85, 85, 85, 85});
+        toolSplitter->setSizes({100, 260, 60, 60, 60});
     app.processEvents();
+    ok &= require(speedArea->height() <= speedArea->maximumHeight(),
+                  "a compact dock frame must reject excess splitter space");
     const int panelHeightBeforeClose = panelArea->height();
     const int speedHeightBeforeClose = speedArea->height();
     const int mirrorHeightBeforeClose = mirrorArea->height();
@@ -329,21 +384,33 @@ int main(int argc, char **argv)
     const int speedContentHeightBeforeClose = speedPanel->height();
     rangeDock->toggleView(false);
     app.processEvents();
-    ok &= require(speedPanel->height() <= speedContentHeightBeforeClose + 2,
+    ok &= require(speedPanel->height() <= speedContentHeightBeforeClose + 2
+                      && speedArea->height() <= speedArea->maximumHeight()
+                      && mirrorArea->height() <= mirrorArea->maximumHeight()
+                      && pluginToolsArea->height() <= pluginToolsArea->maximumHeight(),
                   "an all-tool stack may gain blank space but must not stretch tool content");
     ok &= require(manager->restoreState(initialState, 1),
                   "tool-only content sizing check must leave the saved layout recoverable");
     app.processEvents();
 
+    const int dockedRangeMaximumHeight = rangeDock->maximumHeight();
     rangeDock->setFloating();
     app.processEvents();
+    DockLayoutPolicy::refreshCompactToolDockPolicies(manager);
     ok &= require(rangeDock->isFloating(),
                   "an individual tool block must detach from its merged group");
+    ok &= require(dockedRangeMaximumHeight < QWIDGETSIZE_MAX
+                      && rangeDock->maximumHeight() == QWIDGETSIZE_MAX
+                      && rangeDock->widget()->maximumHeight() == QWIDGETSIZE_MAX
+                      && rangeDock->dockAreaWidget()->maximumHeight() == QWIDGETSIZE_MAX,
+                  "a floating tool must regain unconstrained window sizing");
     ok &= require(manager->restoreState(initialState, 1),
                   "the stacked tool layout must restore after detaching a block");
     app.processEvents();
+    DockLayoutPolicy::refreshCompactToolDockPolicies(manager);
     ok &= require(!rangeDock->isFloating()
-                      && rangeDock->dockAreaWidget() != mirrorDock->dockAreaWidget(),
+                      && rangeDock->dockAreaWidget() != mirrorDock->dockAreaWidget()
+                      && rangeDock->maximumHeight() < QWIDGETSIZE_MAX,
                   "restoring the layout must return the block without creating a tab group");
 
     // Floating tools can be disabled without replacing their widgets. Move

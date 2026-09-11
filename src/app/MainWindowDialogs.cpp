@@ -420,7 +420,11 @@ void MainWindow::refreshPluginUiExtensions()
     if (d->notePanel)
         d->notePanel->setPluginPlacementActions(notePanelActions);
     if (d->pluginActionPanel)
+    {
         d->pluginActionPanel->setActions(panelActions);
+        if (d->floatingToolWindowsEnabled)
+            configureCompactToolDock(d->pluginToolsDock);
+    }
 
     const QString interactionPluginId = firstCanvasInteractionPluginId(app->pluginManager());
     const bool hasInteractionPlugin = !interactionPluginId.isEmpty();

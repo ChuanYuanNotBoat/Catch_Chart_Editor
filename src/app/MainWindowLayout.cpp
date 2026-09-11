@@ -6,6 +6,7 @@
 #include "ui/LeftPanel.h"
 #include "ui/MetaEditPanel.h"
 #include "ui/CustomWidgets/RealtimePreviewWidget.h"
+#include "ui/DockLayoutPolicy.h"
 #include "utils/Logger.h"
 #include "utils/Settings.h"
 
@@ -41,7 +42,7 @@ void MainWindow::ensureWorkspaceDockVisible()
     // The chart workspace is the editor's fixed primary interaction surface.
     // Closing it must never leave the window in a state where chart editing can
     // no longer be recovered.
-    d->workspaceDock->setFeature(ads::CDockWidget::DockWidgetClosable, false);
+    DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(d->workspaceDock);
     if ((!d->floatingToolWindowsInitialized || d->floatingToolWindowsEnabled)
         && d->workspaceDock->isClosed())
     {

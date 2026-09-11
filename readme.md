@@ -88,7 +88,7 @@ Build output also receives the default skin, runtime plugins, documentation, not
 2. Use the `Note Editor` panel to choose Note, Rain, Delete, Select, or Curve mode.
 3. Use the mouse wheel to navigate; `Ctrl + wheel` changes the timeline scale.
 4. Press `Space` to play/pause and use `Time Division` plus `Grid Snap` for precise placement.
-5. Drag panel tabs to dock, split, combine, or float them; reopen closed panels from the toolbar `Panels` menu. Classic and multi-window layouts are saved independently.
+5. Drag a panel header to dock or float it; the live outline shows the target region, while the chart workspace remains a protected central area. Reopen closed panels from the toolbar `Panels` menu. Classic and multi-window layouts are saved independently.
 6. Save as `.mc` or export a Malody-compatible `.mcz` package.
 
 Detailed controls are documented in [docs/help.md](docs/help.md).

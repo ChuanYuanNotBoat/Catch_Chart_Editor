@@ -1,6 +1,6 @@
 # Engineering TODO
 
-Last audited: 2026-09-11
+Last audited: 2026-09-12
 
 Target: Beta v1.11.1 maintenance line (`v2-main`)
 
@@ -59,7 +59,8 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [x] Keep the presentation clock continuous before the first audio-position callback and cover zero-warmup startup at 0.1x-10x.
 - [x] Make the primary chart workspace non-closable and add discoverable main-toolbar/menu recovery actions for every other panel.
 - [x] Persist and reset classic splitter/sidebar state independently from the multi-window ADS layout.
-- [x] Keep compact ADS tool modules content-height and route space released by closing a module to flexible editor panels.
+- [x] Keep docked compact ADS tool modules content-height, release those constraints in floating containers, and route space released by closing a module to flexible editor panels.
+- [x] Protect the primary editor as a non-closable/non-movable/non-floating workbench part with a tested minimum interaction surface, side-only drop targets, and dynamic docking previews.
 - [x] Re-run Release tests and the `Yugami - Nyanpasu- Lv.16` benchmark; record before/after numbers.
 
 ## P1 — measured follow-up
@@ -78,6 +79,8 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [ ] Add interaction benchmarks for moving 1 / 100 / 4,000 notes and resizing rain tails.
 - [ ] Add load/save benchmarks at 5k / 20k / 100k notes and fail CI on major regressions.
 - [ ] Profile the Windows top-level backing-store/update path behind the 10.5 ms p95 measurement.
+- [ ] Replace the global ADS-leaf layout with stable Editor/Sidebar/Auxiliary Sidebar/Bottom Panel workbench parts and pane containers that cache expansion, order, visibility, and size by stable ID.
+- [ ] Add explicit `Move View...` and `Reset View Location` commands before replacing raw floating docks with auxiliary pane-container windows.
 
 ## P2 — CCE-internal document architecture
 

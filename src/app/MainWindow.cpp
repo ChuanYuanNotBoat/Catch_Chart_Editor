@@ -247,7 +247,8 @@ namespace
                    "ads--CDockSplitter[compactToolStack=\"true\"]::handle { background: transparent; }"
                    "ads--CDockAreaTitleBar { background: %1; border-bottom: 1px solid %7; }"
                    "ads--CDockAreaTitleBar[compactToolHandle=\"true\"] { border: none; background: transparent; }"
-                   "QLabel#compactToolDockGrip { color: %6; background: transparent; border: none; padding: 0 7px 0 0; font-size: 10px; }"
+                   "QLabel#compactToolDockTitle { color: %2; background: transparent; border: none; padding: 0 4px 0 7px; font-size: 11px; font-weight: 600; }"
+                   "QLabel#compactToolDockGrip { color: %6; background: transparent; border: none; padding: 0 7px 0 4px; font-size: 10px; }"
                    "ads--CDockWidgetTab { background: %1; border-right: 1px solid %7; padding: 0; }"
                    "ads--CDockWidgetTab[activeTab=\"true\"] { background: %8; }"
                    "ads--CDockWidgetTab QLabel, #autoHideTitleLabel { color: %2; }"
@@ -2398,7 +2399,7 @@ void MainWindow::createCentralArea()
     ads::CDockManager::setConfigFlag(ads::CDockManager::DockAreaDynamicTabsMenuButtonVisibility, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::MiddleMouseButtonClosesTab, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewShowsContentPixmap, false);
-    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewHasWindowFrame, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DisableStylesheet, true);
     d->dockManager = new ads::CDockManager(this);
@@ -2761,6 +2762,7 @@ void MainWindow::createCentralArea()
     d->workspaceDock->setFeature(ads::CDockWidget::DockWidgetClosable, false);
     d->workspaceDock->setWidget(d->workspaceContainer, ads::CDockWidget::ForceNoScrollArea);
     ads::CDockAreaWidget *workspaceArea = d->dockManager->setCentralWidget(d->workspaceDock);
+    DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(d->workspaceDock);
 
     d->leftPanelDock = new ads::CDockWidget(d->dockManager, tr("Navigation"));
     d->leftPanelDock->setObjectName(QStringLiteral("dock.navigation"));
@@ -2878,6 +2880,8 @@ void MainWindow::createCentralArea()
                     d->curveToolsDock, d->pluginToolsDock, d->statsToolsDock};
                 for (ads::CDockWidget *dock : toolDocks)
                     configureCompactToolDock(dock);
+                DockLayoutPolicy::refreshCompactToolDockPolicies(d->dockManager);
+                DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(d->workspaceDock);
             });
 
     d->defaultDockLayoutState = d->dockManager->saveState(kDockLayoutVersion);
@@ -4711,18 +4715,19 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
     if (!titleBar)
         return;
 
-    // A floating container already has a native window caption. Keep the ADS
-    // title bar only while docked, where it becomes a compact drag handle.
+    // A floating container already has a native window caption. Its content
+    // must be freely resizable, so remove the dock-only natural-height policy.
     if (dock->isFloating())
     {
         titleBar->hide();
+        DockLayoutPolicy::refreshCompactToolDockPolicies(d->dockManager);
         return;
     }
 
     titleBar->setProperty("compactToolHandle", true);
     titleBar->setCursor(Qt::SizeAllCursor);
     titleBar->setToolTip(titleBar->titleBarButtonToolTip(ads::TitleBarButtonUndock));
-    titleBar->setFixedHeight(14);
+    titleBar->setFixedHeight(22);
     titleBar->style()->unpolish(titleBar);
     titleBar->style()->polish(titleBar);
     const ads::TitleBarButton hiddenButtons[] = {
@@ -4737,25 +4742,36 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
             button->setShowInTitleBar(false);
     }
 
+    QLabel *title = titleBar->findChild<QLabel *>(
+        QStringLiteral("compactToolDockTitle"), Qt::FindDirectChildrenOnly);
     QLabel *grip = titleBar->findChild<QLabel *>(
         QStringLiteral("compactToolDockGrip"), Qt::FindDirectChildrenOnly);
-    if (!grip)
+    if (!title || !grip)
     {
         // Hide the normal tab text and window buttons. The transparent label
-        // only paints the grip; mouse events continue to reach ADS' title bar.
+        // pair only paints the pane header; mouse events continue to reach the
+        // full ADS title bar, giving the user a much larger drag target.
         const QList<QWidget *> titleItems = titleBar->findChildren<QWidget *>(
             QString(), Qt::FindDirectChildrenOnly);
         for (QWidget *item : titleItems)
             item->hide();
 
+        title = new QLabel(titleBar);
+        title->setObjectName(QStringLiteral("compactToolDockTitle"));
+        title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        title->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        title->setFixedHeight(22);
+
         grip = new QLabel(QStringLiteral("⠿"), titleBar);
         grip->setObjectName(QStringLiteral("compactToolDockGrip"));
         grip->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         grip->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-        grip->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        grip->setFixedHeight(14);
+        grip->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+        grip->setFixedHeight(22);
         grip->setToolTip(titleBar->titleBarButtonToolTip(ads::TitleBarButtonUndock));
         titleBar->insertWidget(0, grip);
+        titleBar->insertWidget(0, title);
     }
 
     if (auto *splitter = qobject_cast<QSplitter *>(dock->dockAreaWidget()->parentWidget()))
@@ -4766,8 +4782,12 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
         splitter->style()->polish(splitter);
     }
 
+    title->setText(dock->windowTitle());
+    title->setToolTip(dock->windowTitle());
+    title->show();
     grip->show();
     titleBar->show();
+    DockLayoutPolicy::refreshCompactToolDockPolicies(d->dockManager);
 }
 
 void MainWindow::saveDockLayout()
@@ -4880,6 +4900,16 @@ void MainWindow::updateDockTitles()
         d->metaPanelDock->setWindowTitle(tr("Metadata"));
     if (d->statsToolsDock)
         d->statsToolsDock->setWindowTitle(tr("Chart Statistics"));
+
+    if (d->floatingToolWindowsEnabled)
+    {
+        const QList<ads::CDockWidget *> toolDocks = {
+            d->timingToolsDock, d->playbackSpeedToolsDock,
+            d->rangeToolsDock, d->mirrorToolsDock,
+            d->curveToolsDock, d->pluginToolsDock, d->statsToolsDock};
+        for (ads::CDockWidget *dock : toolDocks)
+            updateCompactToolDockHandle(dock);
+    }
 }
 
 // ==================== Paste 288 division option slot ====================

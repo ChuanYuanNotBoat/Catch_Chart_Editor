@@ -116,10 +116,11 @@ MainWindow
 - `Navigation` 默认位于左侧；
 - `Realtime Preview`、`Note Editor`、`BPM & Timing`、`Metadata` 可停靠、拆分、标签组合和浮动；
 - 长编辑面板使用 `ForceScrollArea`，不得让内容最小高度传到主窗口；
-- `Chart Workspace` 必须保持 `DockWidgetClosable=false`，布局恢复后由 `ensureWorkspaceDockVisible()` 修复旧版保存的关闭状态；
+- `Chart Workspace` 是稳定的 workbench part，必须保持不可关闭、不可移动、不可浮动，并由 `DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy()` 保留最低交互尺寸和非折叠 splitter 分支；恢复旧布局后由 `ensureWorkspaceDockVisible()` 重申这些约束；
 - 多窗口布局通过 `Settings::dockLayoutState` 保存；经典布局通过独立的 splitter/right-panel/plugin 状态保存，切换和重置不得让两套状态互相覆盖；
 - 顶部 `Panels` 动作与 `View -> Panels` 是普通面板关闭后的明确恢复入口；经典模式仍保留其独立重置入口；
-- 紧凑工具 Dock 必须经 `DockLayoutPolicy::applyCompactToolDockPolicy()` 配置：内容使用自然高度，纵向栈的剩余空间优先交给普通编辑面板，不得因关闭相邻模块而拉伸控件；
+- 紧凑工具 Dock 必须经 `DockLayoutPolicy::applyCompactToolDockPolicy()` 配置：停靠在主窗口时内容和 Dock 外框限制为自然高度，纵向栈的剩余空间优先交给普通编辑面板；进入浮动容器时必须恢复无上限尺寸，不能把停靠态约束带进独立窗口；
+- 主编辑区的目标 overlay 只接受左/右侧拆分，且浮动拖拽轮廓必须动态反映当前落点。长期布局按 VS Code 的层次演进：稳定的顶层 Workbench Parts，侧栏内部再由 PaneContainer 管理分段、折叠、排序和尺寸缓存；
 - 插件 panel 也必须进入 ADS，不应另建固定右侧堆叠布局。
 
 性能注意：
