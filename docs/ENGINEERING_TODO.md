@@ -73,7 +73,7 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [x] Add an interval index for rain rendering, preview lookup, hit testing, and audio scheduling.
 - [x] Replace remaining whole-note scans in selection and hit testing with maintained indices.
 - [x] Cache transformed paste/mirror previews and update them only when the gesture offset, timing, or source selection changes.
-- [ ] Replace working-copy/BPM/conversion polling loops and nested `processEvents()` calls with signal-driven async jobs.
+- [x] Replace working-copy/BPM/conversion polling loops and nested `processEvents()` calls with signal-driven async jobs.
 - [ ] Move large resource copies, sidecar sync, and save hashing off the UI thread behind an ordered document transaction.
 - [ ] Consolidate the duplicate diagnostics exporters and atomically write the remaining user-facing report/skin-configuration files.
 - [ ] Add interaction benchmarks for moving 1 / 100 / 4,000 notes and resizing rain tails.

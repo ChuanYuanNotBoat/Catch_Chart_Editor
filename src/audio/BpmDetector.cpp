@@ -4,8 +4,11 @@
 #include <QAudioDecoder>
 #include <QAudioFormat>
 #include <QEventLoop>
+#include <QThread>
 #include <QUrl>
 #include <QtMath>
+
+#include <memory>
 
 namespace
 {
@@ -231,4 +234,38 @@ bool BpmDetector::detectFromFileDetailed(const QString &audioFilePath,
 
     // Segment diagnostics are disabled for full-song default measurement.
     return true;
+}
+
+void BpmDetector::detectFromFileDetailedAsync(QObject *context,
+                                              const QString &audioFilePath,
+                                              double startMs,
+                                              double durationMs,
+                                              AsyncDetectionCallback callback)
+{
+    if (!context || !callback)
+        return;
+
+    struct DetectionState
+    {
+        bool success = false;
+        DetectionResult result;
+        QString error;
+    };
+
+    const auto state = std::make_shared<DetectionState>();
+    QThread *worker = QThread::create([state, audioFilePath, startMs, durationMs]()
+                                      {
+        state->success = BpmDetector::detectFromFileDetailed(
+            audioFilePath, startMs, durationMs, state->result, &state->error);
+    });
+
+    QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+    QObject::connect(worker,
+                     &QThread::finished,
+                     context,
+                     [state, callback = std::move(callback)]() mutable
+                     {
+        callback(state->success, std::move(state->result), state->error);
+    });
+    worker->start();
 }

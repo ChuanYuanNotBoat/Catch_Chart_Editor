@@ -2,7 +2,9 @@
 
 #include <QString>
 #include <QVector>
+#include <functional>
 
+class QObject;
 class BpmDetector
 {
 public:
@@ -36,4 +38,13 @@ public:
                                        double durationMs,
                                        DetectionResult &outResult,
                                        QString *outError = nullptr);
+
+    using AsyncDetectionCallback = std::function<void(bool,
+                                                      DetectionResult,
+                                                      const QString &)>;
+    static void detectFromFileDetailedAsync(QObject *context,
+                                            const QString &audioFilePath,
+                                            double startMs,
+                                            double durationMs,
+                                            AsyncDetectionCallback callback);
 };

@@ -4,6 +4,7 @@
 #include <functional>
 
 class QWidget;
+class QObject;
 
 namespace AudioConverter
 {
@@ -31,8 +32,15 @@ bool convertToOgg(const QString &inputPath,
                   const std::function<bool(float)> &progress = {});
 
 // Runs convertToOgg on a worker thread while showing a modal progress
-// dialog (same UX pattern as the BPM auto-detection). Returns the output
-// path on success, or an empty string on failure / user cancellation.
+// dialog. Completion is delivered on the context object's thread.
+using AsyncCompletion = std::function<void(bool success, const QString &error)>;
+void convertToOggWithProgressAsync(QObject *context,
+                                   const QString &inputPath,
+                                   const QString &outputPath,
+                                   AsyncCompletion completion);
+
+// Blocking compatibility wrapper. UI code should use
+// convertToOggWithProgressAsync so the event loop remains responsive.
 QString convertToOggWithProgress(QWidget *parent,
                                  const QString &inputPath,
                                  const QString &outputPath,

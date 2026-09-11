@@ -80,6 +80,7 @@
 #include <QCheckBox>
 #include <QLineEdit>
 #include <QDesktopServices>
+#include <QEventLoop>
 #include <QUrl>
 #include <QSysInfo>
 #include <QGroupBox>
@@ -93,6 +94,7 @@
 #include <QListWidget>
 #include <QComboBox>
 #include <QPushButton>
+#include <QMetaObject>
 #include <QProgressDialog>
 #include <QThread>
 #include <QTreeWidget>
@@ -119,7 +121,9 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <functional>
 #include <limits>
+#include <memory>
 #include <utility>
 
 namespace
@@ -776,6 +780,7 @@ namespace
         std::atomic<qint64> copiedBytes{0};
         std::atomic<qint64> maxSingleFileMs{0};
         std::atomic<bool> cancelRequested{false};
+        std::function<void()> progressChanged;
     };
 
     bool copyDirectoryRecursively(const QString &sourceDirPath,
@@ -828,6 +833,8 @@ namespace
             progress->copiedFiles.store(0);
             progress->copiedBytes.store(0);
             progress->maxSingleFileMs.store(0);
+            if (progress->progressChanged)
+                progress->progressChanged();
         }
 
         for (const QFileInfo &entry : directories)
@@ -886,6 +893,8 @@ namespace
                 while (fileMs > expected && !progress->maxSingleFileMs.compare_exchange_weak(expected, fileMs))
                 {
                 }
+                if (progress->progressChanged)
+                    progress->progressChanged();
             }
         }
 
@@ -1236,232 +1245,254 @@ namespace
         return true;
     }
 
-    bool createWorkingCopyFromSourceWithProgress(QWidget *parent,
-                                                 const QString &sourcePath,
-                                                 QString *workingPathOut,
-                                                 QString *errorOut)
+    using WorkingCopyCompletion = std::function<void(bool,
+                                                     const QString &,
+                                                     const QString &)>;
+
+    void createWorkingCopyFromSourceAsync(QWidget *parent,
+                                          const QString &sourcePath,
+                                          WorkingCopyCompletion completion)
     {
-        if (workingPathOut)
-            workingPathOut->clear();
-        if (errorOut)
-            errorOut->clear();
+        if (!completion)
+            return;
 
         if (sourcePath.isEmpty())
         {
-            if (errorOut)
-                *errorOut = QObject::tr("Source chart path is empty.");
-            return false;
+            completion(false, QString(), QObject::tr("Source chart path is empty."));
+            return;
         }
 
         const QString rootDir = sessionWorkingCopyRootDir();
         if (!QDir().mkpath(rootDir))
         {
-            if (errorOut)
-                *errorOut = QObject::tr("Failed to create working copy directory:\n%1").arg(rootDir);
-            return false;
+            completion(false,
+                       QString(),
+                       QObject::tr("Failed to create working copy directory:\n%1").arg(rootDir));
+            return;
         }
 
         const QFileInfo sourceInfo(sourcePath);
         if (!sourceInfo.exists() || !sourceInfo.isFile())
         {
-            if (errorOut)
-                *errorOut = QObject::tr("Source chart does not exist:\n%1").arg(sourcePath);
-            return false;
+            completion(false,
+                       QString(),
+                       QObject::tr("Source chart does not exist:\n%1").arg(sourcePath));
+            return;
         }
 
         QString workingSessionDir;
         const QString workingPath = buildWorkingCopyPath(sourcePath, &workingSessionDir);
         removePathRecursively(workingSessionDir);
 
-        CopyProgressState progress;
-        std::atomic<bool> finished{false};
-        std::atomic<bool> success{false};
-        QString asyncError;
+        struct CopyJobState
+        {
+            CopyProgressState progress;
+            bool success = false;
+            QString error;
+            qint64 startedMs = 0;
+        };
+        const auto state = std::make_shared<CopyJobState>();
+        state->startedMs = QDateTime::currentMSecsSinceEpoch();
 
-        QElapsedTimer timer;
-        timer.start();
-        QThread *worker = QThread::create([&]()
+        auto *progressDialog = new QProgressDialog(QObject::tr("Preparing working copy..."),
+                                                    QObject::tr("Cancel"),
+                                                    0,
+                                                    100,
+                                                    parent);
+        progressDialog->setWindowModality(Qt::ApplicationModal);
+        progressDialog->setAutoClose(false);
+        progressDialog->setAutoReset(false);
+        progressDialog->show();
+
+        const QPointer<QProgressDialog> dialogGuard(progressDialog);
+        const QPointer<QObject> contextGuard(parent);
+        const std::weak_ptr<CopyJobState> weakState(state);
+        state->progress.progressChanged = [weakState, dialogGuard, contextGuard]()
+        {
+            if (!contextGuard)
+                return;
+            const auto state = weakState.lock();
+            if (!state)
+                return;
+            QMetaObject::invokeMethod(
+                contextGuard,
+                [state, dialogGuard]()
+                {
+                    if (!dialogGuard)
+                        return;
+                    const qint64 totalFiles = qMax<qint64>(1, state->progress.totalFiles.load());
+                    const qint64 copiedFiles = qBound<qint64>(0,
+                                                               state->progress.copiedFiles.load(),
+                                                               totalFiles);
+                    const qint64 copiedBytes = qMax<qint64>(0, state->progress.copiedBytes.load());
+                    const qint64 totalBytes = qMax<qint64>(0, state->progress.totalBytes.load());
+                    dialogGuard->setValue(static_cast<int>((copiedFiles * 100) / totalFiles));
+                    dialogGuard->setLabelText(
+                        QObject::tr("Preparing working copy...\n%1/%2 files, %3/%4 MB")
+                            .arg(copiedFiles)
+                            .arg(totalFiles)
+                            .arg(QString::number(copiedBytes / 1024.0 / 1024.0, 'f', 1))
+                            .arg(QString::number(totalBytes / 1024.0 / 1024.0, 'f', 1)));
+                },
+                Qt::QueuedConnection);
+        };
+
+        QObject::connect(progressDialog,
+                         &QProgressDialog::canceled,
+                         parent,
+                         [state]() { state->progress.cancelRequested.store(true); });
+
+        QThread *worker = QThread::create([state, sourceInfo, sourcePath, workingPath, workingSessionDir]()
                                           {
-        QString localError;
-        const bool copied = copyDirectoryRecursively(sourceInfo.absolutePath(),
-                                                     QFileInfo(workingPath).absoluteDir().absolutePath(),
-                                                     &localError,
-                                                     &progress);
-        if (copied)
-        {
-            copyReferencedExternalResources(sourcePath, workingPath);
-            syncSidecarDirectoryForChart(sourcePath, workingPath);
-            if (!QFile::exists(workingPath))
-                localError = QObject::tr("Working copy chart file is missing:\n%1").arg(workingPath);
-        }
+            QString localError;
+            const bool copied = copyDirectoryRecursively(
+                sourceInfo.absolutePath(),
+                QFileInfo(workingPath).absoluteDir().absolutePath(),
+                &localError,
+                &state->progress);
+            if (copied)
+            {
+                copyReferencedExternalResources(sourcePath, workingPath);
+                syncSidecarDirectoryForChart(sourcePath, workingPath);
+                if (!QFile::exists(workingPath))
+                    localError = QObject::tr("Working copy chart file is missing:\n%1").arg(workingPath);
+            }
 
-        if (!localError.isEmpty())
-            asyncError = localError;
-        success.store(localError.isEmpty() && copied);
-        finished.store(true); });
+            if (state->progress.cancelRequested.load() && localError.isEmpty())
+                localError = QObject::tr("Copy cancelled by user.");
+            state->error = localError;
+            state->success = copied && localError.isEmpty();
+            if (!state->success)
+                removePathRecursively(workingSessionDir);
+        });
+
+        QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+        QObject::connect(worker,
+                         &QThread::finished,
+                         parent,
+                         [state,
+                          dialogGuard,
+                          sourcePath,
+                          workingPath,
+                          workingSessionDir,
+                          completion = std::move(completion)]() mutable
+                         {
+            if (dialogGuard)
+            {
+                dialogGuard->setValue(100);
+                dialogGuard->close();
+                dialogGuard->deleteLater();
+            }
+
+            Logger::logStructured(Logger::INFO,
+                                  QString("Working copy completed in %1 ms")
+                                      .arg(QDateTime::currentMSecsSinceEpoch() - state->startedMs),
+                                  "WorkingCopy",
+                                  QMap<QString, QString>{
+                                      {"source_path", sourcePath},
+                                      {"working_path", workingPath},
+                                      {"elapsed_ms", QString::number(QDateTime::currentMSecsSinceEpoch() - state->startedMs)},
+                                      {"files_total", QString::number(state->progress.totalFiles.load())},
+                                      {"files_copied", QString::number(state->progress.copiedFiles.load())},
+                                      {"bytes_total", QString::number(state->progress.totalBytes.load())},
+                                      {"bytes_copied", QString::number(state->progress.copiedBytes.load())},
+                                      {"max_file_ms", QString::number(state->progress.maxSingleFileMs.load())},
+                                      {"success", state->success ? "true" : "false"},
+                                  });
+
+            if (!state->success)
+                removePathRecursively(workingSessionDir);
+            completion(state->success,
+                       state->success ? workingPath : QString(),
+                       state->error.isEmpty()
+                           ? QObject::tr("Failed to create working copy.")
+                           : state->error);
+        });
         worker->start();
-
-        QProgressDialog progressDialog(QObject::tr("Preparing working copy..."),
-                                       QObject::tr("Cancel"),
-                                       0,
-                                       100,
-                                       parent);
-        progressDialog.setWindowModality(Qt::ApplicationModal);
-        progressDialog.setAutoClose(false);
-        progressDialog.setAutoReset(false);
-        progressDialog.show();
-
-        while (!finished.load())
-        {
-            const qint64 totalFiles = qMax<qint64>(1, progress.totalFiles.load());
-            const qint64 copiedFiles = qBound<qint64>(0, progress.copiedFiles.load(), totalFiles);
-            const qint64 copiedBytes = qMax<qint64>(0, progress.copiedBytes.load());
-            const qint64 totalBytes = qMax<qint64>(0, progress.totalBytes.load());
-            const int percent = static_cast<int>((copiedFiles * 100) / totalFiles);
-            progressDialog.setValue(qBound(0, percent, 100));
-            progressDialog.setLabelText(QObject::tr("Preparing working copy...\n%1/%2 files, %3/%4 MB")
-                                            .arg(copiedFiles)
-                                            .arg(totalFiles)
-                                            .arg(QString::number(copiedBytes / 1024.0 / 1024.0, 'f', 1))
-                                            .arg(QString::number(totalBytes / 1024.0 / 1024.0, 'f', 1)));
-
-            if (progressDialog.wasCanceled())
-                progress.cancelRequested.store(true);
-
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-            QThread::msleep(15);
-        }
-
-        worker->wait();
-        delete worker;
-        progressDialog.setValue(100);
-
-        const qint64 elapsedMs = timer.elapsed();
-        Logger::logStructured(Logger::INFO,
-                              QString("Working copy completed in %1 ms").arg(elapsedMs),
-                              "WorkingCopy",
-                              QMap<QString, QString>{
-                                  {"source_path", sourcePath},
-                                  {"working_path", workingPath},
-                                  {"elapsed_ms", QString::number(elapsedMs)},
-                                  {"files_total", QString::number(progress.totalFiles.load())},
-                                  {"files_copied", QString::number(progress.copiedFiles.load())},
-                                  {"bytes_total", QString::number(progress.totalBytes.load())},
-                                  {"bytes_copied", QString::number(progress.copiedBytes.load())},
-                                  {"max_file_ms", QString::number(progress.maxSingleFileMs.load())},
-                                  {"success", success.load() ? "true" : "false"},
-                              });
-
-        if (progress.cancelRequested.load())
-        {
-            removePathRecursively(workingSessionDir);
-            if (errorOut)
-                *errorOut = QObject::tr("Copy cancelled by user.");
-            return false;
-        }
-
-        if (!success.load())
-        {
-            removePathRecursively(workingSessionDir);
-            if (errorOut)
-                *errorOut = asyncError.isEmpty()
-                                ? QObject::tr("Failed to create working copy.")
-                                : asyncError;
-            return false;
-        }
-
-        if (workingPathOut)
-            *workingPathOut = workingPath;
-        return true;
     }
 
-    bool loadWorkingChartWithProgress(QWidget *parent,
-                                      ChartController *chartController,
-                                      const QString &workingChartPath,
-                                      QString *errorOut)
+    using LoadedChartCompletion = std::function<void(bool, Chart, const QString &)>;
+
+    void loadWorkingChartAsync(QWidget *parent,
+                               ChartController *chartController,
+                               const QString &workingChartPath,
+                               LoadedChartCompletion completion)
     {
-        if (errorOut)
-            errorOut->clear();
+        if (!completion)
+            return;
         if (!chartController)
         {
-            if (errorOut)
-                *errorOut = QObject::tr("Chart controller is not available.");
-            return false;
+            completion(false, Chart(), QObject::tr("Chart controller is not available."));
+            return;
         }
 
-        std::atomic<bool> finished{false};
-        std::atomic<bool> success{false};
-        QString asyncError;
-        Chart loadedChart;
+        struct LoadJobState
+        {
+            bool success = false;
+            QString error;
+            Chart loadedChart;
+            qint64 startedMs = 0;
+        };
+        const auto state = std::make_shared<LoadJobState>();
+        state->startedMs = QDateTime::currentMSecsSinceEpoch();
 
-        QElapsedTimer timer;
-        timer.start();
-        QThread *worker = QThread::create([&]()
+        auto *progressDialog = new QProgressDialog(QObject::tr("Loading chart data..."),
+                                                    QString(),
+                                                    0,
+                                                    0,
+                                                    parent);
+        progressDialog->setWindowModality(Qt::ApplicationModal);
+        progressDialog->setCancelButton(nullptr);
+        progressDialog->setMinimumDuration(0);
+        progressDialog->show();
+        const QPointer<QProgressDialog> dialogGuard(progressDialog);
+
+        QThread *worker = QThread::create([state, workingChartPath]()
                                           {
-        QString localError;
-        Chart parsedChart;
-        const bool loaded = ChartIO::load(workingChartPath, parsedChart, false);
-        if (!loaded)
-        {
-            localError = QObject::tr("Failed to parse chart data:\n%1").arg(workingChartPath);
-        }
-        else
-        {
-            loadedChart = std::move(parsedChart);
-        }
+            Chart parsedChart;
+            const bool loaded = ChartIO::load(workingChartPath, parsedChart, false);
+            if (!loaded)
+            {
+                state->error = QObject::tr("Failed to parse chart data:\n%1").arg(workingChartPath);
+                return;
+            }
+            state->loadedChart = std::move(parsedChart);
+            state->success = true;
+        });
 
-        if (!localError.isEmpty())
-            asyncError = localError;
-        success.store(localError.isEmpty() && loaded);
-        finished.store(true); });
+        QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+        QObject::connect(worker,
+                         &QThread::finished,
+                         parent,
+                         [state,
+                          dialogGuard,
+                          workingChartPath,
+                          completion = std::move(completion)]() mutable
+                         {
+            if (dialogGuard)
+            {
+                dialogGuard->close();
+                dialogGuard->deleteLater();
+            }
+
+            Logger::logStructured(Logger::INFO,
+                                  QString("Working chart parsed in %1 ms")
+                                      .arg(QDateTime::currentMSecsSinceEpoch() - state->startedMs),
+                                  "WorkingCopy",
+                                  QMap<QString, QString>{
+                                      {"working_path", workingChartPath},
+                                      {"elapsed_ms", QString::number(QDateTime::currentMSecsSinceEpoch() - state->startedMs)},
+                                      {"notes", state->success ? QString::number(state->loadedChart.notes().size()) : QString("0")},
+                                      {"success", state->success ? "true" : "false"},
+                                  });
+
+            completion(state->success,
+                       std::move(state->loadedChart),
+                       state->error.isEmpty()
+                           ? QObject::tr("Failed to parse chart data.")
+                           : state->error);
+        });
         worker->start();
-
-        QProgressDialog progressDialog(QObject::tr("Loading chart data..."),
-                                       QString(),
-                                       0,
-                                       0,
-                                       parent);
-        progressDialog.setWindowModality(Qt::ApplicationModal);
-        progressDialog.setCancelButton(nullptr);
-        progressDialog.setMinimumDuration(0);
-        progressDialog.show();
-
-        while (!finished.load())
-        {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-            QThread::msleep(15);
-        }
-
-        worker->wait();
-        delete worker;
-
-        const qint64 elapsedMs = timer.elapsed();
-        Logger::logStructured(Logger::INFO,
-                              QString("Working chart parsed in %1 ms").arg(elapsedMs),
-                              "WorkingCopy",
-                              QMap<QString, QString>{
-                                  {"working_path", workingChartPath},
-                                  {"elapsed_ms", QString::number(elapsedMs)},
-                                  {"notes", success.load() ? QString::number(loadedChart.notes().size()) : QString("0")},
-                                  {"success", success.load() ? "true" : "false"},
-                              });
-
-        if (!success.load())
-        {
-            if (errorOut)
-                *errorOut = asyncError.isEmpty()
-                                ? QObject::tr("Failed to parse chart data.")
-                                : asyncError;
-            return false;
-        }
-
-        if (!chartController->loadChartFromData(workingChartPath, std::move(loadedChart)))
-        {
-            if (errorOut)
-                *errorOut = QObject::tr("Failed to apply loaded chart.");
-            return false;
-        }
-        return true;
     }
 }
 
@@ -3429,6 +3460,92 @@ void MainWindow::newChart()
         }
     }
 
+    const auto finishNewChart = [this,
+                                 timestamp,
+                                 audioStem](const QString &resolvedSongDir,
+                                             const QString &resolvedTargetAudioName,
+                                             const QString &resolvedTargetAudioPath)
+    {
+        // Step 5: Build default MetaData (title = original audio stem).
+        MetaData meta;
+        meta.title = audioStem;
+        meta.artist.clear();
+        meta.chartAuthor.clear();
+        meta.difficulty = QStringLiteral("-New");
+        meta.audioFile = resolvedTargetAudioName;
+        meta.speed = 5;
+        meta.firstBpm = 120.0;
+
+        // Step 6: Create default chart and save to time-stamped .mc.
+        Chart chart = ChartIO::createDefaultChart(meta);
+        const QString mcPath = QDir(resolvedSongDir).filePath(QString::number(timestamp) + ".mc");
+        if (!ChartIO::save(mcPath, chart))
+        {
+            QMessageBox::critical(this,
+                                  tr("Error"),
+                                  tr("Failed to create chart file:\n%1").arg(mcPath));
+            return;
+        }
+
+        // Step 7: Auto-detect BPM and offset from the audio with progress dialog.
+        auto *bpmProgress = new QProgressDialog(
+            tr("Measuring BPM, please wait..."), QString(), 0, 0, this);
+        bpmProgress->setWindowTitle(tr("Auto Timing"));
+        bpmProgress->setWindowModality(Qt::WindowModal);
+        bpmProgress->setCancelButton(nullptr);
+        bpmProgress->setMinimumDuration(0);
+        bpmProgress->show();
+        const QPointer<QProgressDialog> progressGuard(bpmProgress);
+
+        BpmDetector::detectFromFileDetailedAsync(
+            this,
+            resolvedTargetAudioPath,
+            0.0,
+            120000.0,
+            [this,
+             progressGuard,
+             chart = std::move(chart),
+             meta,
+             mcPath](bool detected,
+                     BpmDetector::DetectionResult detResult,
+                     const QString &) mutable
+            {
+                if (progressGuard)
+                {
+                    progressGuard->close();
+                    progressGuard->deleteLater();
+                }
+
+                if (detected && detResult.bpm > 0.0)
+                {
+                    chart.meta().firstBpm = detResult.bpm;
+                    chart.meta().offset = static_cast<int>(qRound(detResult.estimatedOffsetMs));
+                    chart.bpmList().clear();
+                    chart.addBpm(BpmEntry(0, 0, 1, detResult.bpm));
+                    ChartIO::save(mcPath, chart);
+
+                    statusBar()->showMessage(
+                        tr("BPM detected: %1, offset: %2 ms")
+                            .arg(QString::number(detResult.bpm, 'f', 1))
+                            .arg(chart.meta().offset),
+                        5000);
+                }
+                else
+                {
+                    statusBar()->showMessage(
+                        tr("Auto-timing skipped (detection failed). Default BPM=120."), 5000);
+                }
+
+                Logger::info(QString("New chart created: %1 (title=%2, bpm=%3)")
+                                 .arg(mcPath, meta.title, QString::number(chart.meta().firstBpm, 'f', 1)));
+
+                // Step 8: Open the chart in editor.
+                // The replacement was confirmed before the potentially long copy/
+                // conversion/detection flow. Do not ask a second time when opening it.
+                loadChartFile(mcPath, false);
+            });
+    };
+
     if (!reusedExisting)
     {
         // Step 3: Create new song subdirectory — truncate stem to keep total path under MAX_PATH.
@@ -3460,93 +3577,29 @@ void MainWindow::newChart()
         }
         else
         {
-            QString convertError;
-            if (AudioConverter::convertToOggWithProgress(this, audioPath, targetAudioPath,
-                                                         &convertError)
-                    .isEmpty())
-            {
-                QMessageBox::critical(this, tr("Error"),
-                                      tr("Failed to convert audio to OGG:\n%1").arg(convertError));
-                return;
-            }
+            AudioConverter::convertToOggWithProgressAsync(
+                this,
+                audioPath,
+                targetAudioPath,
+                [this, finishNewChart, songDir, targetAudioName, targetAudioPath](
+                    bool success,
+                    const QString &convertError)
+                {
+                    if (!success)
+                    {
+                        QMessageBox::critical(
+                            this,
+                            tr("Error"),
+                            tr("Failed to convert audio to OGG:\n%1").arg(convertError));
+                        return;
+                    }
+                    finishNewChart(songDir, targetAudioName, targetAudioPath);
+                });
+            return;
         }
     }
 
-    // Step 5: Build default MetaData (title = original audio stem).
-    MetaData meta;
-    meta.title = audioStem;
-    meta.artist.clear();
-    meta.chartAuthor.clear();
-    meta.difficulty = QStringLiteral("-New");
-    meta.audioFile = targetAudioName;
-    meta.speed = 5;
-    meta.firstBpm = 120.0;
-
-    // Step 6: Create default chart and save to time-stamped .mc.
-    Chart chart = ChartIO::createDefaultChart(meta);
-
-    const QString mcPath = QDir(songDir).filePath(QString::number(timestamp) + ".mc");
-
-    if (!ChartIO::save(mcPath, chart))
-    {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to create chart file:\n%1").arg(mcPath));
-        return;
-    }
-
-    // Step 7: Auto-detect BPM and offset from the audio with progress dialog.
-    QProgressDialog bpmProgress(tr("Measuring BPM, please wait..."), QString(), 0, 0, this);
-    bpmProgress.setWindowTitle(tr("Auto Timing"));
-    bpmProgress.setWindowModality(Qt::WindowModal);
-    bpmProgress.setCancelButton(nullptr);
-    bpmProgress.setMinimumDuration(0);
-    bpmProgress.show();
-
-    BpmDetector::DetectionResult detResult;
-    bool bpmOk = false;
-    std::atomic<bool> bpmDone{false};
-    QThread *bpmThread = QThread::create([&bpmDone, &bpmOk, &targetAudioPath, &detResult]()
-    {
-        bpmOk = BpmDetector::detectFromFileDetailed(targetAudioPath, 0.0, 120000.0, detResult, nullptr)
-                && detResult.bpm > 0.0;
-        bpmDone.store(true);
-    });
-    bpmThread->start();
-
-    while (!bpmDone.load())
-    {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-        QThread::msleep(20);
-    }
-    bpmThread->wait();
-    delete bpmThread;
-    bpmProgress.close();
-
-    if (bpmOk)
-    {
-        chart.meta().firstBpm = detResult.bpm;
-        chart.meta().offset = static_cast<int>(qRound(detResult.estimatedOffsetMs));
-        chart.bpmList().clear();
-        chart.addBpm(BpmEntry(0, 0, 1, detResult.bpm));
-        ChartIO::save(mcPath, chart);
-
-        statusBar()->showMessage(
-            tr("BPM detected: %1, offset: %2 ms")
-                .arg(QString::number(detResult.bpm, 'f', 1))
-                .arg(chart.meta().offset),
-            5000);
-    }
-    else
-    {
-        statusBar()->showMessage(tr("Auto-timing skipped (detection failed). Default BPM=120."), 5000);
-    }
-
-    Logger::info(QString("New chart created: %1 (title=%2, bpm=%3)")
-                     .arg(mcPath, meta.title, QString::number(chart.meta().firstBpm, 'f', 1)));
-
-    // Step 8: Open the chart in editor.
-    // The replacement was confirmed before the potentially long copy/
-    // conversion/detection flow. Do not ask a second time when opening it.
-    loadChartFile(mcPath, false);
+    finishNewChart(songDir, targetAudioName, targetAudioPath);
 }
 
 // ==================== Open chart file (.mc/.mcz) ====================
@@ -3635,7 +3688,28 @@ bool MainWindow::loadChartForAutomation(const QString &filePath, QString *errorM
         return false;
     }
 
-    loadChartFile(requestedInfo.absoluteFilePath());
+    bool completed = false;
+    bool loaded = false;
+    QString loadError;
+    QEventLoop loop;
+    loadChartFile(requestedInfo.absoluteFilePath(),
+                  false,
+                  [&completed, &loaded, &loadError, &loop](bool success, const QString &error)
+                  {
+        completed = true;
+        loaded = success;
+        loadError = error;
+        loop.quit();
+    });
+    if (!completed)
+        loop.exec();
+    if (!loaded)
+    {
+        if (errorMessage)
+            *errorMessage = loadError.isEmpty() ? tr("The automated test chart could not be loaded.")
+                                                : loadError;
+        return false;
+    }
     const QString loadedPath = QFileInfo(d->currentChartPath).absoluteFilePath();
     if (QDir::cleanPath(loadedPath).compare(QDir::cleanPath(requestedInfo.absoluteFilePath()),
                                             Qt::CaseInsensitive) != 0)
@@ -3660,16 +3734,22 @@ void MainWindow::reloadChart()
     if (!confirmSaveIfModified(tr("Reloading the chart will discard unsaved changes.")))
         return;
 
+    statusBar()->showMessage(tr("Reloading: %1").arg(QFileInfo(path).fileName()), 3000);
     loadChartFile(path, false);
-    statusBar()->showMessage(tr("Chart reloaded: %1").arg(QFileInfo(path).fileName()), 3000);
 }
 
-void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
+void MainWindow::loadChartFile(const QString &filePath,
+                               bool confirmUnsaved,
+                               ChartLoadCompletion completion)
 {
     Logger::info(QString("Loading chart file: %1").arg(filePath));
     if (confirmUnsaved
         && !confirmSaveIfModified(tr("Opening another chart will replace the current one in editor.")))
+    {
+        if (completion)
+            completion(false, tr("Chart loading was cancelled."));
         return;
+    }
     if (d->statsRefreshTimer)
         d->statsRefreshTimer->stop();
     if (!d->editStatisticsChartPath.isEmpty())
@@ -3758,114 +3838,165 @@ void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
 
     closePluginPanels(tr("Plugin panels were closed after chart switch."));
 
-    QString workingChartPath;
-    QString workingCopyError;
-    if (!createWorkingCopyFromSourceWithProgress(this, actualChartPath, &workingChartPath, &workingCopyError))
-    {
-        QMessageBox::critical(this, tr("Error"), workingCopyError);
-        return;
-    }
-
-    QString loadChartError;
-    bool chartLoaded = false;
-    {
-        QScopedValueRollback<bool> loadingGuard(d->isLoadingChart, true);
-        chartLoaded = loadWorkingChartWithProgress(
-            this, d->chartController, workingChartPath, &loadChartError);
-    }
-    if (!chartLoaded)
-    {
-        removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
-        // 加载失败也重推统计：统计面板/详细统计窗口必须与当前实际加载的谱面一致。
-        refreshChartStatistics();
-        QMessageBox::critical(this,
-                              tr("Error"),
-                              loadChartError.isEmpty() ? tr("Failed to load chart.") : loadChartError);
-        return;
-    }
-
-    if (d->recoverySnapshotTimer)
-        d->recoverySnapshotTimer->stop();
-    if (!previousWorkingChartPath.isEmpty() &&
-        QDir::cleanPath(previousWorkingChartPath) != QDir::cleanPath(workingChartPath))
-    {
-        removePathRecursively(workingSessionDirFromWorkingPath(previousWorkingChartPath));
-    }
-    removeRecoveryState();
-    cleanupSessionWorkingCopies(workingChartPath);
-
-    d->sourceChartPath = actualChartPath;
-    d->workingChartPath = workingChartPath;
-    d->currentChartPath = actualChartPath;
-    d->editStatisticsChartPath = actualChartPath;
-    d->editStatistics = loadEditorStats(actualChartPath);
-    d->editSessionTimer.restart();
-    refreshChartStatistics();
-    if (d->reloadChartAction)
-        d->reloadChartAction->setEnabled(true);
-    if (d->canvas)
-        d->canvas->setSourceChartPath(actualChartPath);
-    Settings::instance().setLastOpenPath(QFileInfo(actualChartPath).absolutePath());
-
-    if (QFileInfo(filePath).suffix().toLower() != "mcz")
-    {
-        Settings::instance().setLastProjectPath(QFileInfo(actualChartPath).absolutePath());
-    }
-
-    QString chartDir = QFileInfo(actualChartPath).absolutePath();
-    const MetaData &loadedMeta = d->chartController->chart()->meta();
-    QString audioFile = loadedMeta.audioFile;
-    updatePlaybackAvailability(false);
-    if (!audioFile.isEmpty())
-    {
-        // 优先使用 Chart 对象记录的音频源完整路径（已在加载时解析并重命名）
-        QString audioPath = d->chartController->chart()->audioSourceFullPath();
-        if (audioPath.isEmpty() || !QFile::exists(audioPath))
+    createWorkingCopyFromSourceAsync(
+        this,
+        actualChartPath,
+        [this,
+         filePath,
+         actualChartPath,
+         previousWorkingChartPath,
+         completion = std::move(completion)](bool copied,
+                                              const QString &workingChartPath,
+                                              const QString &copyError) mutable
         {
-            // 回退到基于原始谱面目录的路径
-            audioPath = QDir(chartDir).filePath(audioFile);
-        }
+            if (!copied)
+            {
+                if (completion)
+                    completion(false,
+                               copyError.isEmpty() ? tr("Failed to create working copy.")
+                                                   : copyError);
+                QMessageBox::critical(this,
+                                      tr("Error"),
+                                      copyError.isEmpty() ? tr("Failed to create working copy.")
+                                                          : copyError);
+                return;
+            }
 
-        if (QFile::exists(audioPath))
-        {
-            d->playbackController->audioPlayer()->load(audioPath);
-            Logger::info(QString("MainWindow::loadChartFile - Loaded audio from: %1").arg(audioPath));
-        }
-        else
-        {
-            const QString msg = tr("Audio file not found: %1").arg(audioPath);
-            statusBar()->showMessage(msg, 5000);
-            QMessageBox::warning(this, tr("Audio Load Error"), msg);
-        }
-    }
+            loadWorkingChartAsync(
+                this,
+                d->chartController,
+                workingChartPath,
+                [this,
+                 filePath,
+                 actualChartPath,
+                 previousWorkingChartPath,
+                 workingChartPath,
+                 completion = std::move(completion)](bool parsed,
+                                                     Chart loadedChart,
+                                                     const QString &loadChartError) mutable
+                {
+                    if (!parsed)
+                    {
+                        if (completion)
+                            completion(false,
+                                       loadChartError.isEmpty() ? tr("Failed to load chart.")
+                                                                : loadChartError);
+                        removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
+                        // 加载失败也重推统计：统计面板/详细统计窗口必须与当前实际加载的谱面一致。
+                        refreshChartStatistics();
+                        QMessageBox::critical(
+                            this,
+                            tr("Error"),
+                            loadChartError.isEmpty() ? tr("Failed to load chart.") : loadChartError);
+                        return;
+                    }
 
-    // Initialize resource cache for change detection（背景存解析后的绝对路径）。
-    d->lastLoadedAudioFile = loadedMeta.audioFile;
-    d->lastLoadedBackgroundFile = resolvedChartResourcePath(d->workingChartPath, loadedMeta.backgroundFile);
+                    bool chartLoaded = false;
+                    {
+                        QScopedValueRollback<bool> loadingGuard(d->isLoadingChart, true);
+                        chartLoaded = d->chartController->loadChartFromData(
+                            workingChartPath, std::move(loadedChart));
+                    }
+                    if (!chartLoaded)
+                    {
+                        if (completion)
+                            completion(false, tr("Failed to apply loaded chart."));
+                        removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
+                        refreshChartStatistics();
+                        QMessageBox::critical(this, tr("Error"), tr("Failed to apply loaded chart."));
+                        return;
+                    }
 
-    // Force background refresh: during chart loading, isLoadingChart is true
-    // so the chartChanged handler's userEdit block (which normally refreshes
-    // the background) is skipped. The canvas' chartLoaded handler already
-    // invalidates its background cache unconditionally; this repaint keeps
-    // the frame in sync right away.
-    if (d->canvas)
-        d->canvas->refreshBackground();
+                    if (d->recoverySnapshotTimer)
+                        d->recoverySnapshotTimer->stop();
+                    if (!previousWorkingChartPath.isEmpty() &&
+                        QDir::cleanPath(previousWorkingChartPath) != QDir::cleanPath(workingChartPath))
+                    {
+                        removePathRecursively(workingSessionDirFromWorkingPath(previousWorkingChartPath));
+                    }
+                    removeRecoveryState();
+                    cleanupSessionWorkingCopies(workingChartPath);
 
-    // Reset playback state and position when switching charts
-    d->playbackController->stop();
-    d->playbackController->audioPlayer()->setAdjustedPosition(0);
+                    d->sourceChartPath = actualChartPath;
+                    d->workingChartPath = workingChartPath;
+                    d->currentChartPath = actualChartPath;
+                    d->editStatisticsChartPath = actualChartPath;
+                    d->editStatistics = loadEditorStats(actualChartPath);
+                    d->editSessionTimer.restart();
+                    refreshChartStatistics();
+                    if (d->reloadChartAction)
+                        d->reloadChartAction->setEnabled(true);
+                    if (d->canvas)
+                        d->canvas->setSourceChartPath(actualChartPath);
+                    Settings::instance().setLastOpenPath(QFileInfo(actualChartPath).absolutePath());
 
-    d->canvas->update();
-    if (d->pluginActionPanel)
-    {
-        d->pluginActionPanel->setViewportRange(
-            d->canvas->timeDivision(), d->canvas->scrollBeat(),
-            d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
-    }
-    d->isModified = false;
+                    if (QFileInfo(filePath).suffix().toLower() != "mcz")
+                    {
+                        Settings::instance().setLastProjectPath(QFileInfo(actualChartPath).absolutePath());
+                    }
 
-    persistRecoveryState();
-    statusBar()->showMessage(tr("Loaded: %1").arg(QFileInfo(actualChartPath).fileName()), 3000);
+                    const QString chartDir = QFileInfo(actualChartPath).absolutePath();
+                    const MetaData &loadedMeta = d->chartController->chart()->meta();
+                    const QString audioFile = loadedMeta.audioFile;
+                    updatePlaybackAvailability(false);
+                    if (!audioFile.isEmpty())
+                    {
+                        // 优先使用 Chart 对象记录的音频源完整路径（已在加载时解析并重命名）
+                        QString audioPath = d->chartController->chart()->audioSourceFullPath();
+                        if (audioPath.isEmpty() || !QFile::exists(audioPath))
+                        {
+                            // 回退到基于原始谱面目录的路径
+                            audioPath = QDir(chartDir).filePath(audioFile);
+                        }
+
+                        if (QFile::exists(audioPath))
+                        {
+                            d->playbackController->audioPlayer()->load(audioPath);
+                            Logger::info(QString("MainWindow::loadChartFile - Loaded audio from: %1")
+                                             .arg(audioPath));
+                        }
+                        else
+                        {
+                            const QString msg = tr("Audio file not found: %1").arg(audioPath);
+                            statusBar()->showMessage(msg, 5000);
+                            QMessageBox::warning(this, tr("Audio Load Error"), msg);
+                        }
+                    }
+
+                    // Initialize resource cache for change detection（背景存解析后的绝对路径）。
+                    d->lastLoadedAudioFile = loadedMeta.audioFile;
+                    d->lastLoadedBackgroundFile =
+                        resolvedChartResourcePath(d->workingChartPath, loadedMeta.backgroundFile);
+
+                    // Force background refresh: during chart loading, isLoadingChart is true
+                    // so the chartChanged handler's userEdit block (which normally refreshes
+                    // the background) is skipped. The canvas' chartLoaded handler already
+                    // invalidates its background cache unconditionally; this repaint keeps
+                    // the frame in sync right away.
+                    if (d->canvas)
+                        d->canvas->refreshBackground();
+
+                    // Reset playback state and position when switching charts
+                    d->playbackController->stop();
+                    d->playbackController->audioPlayer()->setAdjustedPosition(0);
+
+                    d->canvas->update();
+                    if (d->pluginActionPanel)
+                    {
+                        d->pluginActionPanel->setViewportRange(
+                            d->canvas->timeDivision(),
+                            d->canvas->scrollBeat(),
+                            d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+                    }
+                    d->isModified = false;
+
+                    persistRecoveryState();
+                    statusBar()->showMessage(
+                        tr("Loaded: %1").arg(QFileInfo(actualChartPath).fileName()), 3000);
+                    if (completion)
+                        completion(true, QString());
+                });
+        });
 }
 QString MainWindow::selectChartFromList(const QList<QPair<QString, QString>> &charts, const QString &title)
 {

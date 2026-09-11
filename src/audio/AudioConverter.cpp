@@ -3,10 +3,11 @@
 #include <QAudioBuffer>
 #include <QAudioDecoder>
 #include <QAudioFormat>
-#include <QCoreApplication>
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QMetaObject>
+#include <QPointer>
 #include <QProgressDialog>
 #include <QRandomGenerator>
 #include <QThread>
@@ -16,9 +17,10 @@
 #include <vorbis/codec.h>
 #include <vorbis/vorbisenc.h>
 
-#include <atomic>
 #include <cmath>
 #include <cstring>
+#include <atomic>
+#include <memory>
 #include <vector>
 
 namespace
@@ -453,53 +455,93 @@ bool convertToOgg(const QString &inputPath,
     return true;
 }
 
-QString convertToOggWithProgress(QWidget *parent,
+void convertToOggWithProgressAsync(QObject *context,
+                                   const QString &inputPath,
+                                   const QString &outputPath,
+                                   AsyncCompletion completion)
+{
+    if (!context || !completion)
+        return;
+
+    struct ConversionState
+    {
+        std::atomic<bool> cancelled{false};
+        std::atomic<float> progress{0.0f};
+        bool success = false;
+        QString error;
+    };
+
+    auto *parentWidget = qobject_cast<QWidget *>(context);
+    auto *dialog = new QProgressDialog(QObject::tr("Converting audio to OGG, please wait..."),
+                                        QObject::tr("Cancel"), 0, 100, parentWidget);
+    dialog->setWindowTitle(QObject::tr("Audio Conversion"));
+    dialog->setWindowModality(Qt::WindowModal);
+    dialog->setMinimumDuration(0);
+    dialog->setValue(0);
+    dialog->show();
+
+    const auto state = std::make_shared<ConversionState>();
+    const QPointer<QProgressDialog> dialogGuard(dialog);
+    const QPointer<QObject> contextGuard(context);
+    QObject::connect(dialog, &QProgressDialog::canceled, context,
+                     [state]() { state->cancelled.store(true); });
+
+    QThread *worker = QThread::create([state, contextGuard, dialogGuard, inputPath, outputPath]()
+                                      {
+        const bool converted = convertToOgg(
+            inputPath,
+            outputPath,
+            &state->error,
+            [state, contextGuard, dialogGuard](float fraction)
+            {
+                state->progress.store(qBound(0.0f, fraction, 1.0f));
+                if (contextGuard)
+                {
+                    QMetaObject::invokeMethod(
+                        contextGuard,
+                        [state, dialogGuard]()
+                        {
+                            if (dialogGuard)
+                                dialogGuard->setValue(qRound(state->progress.load() * 100.0f));
+                        },
+                        Qt::QueuedConnection);
+                }
+                return !state->cancelled.load();
+            });
+        state->success = converted && !state->cancelled.load();
+        if (!state->success && state->cancelled.load())
+        {
+            QFile::remove(outputPath);
+            if (state->error.isEmpty())
+                state->error = QObject::tr("Conversion cancelled.");
+        }
+    });
+
+    QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+    QObject::connect(worker,
+                     &QThread::finished,
+                     context,
+                     [state, dialogGuard, completion = std::move(completion)]() mutable
+                     {
+        if (dialogGuard)
+        {
+            dialogGuard->setValue(100);
+            dialogGuard->close();
+            dialogGuard->deleteLater();
+        }
+        completion(state->success, state->error);
+    });
+    worker->start();
+}
+
+QString convertToOggWithProgress(QWidget *,
                                  const QString &inputPath,
                                  const QString &outputPath,
                                  QString *outError)
 {
-    QProgressDialog dialog(QObject::tr("Converting audio to OGG, please wait..."),
-                           QObject::tr("Cancel"), 0, 100, parent);
-    dialog.setWindowTitle(QObject::tr("Audio Conversion"));
-    dialog.setWindowModality(Qt::WindowModal);
-    dialog.setMinimumDuration(0);
-    dialog.setValue(0);
-    dialog.show();
-
-    std::atomic<bool> done{false};
-    std::atomic<bool> cancelled{false};
-    std::atomic<float> progressValue{0.0f};
-    QString threadError;
-
-    QThread *worker = QThread::create([&]()
-                                      {
-        convertToOgg(inputPath, outputPath, &threadError,
-                     [&progressValue, &cancelled](float fraction)
-                     {
-                         progressValue.store(fraction);
-                         return !cancelled.load();
-                     });
-        done.store(true); });
-    worker->start();
-
-    while (!done.load())
-    {
-        if (dialog.wasCanceled())
-            cancelled.store(true);
-        dialog.setValue(qRound(progressValue.load() * 100.0f));
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-        QThread::msleep(20);
-    }
-    worker->wait();
-    delete worker;
-
-    dialog.setValue(100);
-    dialog.close();
-
-    if (cancelled.load())
-        QFile::remove(outputPath);
     if (outError)
-        *outError = threadError;
-    return (threadError.isEmpty() && !cancelled.load()) ? outputPath : QString();
+        outError->clear();
+    const bool success = convertToOgg(inputPath, outputPath, outError);
+    return success ? outputPath : QString();
 }
 } // namespace AudioConverter

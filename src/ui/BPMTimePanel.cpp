@@ -16,9 +16,9 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMessageBox>
+#include <QPointer>
 #include <QStringList>
 #include <QTextStream>
-#include <QApplication>
 #include <QSizePolicy>
 #include <QtMath>
 
@@ -195,78 +195,110 @@ void BPMTimePanel::onMeasureBpmClicked()
     BpmMeasureDialog dialog(this);
     dialog.setCurrentTimeText(timeStr);
     dialog.setStatusText(tr("Ready to measure."));
-    connect(&dialog, &BpmMeasureDialog::measureRequested, this, [this, &dialog](int durationSeconds, int mode)
+    connect(&dialog,
+            &BpmMeasureDialog::measureRequested,
+            this,
+            [this, &dialog, chartMs, offsetMs](int durationSeconds, int mode)
             {
         dialog.setMeasuring(true);
         dialog.setStatusText(tr("Measuring audio..."));
-        QApplication::processEvents();
 
-        QString err;
-        BpmDetector::DetectionResult result;
-        if (!measureBpmFromAudio(durationSeconds, mode, result, &err))
+        const QPointer<BpmMeasureDialog> dialogGuard(&dialog);
+        const bool fromStart = mode == static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart);
+        const QString audioPath = currentAudioFilePath();
+        if (durationSeconds <= 0 || audioPath.isEmpty())
         {
             dialog.setMeasuring(false);
             dialog.setStatusText(tr("Measurement failed."));
-            QMessageBox::warning(this, tr("Measurement Failed"),
-                err.isEmpty() ? tr("Failed to measure BPM from audio.") : err);
+            QMessageBox::warning(this,
+                                 tr("Measurement Failed"),
+                                 durationSeconds <= 0
+                                     ? tr("Duration must be greater than 0.")
+                                     : tr("No audio file is linked to this chart."));
             return;
         }
-        dialog.setMeasuredBpm(result.bpm);
 
-        QVector<double> validBpms;
-        for (const auto &seg : result.segments)
-        {
-            if (seg.valid)
-                validBpms.append(seg.bpm);
-        }
-        double uncertainty = 0.0;
-        if (validBpms.size() > 1)
-        {
-            double mean = 0.0;
-            for (double v : validBpms)
-                mean += v;
-            mean /= static_cast<double>(validBpms.size());
-            double var = 0.0;
-            for (double v : validBpms)
+        const double audioStartMs = qMax(0.0,
+                                         (fromStart ? 0.0 : chartMs)
+                                             + static_cast<double>(offsetMs));
+        BpmDetector::detectFromFileDetailedAsync(
+            this,
+            audioPath,
+            audioStartMs,
+            durationSeconds * 1000.0,
+            [this, dialogGuard, fromStart](bool success,
+                                           BpmDetector::DetectionResult result,
+                                           const QString &error)
             {
-                const double d = v - mean;
-                var += d * d;
-            }
-            var /= static_cast<double>(validBpms.size());
-            uncertainty = qSqrt(var);
-        }
+                if (!dialogGuard)
+                    return;
+                BpmMeasureDialog &dialog = *dialogGuard;
+                if (!success || result.bpm <= 0.0)
+                {
+                    dialog.setMeasuring(false);
+                    dialog.setStatusText(tr("Measurement failed."));
+                    QMessageBox::warning(
+                        this,
+                        tr("Measurement Failed"),
+                        error.isEmpty() ? tr("Failed to measure BPM from audio.") : error);
+                    return;
+                }
 
-        QString details;
-        QTextStream s(&details);
-        s << tr("Mode: ") << (mode == static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart)
-                                  ? tr("From Song Start") : tr("From Current Time")) << "\n";
-        s << tr("Estimated BPM: ") << QString::number(result.bpm, 'f', 3) << "\n";
-        s << tr("Uncertainty (segment stddev): ") << QString::number(uncertainty, 'f', 4) << "\n";
-        if (mode == static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart))
-            s << tr("Estimated offset: ") << QString::number(result.estimatedOffsetMs, 'f', 1) << tr(" ms") << "\n";
-        s << tr("Segments:") << "\n";
-        for (int i = 0; i < result.segments.size(); ++i)
-        {
-            const auto &seg = result.segments[i];
-            s << QString("#%1 ").arg(i + 1)
-              << "[" << QString::number(seg.startMs, 'f', 0) << ", "
-              << QString::number(seg.startMs + seg.durationMs, 'f', 0) << "]ms ";
-            if (seg.valid)
-                s << tr("bpm=") << QString::number(seg.bpm, 'f', 3) << tr(", score=") << QString::number(seg.score, 'f', 3);
-            else
-                s << tr("invalid");
-            s << "\n";
-        }
-        dialog.setResultDetailsText(details);
-        dialog.setStatusText(tr("Measurement complete."));
-        dialog.setMeasuring(false);
+                dialog.setMeasuredBpm(result.bpm);
 
-        // If FromStart mode, fill the offset into the dialog's offset spinbox
-        if (mode == static_cast<int>(BpmMeasureDialog::MeasureMode::FromStart))
-        {
-            const int measuredOffset = qRound(result.estimatedOffsetMs);
-            dialog.setMeasuredOffset(measuredOffset);
-        } });
+                QVector<double> validBpms;
+                for (const auto &seg : result.segments)
+                {
+                    if (seg.valid)
+                        validBpms.append(seg.bpm);
+                }
+                double uncertainty = 0.0;
+                if (validBpms.size() > 1)
+                {
+                    double mean = 0.0;
+                    for (double v : validBpms)
+                        mean += v;
+                    mean /= static_cast<double>(validBpms.size());
+                    double var = 0.0;
+                    for (double v : validBpms)
+                    {
+                        const double d = v - mean;
+                        var += d * d;
+                    }
+                    var /= static_cast<double>(validBpms.size());
+                    uncertainty = qSqrt(var);
+                }
+
+                QString details;
+                QTextStream s(&details);
+                s << tr("Mode: ") << (fromStart ? tr("From Song Start") : tr("From Current Time")) << "\n";
+                s << tr("Estimated BPM: ") << QString::number(result.bpm, 'f', 3) << "\n";
+                s << tr("Uncertainty (segment stddev): ") << QString::number(uncertainty, 'f', 4) << "\n";
+                if (fromStart)
+                    s << tr("Estimated offset: ") << QString::number(result.estimatedOffsetMs, 'f', 1)
+                      << tr(" ms") << "\n";
+                s << tr("Segments:") << "\n";
+                for (int i = 0; i < result.segments.size(); ++i)
+                {
+                    const auto &seg = result.segments[i];
+                    s << QString("#%1 ").arg(i + 1)
+                      << "[" << QString::number(seg.startMs, 'f', 0) << ", "
+                      << QString::number(seg.startMs + seg.durationMs, 'f', 0) << "]ms ";
+                    if (seg.valid)
+                        s << tr("bpm=") << QString::number(seg.bpm, 'f', 3)
+                          << tr(", score=") << QString::number(seg.score, 'f', 3);
+                    else
+                        s << tr("invalid");
+                    s << "\n";
+                }
+                dialog.setResultDetailsText(details);
+                dialog.setStatusText(tr("Measurement complete."));
+                dialog.setMeasuring(false);
+
+                if (fromStart)
+                    dialog.setMeasuredOffset(qRound(result.estimatedOffsetMs));
+            });
+            });
 
     if (dialog.exec() == QDialog::Accepted)
     {
