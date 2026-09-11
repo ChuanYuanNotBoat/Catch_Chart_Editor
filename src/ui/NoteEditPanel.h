@@ -71,6 +71,7 @@ public:
                                   QWidget *pluginTools,
                                   bool showPluginTools);
     void setEmbeddedPluginToolsVisible(bool visible);
+    bool embeddedPluginToolsVisible() const;
 
 
     LongRangeSelector *longRangeSelector() const { return m_longRangeSelector; }

@@ -45,6 +45,7 @@
 #include <FloatingDockContainer.h>
 #include <QMenuBar>
 #include <QToolBar>
+#include <QToolButton>
 #include <QStatusBar>
 #include <QStyle>
 #include <QFileDialog>
@@ -1917,6 +1918,33 @@ void MainWindow::createViewMenu()
         }
         viewMenu->addAction(d->floatingToolWindowsAction);
         d->panelsMenu = viewMenu->addMenu(tr("Panels"));
+        d->panelsMenu->setObjectName(QStringLiteral("menu.panels"));
+        QAction *showWorkspaceAction = d->panelsMenu->addAction(
+            tr("Show Main Editor"), this, [this]()
+            {
+                ensureWorkspaceDockVisible();
+                showDockPanel(d->workspaceDock);
+            });
+        showWorkspaceAction->setObjectName(QStringLiteral("action.show_main_editor"));
+        QAction *reopenPanelsAction = d->panelsMenu->addAction(
+            tr("Reopen All Closed Panels"), this, [this]()
+            {
+                ensureWorkspaceDockVisible();
+                const QList<ads::CDockWidget *> docks = {
+                    d->leftPanelDock, d->previewDock, d->notePanelDock,
+                    d->timingToolsDock, d->playbackSpeedToolsDock,
+                    d->rangeToolsDock, d->mirrorToolsDock,
+                    d->curveToolsDock, d->pluginToolsDock,
+                    d->bpmPanelDock, d->metaPanelDock, d->statsToolsDock};
+                for (ads::CDockWidget *dock : docks)
+                {
+                    if (dock && dock->isClosed())
+                        dock->toggleView(true);
+                }
+                statusBar()->showMessage(tr("Closed panels reopened."), 2000);
+            });
+        reopenPanelsAction->setObjectName(QStringLiteral("action.reopen_closed_panels"));
+        d->panelsMenu->addSeparator();
         const QList<ads::CDockWidget *> docks = {
             d->leftPanelDock, d->previewDock, d->notePanelDock,
             d->timingToolsDock, d->playbackSpeedToolsDock,
@@ -1929,7 +1957,24 @@ void MainWindow::createViewMenu()
                 d->panelsMenu->addAction(dock->toggleViewAction());
         }
         d->panelsMenu->addSeparator();
-        d->panelsMenu->addAction(tr("Reset Panel Layout"), this, &MainWindow::resetDockLayout);
+        QAction *resetPanelsAction = d->panelsMenu->addAction(
+            tr("Reset Panel Layout"), this, &MainWindow::resetDockLayout);
+        resetPanelsAction->setObjectName(QStringLiteral("action.reset_panel_layout"));
+
+        if (!d->panelsToolbarAction)
+        {
+            d->panelsToolbarAction = new QAction(this);
+            d->panelsToolbarAction->setObjectName(QStringLiteral("action.panels"));
+        }
+        d->panelsToolbarAction->setText(tr("Panels"));
+        d->panelsToolbarAction->setToolTip(
+            tr("Open or restore panels and the main editor"));
+        d->panelsToolbarAction->setMenu(d->panelsMenu);
+        if (d->mainToolBar
+            && !d->mainToolBar->actions().contains(d->panelsToolbarAction))
+        {
+            d->mainToolBar->addAction(d->panelsToolbarAction);
+        }
         updateToolDockActionVisibility();
         viewMenu->addSeparator();
     }
@@ -2713,6 +2758,7 @@ void MainWindow::createCentralArea()
 
     d->workspaceDock = new ads::CDockWidget(d->dockManager, tr("Chart Workspace"));
     d->workspaceDock->setObjectName(QStringLiteral("dock.workspace"));
+    d->workspaceDock->setFeature(ads::CDockWidget::DockWidgetClosable, false);
     d->workspaceDock->setWidget(d->workspaceContainer, ads::CDockWidget::ForceNoScrollArea);
     ads::CDockAreaWidget *workspaceArea = d->dockManager->setCentralWidget(d->workspaceDock);
 
@@ -2846,6 +2892,15 @@ void MainWindow::createCentralArea()
     ensureStatsDockAssigned();
 
     d->mainToolBar = addToolBar(tr("Tools"));
+    if (d->panelsToolbarAction)
+    {
+        d->mainToolBar->addAction(d->panelsToolbarAction);
+        if (auto *panelsButton = qobject_cast<QToolButton *>(
+                d->mainToolBar->widgetForAction(d->panelsToolbarAction)))
+        {
+            panelsButton->setPopupMode(QToolButton::InstantPopup);
+        }
+    }
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
                                                    { showEditorPanel(d->notePanel); });
     d->bpmPanelAction = d->mainToolBar->addAction(tr("BPM"), [this]()
@@ -4549,11 +4604,18 @@ void MainWindow::showEditorPanel(QWidget *panel)
     if (!panel)
         return;
 
-    if (panel == d->notePanel || panel == d->bpmPanel || panel == d->metaPanel)
-        d->currentRightPanel = panel;
-
     if (!d->floatingToolWindowsEnabled)
     {
+        if (panel == d->notePanel || panel == d->bpmPanel || panel == d->metaPanel)
+        {
+            d->currentRightPanel = panel;
+            QString panelId = QStringLiteral("note");
+            if (panel == d->bpmPanel)
+                panelId = QStringLiteral("bpm");
+            else if (panel == d->metaPanel)
+                panelId = QStringLiteral("meta");
+            Settings::instance().setClassicRightPanelId(panelId);
+        }
         if (d->notePanel)
             d->notePanel->setVisible(panel == d->notePanel);
         if (d->bpmPanel)
@@ -4593,7 +4655,7 @@ void MainWindow::showDockPanel(ads::CDockWidget *dock)
     {
         if (dock == d->pluginToolsDock)
         {
-            d->pluginToolsWereVisible = true;
+            Settings::instance().setClassicPluginToolsVisible(true);
             if (d->notePanel)
                 d->notePanel->setEmbeddedPluginToolsVisible(true);
         }
@@ -4713,22 +4775,27 @@ void MainWindow::saveDockLayout()
     Settings::instance().setMainWindowGeometry(saveGeometry());
     if (d->dockManager && d->floatingToolWindowsEnabled)
         Settings::instance().setDockLayoutState(d->dockManager->saveState(kDockLayoutVersion));
+    else if (!d->floatingToolWindowsEnabled)
+        saveClassicLayoutState();
 }
 
-void MainWindow::restoreDockLayout()
+bool MainWindow::restoreDockLayout()
 {
     if (!d->dockManager)
-        return;
+        return false;
 
     // Defensive guard: the legacy (non-floating) layout does not use the ADS
     // state at all, so restoring it here would only create transient floating
     // containers that get torn down again right away.
     if (d->floatingToolWindowsInitialized && !d->floatingToolWindowsEnabled)
-        return;
+        return false;
 
     const QByteArray state = Settings::instance().dockLayoutState();
     if (state.isEmpty())
-        return;
+    {
+        ensureWorkspaceDockVisible();
+        return false;
+    }
 
     if (!d->dockManager->restoreState(state, kDockLayoutVersion))
     {
@@ -4736,14 +4803,39 @@ void MainWindow::restoreDockLayout()
         Settings::instance().clearDockLayoutState();
         if (!d->defaultDockLayoutState.isEmpty())
             d->dockManager->restoreState(d->defaultDockLayoutState, kDockLayoutVersion);
+        ensureWorkspaceDockVisible();
+        return false;
     }
+    ensureWorkspaceDockVisible();
+    return true;
 }
 
 void MainWindow::resetDockLayout()
 {
-    if (!d->dockManager || d->defaultDockLayoutState.isEmpty())
+    if (!d->dockManager)
         return;
 
+    if (!d->floatingToolWindowsEnabled)
+    {
+        Settings::instance().clearClassicLayoutState();
+        d->currentRightPanel = d->notePanel;
+        if (d->notePanel)
+        {
+            d->notePanel->setVisible(true);
+            d->notePanel->setEmbeddedPluginToolsVisible(false);
+        }
+        if (d->bpmPanel)
+            d->bpmPanel->setVisible(false);
+        if (d->metaPanel)
+            d->metaPanel->setVisible(false);
+        if (d->legacySplitter)
+            d->legacySplitter->setSizes({150, 200, 700, 300});
+        statusBar()->showMessage(tr("Classic panel layout reset."), 2000);
+        return;
+    }
+
+    if (d->defaultDockLayoutState.isEmpty())
+        return;
     if (!d->dockManager->restoreState(d->defaultDockLayoutState, kDockLayoutVersion))
     {
         statusBar()->showMessage(tr("Failed to reset panel layout."), 3000);
@@ -4751,23 +4843,9 @@ void MainWindow::resetDockLayout()
     }
 
     Settings::instance().clearDockLayoutState();
-    if (!d->floatingToolWindowsEnabled)
-    {
-        for (ads::CDockWidget *dock : {d->timingToolsDock, d->playbackSpeedToolsDock,
-                                       d->rangeToolsDock, d->mirrorToolsDock,
-                                       d->curveToolsDock,
-                                       d->pluginToolsDock})
-        {
-            if (dock)
-                dock->toggleView(false);
-        }
-        d->timingToolsWereVisible = true;
-        d->playbackSpeedToolsWereVisible = true;
-        d->rangeToolsWereVisible = true;
-        d->mirrorToolsWereVisible = true;
-        d->pluginToolsWereVisible = false;
-    }
-    d->notePanelDock->setAsCurrentTab();
+    ensureWorkspaceDockVisible();
+    if (d->notePanelDock)
+        d->notePanelDock->setAsCurrentTab();
     if (d->timingToolsDock)
         d->timingToolsDock->setAsCurrentTab();
     statusBar()->showMessage(tr("Panel layout reset."), 2000);

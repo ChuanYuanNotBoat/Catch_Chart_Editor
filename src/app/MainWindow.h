@@ -140,8 +140,11 @@ private:
     void updateCompactToolDockHandle(ads::CDockWidget *dock);
     void ensurePlaybackSpeedDockAssigned();
     void ensureStatsDockAssigned();
+    void ensureWorkspaceDockVisible();
+    void saveClassicLayoutState();
+    void restoreClassicLayoutState();
     void saveDockLayout();
-    void restoreDockLayout();
+    bool restoreDockLayout();
     void resetDockLayout();
     void updateDockTitles();
     void refreshChartStatistics();

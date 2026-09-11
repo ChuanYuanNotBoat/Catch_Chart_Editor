@@ -82,6 +82,41 @@ int main(int argc, char **argv)
 
     bool ok = true;
 
+    QTemporaryDir settingsDirectory;
+    ok &= require(settingsDirectory.isValid(),
+                  "layout settings test directory must be available");
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       settingsDirectory.path());
+    Settings &layoutSettings = Settings::instance();
+    layoutSettings.clearDockLayoutState();
+    layoutSettings.clearClassicLayoutState();
+    const QByteArray floatingLayout("floating-layout-state");
+    const QByteArray classicLayout("classic-layout-state");
+    layoutSettings.setDockLayoutState(floatingLayout);
+    layoutSettings.setClassicLayoutState(classicLayout);
+    layoutSettings.setClassicRightPanelId(QStringLiteral("meta"));
+    layoutSettings.setClassicPluginToolsVisible(true);
+    ok &= require(layoutSettings.dockLayoutState() == floatingLayout
+                      && layoutSettings.classicLayoutState() == classicLayout,
+                  "classic and multi-window layouts must persist independently");
+    ok &= require(layoutSettings.classicRightPanelId() == QLatin1String("meta")
+                      && layoutSettings.classicPluginToolsVisible(),
+                  "classic layout must persist its active sidebar and plugin visibility");
+    layoutSettings.clearClassicLayoutState();
+    ok &= require(layoutSettings.dockLayoutState() == floatingLayout
+                      && layoutSettings.classicLayoutState().isEmpty()
+                      && layoutSettings.classicRightPanelId() == QLatin1String("note")
+                      && !layoutSettings.classicPluginToolsVisible(),
+                  "resetting classic layout must not erase the multi-window layout");
+    layoutSettings.setClassicLayoutState(classicLayout);
+    layoutSettings.setClassicRightPanelId(QStringLiteral("bpm"));
+    layoutSettings.clearDockLayoutState();
+    ok &= require(layoutSettings.dockLayoutState().isEmpty()
+                      && layoutSettings.classicLayoutState() == classicLayout
+                      && layoutSettings.classicRightPanelId() == QLatin1String("bpm"),
+                  "resetting multi-window layout must not erase the classic layout");
+
     const auto darkTheme = NativeWindowTheme::themeColorsFor(QColor(24, 26, 30));
     ok &= require(contrastRatio(darkTheme.text, darkTheme.window) >= 4.5,
                   "dark theme text must maintain at least WCAG AA contrast against its background");
@@ -136,6 +171,9 @@ int main(int argc, char **argv)
     auto *manager = new ads::CDockManager(&window);
     auto *workspaceDock = new ads::CDockWidget(manager, QStringLiteral("Workspace"));
     workspaceDock->setObjectName(QStringLiteral("test.workspace"));
+    workspaceDock->setFeature(ads::CDockWidget::DockWidgetClosable, false);
+    ok &= require(!workspaceDock->features().testFlag(ads::CDockWidget::DockWidgetClosable),
+                  "the primary chart workspace must not expose a close action");
     workspaceDock->setWidget(new QWidget, ads::CDockWidget::ForceNoScrollArea);
     ads::CDockAreaWidget *workspaceArea = manager->setCentralWidget(workspaceDock);
 

@@ -26,12 +26,91 @@
 namespace
 {
 constexpr int kDockLayoutVersion = 3;
+
+QList<int> classicDefaultSplitterSizes()
+{
+    return {150, 200, 700, 300};
+}
+}
+
+void MainWindow::ensureWorkspaceDockVisible()
+{
+    if (!d->workspaceDock)
+        return;
+
+    // The chart workspace is the editor's fixed primary interaction surface.
+    // Closing it must never leave the window in a state where chart editing can
+    // no longer be recovered.
+    d->workspaceDock->setFeature(ads::CDockWidget::DockWidgetClosable, false);
+    if ((!d->floatingToolWindowsInitialized || d->floatingToolWindowsEnabled)
+        && d->workspaceDock->isClosed())
+    {
+        d->workspaceDock->toggleView(true);
+    }
+}
+
+void MainWindow::saveClassicLayoutState()
+{
+    Settings &settings = Settings::instance();
+    if (d->legacySplitter)
+        settings.setClassicLayoutState(d->legacySplitter->saveState());
+
+    QString panelId = QStringLiteral("note");
+    if (d->currentRightPanel == d->bpmPanel)
+        panelId = QStringLiteral("bpm");
+    else if (d->currentRightPanel == d->metaPanel)
+        panelId = QStringLiteral("meta");
+    settings.setClassicRightPanelId(panelId);
+
+    if (d->notePanel)
+        settings.setClassicPluginToolsVisible(d->notePanel->embeddedPluginToolsVisible());
+}
+
+void MainWindow::restoreClassicLayoutState()
+{
+    Settings &settings = Settings::instance();
+    const QString panelId = settings.classicRightPanelId();
+    QWidget *panel = d->notePanel;
+    if (panelId == QLatin1String("bpm") && d->bpmPanel)
+        panel = d->bpmPanel;
+    else if (panelId == QLatin1String("meta") && d->metaPanel)
+        panel = d->metaPanel;
+    d->currentRightPanel = panel;
+
+    if (d->notePanel)
+        d->notePanel->setVisible(panel == d->notePanel);
+    if (d->bpmPanel)
+        d->bpmPanel->setVisible(panel == d->bpmPanel);
+    if (d->metaPanel)
+        d->metaPanel->setVisible(panel == d->metaPanel);
+    if (d->notePanel)
+        d->notePanel->setEmbeddedPluginToolsVisible(settings.classicPluginToolsVisible());
+
+    if (!d->legacySplitter)
+        return;
+    const QByteArray splitterState = settings.classicLayoutState();
+    if (splitterState.isEmpty() || !d->legacySplitter->restoreState(splitterState))
+        d->legacySplitter->setSizes(classicDefaultSplitterSizes());
 }
 
 void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
 {
     const bool wasInitialized = d->floatingToolWindowsInitialized;
     const bool wasEnabled = d->floatingToolWindowsEnabled;
+
+    // Save the mode being left before any widgets are detached. Each layout is
+    // persisted independently; switching modes must not project one layout's
+    // active tabs, visibility, or splitter sizes onto the other.
+    if (wasInitialized && wasEnabled && !enabled && d->dockManager)
+    {
+        Settings::instance().setDockLayoutState(
+            d->dockManager->saveState(kDockLayoutVersion));
+    }
+    else if (wasInitialized && !wasEnabled && enabled)
+    {
+        saveClassicLayoutState();
+    }
+
     d->floatingToolWindowsInitialized = true;
     d->floatingToolWindowsEnabled = enabled;
     Settings::instance().setFloatingToolWindowsEnabled(enabled);
@@ -45,6 +124,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
     // The initial dockable mode already has every panel in ADS.
     if (enabled && !wasInitialized)
     {
+        ensureWorkspaceDockVisible();
         configureNotePanelScrollArea();
         updateToolDockActionVisibility();
         updateDockTitles();
@@ -62,15 +142,6 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
     setUpdatesEnabled(false);
     if (!enabled)
     {
-        // Preserve the user's real ADS layout before temporarily emptying the
-        // tool docks. Layout saves are paused in legacy mode so this snapshot
-        // remains available after a restart.
-        // wasInitialized == false means this is the startup conversion where the
-        // dock manager still holds the default layout; saving here would clobber
-        // the user's persisted floating layout snapshot with the default one.
-        if (d->dockManager && wasInitialized)
-            Settings::instance().setDockLayoutState(
-                d->dockManager->saveState(kDockLayoutVersion));
         // Hide every floating container in one step first. Without this they
         // would close one by one (each with a visible flash) as their docks
         // are emptied below. showDockWidget() shows them again when floating
@@ -98,15 +169,6 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         d->notePanelWasVisible = isOpen(d->notePanelDock, true);
         d->bpmPanelWasVisible = isOpen(d->bpmPanelDock, false);
         d->metaPanelWasVisible = isOpen(d->metaPanelDock, false);
-
-        // Prefer the ADS panel that is actually visible when converting a tab
-        // group into the old single-panel right sidebar.
-        if (d->notePanelDock && d->notePanelDock->isVisible())
-            d->currentRightPanel = d->notePanel;
-        if (d->bpmPanelDock && d->bpmPanelDock->isVisible())
-            d->currentRightPanel = d->bpmPanel;
-        if (d->metaPanelDock && d->metaPanelDock->isVisible())
-            d->currentRightPanel = d->metaPanel;
 
         const auto takeDockContent = [](ads::CDockWidget *dock) -> QWidget *
         {
@@ -143,7 +205,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
             d->notePanel->attachLegacyToolSections(
                 timingTools, playbackSpeedTools, rangeTools, mirrorTools,
                 curveTools, pluginTools,
-                d->pluginToolsWereVisible);
+                Settings::instance().classicPluginToolsVisible());
             d->notePanel->setNoteChainControlsVisible(curveVisible);
         }
         if (d->leftPanel && statsTools)
@@ -182,17 +244,12 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         if (metaPanel)
             d->legacyRightPanelLayout->addWidget(metaPanel);
 
-        QWidget *currentPanel = d->currentRightPanel ? d->currentRightPanel : d->notePanel;
-        d->notePanel->setVisible(currentPanel == d->notePanel);
-        d->bpmPanel->setVisible(currentPanel == d->bpmPanel);
-        d->metaPanel->setVisible(currentPanel == d->metaPanel);
-
         QWidget *oldCentral = takeCentralWidget();
         if (oldCentral)
             oldCentral->hide();
         setCentralWidget(d->legacySplitter);
-        d->legacySplitter->setSizes({150, 200, 700, 300});
         d->legacySplitter->show();
+        restoreClassicLayoutState();
     }
     else
     {
@@ -257,6 +314,14 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
 
         if (d->notePanel)
             d->notePanel->setNoteChainControlsVisible(curveVisible);
+
+        // restoreDockLayout() reads only the multi-window snapshot. If this is
+        // the first switch and no snapshot exists, the captured visibility
+        // flags above remain the fallback layout.
+        restoreDockLayout();
+        ensurePlaybackSpeedDockAssigned();
+        ensureStatsDockAssigned();
+        ensureWorkspaceDockVisible();
     }
 
     updateDockTitles();
@@ -285,7 +350,22 @@ void MainWindow::updateToolDockActionVisibility()
             dock->toggleViewAction()->setVisible(d->floatingToolWindowsEnabled);
     }
     if (d->panelsMenu)
-        d->panelsMenu->menuAction()->setVisible(d->floatingToolWindowsEnabled);
+    {
+        // Keep View -> Panels available in classic mode so its own layout can
+        // be reset. Recovery/toggle actions remain multi-window-only because
+        // their ADS widgets are temporarily empty in the classic workspace.
+        d->panelsMenu->menuAction()->setVisible(true);
+        for (QAction *action : d->panelsMenu->actions())
+        {
+            if (action && (action->objectName() == QLatin1String("action.show_main_editor")
+                           || action->objectName() == QLatin1String("action.reopen_closed_panels")))
+            {
+                action->setVisible(d->floatingToolWindowsEnabled);
+            }
+        }
+    }
+    if (d->panelsToolbarAction)
+        d->panelsToolbarAction->setVisible(d->floatingToolWindowsEnabled);
 }
 
 void MainWindow::ensurePlaybackSpeedDockAssigned()

@@ -453,6 +453,48 @@ void Settings::clearDockLayoutState()
     m_settings.remove("ui/dockLayoutState");
 }
 
+QByteArray Settings::classicLayoutState() const
+{
+    return m_settings.value("ui/classicLayout/splitterState").toByteArray();
+}
+
+void Settings::setClassicLayoutState(const QByteArray &state)
+{
+    m_settings.setValue("ui/classicLayout/splitterState", state);
+}
+
+void Settings::clearClassicLayoutState()
+{
+    m_settings.remove("ui/classicLayout");
+}
+
+QString Settings::classicRightPanelId() const
+{
+    const QString panelId = m_settings.value("ui/classicLayout/rightPanel", "note").toString();
+    if (panelId == QLatin1String("bpm") || panelId == QLatin1String("meta"))
+        return panelId;
+    return QStringLiteral("note");
+}
+
+void Settings::setClassicRightPanelId(const QString &panelId)
+{
+    const QString normalized = (panelId == QLatin1String("bpm")
+                                || panelId == QLatin1String("meta"))
+                                   ? panelId
+                                   : QStringLiteral("note");
+    m_settings.setValue("ui/classicLayout/rightPanel", normalized);
+}
+
+bool Settings::classicPluginToolsVisible() const
+{
+    return m_settings.value("ui/classicLayout/pluginToolsVisible", false).toBool();
+}
+
+void Settings::setClassicPluginToolsVisible(bool visible)
+{
+    m_settings.setValue("ui/classicLayout/pluginToolsVisible", visible);
+}
+
 bool Settings::floatingToolWindowsEnabled() const
 {
     return m_settings.value("ui/floatingToolWindowsEnabled", true).toBool();

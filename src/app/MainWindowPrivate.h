@@ -113,6 +113,7 @@ public:
     QAction *bpmPanelAction = nullptr;
     QAction *metaPanelAction = nullptr;
     QAction *curvePanelAction = nullptr;
+    QAction *panelsToolbarAction = nullptr;
     QAction *floatingToolWindowsAction = nullptr;
     QAction *checkUpdatesAction = nullptr;
     QAction *helpDocAction = nullptr;

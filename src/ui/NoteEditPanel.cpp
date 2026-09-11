@@ -337,6 +337,11 @@ void NoteEditPanel::setEmbeddedPluginToolsVisible(bool visible)
         m_embeddedPluginTools->setVisible(visible);
 }
 
+bool NoteEditPanel::embeddedPluginToolsVisible() const
+{
+    return m_embeddedPluginTools && !m_embeddedPluginTools->isHidden();
+}
+
 
 void NoteEditPanel::setMode(int mode)
 {
