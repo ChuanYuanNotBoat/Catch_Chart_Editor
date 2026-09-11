@@ -1221,19 +1221,46 @@ int ChartCanvas::hitTestNote(const QPointF &pos) const
     if (rainHit >= 0)
         return rainHit;
 
-    for (int i = 0; i < notes.size(); ++i)
+    const double verticalPadding = m_noteRenderer->getNoteSize() * 0.6;
+    const double beatAtTop = yToBeat(pos.y() - verticalPadding);
+    const double beatAtBottom = yToBeat(pos.y() + verticalPadding);
+    const double minBeat = qMin(beatAtTop, beatAtBottom);
+    const double maxBeat = qMax(beatAtTop, beatAtBottom);
+    const auto considerNormal = [&](int index)
     {
-        const Note &note = notes[i];
-        if (note.type == NoteType::SOUND || note.type == NoteType::RAIN)
-            continue;
+        if (index < 0 || index >= notes.size() || notes[index].type == NoteType::SOUND ||
+            notes[index].type == NoteType::RAIN)
+            return;
+        const Note &note = notes[index];
 
         QPointF notePos = noteToPos(note);
         double dist = QLineF(notePos, pos).length();
         if (dist < minDist)
         {
             minDist = dist;
-            hit = i;
+            hit = index;
         }
+    };
+
+    if (m_noteTypes.size() != notes.size())
+    {
+        for (int index = 0; index < notes.size(); ++index)
+            considerNormal(index);
+    }
+    else if (!m_sortedNormalNoteIndicesByBeat.isEmpty())
+    {
+        const auto normalBegin = std::lower_bound(
+            m_sortedNormalNoteIndicesByBeat.cbegin(),
+            m_sortedNormalNoteIndicesByBeat.cend(),
+            minBeat,
+            [this](int index, double beat) { return m_noteBeatPositions[index] < beat; });
+        const auto normalEnd = std::upper_bound(
+            m_sortedNormalNoteIndicesByBeat.cbegin(),
+            m_sortedNormalNoteIndicesByBeat.cend(),
+            maxBeat,
+            [this](double beat, int index) { return beat < m_noteBeatPositions[index]; });
+        for (auto iterator = normalBegin; iterator != normalEnd; ++iterator)
+            considerNormal(*iterator);
     }
     return hit;
 }

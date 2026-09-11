@@ -314,6 +314,7 @@ private:
     QVector<double> m_noteXPositions;
     QVector<double> m_noteTimesMs;
     QVector<NoteType> m_noteTypes;
+    QVector<int> m_sortedSelectionNoteIndicesByBeat;
     QVector<int> m_sortedNormalNoteIndicesByBeat;
     QVector<int> m_sortedRainNoteIndicesByBeat;
     RainVisibilityIndex::IntervalIndex m_rainIntervalIndex;

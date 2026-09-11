@@ -1397,9 +1397,36 @@ bool ChartCanvas::handleSelectionRelease()
 
     const QRect dirty = QRectF(m_selectionStart, m_selectionEnd).normalized().toAlignedRect().adjusted(-2, -2, 2, 2);
     QRectF rect = QRectF(m_selectionStart, m_selectionEnd).normalized();
-    m_selectionController->selectInRect(rect, chart()->notes(),
-                                        [this](const Note &note)
-                                        { return noteToPos(note); });
+    const QVector<Note> &notes = chart()->notes();
+    if (m_timesDirty || m_noteDataDirty)
+        rebuildNoteTimesCache();
+
+    if (!m_sortedSelectionNoteIndicesByBeat.isEmpty())
+    {
+        const double beatAtTop = yToBeat(rect.top());
+        const double beatAtBottom = yToBeat(rect.bottom());
+        const double minBeat = qMin(beatAtTop, beatAtBottom);
+        const double maxBeat = qMax(beatAtTop, beatAtBottom);
+        const auto first = std::lower_bound(
+            m_sortedSelectionNoteIndicesByBeat.cbegin(),
+            m_sortedSelectionNoteIndicesByBeat.cend(),
+            minBeat,
+            [&notes](int index, double beat) { return notes[index].getStartBeat() < beat; });
+        const auto last = std::upper_bound(
+            m_sortedSelectionNoteIndicesByBeat.cbegin(),
+            m_sortedSelectionNoteIndicesByBeat.cend(),
+            maxBeat,
+            [&notes](double beat, int index) { return beat < notes[index].getStartBeat(); });
+        const QVector<int> candidates(first, last);
+        m_selectionController->selectInRect(
+            rect, notes, candidates,
+            [this](const Note &note) { return noteToPos(note); });
+    }
+    else
+    {
+        m_selectionController->selectInRect(
+            rect, notes, [this](const Note &note) { return noteToPos(note); });
+    }
     m_isSelecting = false;
     update(dirty);
     return true;

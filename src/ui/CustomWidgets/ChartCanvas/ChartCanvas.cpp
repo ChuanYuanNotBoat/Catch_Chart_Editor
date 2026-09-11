@@ -303,6 +303,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteXPositions.clear();
         m_noteTimesMs.clear();
         m_noteTypes.clear();
+        m_sortedSelectionNoteIndicesByBeat.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
         m_rainIntervalIndex.clear();
@@ -314,6 +315,22 @@ void ChartCanvas::rebuildNoteTimesCache()
         return;
     }
     const auto &notes = chart()->notes();
+    m_sortedSelectionNoteIndicesByBeat.clear();
+    m_sortedSelectionNoteIndicesByBeat.reserve(notes.size());
+    for (int i = 0; i < notes.size(); ++i)
+        m_sortedSelectionNoteIndicesByBeat.append(i);
+    std::sort(m_sortedSelectionNoteIndicesByBeat.begin(),
+              m_sortedSelectionNoteIndicesByBeat.end(),
+              [&notes](int a, int b)
+              {
+                  const double aBeat = notes[a].getStartBeat();
+                  const double bBeat = notes[b].getStartBeat();
+                  if (aBeat != bBeat)
+                      return aBeat < bBeat;
+                  if (notes[a].x != notes[b].x)
+                      return notes[a].x < notes[b].x;
+                  return a < b;
+              });
     const auto &bpmList = chart()->bpmList();
 
     if (bpmList.isEmpty())

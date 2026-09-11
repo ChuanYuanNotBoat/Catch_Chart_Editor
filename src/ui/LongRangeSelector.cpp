@@ -456,30 +456,9 @@ void LongRangeSelector::performSelection()
     if (!chart)
         return;
 
-    const QVector<Note> &notes = chart->notes();
-    QSet<int> selectedIndices;
-
-    for (int i = 0; i < notes.size(); ++i)
-    {
-        const Note &note = notes[i];
-        double noteStart = note.getStartBeat();
-
-        if (note.isRain)
-        {
-            // 长 note：要求头尾完整包含于区间内
-            double noteEnd = note.getEndBeat();
-            if (noteStart >= startBeat && noteEnd <= endBeat)
-                selectedIndices.insert(i);
-        }
-        else
-        {
-            // 普通 note：击中时间在区间内
-            if (noteStart >= startBeat && noteStart <= endBeat)
-                selectedIndices.insert(i);
-        }
-    }
-
-    m_selectionController->select(selectedIndices);
+    // SelectionController keeps a start-beat index and applies the existing
+    // full-containment rule for Rain notes.
+    m_selectionController->selectInBeatRange(startBeat, endBeat);
 }
 
 // --- 滚轮调整 ---

@@ -377,6 +377,8 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
             event->accept();
             return;
         }
+        if (m_timesDirty || m_noteDataDirty)
+            rebuildNoteTimesCache();
 
         const bool shiftHeld = event->modifiers().testFlag(Qt::ShiftModifier);
         const QSet<int> currentSelection = m_selectionController->selectedIndices();
@@ -392,19 +394,83 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
             int closestIndex = -1;
             double closestDist = std::numeric_limits<double>::max();
             int closestX = kLaneWidth + 1;
-
-            for (int i = 0; i < notes.size(); ++i)
+            const auto noteBeat = [&notes](int index) {
+                return notes[index].getStartBeat();
+            };
+            if (m_sortedSelectionNoteIndicesByBeat.isEmpty())
             {
-                const double noteBeat = MathUtils::beatToFloat(
-                    notes[i].beatNum, notes[i].numerator, notes[i].denominator);
-                const double dist = qAbs(noteBeat - refBeat);
-
-                if (dist < closestDist - 1e-9
-                    || (qAbs(dist - closestDist) < 1e-9 && notes[i].x < closestX))
+                for (int index = 0; index < notes.size(); ++index)
                 {
-                    closestDist = dist;
-                    closestIndex = i;
-                    closestX = notes[i].x;
+                    const double dist = qAbs(noteBeat(index) - refBeat);
+                    if (dist < closestDist - 1e-9 ||
+                        (qAbs(dist - closestDist) < 1e-9 &&
+                         (notes[index].x < closestX ||
+                          (notes[index].x == closestX && index < closestIndex))))
+                    {
+                        closestDist = dist;
+                        closestIndex = index;
+                        closestX = notes[index].x;
+                    }
+                }
+            }
+            else
+            {
+                const auto lower = std::lower_bound(
+                    m_sortedSelectionNoteIndicesByBeat.cbegin(),
+                    m_sortedSelectionNoteIndicesByBeat.cend(),
+                    refBeat,
+                    [&noteBeat](int index, double beat) { return noteBeat(index) < beat; });
+
+                qsizetype left = std::distance(
+                    m_sortedSelectionNoteIndicesByBeat.cbegin(), lower) - 1;
+                qsizetype right = left + 1;
+                while (left >= 0 || right < m_sortedSelectionNoteIndicesByBeat.size())
+                {
+                    const bool haveLeft = left >= 0;
+                    const bool haveRight = right < m_sortedSelectionNoteIndicesByBeat.size();
+                    const double leftDistance = haveLeft
+                                                    ? qAbs(noteBeat(m_sortedSelectionNoteIndicesByBeat[left]) - refBeat)
+                                                    : std::numeric_limits<double>::max();
+                    const double rightDistance = haveRight
+                                                     ? qAbs(noteBeat(m_sortedSelectionNoteIndicesByBeat[right]) - refBeat)
+                                                     : std::numeric_limits<double>::max();
+                    const bool useLeft = leftDistance <= rightDistance;
+                    const double nextDistance = useLeft ? leftDistance : rightDistance;
+                    if (nextDistance > closestDist + 1e-9)
+                        break;
+
+                    qsizetype groupStart = useLeft ? left : right;
+                    qsizetype groupEnd = groupStart + 1;
+                    const double groupBeat = noteBeat(
+                        m_sortedSelectionNoteIndicesByBeat[groupStart]);
+                    while (groupStart > 0 &&
+                           qFuzzyCompare(noteBeat(m_sortedSelectionNoteIndicesByBeat[groupStart - 1]),
+                                         groupBeat))
+                        --groupStart;
+                    while (groupEnd < m_sortedSelectionNoteIndicesByBeat.size() &&
+                           qFuzzyCompare(noteBeat(m_sortedSelectionNoteIndicesByBeat[groupEnd]),
+                                         groupBeat))
+                        ++groupEnd;
+
+                    for (qsizetype position = groupStart; position < groupEnd; ++position)
+                    {
+                        const int index = m_sortedSelectionNoteIndicesByBeat[position];
+                        const double dist = qAbs(noteBeat(index) - refBeat);
+                        if (dist < closestDist - 1e-9 ||
+                            (qAbs(dist - closestDist) < 1e-9 &&
+                             (notes[index].x < closestX ||
+                              (notes[index].x == closestX && index < closestIndex))))
+                        {
+                            closestDist = dist;
+                            closestIndex = index;
+                            closestX = notes[index].x;
+                        }
+                    }
+
+                    if (useLeft)
+                        left = groupStart - 1;
+                    else
+                        right = groupEnd;
                 }
             }
 

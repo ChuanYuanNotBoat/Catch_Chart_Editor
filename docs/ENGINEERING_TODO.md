@@ -71,7 +71,7 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [x] Move full-chart statistics off the UI thread with a snapshot/revision stale-result guard.
 - [x] Move expensive process-plugin work off the UI thread with cancellation, timeout, and bounded-payload guards.
 - [x] Add an interval index for rain rendering, preview lookup, hit testing, and audio scheduling.
-- [ ] Replace remaining whole-note scans in selection and hit testing with maintained indices.
+- [x] Replace remaining whole-note scans in selection and hit testing with maintained indices.
 - [ ] Cache transformed paste/mirror previews and update them only when the gesture offset, timing, or source selection changes.
 - [ ] Replace working-copy/BPM/conversion polling loops and nested `processEvents()` calls with signal-driven async jobs.
 - [ ] Move large resource copies, sidecar sync, and save hashing off the UI thread behind an ordered document transaction.

@@ -341,6 +341,26 @@ namespace
         return selection.selectedIndices() == QSet<int>({2});
     }
 
+    bool testSelectionControllerMaintainsBeatIndex()
+    {
+        Note rain(2, 0, 1, 4, 0, 1, 96);
+        rain.id = QStringLiteral("selection-index-rain");
+        QVector<Note> notes = {
+            makeNormalNote(1, 0, 1, 64, "selection-index-normal-a"),
+            rain,
+            makeNormalNote(5, 0, 1, 192, "selection-index-normal-b"),
+        };
+
+        SelectionController selection;
+        selection.setNotes(&notes, 1);
+        const QVector<int> candidates = selection.noteIndicesInBeatRange(1.5, 3.5);
+        if (candidates != QVector<int>({1}))
+            return false;
+
+        selection.selectInBeatRange(1.0, 4.0);
+        return selection.selectedIndices() == QSet<int>({0, 1});
+    }
+
     bool testSelectionControllerRevisionSkipsDuplicateRefresh()
     {
         QVector<Note> notes = {
@@ -3468,6 +3488,7 @@ int main(int argc, char **argv)
         {"Chart removeNote by id", &testChartRemoveById},
         {"Chart BPM sorting", &testChartBpmSort},
         {"SelectionController cached indices refresh", &testSelectionControllerRefreshesCachedIndices},
+        {"SelectionController maintained beat index", &testSelectionControllerMaintainsBeatIndex},
         {"SelectionController revision skips duplicate refresh", &testSelectionControllerRevisionSkipsDuplicateRefresh},
         {"SelectionController clipboard setter", &testSelectionControllerClipboardSetter},
         {"Recovery working path containment", &testSessionWorkingPathContainment},
