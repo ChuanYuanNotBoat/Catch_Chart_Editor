@@ -92,6 +92,8 @@ private slots:
     void showAboutPage();
     void showVersionPage();
     void showLogsPage();
+    void moveView();
+    void resetViewLocation();
 
 private:
     void setupUi();

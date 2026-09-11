@@ -98,12 +98,9 @@ void MainWindow::restoreClassicLayoutState()
             d->workbenchLayout->primarySidebar()->setPaneVisible(
                 QStringLiteral("preview"), d->previewWasVisible);
         }
-        d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
-            QStringLiteral("note"), panel == d->notePanel);
-        d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
-            QStringLiteral("bpm"), panel == d->bpmPanel);
-        d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
-            QStringLiteral("meta"), panel == d->metaPanel);
+        d->workbenchLayout->setPaneVisible(QStringLiteral("note"), panel == d->notePanel);
+        d->workbenchLayout->setPaneVisible(QStringLiteral("bpm"), panel == d->bpmPanel);
+        d->workbenchLayout->setPaneVisible(QStringLiteral("meta"), panel == d->metaPanel);
     }
     else
     {
@@ -297,19 +294,15 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         if (d->workbenchLayout)
         {
             d->workbenchLayout->takeEditorWidget();
-            for (const auto pane : {
-                     qMakePair(WorkbenchLayout::Part::PrimarySidebar,
-                               QStringLiteral("navigation")),
-                     qMakePair(WorkbenchLayout::Part::PrimarySidebar,
-                               QStringLiteral("preview")),
-                     qMakePair(WorkbenchLayout::Part::AuxiliarySidebar,
-                               QStringLiteral("note")),
-                     qMakePair(WorkbenchLayout::Part::AuxiliarySidebar,
-                               QStringLiteral("bpm")),
-                     qMakePair(WorkbenchLayout::Part::AuxiliarySidebar,
-                               QStringLiteral("meta"))})
+            for (const QString &paneId : {QStringLiteral("navigation"),
+                                          QStringLiteral("preview"),
+                                          QStringLiteral("note"),
+                                          QStringLiteral("bpm"),
+                                          QStringLiteral("meta")})
             {
-                d->workbenchLayout->takePane(pane.first, pane.second);
+                WorkbenchLayout::Part part = WorkbenchLayout::Part::Editor;
+                if (d->workbenchLayout->panePart(paneId, &part))
+                    d->workbenchLayout->takePane(part, paneId);
             }
         }
 
@@ -435,6 +428,11 @@ void MainWindow::updateToolDockActionVisibility()
     }
     if (d->panelsToolbarAction)
         d->panelsToolbarAction->setVisible(d->floatingToolWindowsEnabled);
+    const bool classicWorkbench = !d->floatingToolWindowsEnabled && d->workbenchLayout;
+    if (d->moveViewAction)
+        d->moveViewAction->setVisible(classicWorkbench);
+    if (d->resetViewLocationAction)
+        d->resetViewLocationAction->setVisible(classicWorkbench);
 }
 
 void MainWindow::ensurePlaybackSpeedDockAssigned()
@@ -521,14 +519,23 @@ void MainWindow::configureNotePanelScrollArea()
 {
     if (!d->floatingToolWindowsEnabled)
     {
-        if (!d->legacyRightScrollArea)
+        QScrollArea *scrollArea = d->legacyRightScrollArea;
+        if (d->workbenchLayout)
+        {
+            if (PaneContainer *container = d->workbenchLayout->paneContainerForPane(
+                    QStringLiteral("note")))
+            {
+                scrollArea = container->scrollAreaForPane(QStringLiteral("note"));
+            }
+        }
+        if (!scrollArea)
             return;
-        d->legacyRightScrollArea->setWidgetResizable(true);
-        d->legacyRightScrollArea->setSizeAdjustPolicy(QAbstractScrollArea::AdjustIgnored);
-        d->legacyRightScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        d->legacyRightScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        if (d->legacyRightScrollArea->viewport())
-            d->legacyRightScrollArea->viewport()->setMinimumWidth(0);
+        scrollArea->setWidgetResizable(true);
+        scrollArea->setSizeAdjustPolicy(QAbstractScrollArea::AdjustIgnored);
+        scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        if (scrollArea->viewport())
+            scrollArea->viewport()->setMinimumWidth(0);
         return;
     }
 

@@ -5,6 +5,8 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QHash>
+#include <QSet>
 #include <QSplitter>
 #include <QSizePolicy>
 #include <QVBoxLayout>
@@ -83,6 +85,28 @@ PaneContainer *WorkbenchLayout::paneContainer(Part part) const
     return nullptr;
 }
 
+PaneContainer *WorkbenchLayout::paneContainerForPane(const QString &paneId,
+                                                     Part *part) const
+{
+    const QString normalized = paneId.trimmed();
+    const QList<QPair<Part, PaneContainer *>> containers = {
+        {Part::PrimarySidebar, m_primarySidebar},
+        {Part::AuxiliarySidebar, m_auxiliarySidebar},
+        {Part::BottomPanel, m_bottomPanel}};
+    for (const auto &entry : containers)
+    {
+        if (entry.second && entry.second->containsPane(normalized))
+        {
+            if (part)
+                *part = entry.first;
+            return entry.second;
+        }
+    }
+    if (part)
+        *part = Part::Editor;
+    return nullptr;
+}
+
 bool WorkbenchLayout::setEditorWidget(QWidget *widget)
 {
     if (!widget || widget == m_editorWidget)
@@ -118,13 +142,81 @@ bool WorkbenchLayout::addPane(Part part,
                               bool scrollable)
 {
     PaneContainer *container = paneContainer(part);
-    return container && container->addPane(paneId, content, visible, scrollable);
+    const QString normalized = paneId.trimmed();
+    if (!container || normalized.isEmpty() || paneContainerForPane(normalized))
+        return false;
+    if (!container->addPane(normalized, content, visible, scrollable))
+        return false;
+    m_defaultPaneParts.insert(normalized, part);
+    return true;
 }
 
 QWidget *WorkbenchLayout::takePane(Part part, const QString &paneId)
 {
     PaneContainer *container = paneContainer(part);
     return container ? container->takePane(paneId) : nullptr;
+}
+
+bool WorkbenchLayout::panePart(const QString &paneId, Part *part) const
+{
+    return paneContainerForPane(paneId, part) != nullptr;
+}
+
+bool WorkbenchLayout::movePane(const QString &paneId, Part targetPart, int targetIndex)
+{
+    PaneContainer *target = paneContainer(targetPart);
+    Part sourcePart = Part::Editor;
+    PaneContainer *source = paneContainerForPane(paneId, &sourcePart);
+    if (!source || !target || targetPart == Part::Editor)
+        return false;
+
+    const QString normalized = paneId.trimmed();
+    if (source == target)
+    {
+        if (targetIndex < 0)
+            return true;
+        return target->movePane(normalized, targetIndex);
+    }
+
+    const bool visible = source->paneVisible(normalized);
+    const bool expanded = source->paneExpanded(normalized);
+    const int size = source->paneSize(normalized);
+    const bool scrollable = source->paneScrollable(normalized);
+    QWidget *content = source->takePane(normalized, true);
+    if (!content)
+        return false;
+
+    if (!target->addPane(normalized, content, visible, scrollable, false))
+    {
+        source->addPane(normalized, content, visible, scrollable, false);
+        source->setPaneExpanded(normalized, expanded);
+        if (size > 0)
+            source->setPaneSize(normalized, size);
+        return false;
+    }
+
+    target->setPaneExpanded(normalized, expanded);
+    if (size > 0)
+        target->setPaneSize(normalized, size);
+    if (targetIndex >= 0)
+    {
+        const int clampedIndex = qMin(targetIndex, target->paneOrder().size() - 1);
+        target->movePane(normalized, clampedIndex);
+    }
+    return true;
+}
+
+bool WorkbenchLayout::resetPaneLocation(const QString &paneId)
+{
+    const QString normalized = paneId.trimmed();
+    const auto it = m_defaultPaneParts.constFind(normalized);
+    return it != m_defaultPaneParts.constEnd() && movePane(normalized, it.value());
+}
+
+bool WorkbenchLayout::setPaneVisible(const QString &paneId, bool visible)
+{
+    PaneContainer *container = paneContainerForPane(paneId);
+    return container && container->setPaneVisible(paneId, visible);
 }
 
 QByteArray WorkbenchLayout::saveState() const
@@ -152,6 +244,26 @@ bool WorkbenchLayout::restoreState(const QByteArray &state)
     const QJsonObject root = stateObject(state);
     if (root.value(QStringLiteral("version")).toInt() != kWorkbenchStateVersion)
         return false;
+
+    const QList<QPair<Part, QString>> savedParts = {
+        {Part::PrimarySidebar, QStringLiteral("primary_sidebar")},
+        {Part::AuxiliarySidebar, QStringLiteral("auxiliary_sidebar")},
+        {Part::BottomPanel, QStringLiteral("bottom_panel")}};
+    QSet<QString> seen;
+    for (const auto &savedPart : savedParts)
+    {
+        const QJsonObject partState = root.value(savedPart.second).toObject();
+        for (const QJsonValue &value : partState.value(QStringLiteral("panes")).toArray())
+        {
+            const QString paneId = value.toObject().value(QStringLiteral("id")).toString();
+            if (paneId.isEmpty() || seen.contains(paneId))
+                continue;
+            seen.insert(paneId);
+            Part currentPart = Part::Editor;
+            if (panePart(paneId, &currentPart) && currentPart != savedPart.first)
+                movePane(paneId, savedPart.first);
+        }
+    }
 
     const bool primaryOk = m_primarySidebar->restoreState(
         stateBytes(root.value(QStringLiteral("primary_sidebar")).toObject()));
@@ -182,6 +294,8 @@ bool WorkbenchLayout::restoreState(const QByteArray &state)
 
 void WorkbenchLayout::resetState()
 {
+    for (auto it = m_defaultPaneParts.constBegin(); it != m_defaultPaneParts.constEnd(); ++it)
+        resetPaneLocation(it.key());
     m_primarySidebar->resetState();
     m_auxiliarySidebar->resetState();
     m_bottomPanel->resetState();

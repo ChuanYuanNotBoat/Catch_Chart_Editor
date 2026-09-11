@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QHash>
 #include <QWidget>
 
 class PaneContainer;
@@ -25,6 +26,8 @@ public:
     PaneContainer *auxiliarySidebar() const { return m_auxiliarySidebar; }
     PaneContainer *bottomPanel() const { return m_bottomPanel; }
     PaneContainer *paneContainer(Part part) const;
+    PaneContainer *paneContainerForPane(const QString &paneId,
+                                        Part *part = nullptr) const;
 
     bool setEditorWidget(QWidget *widget);
     QWidget *takeEditorWidget();
@@ -34,6 +37,10 @@ public:
                  bool visible = true,
                  bool scrollable = true);
     QWidget *takePane(Part part, const QString &paneId);
+    bool movePane(const QString &paneId, Part targetPart, int targetIndex = -1);
+    bool resetPaneLocation(const QString &paneId);
+    bool setPaneVisible(const QString &paneId, bool visible);
+    bool panePart(const QString &paneId, Part *part = nullptr) const;
 
     QByteArray saveState() const;
     bool restoreState(const QByteArray &state);
@@ -50,4 +57,5 @@ private:
     PaneContainer *m_bottomPanel = nullptr;
     QSplitter *m_horizontalSplitter = nullptr;
     QSplitter *m_verticalSplitter = nullptr;
+    QHash<QString, Part> m_defaultPaneParts;
 };

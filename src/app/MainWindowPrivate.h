@@ -119,6 +119,8 @@ public:
     QAction *curvePanelAction = nullptr;
     QAction *panelsToolbarAction = nullptr;
     QAction *floatingToolWindowsAction = nullptr;
+    QAction *moveViewAction = nullptr;
+    QAction *resetViewLocationAction = nullptr;
     QAction *checkUpdatesAction = nullptr;
     QAction *helpDocAction = nullptr;
     QAction *aboutAction = nullptr;

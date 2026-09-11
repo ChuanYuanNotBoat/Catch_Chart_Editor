@@ -21,8 +21,10 @@ public:
     bool addPane(const QString &paneId,
                  QWidget *content,
                  bool visible = true,
-                 bool scrollable = true);
-    QWidget *takePane(const QString &paneId);
+                 bool scrollable = true,
+                 bool rememberDefault = true);
+    QWidget *takePane(const QString &paneId,
+                      bool preserveDefaultOrder = false);
     bool removePane(const QString &paneId);
 
     bool setPaneVisible(const QString &paneId, bool visible);
@@ -35,6 +37,7 @@ public:
     bool paneVisible(const QString &paneId) const;
     bool paneExpanded(const QString &paneId) const;
     int paneSize(const QString &paneId) const;
+    bool paneScrollable(const QString &paneId) const;
     QScrollArea *scrollAreaForPane(const QString &paneId) const;
     QSplitter *splitter() const { return m_splitter; }
 
@@ -55,6 +58,7 @@ private:
         QWidget *content = nullptr;
         QWidget *host = nullptr;
         QScrollArea *scrollArea = nullptr;
+        bool scrollable = true;
         bool visible = true;
         bool expanded = true;
         int cachedSize = 0;

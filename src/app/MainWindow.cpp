@@ -2040,6 +2040,26 @@ void MainWindow::createViewMenu()
         }
         updateToolDockActionVisibility();
         viewMenu->addSeparator();
+        if (!d->moveViewAction)
+        {
+            d->moveViewAction = new QAction(this);
+            d->moveViewAction->setObjectName(QStringLiteral("action.move_view"));
+            connect(d->moveViewAction, &QAction::triggered, this, &MainWindow::moveView);
+        }
+        d->moveViewAction->setText(tr("Move View..."));
+        if (!d->resetViewLocationAction)
+        {
+            d->resetViewLocationAction = new QAction(this);
+            d->resetViewLocationAction->setObjectName(
+                QStringLiteral("action.reset_view_location"));
+            connect(d->resetViewLocationAction, &QAction::triggered,
+                    this, &MainWindow::resetViewLocation);
+        }
+        d->resetViewLocationAction->setText(tr("Reset View Location"));
+        viewMenu->addAction(d->moveViewAction);
+        viewMenu->addAction(d->resetViewLocationAction);
+        updateToolDockActionVisibility();
+        viewMenu->addSeparator();
     }
     d->colorAction = viewMenu->addAction(tr("&Color Notes"));
     d->colorAction->setCheckable(true);
@@ -4991,6 +5011,143 @@ void MainWindow::retranslateUi()
     Logger::debug("UI retranslated");
 }
 
+void MainWindow::moveView()
+{
+    if (!d->workbenchLayout)
+    {
+        statusBar()->showMessage(tr("View movement is available in the classic workbench."),
+                                 2500);
+        return;
+    }
+
+    const QList<QPair<QString, QString>> views = {
+        {QStringLiteral("navigation"), tr("Navigation")},
+        {QStringLiteral("preview"), tr("Realtime Preview")},
+        {QStringLiteral("note"), tr("Note Editor")},
+        {QStringLiteral("bpm"), tr("BPM & Timing")},
+        {QStringLiteral("meta"), tr("Metadata")}};
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Move View"));
+    QFormLayout form(&dialog);
+    auto *viewCombo = new QComboBox(&dialog);
+    for (const auto &view : views)
+    {
+        if (d->workbenchLayout->panePart(view.first))
+            viewCombo->addItem(view.second, view.first);
+    }
+    if (viewCombo->count() == 0)
+        return;
+
+    auto *locationCombo = new QComboBox(&dialog);
+    locationCombo->addItem(tr("Primary Sidebar"),
+                           static_cast<int>(WorkbenchLayout::Part::PrimarySidebar));
+    locationCombo->addItem(tr("Auxiliary Sidebar"),
+                           static_cast<int>(WorkbenchLayout::Part::AuxiliarySidebar));
+    locationCombo->addItem(tr("Bottom Panel"),
+                           static_cast<int>(WorkbenchLayout::Part::BottomPanel));
+    form.addRow(tr("View:"), viewCombo);
+    form.addRow(tr("Location:"), locationCombo);
+
+    auto syncLocation = [this, viewCombo, locationCombo]()
+    {
+        WorkbenchLayout::Part part = WorkbenchLayout::Part::Editor;
+        if (!d->workbenchLayout->panePart(viewCombo->currentData().toString(), &part))
+            return;
+        const int index = locationCombo->findData(static_cast<int>(part));
+        if (index >= 0)
+            locationCombo->setCurrentIndex(index);
+    };
+    connect(viewCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            &dialog, [syncLocation](int) { syncLocation(); });
+
+    QString currentViewId = QStringLiteral("note");
+    if (d->currentRightPanel == d->bpmPanel)
+        currentViewId = QStringLiteral("bpm");
+    else if (d->currentRightPanel == d->metaPanel)
+        currentViewId = QStringLiteral("meta");
+    const int currentIndex = viewCombo->findData(currentViewId);
+    if (currentIndex >= 0)
+        viewCombo->setCurrentIndex(currentIndex);
+    syncLocation();
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                                         &dialog);
+    form.addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const QString paneId = viewCombo->currentData().toString();
+    const auto targetPart = static_cast<WorkbenchLayout::Part>(
+        locationCombo->currentData().toInt());
+    if (!d->workbenchLayout->movePane(paneId, targetPart))
+    {
+        QMessageBox::warning(this, tr("Move View"),
+                             tr("The selected view could not be moved."));
+        return;
+    }
+
+    saveClassicLayoutState();
+    configureNotePanelScrollArea();
+    applySidebarTheme();
+    statusBar()->showMessage(tr("View moved."), 2000);
+}
+
+void MainWindow::resetViewLocation()
+{
+    if (!d->workbenchLayout)
+    {
+        statusBar()->showMessage(tr("View locations are available in the classic workbench."),
+                                 2500);
+        return;
+    }
+
+    const QList<QPair<QString, QString>> views = {
+        {QStringLiteral("navigation"), tr("Navigation")},
+        {QStringLiteral("preview"), tr("Realtime Preview")},
+        {QStringLiteral("note"), tr("Note Editor")},
+        {QStringLiteral("bpm"), tr("BPM & Timing")},
+        {QStringLiteral("meta"), tr("Metadata")}};
+    QStringList ids;
+    QStringList labels;
+    for (const auto &view : views)
+    {
+        if (d->workbenchLayout->panePart(view.first))
+        {
+            ids.append(view.first);
+            labels.append(view.second);
+        }
+    }
+    if (ids.isEmpty())
+        return;
+
+    QString currentViewId = QStringLiteral("note");
+    if (d->currentRightPanel == d->bpmPanel)
+        currentViewId = QStringLiteral("bpm");
+    else if (d->currentRightPanel == d->metaPanel)
+        currentViewId = QStringLiteral("meta");
+    const int currentIndex = qMax(0, ids.indexOf(currentViewId));
+    bool accepted = false;
+    const QString label = QInputDialog::getItem(
+        this, tr("Reset View Location"), tr("View:"), labels, currentIndex, false, &accepted);
+    if (!accepted)
+        return;
+
+    const int index = labels.indexOf(label);
+    if (index < 0 || !d->workbenchLayout->resetPaneLocation(ids.at(index)))
+    {
+        QMessageBox::warning(this, tr("Reset View Location"),
+                             tr("The selected view location could not be reset."));
+        return;
+    }
+
+    saveClassicLayoutState();
+    configureNotePanelScrollArea();
+    applySidebarTheme();
+    statusBar()->showMessage(tr("View location reset."), 2000);
+}
+
 void MainWindow::showEditorPanel(QWidget *panel)
 {
     if (!panel)
@@ -5011,29 +5168,38 @@ void MainWindow::showEditorPanel(QWidget *panel)
         if (d->notePanel)
         {
             if (d->workbenchLayout)
-                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
-                    QStringLiteral("note"), panel == d->notePanel);
+                d->workbenchLayout->setPaneVisible(QStringLiteral("note"),
+                                                    panel == d->notePanel);
             else
                 d->notePanel->setVisible(panel == d->notePanel);
         }
         if (d->bpmPanel)
         {
             if (d->workbenchLayout)
-                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
-                    QStringLiteral("bpm"), panel == d->bpmPanel);
+                d->workbenchLayout->setPaneVisible(QStringLiteral("bpm"),
+                                                    panel == d->bpmPanel);
             else
                 d->bpmPanel->setVisible(panel == d->bpmPanel);
         }
         if (d->metaPanel)
         {
             if (d->workbenchLayout)
-                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
-                    QStringLiteral("meta"), panel == d->metaPanel);
+                d->workbenchLayout->setPaneVisible(QStringLiteral("meta"),
+                                                    panel == d->metaPanel);
             else
                 d->metaPanel->setVisible(panel == d->metaPanel);
         }
-        if (d->legacyRightScrollArea)
-            d->legacyRightScrollArea->show();
+        QScrollArea *scrollArea = d->legacyRightScrollArea;
+        if (d->workbenchLayout)
+        {
+            if (PaneContainer *container = d->workbenchLayout->paneContainerForPane(
+                    QStringLiteral("note")))
+            {
+                scrollArea = container->scrollAreaForPane(QStringLiteral("note"));
+            }
+        }
+        if (scrollArea)
+            scrollArea->show();
         return;
     }
 
@@ -5071,9 +5237,18 @@ void MainWindow::showDockPanel(ads::CDockWidget *dock)
         }
 
         showEditorPanel(d->notePanel);
-        if (dock == d->pluginToolsDock && d->legacyRightScrollArea)
+        QScrollArea *scrollArea = d->legacyRightScrollArea;
+        if (d->workbenchLayout)
         {
-            d->legacyRightScrollArea->ensureWidgetVisible(d->pluginActionPanel);
+            if (PaneContainer *container = d->workbenchLayout->paneContainerForPane(
+                    QStringLiteral("note")))
+            {
+                scrollArea = container->scrollAreaForPane(QStringLiteral("note"));
+            }
+        }
+        if (dock == d->pluginToolsDock && scrollArea)
+        {
+            scrollArea->ensureWidgetVisible(d->pluginActionPanel);
         }
         return;
     }
@@ -5250,8 +5425,7 @@ void MainWindow::resetDockLayout()
         if (d->notePanel)
         {
             if (d->workbenchLayout)
-                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
-                    QStringLiteral("note"), true);
+                d->workbenchLayout->setPaneVisible(QStringLiteral("note"), true);
             else
                 d->notePanel->setVisible(true);
             d->notePanel->setEmbeddedPluginToolsVisible(false);
@@ -5259,16 +5433,14 @@ void MainWindow::resetDockLayout()
         if (d->bpmPanel)
         {
             if (d->workbenchLayout)
-                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
-                    QStringLiteral("bpm"), false);
+                d->workbenchLayout->setPaneVisible(QStringLiteral("bpm"), false);
             else
                 d->bpmPanel->setVisible(false);
         }
         if (d->metaPanel)
         {
             if (d->workbenchLayout)
-                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
-                    QStringLiteral("meta"), false);
+                d->workbenchLayout->setPaneVisible(QStringLiteral("meta"), false);
             else
                 d->metaPanel->setVisible(false);
         }
@@ -5788,12 +5960,29 @@ void MainWindow::applySidebarTheme()
     {
         // Match the pre-ADS stylesheet boundary: the whole switchable right
         // sidebar is one styled surface, rather than several panel windows.
-        if (d->notePanel)
-            d->notePanel->setStyleSheet(QString());
-        if (d->bpmPanel)
-            d->bpmPanel->setStyleSheet(QString());
-        if (d->metaPanel)
-            d->metaPanel->setStyleSheet(QString());
+        const auto applyClassicPaneStyle = [this, &applyPanelStyle](
+                                               const QString &paneId,
+                                               QWidget *panel,
+                                               const QString &rootName)
+        {
+            if (!panel)
+                return;
+            if (!d->workbenchLayout)
+            {
+                panel->setStyleSheet(QString());
+                return;
+            }
+            WorkbenchLayout::Part part = WorkbenchLayout::Part::Editor;
+            const bool inAuxiliarySidebar = d->workbenchLayout->panePart(paneId, &part)
+                                             && part == WorkbenchLayout::Part::AuxiliarySidebar;
+            if (inAuxiliarySidebar)
+                panel->setStyleSheet(QString());
+            else
+                applyPanelStyle(panel, rootName);
+        };
+        applyClassicPaneStyle(QStringLiteral("note"), d->notePanel, "notePanelRoot");
+        applyClassicPaneStyle(QStringLiteral("bpm"), d->bpmPanel, "bpmPanelRoot");
+        applyClassicPaneStyle(QStringLiteral("meta"), d->metaPanel, "metaPanelRoot");
         if (d->pluginActionPanel)
             d->pluginActionPanel->setStyleSheet(QString());
         applyPanelStyle(d->legacyRightPanelContainer, "rightPanelRoot");

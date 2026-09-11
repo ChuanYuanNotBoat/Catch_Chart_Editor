@@ -629,8 +629,14 @@ int main(int argc, char **argv)
                       && primarySidebar->movePane(QStringLiteral("statistics"), 0)
                       && primarySidebar->setPaneExpanded(QStringLiteral("navigation"), false),
                   "pane containers must cache size, order, and expansion state");
-    ok &= require(workbench.auxiliarySidebar()->setPaneVisible(QStringLiteral("note"), false),
-                  "pane visibility must be independently restorable");
+    ok &= require(workbench.movePane(QStringLiteral("note"),
+                                     WorkbenchLayout::Part::BottomPanel),
+                  "workbench must move a view between stable top-level parts");
+    ok &= require(!workbench.auxiliarySidebar()->containsPane(QStringLiteral("note"))
+                      && workbench.bottomPanel()->containsPane(QStringLiteral("note"))
+                      && workbench.bottomPanel()->scrollAreaForPane(QStringLiteral("note"))
+                      && workbench.setPaneVisible(QStringLiteral("note"), false),
+                  "moved panes must retain their scroll host and visibility state");
     const QByteArray workbenchState = workbench.saveState();
 
     WorkbenchLayout restoredWorkbench;
@@ -648,12 +654,17 @@ int main(int argc, char **argv)
     ok &= require(restoredWorkbench.primarySidebar()->paneOrder()
                       == QStringList({QStringLiteral("statistics"), QStringLiteral("navigation")})
                       && !restoredWorkbench.primarySidebar()->paneExpanded(QStringLiteral("navigation"))
-                      && !restoredWorkbench.auxiliarySidebar()->paneVisible(QStringLiteral("note")),
-                  "stable pane ids must restore order, expansion, and visibility");
+                      && !restoredWorkbench.auxiliarySidebar()->containsPane(QStringLiteral("note"))
+                      && restoredWorkbench.bottomPanel()->containsPane(QStringLiteral("note"))
+                      && !restoredWorkbench.bottomPanel()->paneVisible(QStringLiteral("note")),
+                  "stable pane ids must restore order, location, expansion, and visibility");
     ok &= require(restoredWorkbench.primarySidebar()->paneSize(QStringLiteral("navigation")) >= 100,
                   "hidden or collapsed panes must retain a usable cached size");
-    ok &= require(restoredWorkbench.auxiliarySidebar()->scrollAreaForPane(QStringLiteral("note")),
+    ok &= require(restoredWorkbench.bottomPanel()->scrollAreaForPane(QStringLiteral("note")),
                   "scrollable pane state must retain its scroll host");
+    ok &= require(restoredWorkbench.resetPaneLocation(QStringLiteral("note"))
+                      && restoredWorkbench.auxiliarySidebar()->containsPane(QStringLiteral("note")),
+                  "reset view location must return a pane to its default part");
     workbench.close();
     restoredWorkbench.close();
     app.processEvents();

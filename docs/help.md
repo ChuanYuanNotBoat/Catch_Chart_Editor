@@ -34,6 +34,7 @@
 - 固定布局下 `Chart Statistics` 面板位于左侧 Navigation 栏底部，可点击标题栏箭头折叠/展开。
 - 固定布局的右侧编辑栏只提供按需显示的纵向滚动条，可直接用滚轮上下浏览；横向滚动条始终禁用。Timing、Playback Speed、Range、Mirror、Curve 和 Plugin Tools 回到 Note 栏的原顺序，格式化颜色快捷按钮会在同一栏内展开插件 GUI。
 - 经典四栏与多窗口 ADS 分别保存自己的布局。切换时会恢复目标模式上次的状态：多窗口保留停靠位置、标签、浮窗和面板开关；经典模式保留四栏宽度、Note/BPM/Meta 右栏页和嵌入式插件区开关，二者不会互相覆盖。
+- 经典工作台可通过 `View -> Move View...` 将 Navigation、Realtime Preview、Note、BPM 或 Metadata 移到 Primary Sidebar、Auxiliary Sidebar 或 Bottom Panel；`Reset View Location` 将所选视图送回默认区域，位置会随经典布局保存。
 - 拖动普通面板标题或标签可以改变停靠位置；BPM、Meta 等完整面板仍可组合成标签页。
 - 将面板拖离主窗口即可变成独立浮动窗口；浮动面板仍可拖回主窗口或与其他浮动面板组合。
 - Note 输入、时间网格、播放速度、范围、镜像、曲线和插件工具停靠时按原右侧栏顺序纵向展开，同时可见且不使用切换标签；只有拖离停靠区后才成为独立窗口。

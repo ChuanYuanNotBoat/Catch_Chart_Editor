@@ -55,7 +55,8 @@ int PaneContainer::indexOf(const QString &paneId) const
 bool PaneContainer::addPane(const QString &paneId,
                             QWidget *content,
                             bool visible,
-                            bool scrollable)
+                            bool scrollable,
+                            bool rememberDefault)
 {
     const QString normalized = paneId.trimmed();
     if (normalized.isEmpty() || !content || indexOf(normalized) >= 0)
@@ -64,6 +65,7 @@ bool PaneContainer::addPane(const QString &paneId,
     PaneEntry entry;
     entry.id = normalized;
     entry.content = content;
+    entry.scrollable = scrollable;
     entry.visible = visible;
     entry.expanded = true;
 
@@ -92,7 +94,8 @@ bool PaneContainer::addPane(const QString &paneId,
     entry.host->setVisible(visible);
     m_splitter->addWidget(entry.host);
     m_panes.append(entry);
-    m_defaultOrder.append(normalized);
+    if (rememberDefault)
+        m_defaultOrder.append(normalized);
     applyPaneState();
     emit stateChanged();
     return true;
@@ -123,14 +126,16 @@ void PaneContainer::removeHost(PaneEntry &entry, bool deleteContent)
     entry.scrollArea = nullptr;
 }
 
-QWidget *PaneContainer::takePane(const QString &paneId)
+QWidget *PaneContainer::takePane(const QString &paneId,
+                                 bool preserveDefaultOrder)
 {
     const int index = indexOf(paneId);
     if (index < 0)
         return nullptr;
 
     PaneEntry entry = m_panes.takeAt(index);
-    m_defaultOrder.removeAll(entry.id);
+    if (!preserveDefaultOrder)
+        m_defaultOrder.removeAll(entry.id);
     QWidget *content = entry.content;
     if (entry.scrollArea)
         entry.scrollArea->takeWidget();
@@ -276,6 +281,12 @@ int PaneContainer::paneSize(const QString &paneId) const
     captureSizes();
     const int index = indexOf(paneId);
     return index >= 0 ? m_panes.at(index).cachedSize : 0;
+}
+
+bool PaneContainer::paneScrollable(const QString &paneId) const
+{
+    const int index = indexOf(paneId);
+    return index >= 0 && m_panes.at(index).scrollable;
 }
 
 QScrollArea *PaneContainer::scrollAreaForPane(const QString &paneId) const
