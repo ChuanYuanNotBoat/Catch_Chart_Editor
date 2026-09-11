@@ -19,6 +19,10 @@ class ChartController : public QObject
 {
     Q_OBJECT
 public:
+    // Opaque external mutations retain a full-chart fallback only below this
+    // bound; validated note deltas do not consume a second chart snapshot.
+    static constexpr int kMaxOpaqueSnapshotNotes = 100000;
+
     explicit ChartController(QObject *parent = nullptr);
     ~ChartController();
 
@@ -79,6 +83,7 @@ private:
     class RemoveNotesCommand;
     class MoveNoteCommand;
     class MoveNotesCommand;
+    class BatchEditCommand;
     class AddBpmCommand;
     class RemoveBpmCommand;
     class UpdateBpmCommand;

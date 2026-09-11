@@ -322,6 +322,75 @@ namespace
 
         return true;
     }
+
+    bool batchEditHasStableDeltaIdentity(const QVector<Note> &notesToAdd,
+                                         const QVector<Note> &notesToRemove,
+                                         const QList<QPair<Note, Note>> &notesToMove,
+                                         const Chart &currentChart)
+    {
+        QHash<QString, int> existingIdCounts;
+        for (const Note &note : currentChart.notes())
+        {
+            if (note.id.isEmpty())
+                continue;
+            existingIdCounts[note.id] = existingIdCounts.value(note.id, 0) + 1;
+            if (existingIdCounts.value(note.id) > 1)
+                return false;
+        }
+        QSet<QString> existingIds;
+        for (auto it = existingIdCounts.constBegin(); it != existingIdCounts.constEnd(); ++it)
+            existingIds.insert(it.key());
+
+        QSet<QString> removeIds;
+        for (const Note &note : notesToRemove)
+        {
+            if (note.id.isEmpty() || removeIds.contains(note.id))
+                return false;
+            removeIds.insert(note.id);
+        }
+
+        QSet<QString> moveIds;
+        QSet<QString> targetIds;
+        for (const auto &change : notesToMove)
+        {
+            const Note &from = change.first;
+            const Note &to = change.second;
+            // Keeping the stable identity unchanged makes the inverse delta
+            // unambiguous even when the note ordering changes.
+            if (from.id.isEmpty() || to.id.isEmpty() || from.id != to.id)
+                return false;
+            if (moveIds.contains(from.id) || targetIds.contains(to.id))
+                return false;
+            moveIds.insert(from.id);
+            targetIds.insert(to.id);
+            if (existingIds.contains(to.id) && !moveIds.contains(to.id))
+                return false;
+        }
+
+        QSet<QString> addIds;
+        for (const Note &note : notesToAdd)
+        {
+            if (note.id.isEmpty() || addIds.contains(note.id))
+                return false;
+            if (existingIds.contains(note.id) || removeIds.contains(note.id)
+                || moveIds.contains(note.id) || targetIds.contains(note.id))
+            {
+                return false;
+            }
+            addIds.insert(note.id);
+        }
+
+        // A move must not write an ID belonging to an untouched note or to a
+        // note removed by the same opaque operation. The conservative rule
+        // keeps the inverse delta deterministic; the bounded snapshot path
+        // below handles legacy/ambiguous payloads.
+        for (const QString &id : targetIds)
+        {
+            if (existingIds.contains(id) && !moveIds.contains(id))
+                return false;
+        }
+        return true;
+    }
 } // namespace
 
 // 撤销命令基类
@@ -474,6 +543,45 @@ public:
 
 private:
     QList<QPair<Note, Note>> m_changes;
+};
+
+class ChartController::BatchEditCommand : public ChartController::ChartCommand
+{
+public:
+    BatchEditCommand(ChartController *controller,
+                     const QString &actionName,
+                     const QVector<Note> &notesToAdd,
+                     const QVector<Note> &notesToRemove,
+                     const QList<QPair<Note, Note>> &notesToMove)
+        : ChartCommand(controller, actionName.isEmpty() ? QStringLiteral("Plugin Batch Edit") : actionName),
+          m_notesToAdd(notesToAdd),
+          m_notesToRemove(notesToRemove),
+          m_notesToMove(notesToMove)
+    {
+    }
+
+    void undo() override
+    {
+        QList<QPair<Note, Note>> reverseMoves;
+        reverseMoves.reserve(m_notesToMove.size());
+        for (const auto &change : m_notesToMove)
+            reverseMoves.append(qMakePair(change.second, change.first));
+        m_controller->m_chart.applyNoteBatch(m_notesToRemove, m_notesToAdd, reverseMoves);
+        m_controller->publishChange(ChartChangeType::Notes);
+        m_controller->notesChanged();
+    }
+
+    void redo() override
+    {
+        m_controller->m_chart.applyNoteBatch(m_notesToAdd, m_notesToRemove, m_notesToMove);
+        m_controller->publishChange(ChartChangeType::Notes);
+        m_controller->notesChanged();
+    }
+
+private:
+    QVector<Note> m_notesToAdd;
+    QVector<Note> m_notesToRemove;
+    QList<QPair<Note, Note>> m_notesToMove;
 };
 
 // 添加 BPM 命令
@@ -897,6 +1005,13 @@ bool ChartController::saveChart(const QString &path)
 
 bool ChartController::applyExternalChartMutation(const QString &actionName, const Chart &mutatedChart)
 {
+    if (m_chart.notes().size() > kMaxOpaqueSnapshotNotes
+        || mutatedChart.notes().size() > kMaxOpaqueSnapshotNotes)
+    {
+        Logger::warn(QString("applyExternalChartMutation rejected: opaque snapshot exceeds %1 notes.")
+                         .arg(kMaxOpaqueSnapshotNotes));
+        return false;
+    }
     m_undoStack->push(new ExternalMutationCommand(this, actionName, m_chart, mutatedChart));
     return true;
 }
@@ -918,12 +1033,30 @@ bool ChartController::applyBatchEdit(const QString &actionName,
         return false;
     }
 
+    const QString resolvedActionName = actionName.isEmpty() ? QStringLiteral("Plugin Batch Edit") : actionName;
+    if (batchEditHasStableDeltaIdentity(notesToAdd, notesToRemove, notesToMove, m_chart))
+    {
+        m_undoStack->push(new BatchEditCommand(this,
+                                               resolvedActionName,
+                                               notesToAdd,
+                                               notesToRemove,
+                                               notesToMove));
+        return true;
+    }
+
+    if (m_chart.notes().size() > kMaxOpaqueSnapshotNotes)
+    {
+        Logger::warn(QString("applyBatchEdit rejected: opaque fallback exceeds %1 notes.")
+                         .arg(kMaxOpaqueSnapshotNotes));
+        return false;
+    }
+
     Chart mutated = m_chart;
     mutated.applyNoteBatch(notesToAdd, notesToRemove, notesToMove);
 
     m_undoStack->push(new ExternalMutationCommand(
         this,
-        actionName.isEmpty() ? "Plugin Batch Edit" : actionName,
+        resolvedActionName,
         m_chart,
         mutated));
     return true;

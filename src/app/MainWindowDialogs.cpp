@@ -758,9 +758,22 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
         }
 
         if (requiresUndo)
-            d->chartController->applyExternalChartMutation(tr("Plugin Action: %1").arg(actionTitle), mutated);
+        {
+            if (!d->chartController->applyExternalChartMutation(
+                    tr("Plugin Action: %1").arg(actionTitle), mutated))
+            {
+                QMessageBox::warning(
+                    this,
+                    tr("Plugin Action"),
+                    tr("Plugin action result is too large to keep as an undo snapshot: %1")
+                        .arg(actionTitle));
+                return;
+            }
+        }
         else
+        {
             d->chartController->loadChart(chartPath);
+        }
 
         statusBar()->showMessage(tr("Plugin action completed: %1").arg(actionTitle), 2500);
         refreshPluginUiExtensions();

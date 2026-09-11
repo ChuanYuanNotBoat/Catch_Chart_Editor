@@ -142,7 +142,11 @@ Plugin response `result` object schema:
 }
 ```
 
-When host applies this result, it is committed as ONE undo step.
+When host applies this result, it is committed as ONE undo step. Payloads whose
+note identities are stable and unambiguous are stored as an inverse delta, so
+undo does not retain a second full chart. Legacy/id-less or ambiguous payloads
+use a bounded full-chart fallback; the host rejects that fallback when either
+chart exceeds 100,000 notes.
 
 ### 4.5 Optional Request: Canvas Overlay
 

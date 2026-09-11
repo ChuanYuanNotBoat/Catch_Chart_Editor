@@ -67,7 +67,7 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 
 - [x] Add monotonic chart revisions and typed change sets (`notes`, `timing`, `metadata`, `resources`).
 - [x] Make render, statistics, density, selection, and reward caches revision-driven.
-- [ ] Replace full-Chart plugin undo snapshots with validated delta commands where possible; retain a bounded fallback for opaque mutations.
+- [x] Replace full-Chart plugin undo snapshots with validated delta commands where possible; retain a bounded fallback for opaque mutations.
 - [x] Move full-chart statistics off the UI thread with a snapshot/revision stale-result guard.
 - [x] Move expensive process-plugin work off the UI thread with cancellation, timeout, and bounded-payload guards.
 - [ ] Add an interval index for rain rendering, preview lookup, hit testing, and audio scheduling.

@@ -1492,6 +1492,60 @@ namespace
                hasNoteById(afterRedo, "seed-b", 3, 256);
     }
 
+    bool testChartControllerOpaqueBatchFallbackUndoRedo()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        seed.addNote(makeNormalNote(1, 0, 1, 64, "seed-a"));
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        Note legacyAdd = makeNormalNote(2, 0, 1, 128, QString());
+        legacyAdd.id.clear();
+        if (!controller.applyBatchEdit(QStringLiteral("opaque batch"),
+                                       QVector<Note>{legacyAdd},
+                                       QVector<Note>{},
+                                       QList<QPair<Note, Note>>{}))
+        {
+            return false;
+        }
+        if (controller.chart()->notes().size() != 2)
+            return false;
+
+        controller.undo();
+        if (controller.chart()->notes().size() != 1 || !hasNoteById(controller.chart()->notes(), "seed-a", 1, 64))
+            return false;
+        controller.redo();
+        for (const Note &note : controller.chart()->notes())
+        {
+            if (note.id.isEmpty() && note.beatNum == 2 && note.x == 128)
+                return controller.chart()->notes().size() == 2;
+        }
+        return false;
+    }
+
+    bool testChartControllerOpaqueSnapshotBound()
+    {
+        ChartController controller;
+        Chart large;
+        QVector<Note> notes;
+        notes.reserve(ChartController::kMaxOpaqueSnapshotNotes + 1);
+        for (int i = 0; i <= ChartController::kMaxOpaqueSnapshotNotes; ++i)
+            notes.append(makeNormalNote(i, 0, 1, i % 513, QString("large-%1").arg(i)));
+        large.setNotes(std::move(notes));
+        if (!controller.loadChartFromData(QString(), large))
+            return false;
+
+        Chart mutated = *controller.chart();
+        mutated.addNote(makeNormalNote(ChartController::kMaxOpaqueSnapshotNotes + 1,
+                                       0,
+                                       1,
+                                       256,
+                                       QStringLiteral("large-tail")));
+        return !controller.applyExternalChartMutation(QStringLiteral("oversized opaque"), mutated);
+    }
+
     bool testChartControllerMoveNotesAcceptsValidPayload()
     {
         ChartController controller;
@@ -3429,6 +3483,7 @@ int main(int argc, char **argv)
         {"ChartController applyBatchEdit empty action default text", &testChartControllerApplyBatchEditEmptyActionUsesDefaultUndoText},
         {"ChartController applyBatchEdit limit boundary accepted", &testChartControllerApplyBatchEditLimitBoundaryAccepted},
         {"ChartController applyBatchEdit undo redo", &testChartControllerApplyBatchEditUndoRedo},
+        {"ChartController opaque batch fallback undo redo", &testChartControllerOpaqueBatchFallbackUndoRedo},
         {"ChartController moveNotes valid payload", &testChartControllerMoveNotesAcceptsValidPayload},
         {"ChartController moveNotes invalid payload no mutation", &testChartControllerMoveNotesRejectsInvalidPayloadNoMutation},
         {"ChartController moveNotes empty no-op", &testChartControllerMoveNotesEmptyNoOp},
@@ -3443,6 +3498,7 @@ int main(int argc, char **argv)
         {"ChartController undo/redo action text lifecycle", &testChartControllerUndoRedoActionTextLifecycle},
         {"ChartController loadChartFromData clears undo stack", &testChartControllerLoadChartFromDataClearsUndoStack},
         {"ChartController applyExternalMutation undo redo", &testChartControllerApplyExternalMutationUndoRedo},
+        {"ChartController opaque snapshot bound", &testChartControllerOpaqueSnapshotBound},
         {"ChartController applyExternalMutation empty action default text", &testChartControllerApplyExternalMutationEmptyActionUsesDefaultUndoText},
         {"ChartController loadChartFromData sets path", &testChartControllerLoadChartFromDataSetsPath},
         {"ChartController loadChart missing file keeps state", &testChartControllerLoadChartMissingFileKeepsState},

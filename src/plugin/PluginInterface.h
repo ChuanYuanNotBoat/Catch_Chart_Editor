@@ -180,8 +180,10 @@ public:
         (void)context;
         return false;
     }
-    // Optional host-side batch edit path.
-    // If true is returned, host applies all edits as ONE undo step.
+    // Optional host-side batch edit path. If true is returned, the host
+    // validates the payload and applies all edits as ONE undo step. Stable-ID
+    // payloads use a reversible delta command; opaque legacy payloads use the
+    // host's bounded full-chart fallback.
     virtual bool buildToolActionBatchEdit(const QString &actionId, const QVariantMap &context, BatchEdit *outEdit)
     {
         (void)actionId;
