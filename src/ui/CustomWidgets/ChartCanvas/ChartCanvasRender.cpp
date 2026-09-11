@@ -472,106 +472,19 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
         return;
 
     painter.setOpacity(0.5);
-
-    const auto &bpmList = chart()->bpmList();
-    const int offset = chart()->meta().offset;
-
-    QVector<double> fallbackOriginalTimes;
-    bool usingCachedOriginalTimes =
-        (m_pasteOriginalTimesMs.size() == m_pasteNotes.size()) &&
-        std::isfinite(m_pasteBaseOriginalTimeMs);
-    if (!usingCachedOriginalTimes)
+    rebuildPastePreviewCache();
+    const double previewStartBeat = m_scrollBeat - 0.5;
+    const double previewEndBeat = m_scrollBeat + effectiveVisibleBeatRange() + 0.5;
+    for (const Note &previewNote : m_pastePreviewNotes)
     {
-        fallbackOriginalTimes.resize(m_pasteNotes.size());
-        for (int i = 0; i < fallbackOriginalTimes.size(); ++i)
-            fallbackOriginalTimes[i] = std::numeric_limits<double>::quiet_NaN();
-
-        for (int i = 0; i < m_pasteNotes.size(); ++i)
-        {
-            const Note &note = m_pasteNotes[i];
-            if (note.type == NoteType::SOUND)
-                continue;
-            const double t = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, bpmList, offset);
-            fallbackOriginalTimes[i] = t;
-        }
-    }
-
-    const QVector<double> &sourceOriginalTimes = usingCachedOriginalTimes ? m_pasteOriginalTimesMs : fallbackOriginalTimes;
-    double baseOriginalTime = m_pasteBaseOriginalTimeMs;
-    if (!usingCachedOriginalTimes)
-    {
-        baseOriginalTime = (std::numeric_limits<double>::max)();
-        for (double t : sourceOriginalTimes)
-        {
-            if (std::isfinite(t) && t < baseOriginalTime)
-                baseOriginalTime = t;
-        }
-    }
-    if (baseOriginalTime != (std::numeric_limits<double>::max)())
-    {
-        const QVector<MathUtils::BpmCacheEntry> &previewBpmCache = bpmTimeCache();
-        auto previewBeatFromTimeMs = [&previewBpmCache, &bpmList, offset](double ms) -> double
-        {
-            if (!previewBpmCache.isEmpty())
-            {
-                int lo = 0;
-                int hi = previewBpmCache.size() - 1;
-                while (lo < hi)
-                {
-                    int mid = (lo + hi + 1) / 2;
-                    if (previewBpmCache[mid].accumulatedMs <= ms)
-                        lo = mid;
-                    else
-                        hi = mid - 1;
-                }
-                const auto &seg = previewBpmCache[lo];
-                if (seg.bpm <= 0.0)
-                    return seg.beatPos;
-                return seg.beatPos + (ms - seg.accumulatedMs) * (seg.bpm / 60000.0);
-            }
-            int b = 0, n = 0, d = 1;
-            MathUtils::msToBeat(ms, bpmList, offset, b, n, d);
-            return MathUtils::beatToFloat(b, n, d);
-        };
-        const double baseOriginalBeat = previewBeatFromTimeMs(baseOriginalTime);
-        const double referenceBeat = m_pasteAnchorBeat;
-        const double baseBeatShift = referenceBeat - baseOriginalBeat;
-        const double totalBeatShift = snapPasteTimeOffset(baseBeatShift + m_pasteTimeOffset);
-        const double previewStartBeat = m_scrollBeat - 0.5;
-        const double previewEndBeat = m_scrollBeat + effectiveVisibleBeatRange() + 0.5;
-        const bool use288Division = Settings::instance().pasteUse288Division();
-        for (int i = 0; i < m_pasteNotes.size(); ++i)
-        {
-            const Note &note = m_pasteNotes[i];
-            if (note.type == NoteType::SOUND)
-                continue;
-            if (i >= sourceOriginalTimes.size())
-                continue;
-            const double originalTime = sourceOriginalTimes[i];
-            if (!std::isfinite(originalTime))
-                continue;
-            const double originalBeatFloat = previewBeatFromTimeMs(originalTime);
-            const double requestedPreviewBeat = originalBeatFloat + totalBeatShift;
-            if (requestedPreviewBeat < previewStartBeat || requestedPreviewBeat > previewEndBeat)
-                continue;
-            Note previewNote = note;
-            const bool represented = use288Division
-                ? MathUtils::quantizeBeatToDivision(requestedPreviewBeat, 288,
-                                                    previewNote.beatNum, previewNote.numerator, previewNote.denominator)
-                : MathUtils::representBeatWithDivision(requestedPreviewBeat, qMax(1, note.denominator),
-                                                       previewNote.beatNum, previewNote.numerator, previewNote.denominator);
-            if (!represented)
-            {
-                MathUtils::floatToBeat(requestedPreviewBeat, previewNote.beatNum,
-                                       previewNote.numerator, previewNote.denominator);
-            }
-            const double previewBeatFloat = MathUtils::beatToFloat(
-                previewNote.beatNum, previewNote.numerator, previewNote.denominator);
-            const double y = baseY + sign * ((previewBeatFloat - m_scrollBeat) * invVisibleRange * canvasHeight);
-            const int previewShiftedX = qBound(0, note.x + qRound(m_pasteXOffset), kLaneWidth);
-            const double x = lmargin + (previewShiftedX / static_cast<double>(kLaneWidth)) * availableWidth;
-            m_noteRenderer->drawNote(painter, previewNote, QPointF(x, y), false, -1);
-        }
+        const double previewBeat = MathUtils::beatToFloat(
+            previewNote.beatNum, previewNote.numerator, previewNote.denominator);
+        if (previewBeat < previewStartBeat || previewBeat > previewEndBeat)
+            continue;
+        const double y = baseY + sign * ((previewBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+        const double x = lmargin +
+                         (previewNote.x / static_cast<double>(kLaneWidth)) * availableWidth;
+        m_noteRenderer->drawNote(painter, previewNote, QPointF(x, y), false, -1);
     }
 
     painter.setOpacity(1.0);
@@ -587,6 +500,41 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
     }
 }
 
+void ChartCanvas::invalidateMirrorPreviewCache()
+{
+    m_mirrorPreviewCacheValid = false;
+    m_mirrorPreviewNotes.clear();
+}
+
+void ChartCanvas::rebuildMirrorPreviewCache()
+{
+    if (m_mirrorPreviewCacheValid)
+        return;
+
+    m_mirrorPreviewNotes.clear();
+    if (!chart() || !m_selectionController)
+    {
+        m_mirrorPreviewCacheValid = true;
+        return;
+    }
+
+    const auto &notes = chart()->notes();
+    const QSet<int> selectedSet = m_selectionController->selectedIndices();
+    m_mirrorPreviewNotes.reserve(selectedSet.size());
+    for (int index : selectedSet)
+    {
+        if (index < 0 || index >= notes.size())
+            continue;
+        const Note &note = notes[index];
+        if (note.type == NoteType::SOUND)
+            continue;
+        Note mirrored = note;
+        mirrored.x = qBound(0, m_mirrorAxisX * 2 - note.x, kLaneWidth);
+        m_mirrorPreviewNotes.append(mirrored);
+    }
+    m_mirrorPreviewCacheValid = true;
+}
+
 void ChartCanvas::drawMirrorPreview(QPainter &painter,
                                     int canvasHeight,
                                     int lmargin,
@@ -598,8 +546,8 @@ void ChartCanvas::drawMirrorPreview(QPainter &painter,
     if (!chart() || !m_selectionController)
         return;
 
-    const QSet<int> selectedSet = m_selectionController->selectedIndices();
-    if (selectedSet.isEmpty())
+    rebuildMirrorPreviewCache();
+    if (m_mirrorPreviewNotes.isEmpty())
         return;
 
     const auto &notes = chart()->notes();
@@ -612,17 +560,8 @@ void ChartCanvas::drawMirrorPreview(QPainter &painter,
     painter.save();
     painter.setOpacity(0.4);
 
-    for (int idx : selectedSet)
+    for (const Note &mirrored : m_mirrorPreviewNotes)
     {
-        if (idx < 0 || idx >= notes.size())
-            continue;
-
-        const Note &note = notes[idx];
-        if (note.type == NoteType::SOUND)
-            continue;
-
-        Note mirrored = note;
-        mirrored.x = qBound(0, m_mirrorAxisX * 2 - note.x, kLaneWidth);
         const double beat = MathUtils::beatToFloat(mirrored.beatNum, mirrored.numerator, mirrored.denominator);
         const double rainEndBeat = mirrored.type == NoteType::RAIN
                                        ? MathUtils::beatToFloat(mirrored.endBeatNum,

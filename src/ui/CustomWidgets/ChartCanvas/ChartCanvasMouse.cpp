@@ -897,6 +897,7 @@ void ChartCanvas::showStandardContextMenu(QMouseEvent *event)
             [this](bool enabled)
             {
                 Settings::instance().setPasteUse288Division(enabled);
+                invalidatePastePreviewCache();
                 emit statusMessage(enabled ? tr("Paste timing: quantize to 1/288")
                                            : tr("Paste timing: preserve normal timing"));
                 update();

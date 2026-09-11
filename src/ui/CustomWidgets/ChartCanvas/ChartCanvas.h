@@ -183,6 +183,8 @@ private:
                            double invVisibleRange,
                            double baseY,
                            double sign);
+    void invalidateMirrorPreviewCache();
+    void rebuildMirrorPreviewCache();
     void drawMirrorGuide(QPainter &painter, int canvasHeight, int lmargin, int availableWidth);
     void drawPluginOverlays(QPainter &painter, int lmargin, int rmargin);
     QPointF noteToPos(const Note &note) const;
@@ -272,6 +274,8 @@ private:
     // Paste preview helpers
     double calculatePasteReferenceTime() const;
     double yToTime(double y) const;
+    void invalidatePastePreviewCache();
+    void rebuildPastePreviewCache();
     // Interval copy selection state.
     enum IntervalState
     {
@@ -301,6 +305,8 @@ private:
     double m_pasteRefBeat;
     int m_pasteDragReferenceIndex;
     bool m_pasteSnapReferenceActive = false;
+    QVector<Note> m_pastePreviewNotes;
+    bool m_pastePreviewCacheValid = false;
     void cancelPaste();
     void beginDragPaste(const QPointF &startPos);
     void updateDragPaste(const QPointF &currentPos);
@@ -358,6 +364,8 @@ private:
     int m_mirrorAxisX;
     bool m_mirrorGuideVisible;
     bool m_mirrorPreviewVisible;
+    QVector<Note> m_mirrorPreviewNotes;
+    bool m_mirrorPreviewCacheValid = false;
     bool m_isDraggingMirrorGuide;
 
     bool m_isPasting;

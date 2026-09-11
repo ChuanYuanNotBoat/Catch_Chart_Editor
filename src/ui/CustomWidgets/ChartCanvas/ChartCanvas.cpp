@@ -577,8 +577,15 @@ void ChartCanvas::setSelectionController(SelectionController *controller)
     m_selectionController = controller;
     if (m_selectionController)
     {
-        connect(m_selectionController, &SelectionController::selectionChanged, this, QOverload<>::of(&ChartCanvas::update));
+        connect(m_selectionController,
+                &SelectionController::selectionChanged,
+                this,
+                [this](const QSet<int> &) {
+                    invalidateMirrorPreviewCache();
+                    update();
+                });
     }
+    invalidateMirrorPreviewCache();
     update();
 }
 
@@ -640,6 +647,7 @@ void ChartCanvas::setTimeDivision(int division)
     {
         m_timeDivision = division;
         invalidateGridCache();
+        invalidatePastePreviewCache();
         snapPlayheadToGrid();
         update();
     }
@@ -775,6 +783,8 @@ void ChartCanvas::invalidateChartCaches(bool includeBackground)
     m_noteDataDirty = true;
     m_timesDirty = true;
     m_bpmCacheDirty = true;
+    invalidatePastePreviewCache();
+    invalidateMirrorPreviewCache();
     invalidateGridCache();
     if (includeBackground)
         m_backgroundCacheDirty = true;
@@ -793,6 +803,8 @@ void ChartCanvas::invalidateChartCaches(const ChartChange &change)
         m_timesDirty = true;
         m_hyperCacheValid = false;
         resetOverlayQueryState();
+        invalidatePastePreviewCache();
+        invalidateMirrorPreviewCache();
     }
     if (timingChanged)
     {
@@ -801,6 +813,8 @@ void ChartCanvas::invalidateChartCaches(const ChartChange &change)
         m_hyperCacheValid = false;
         invalidateGridCache();
         resetOverlayQueryState();
+        invalidatePastePreviewCache();
+        invalidateMirrorPreviewCache();
     }
     if (change.affects(ChartChangeType::Resources))
         m_backgroundCacheDirty = true;

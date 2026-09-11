@@ -137,6 +137,7 @@ void ChartCanvas::pasteAtCursor(const QPoint &pos)
 void ChartCanvas::beginPastePreview(const QVector<Note> &notes, const QPoint &cursorPos)
 {
     m_pasteNotes = notes;
+    invalidatePastePreviewCache();
     m_pasteOriginalTimesMs.clear();
     m_pasteBaseOriginalTimeMs = std::numeric_limits<double>::max();
     m_pasteAnchorBeat = 0.0;
@@ -215,7 +216,147 @@ void ChartCanvas::beginPastePreview(const QVector<Note> &notes, const QPoint &cu
     }
 
     setFocus();
+    rebuildPastePreviewCache();
     update();
+}
+
+void ChartCanvas::invalidatePastePreviewCache()
+{
+    m_pastePreviewCacheValid = false;
+    m_pastePreviewNotes.clear();
+}
+
+void ChartCanvas::rebuildPastePreviewCache()
+{
+    if (m_pastePreviewCacheValid)
+        return;
+
+    m_pastePreviewNotes.clear();
+    if (!m_isPasting || !chart() || m_pasteNotes.isEmpty())
+    {
+        m_pastePreviewCacheValid = true;
+        return;
+    }
+
+    const auto &bpmList = chart()->bpmList();
+    const int offset = chart()->meta().offset;
+    m_pasteOriginalTimesMs.fill(std::numeric_limits<double>::quiet_NaN(), m_pasteNotes.size());
+    m_pasteBaseOriginalTimeMs = std::numeric_limits<double>::max();
+    for (int i = 0; i < m_pasteNotes.size(); ++i)
+    {
+        const Note &note = m_pasteNotes[i];
+        if (note.type == NoteType::SOUND)
+            continue;
+        const double timeMs = MathUtils::beatToMs(
+            note.beatNum, note.numerator, note.denominator, bpmList, offset);
+        if (!std::isfinite(timeMs))
+            continue;
+        m_pasteOriginalTimesMs[i] = timeMs;
+        m_pasteBaseOriginalTimeMs = qMin(m_pasteBaseOriginalTimeMs, timeMs);
+    }
+
+    if (m_pasteBaseOriginalTimeMs == std::numeric_limits<double>::max())
+    {
+        m_pastePreviewCacheValid = true;
+        return;
+    }
+
+    const QVector<MathUtils::BpmCacheEntry> &previewBpmCache = bpmTimeCache();
+    const auto beatFromPreviewTime =
+        [&previewBpmCache, &bpmList, offset](double timeMs) -> double
+    {
+        if (!previewBpmCache.isEmpty())
+        {
+            int lo = 0;
+            int hi = previewBpmCache.size() - 1;
+            while (lo < hi)
+            {
+                const int mid = (lo + hi + 1) / 2;
+                if (previewBpmCache[mid].accumulatedMs <= timeMs)
+                    lo = mid;
+                else
+                    hi = mid - 1;
+            }
+            const auto &segment = previewBpmCache[lo];
+            if (segment.bpm <= 0.0)
+                return segment.beatPos;
+            return segment.beatPos +
+                   (timeMs - segment.accumulatedMs) * (segment.bpm / 60000.0);
+        }
+
+        int beatNum = 0;
+        int numerator = 0;
+        int denominator = 1;
+        MathUtils::msToBeat(timeMs, bpmList, offset, beatNum, numerator, denominator);
+        return MathUtils::beatToFloat(beatNum, numerator, denominator);
+    };
+
+    const double baseOriginalBeat = beatFromPreviewTime(m_pasteBaseOriginalTimeMs);
+    const double totalBeatShift = snapPasteTimeOffset(
+        m_pasteAnchorBeat - baseOriginalBeat + m_pasteTimeOffset);
+    const bool use288Division = Settings::instance().pasteUse288Division();
+
+    m_pastePreviewNotes.reserve(m_pasteNotes.size());
+    for (int i = 0; i < m_pasteNotes.size(); ++i)
+    {
+        const Note &originalNote = m_pasteNotes[i];
+        if (originalNote.type == NoteType::SOUND ||
+            i >= m_pasteOriginalTimesMs.size() ||
+            !std::isfinite(m_pasteOriginalTimesMs[i]))
+        {
+            continue;
+        }
+
+        Note previewNote = originalNote;
+        const double requestedBeat = beatFromPreviewTime(m_pasteOriginalTimesMs[i]) + totalBeatShift;
+        const bool startRepresented = use288Division
+            ? MathUtils::quantizeBeatToDivision(requestedBeat, 288,
+                                                previewNote.beatNum,
+                                                previewNote.numerator,
+                                                previewNote.denominator)
+            : MathUtils::representBeatWithDivision(requestedBeat,
+                                                    qMax(1, originalNote.denominator),
+                                                    previewNote.beatNum,
+                                                    previewNote.numerator,
+                                                    previewNote.denominator);
+        if (!startRepresented)
+        {
+            MathUtils::floatToBeat(requestedBeat,
+                                   previewNote.beatNum,
+                                   previewNote.numerator,
+                                   previewNote.denominator);
+        }
+
+        if (originalNote.type == NoteType::RAIN)
+        {
+            const double requestedEndBeat =
+                MathUtils::beatToFloat(originalNote.endBeatNum,
+                                       originalNote.endNumerator,
+                                       originalNote.endDenominator) + totalBeatShift;
+            const bool endRepresented = use288Division
+                ? MathUtils::quantizeBeatToDivision(requestedEndBeat, 288,
+                                                    previewNote.endBeatNum,
+                                                    previewNote.endNumerator,
+                                                    previewNote.endDenominator)
+                : MathUtils::representBeatWithDivision(requestedEndBeat,
+                                                        qMax(1, originalNote.endDenominator),
+                                                        previewNote.endBeatNum,
+                                                        previewNote.endNumerator,
+                                                        previewNote.endDenominator);
+            if (!endRepresented)
+            {
+                MathUtils::floatToBeat(requestedEndBeat,
+                                       previewNote.endBeatNum,
+                                       previewNote.endNumerator,
+                                       previewNote.endDenominator);
+            }
+        }
+
+        previewNote.x = qBound(0, originalNote.x + qRound(m_pasteXOffset), kLaneWidth);
+        m_pastePreviewNotes.append(previewNote);
+    }
+
+    m_pastePreviewCacheValid = true;
 }
 
 double ChartCanvas::calculatePasteReferenceTime() const
@@ -302,6 +443,7 @@ void ChartCanvas::updateDragPaste(const QPointF &currentPos)
     // Keep unsnapped offsets to preserve sub-grid remainder while dragging.
     m_pasteTimeOffset = snapPasteTimeOffset(m_pasteTimeOffsetRaw);
     m_pasteXOffset = m_pasteXOffsetRaw;
+    invalidatePastePreviewCache();
 
     // Apply curve snap to the reference note (reuse move-selection logic).
     if (m_pasteSnapReferenceActive && m_pasteDragReferenceIndex >= 0 &&
@@ -331,6 +473,7 @@ void ChartCanvas::confirmPaste()
     {
         m_isPasting = false;
         m_pasteNotes.clear();
+        invalidatePastePreviewCache();
         m_pasteOriginalTimesMs.clear();
         m_pasteBaseOriginalTimeMs = std::numeric_limits<double>::max();
         m_pasteAnchorBeat = 0.0;
@@ -394,6 +537,7 @@ void ChartCanvas::confirmPaste()
     {
         m_isPasting = false;
         m_pasteNotes.clear();
+        invalidatePastePreviewCache();
         m_pasteOriginalTimesMs.clear();
         m_pasteBaseOriginalTimeMs = std::numeric_limits<double>::max();
         m_pasteTimeOffsetRaw = 0.0;
@@ -483,6 +627,7 @@ void ChartCanvas::confirmPaste()
 
     m_isPasting = false;
     m_pasteNotes.clear();
+    invalidatePastePreviewCache();
     m_pasteOriginalTimesMs.clear();
     m_pasteBaseOriginalTimeMs = std::numeric_limits<double>::max();
     m_pasteTimeOffsetRaw = 0.0;

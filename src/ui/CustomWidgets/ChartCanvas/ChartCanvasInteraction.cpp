@@ -152,6 +152,7 @@ void ChartCanvas::setMirrorAxisX(int axisX)
         return;
 
     m_mirrorAxisX = clamped;
+    invalidateMirrorPreviewCache();
     emit mirrorAxisChanged(m_mirrorAxisX);
     update();
 }
@@ -169,6 +170,7 @@ void ChartCanvas::setMirrorPreviewVisible(bool visible)
     if (m_mirrorPreviewVisible == visible)
         return;
     m_mirrorPreviewVisible = visible;
+    invalidateMirrorPreviewCache();
     update();
 }
 

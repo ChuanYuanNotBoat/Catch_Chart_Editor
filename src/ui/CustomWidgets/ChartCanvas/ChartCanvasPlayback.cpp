@@ -762,6 +762,7 @@ void ChartCanvas::cancelPaste()
     {
         m_isPasting = false;
         m_pasteNotes.clear();
+        invalidatePastePreviewCache();
         m_pasteOriginalTimesMs.clear();
         m_pasteBaseOriginalTimeMs = std::numeric_limits<double>::max();
         m_pasteTimeOffsetRaw = 0.0;
