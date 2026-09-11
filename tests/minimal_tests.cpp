@@ -234,6 +234,29 @@ namespace
         return selection.selectedIndices() == QSet<int>({2});
     }
 
+    bool testSelectionControllerRevisionSkipsDuplicateRefresh()
+    {
+        QVector<Note> notes = {
+            makeNormalNote(0, 0, 1, 64, "selection-revision-a"),
+            makeNormalNote(1, 0, 1, 128, "selection-revision-b"),
+        };
+
+        SelectionController selection;
+        selection.setNotes(&notes, 1);
+        selection.select(0);
+
+        QSignalSpy selectionSpy(&selection, &SelectionController::selectionChanged);
+        selection.updateSelectionFromNotes(1);
+        if (selectionSpy.count() != 0)
+            return false;
+
+        std::swap(notes[0], notes[1]);
+        selection.setNotes(&notes, 2);
+        selection.updateSelectionFromNotes(2);
+        return selectionSpy.count() == 1 &&
+               selection.selectedIndices() == QSet<int>({1});
+    }
+
     bool testSelectionControllerClipboardSetter()
     {
         SelectionController selection;
@@ -3245,6 +3268,7 @@ int main(int argc, char **argv)
         {"Chart removeNote by id", &testChartRemoveById},
         {"Chart BPM sorting", &testChartBpmSort},
         {"SelectionController cached indices refresh", &testSelectionControllerRefreshesCachedIndices},
+        {"SelectionController revision skips duplicate refresh", &testSelectionControllerRevisionSkipsDuplicateRefresh},
         {"SelectionController clipboard setter", &testSelectionControllerClipboardSetter},
         {"Recovery working path containment", &testSessionWorkingPathContainment},
         {"Safe file copy preserves target", &testSafeFileCopyPreservesExistingTargetOnFailure},

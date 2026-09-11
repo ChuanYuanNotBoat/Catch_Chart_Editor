@@ -36,22 +36,28 @@ void DensityCurve::setChartController(ChartController *controller)
 {
     if (m_chartController)
     {
-        disconnect(m_chartController, &ChartController::notesChanged, this, nullptr);
-        disconnect(m_chartController, &ChartController::bpmListChanged, this, nullptr);
-        disconnect(m_chartController, &ChartController::metaDataChanged, this, nullptr);
-        disconnect(m_chartController, &ChartController::chartChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::chartChangeCommitted, this, nullptr);
         disconnect(m_chartController, &ChartController::chartLoaded, this, nullptr);
     }
     m_chartController = controller;
+    m_chartRevision = controller ? controller->revision() : 0;
+    m_densityRevision = 0;
     m_chart = (m_chartController ? m_chartController->chart() : nullptr);
     if (m_chartController)
     {
-        connect(m_chartController, &ChartController::notesChanged, this, &DensityCurve::scheduleRefreshFromChart, Qt::UniqueConnection);
-        connect(m_chartController, &ChartController::bpmListChanged, this, &DensityCurve::scheduleRefreshFromChart, Qt::UniqueConnection);
-        // The density timeline is expressed in milliseconds, so metadata
-        // offset changes must invalidate it as well.
-        connect(m_chartController, &ChartController::metaDataChanged, this, &DensityCurve::scheduleRefreshFromChart, Qt::UniqueConnection);
-        connect(m_chartController, &ChartController::chartLoaded, this, &DensityCurve::scheduleRefreshFromChart, Qt::UniqueConnection);
+        connect(m_chartController,
+                &ChartController::chartChangeCommitted,
+                this,
+                [this](const ChartChange &change)
+                {
+            m_chartRevision = change.revision;
+            if (change.affects(ChartChangeType::Notes) ||
+                change.affects(ChartChangeType::Timing))
+            {
+                m_densityRevision = 0;
+                scheduleRefreshFromChart();
+            }
+        });
     }
     refreshFromChart();
 }
@@ -190,6 +196,7 @@ void DensityCurve::refreshFromChart()
     m_chart = (m_chartController ? m_chartController->chart() : nullptr);
     syncDuration();
     computeDensity();
+    m_densityRevision = m_chartRevision;
     update();
 }
 

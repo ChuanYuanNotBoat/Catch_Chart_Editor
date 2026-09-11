@@ -45,6 +45,8 @@ private:
     static constexpr int kRefMaxCount = 20;
 
     ChartController *m_chartController;
+    quint64 m_chartRevision = 0;
+    quint64 m_densityRevision = 0;
     PlaybackController *m_playbackController;
     ChartCanvas *m_canvas;
     const Chart *m_chart;

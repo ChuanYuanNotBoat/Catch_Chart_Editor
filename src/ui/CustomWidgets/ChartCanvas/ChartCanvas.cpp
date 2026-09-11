@@ -7,6 +7,7 @@
 #include "render/GridRenderer.h"
 #include "render/BackgroundRenderer.h"
 #include "render/HyperfruitDetector.h"
+#include "render/RainRewardGenerator.h"
 #include "render/RainVisibilityIndex.h"
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
@@ -427,51 +428,36 @@ void ChartCanvas::setChartController(ChartController *controller)
 
     if (m_chartController)
     {
-        disconnect(m_chartController, &ChartController::chartChanged, this, nullptr);
-        disconnect(m_chartController, &ChartController::notesChanged, this, nullptr);
-        disconnect(m_chartController, &ChartController::bpmListChanged, this, nullptr);
-        disconnect(m_chartController, &ChartController::metaDataChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::chartChangeCommitted, this, nullptr);
         disconnect(m_chartController, &ChartController::chartLoaded, this, nullptr);
     }
     m_chartController = controller;
+    m_chartRevision = controller ? controller->revision() : 0;
     if (m_noteChainEditor)
         m_noteChainEditor->setChartController(controller);
     if (controller)
     {
-        // Fine-grained controller signals avoid rebuilding the same caches
-        // twice (commands emit both chartChanged and a typed signal).
-        connect(controller, &ChartController::notesChanged, this, [this]() {
-            invalidateChartCaches(false);
-            update();
-        });
-        connect(controller, &ChartController::bpmListChanged, this, [this]() {
-            invalidateChartCaches(false);
-            update();
-        });
-
-        // Meta changes: check for background file changes only
-        connect(controller, &ChartController::metaDataChanged, this, [this]() {
-            bool bgChanged = false;
-            if (m_chartController && m_chartController->chart()) {
-                const QString currentBg = currentBackgroundPath();
-                if (currentBg != m_lastKnownBackgroundFile) {
-                    bgChanged = true;
-                    m_lastKnownBackgroundFile = currentBg;
-                }
+        connect(controller,
+                &ChartController::chartChangeCommitted,
+                this,
+            [this](const ChartChange &change)
+                {
+            invalidateChartCaches(change);
+            if (change.affects(ChartChangeType::Notes) ||
+                change.affects(ChartChangeType::Timing))
+            {
+                RainRewardGenerator::instance().invalidate();
             }
-            // Offset changes affect every cached note time even when the
-            // background resource itself is unchanged.
-            invalidateChartCaches(bgChanged);
+            if (change.affects(ChartChangeType::Resources))
+                m_lastKnownBackgroundFile = currentBackgroundPath();
             update();
         });
 
-        // 加载新谱面时无条件重建背景缓存：即使新旧谱面的背景文件名相同但目录不同，
-        // 也必须重新解析并加载（覆盖所有切换路径，包括恢复会话与插件加载）。
+        // Keep the path tracker synchronized for consumers that inspect it;
+        // the typed load change already invalidates the background cache.
         connect(controller, &ChartController::chartLoaded, this, [this]() {
             if (m_chartController && m_chartController->chart())
                 m_lastKnownBackgroundFile = currentBackgroundPath();
-            invalidateChartCaches(true);
-            update();
         });
         m_hyperfruitDetector->setCS(3.2);
         m_noteRenderer->setHyperfruitDetector(m_hyperfruitDetector);
@@ -769,6 +755,31 @@ void ChartCanvas::invalidateChartCaches(bool includeBackground)
     if (includeBackground)
         m_backgroundCacheDirty = true;
     resetOverlayQueryState();
+}
+
+void ChartCanvas::invalidateChartCaches(const ChartChange &change)
+{
+    m_chartRevision = change.revision;
+
+    const bool notesChanged = change.affects(ChartChangeType::Notes);
+    const bool timingChanged = change.affects(ChartChangeType::Timing);
+    if (notesChanged)
+    {
+        m_noteDataDirty = true;
+        m_timesDirty = true;
+        m_hyperCacheValid = false;
+        resetOverlayQueryState();
+    }
+    if (timingChanged)
+    {
+        m_timesDirty = true;
+        m_bpmCacheDirty = true;
+        m_hyperCacheValid = false;
+        invalidateGridCache();
+        resetOverlayQueryState();
+    }
+    if (change.affects(ChartChangeType::Resources))
+        m_backgroundCacheDirty = true;
 }
 
 void ChartCanvas::resetOverlayQueryState()

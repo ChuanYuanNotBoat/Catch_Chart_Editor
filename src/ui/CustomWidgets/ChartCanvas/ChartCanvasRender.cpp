@@ -235,7 +235,8 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     const bool rewardPreviewEnabled = m_noteRenderer->rainRewardPreviewEnabled();
     if (rewardPreviewEnabled)
-        RainRewardGenerator::instance().ensureChart(notes, bpmList, chart()->meta().offset);
+        RainRewardGenerator::instance().ensureChart(
+            notes, bpmList, chart()->meta().offset, m_chartRevision);
 
     auto renderNoteAtIndex = [&](int i, const Note *previewNote)
     {
@@ -622,7 +623,7 @@ void ChartCanvas::drawMirrorPreview(QPainter &painter,
     const bool rewardPreviewEnabled = m_noteRenderer->rainRewardPreviewEnabled();
     if (rewardPreviewEnabled)
         RainRewardGenerator::instance().ensureChart(
-            notes, chart()->bpmList(), chart()->meta().offset);
+            notes, chart()->bpmList(), chart()->meta().offset, m_chartRevision);
     painter.save();
     painter.setOpacity(0.4);
 

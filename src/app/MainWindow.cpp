@@ -1475,6 +1475,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     Logger::info("MainWindow constructor called");
 
     d->chartController = chartCtrl;
+    d->statsSourceRevision = chartCtrl ? chartCtrl->revision() : 0;
     d->selectionController = selCtrl;
     d->playbackController = playCtrl;
     d->skin = skin;
@@ -1560,7 +1561,8 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->statsWatcher = new QFutureWatcher<ChartStatistics>(this);
     connect(d->statsWatcher, &QFutureWatcher<ChartStatistics>::finished, this, [this]()
             {
-        const bool resultIsCurrent = d->statsFutureRevision == d->chartRevision;
+        const bool resultIsCurrent = d->chartController &&
+                                     d->statsFutureRevision == d->statsSourceRevision;
         if (resultIsCurrent && d->statsPanel)
         {
             ChartStatistics displayStats = d->statsWatcher->result();
@@ -1590,7 +1592,6 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
     connect(d->chartController, &ChartController::chartChanged, this, [this]()
             {
-        ++d->chartRevision;
         const bool userEdit = !d->isLoadingChart;
         if (userEdit)
         {
@@ -1602,8 +1603,6 @@ MainWindow::MainWindow(ChartController *chartCtrl,
             if (!action.isEmpty())
                 ++d->editStatistics.operationCounts[action];
         }
-        if (userEdit && d->statsRefreshTimer)
-            d->statsRefreshTimer->start();
         if (userEdit)
         {
             persistRecoveryState();
@@ -1612,21 +1611,35 @@ MainWindow::MainWindow(ChartController *chartCtrl,
                 d->undoAction->setEnabled(true);
             if (d->redoAction)
                 d->redoAction->setEnabled(true);
-        }
+            }
     });
-    connect(d->chartController, &ChartController::notesChanged, this, [this]()
+    connect(d->chartController, &ChartController::chartChangeCommitted,
+            this,
+            [this](const ChartChange &change)
             {
-        RainRewardGenerator::instance().invalidate();
-        if (d->selectionController && d->chartController && d->chartController->chart())
+        const bool notesChanged = change.affects(ChartChangeType::Notes);
+        const bool timingChanged = change.affects(ChartChangeType::Timing);
+        if (notesChanged || timingChanged)
         {
-            d->selectionController->setNotes(&(d->chartController->chart()->notes()));
-            d->selectionController->updateSelectionFromNotes();
+            d->statsSourceRevision = change.revision;
+            RainRewardGenerator::instance().invalidate();
         }
+        if (notesChanged && d->selectionController && d->chartController &&
+            d->chartController->chart())
+        {
+            d->selectionController->setNotes(&(d->chartController->chart()->notes()),
+                                             change.revision);
+            d->selectionController->updateSelectionFromNotes(change.revision);
+        }
+        if (!d->isLoadingChart && d->statsRefreshTimer && (notesChanged || timingChanged))
+            d->statsRefreshTimer->start();
     });
-    connect(d->chartController, &ChartController::bpmListChanged, this, []()
-            { RainRewardGenerator::instance().invalidate(); });
-    connect(d->chartController, &ChartController::metaDataChanged, this, [this]()
+    connect(d->chartController, &ChartController::chartChangeCommitted,
+            this,
+            [this](const ChartChange &change)
             {
+        if (!change.affects(ChartChangeType::Resources))
+            return;
         // Resource reload is metadata-specific; note and BPM edits no longer
         // pay for path resolution or filesystem checks.
         if (!d->isLoadingChart && d->chartController && d->chartController->chart() &&
@@ -2961,7 +2974,7 @@ void MainWindow::refreshChartStatistics()
 
     Chart snapshot = *chart;
     const int offset = snapshot.meta().offset;
-    d->statsFutureRevision = d->chartRevision;
+    d->statsFutureRevision = d->statsSourceRevision;
     d->statsWatcher->setFuture(QtConcurrent::run(
         [snapshot = std::move(snapshot), offset]()
         {

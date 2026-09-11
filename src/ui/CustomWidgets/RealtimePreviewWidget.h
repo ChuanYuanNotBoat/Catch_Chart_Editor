@@ -68,6 +68,7 @@ private:
     void handlePlaybackFrameTick(double predictedTimeMs, qint64 frameSeq);
 
     ChartController *m_chartController = nullptr;
+    quint64 m_chartRevision = 0;
     PlaybackController *m_playbackController = nullptr;
     NoteRenderer *m_noteRenderer = nullptr;
     HyperfruitDetector *m_hyperfruitDetector = nullptr;
@@ -82,9 +83,11 @@ private:
     QVector<int> m_rainIndices;
     QVector<TimedNoteEntry> m_sortedNormalEntries;
     bool m_noteCacheValid = false;
+    quint64 m_noteCacheRevision = 0;
     QSet<int> m_hyperIndices;
     QVector<bool> m_hyperMask;
     bool m_hyperCacheValid = false;
+    quint64 m_hyperCacheRevision = 0;
     QTimer *m_deferredUpdateTimer = nullptr;
     QElapsedTimer m_frameTimer;
     QElapsedTimer m_probeClock;

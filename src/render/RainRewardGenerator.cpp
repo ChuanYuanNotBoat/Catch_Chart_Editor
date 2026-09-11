@@ -159,21 +159,34 @@ void RainRewardGenerator::invalidate()
 {
     m_cache.clear();
     m_dirty = true;
+    m_lastChartRevision = 0;
 }
 
 void RainRewardGenerator::ensureChart(const QVector<Note> &notes,
                                       const QVector<BpmEntry> &bpmList,
-                                      int offsetMs)
+                                      int offsetMs,
+                                      quint64 chartRevision)
 {
     const Note *noteData = notes.constData();
     const BpmEntry *bpmData = bpmList.constData();
-    if (!m_dirty
-        && noteData == m_lastNotesData
-        && notes.size() == m_lastNotesSize
-        && bpmData == m_lastBpmData
-        && bpmList.size() == m_lastBpmSize
-        && offsetMs == m_lastOffsetMs)
+
+    // Typed controller changes invalidate this cache only for Notes/Timing.
+    // A later metadata-only revision can therefore advance without forcing a
+    // fingerprint scan or reward-stream rebuild.
+    const bool sameStorage =
+        noteData == m_lastNotesData &&
+        notes.size() == m_lastNotesSize &&
+        bpmData == m_lastBpmData &&
+        bpmList.size() == m_lastBpmSize &&
+        offsetMs == m_lastOffsetMs;
+    if (!m_dirty && chartRevision != 0 &&
+        chartRevision == m_lastChartRevision && sameStorage)
     {
+        return;
+    }
+    if (!m_dirty && sameStorage)
+    {
+        m_lastChartRevision = chartRevision;
         return;
     }
 
@@ -201,6 +214,7 @@ void RainRewardGenerator::ensureChart(const QVector<Note> &notes,
     m_lastNotesFingerprint = fingerprint;
     m_lastBpmFingerprint = bpmFingerprintValue;
     m_lastOffsetMs = offsetMs;
+    m_lastChartRevision = chartRevision;
     m_bpmList = bpmList;
     m_offsetMs = offsetMs;
     rebuild(notes);

@@ -17,6 +17,7 @@ QSet<int> SelectionController::selectedIndices() const
     if (!m_notes || m_selectedIds.isEmpty())
     {
         m_selectedIndicesDirty = false;
+        m_selectedIndicesRevision = m_notesRevision;
         return m_selectedIndicesCache;
     }
 
@@ -26,12 +27,19 @@ QSet<int> SelectionController::selectedIndices() const
             m_selectedIndicesCache.insert(static_cast<int>(i));
     }
     m_selectedIndicesDirty = false;
+    m_selectedIndicesRevision = m_notesRevision;
     return m_selectedIndicesCache;
 }
 
-void SelectionController::setNotes(const QVector<Note> *notes)
+void SelectionController::setNotes(const QVector<Note> *notes, quint64 revision)
 {
+    const bool sameRevision = m_notes == notes && revision != 0 &&
+                              revision == m_notesRevision;
     m_notes = notes;
+    if (revision != 0)
+        m_notesRevision = revision;
+    if (sameRevision)
+        return;
     m_selectedIndicesDirty = true;
 }
 
@@ -113,8 +121,16 @@ void SelectionController::copySelected(const QVector<Note> &notes)
     }
 }
 
-void SelectionController::updateSelectionFromNotes()
+void SelectionController::updateSelectionFromNotes(quint64 revision)
 {
+    if (revision != 0)
+        m_notesRevision = revision;
+    if (revision != 0 &&
+        revision == m_selectedIndicesRevision &&
+        !m_selectedIndicesDirty)
+    {
+        return;
+    }
     // 音符列表变化后，重新计算选中索引并发出信号（画布依赖索引）
     m_selectedIndicesDirty = true;
     emit selectionChanged(selectedIndices());

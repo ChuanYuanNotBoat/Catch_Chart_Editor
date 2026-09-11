@@ -16,6 +16,7 @@
 #include "editor/NoteChain/NoteChainEditor.h"
 
 class ChartController;
+struct ChartChange;
 class SelectionController;
 class NoteRenderer;
 class GridRenderer;
@@ -321,6 +322,7 @@ private:
     mutable bool m_bpmCacheDirty;
 
     ChartController *m_chartController;
+    quint64 m_chartRevision = 0;
     SelectionController *m_selectionController;
     PlaybackController *m_playbackController;
     NoteRenderer *m_noteRenderer;
@@ -444,6 +446,7 @@ private:
     int leftMargin() const;
     int rightMargin() const;
     void invalidateChartCaches(bool includeBackground);
+    void invalidateChartCaches(const ChartChange &change);
     void resetOverlayQueryState();
     void advanceNoteSoundClock(double playbackTimeMs);
     void advancePlaybackVisual(bool scheduleRepaint, bool recordProbe = true);

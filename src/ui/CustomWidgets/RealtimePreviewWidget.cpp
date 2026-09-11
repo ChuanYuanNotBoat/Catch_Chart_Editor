@@ -87,13 +87,24 @@ void RealtimePreviewWidget::setChartController(ChartController *controller)
         disconnect(m_chartController, nullptr, this, nullptr);
 
     m_chartController = controller;
+    m_chartRevision = controller ? controller->revision() : 0;
     invalidateNoteCache();
     invalidateHyperCache();
     if (m_chartController)
     {
-        connect(m_chartController, &ChartController::notesChanged, this, [this]() {
-            invalidateNoteCache();
-            invalidateHyperCache();
+        connect(m_chartController,
+                &ChartController::chartChangeCommitted,
+                this,
+                [this](const ChartChange &change)
+                {
+            m_chartRevision = change.revision;
+            if (change.affects(ChartChangeType::Notes) ||
+                change.affects(ChartChangeType::Timing))
+            {
+                invalidateNoteCache();
+                invalidateHyperCache();
+                RainRewardGenerator::instance().invalidate();
+            }
             scheduleUpdate();
         });
     }
@@ -304,6 +315,7 @@ void RealtimePreviewWidget::handlePlaybackFrameTick(double predictedTimeMs, qint
 void RealtimePreviewWidget::invalidateHyperCache()
 {
     m_hyperCacheValid = false;
+    m_hyperCacheRevision = 0;
     m_hyperIndices.clear();
     m_hyperMask.clear();
 }
@@ -311,6 +323,7 @@ void RealtimePreviewWidget::invalidateHyperCache()
 void RealtimePreviewWidget::invalidateNoteCache()
 {
     m_noteCacheValid = false;
+    m_noteCacheRevision = 0;
     m_bpmSegments.clear();
     m_noteStartTimesMs.clear();
     m_noteEndTimesMs.clear();
@@ -321,8 +334,14 @@ void RealtimePreviewWidget::invalidateNoteCache()
 
 void RealtimePreviewWidget::ensureNoteCache()
 {
-    if (m_noteCacheValid)
+    if (m_noteCacheValid && m_noteCacheRevision <= m_chartRevision)
         return;
+
+    const auto finish = [this]()
+    {
+        m_noteCacheValid = true;
+        m_noteCacheRevision = m_chartRevision;
+    };
 
     m_bpmSegments.clear();
     m_noteStartTimesMs.clear();
@@ -333,7 +352,7 @@ void RealtimePreviewWidget::ensureNoteCache()
 
     if (!m_chartController || !m_chartController->chart())
     {
-        m_noteCacheValid = true;
+        finish();
         return;
     }
 
@@ -342,14 +361,14 @@ void RealtimePreviewWidget::ensureNoteCache()
     const auto &bpmList = chart->bpmList();
     if (bpmList.isEmpty())
     {
-        m_noteCacheValid = true;
+        finish();
         return;
     }
 
     const QVector<MathUtils::BpmCacheEntry> bpmCache = MathUtils::buildBpmTimeCache(bpmList, chart->meta().offset);
     if (bpmCache.isEmpty())
     {
-        m_noteCacheValid = true;
+        finish();
         return;
     }
 
@@ -392,18 +411,24 @@ void RealtimePreviewWidget::ensureNoteCache()
                   return a.startMs < b.startMs;
               });
 
-    m_noteCacheValid = true;
+    finish();
 }
 
 void RealtimePreviewWidget::ensureHyperCache()
 {
-    if (m_hyperCacheValid)
+    if (m_hyperCacheValid && m_hyperCacheRevision <= m_chartRevision)
         return;
+
+    const auto finish = [this]()
+    {
+        m_hyperCacheValid = true;
+        m_hyperCacheRevision = m_chartRevision;
+    };
 
     m_hyperIndices.clear();
     if (!m_hyperfruitEnabled || !m_chartController || !m_chartController->chart())
     {
-        m_hyperCacheValid = true;
+        finish();
         return;
     }
 
@@ -411,7 +436,7 @@ void RealtimePreviewWidget::ensureHyperCache()
     const auto &bpmList = chart->bpmList();
     if (bpmList.isEmpty())
     {
-        m_hyperCacheValid = true;
+        finish();
         return;
     }
 
@@ -422,7 +447,7 @@ void RealtimePreviewWidget::ensureHyperCache()
         if (idx >= 0 && idx < m_hyperMask.size())
             m_hyperMask[idx] = true;
     }
-    m_hyperCacheValid = true;
+    finish();
 }
 
 void RealtimePreviewWidget::paintEvent(QPaintEvent *event)
@@ -486,7 +511,7 @@ void RealtimePreviewWidget::paintEvent(QPaintEvent *event)
     ensureHyperCache();
     if (m_rainRewardPreviewEnabled)
         RainRewardGenerator::instance().ensureChart(
-            notes, chart->bpmList(), chart->meta().offset);
+            notes, chart->bpmList(), chart->meta().offset, m_chartRevision);
 
     for (int idx : m_rainIndices)
     {

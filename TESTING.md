@@ -21,7 +21,7 @@ CTest 名称：`core_minimal_tests`
 
 - `MathUtils` beat/ms、BPM cache、吸附与边界；
 - Chart、Note、BPM、MetaData 的排序、增删改和信号；
-- `ChartController` 批量编辑、撤销/重做及细分变更信号；每次图表变更还携带单调 revision 和 `notes/timing/metadata/resources` 类型化变更集；
+- `ChartController` 批量编辑、撤销/重做及细分变更信号；每次图表变更还携带单调 revision 和 `notes/timing/metadata/resources` 类型化变更集；统计、画布、密度、选择、预览与奖励缓存按相关 revision 失效；
 - 5,000 Note 批量增删移动后的稳定身份、数量与排序；
 - `ChartIO` / `ProjectIO` / `ChartFileSystem` 路径、扫描、资源和格式行为；
 - 恢复工作副本的根目录边界、路径穿越和相似前缀拒绝；

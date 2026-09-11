@@ -19,7 +19,7 @@ public:
 
     QSet<int> selectedIndices() const;
 
-    void setNotes(const QVector<Note> *notes);
+    void setNotes(const QVector<Note> *notes, quint64 revision = 0);
     void select(int index);
     void select(const QSet<int> &indices);
     void addToSelection(int index);
@@ -35,7 +35,7 @@ public:
     void clearClipboard();
 
     // 当音符列表变化时调用，根据存储的 ID 重新计算选中的索引
-    void updateSelectionFromNotes();
+    void updateSelectionFromNotes(quint64 revision = 0);
 
 signals:
     void selectionChanged(const QSet<int> &selectedIndices);
@@ -46,4 +46,6 @@ private:
     QVector<Note> m_clipboard;
     mutable QSet<int> m_selectedIndicesCache;
     mutable bool m_selectedIndicesDirty = true;
+    quint64 m_notesRevision = 0;
+    mutable quint64 m_selectedIndicesRevision = 0;
 };

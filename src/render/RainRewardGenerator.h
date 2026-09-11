@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QString>
 #include <QVector>
+#include <QtGlobal>
 
 #include <cstdint>
 
@@ -36,7 +37,8 @@ public:
 
     void ensureChart(const QVector<Note> &notes,
                      const QVector<BpmEntry> &bpmList,
-                     int offsetMs = 0);
+                     int offsetMs = 0,
+                     quint64 chartRevision = 0);
 
     const QVector<RainDrop> &dropsFor(const Note &rain) const;
 
@@ -62,6 +64,7 @@ private:
     qsizetype m_lastBpmSize = -1;
     std::uint64_t m_lastNotesFingerprint = 0;
     std::uint64_t m_lastBpmFingerprint = 0;
+    quint64 m_lastChartRevision = 0;
     int m_lastOffsetMs = 0;
     QVector<BpmEntry> m_bpmList;
     int m_offsetMs = 0;

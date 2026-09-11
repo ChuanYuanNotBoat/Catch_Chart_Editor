@@ -162,8 +162,8 @@ public:
     ChartStatistics editStatistics;
     QString editStatisticsChartPath;
     QElapsedTimer editSessionTimer;
-    quint64 chartRevision = 0;
     quint64 statsFutureRevision = 0;
+    quint64 statsSourceRevision = 0;
     bool statsRefreshPending = false;
 
     // Cached resource paths for detecting changes after undo/redo/plugin edits.
