@@ -76,7 +76,7 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [x] Replace working-copy/BPM/conversion polling loops and nested `processEvents()` calls with signal-driven async jobs.
 - [x] Move large resource copies, sidecar sync, and save hashing off the UI thread behind an ordered document transaction.
 - [x] Consolidate the duplicate diagnostics exporters and atomically write the remaining user-facing report/skin-configuration files.
-- [ ] Add interaction benchmarks for moving 1 / 100 / 4,000 notes and resizing rain tails.
+- [x] Add interaction benchmarks for moving 1 / 100 / 4,000 notes and resizing rain tails.
 - [ ] Add load/save benchmarks at 5k / 20k / 100k notes and fail CI on major regressions.
 - [ ] Profile the Windows top-level backing-store/update path behind the 10.5 ms p95 measurement.
 - [ ] Replace the global ADS-leaf layout with stable Editor/Sidebar/Auxiliary Sidebar/Bottom Panel workbench parts and pane containers that cache expansion, order, visibility, and size by stable ID.

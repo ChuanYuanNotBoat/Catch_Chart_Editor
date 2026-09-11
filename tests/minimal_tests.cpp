@@ -3114,6 +3114,107 @@ namespace
         return rain;
     }
 
+    Chart makeInteractionBenchmarkChart(int noteCount)
+    {
+        Chart chart;
+        chart.clearNotes();
+
+        QVector<Note> notes;
+        notes.reserve(noteCount);
+        for (int i = 0; i < noteCount; ++i)
+        {
+            if (i == 0)
+            {
+                Note rain = makeRainNote(0, 0, 1, 2, 0, 1);
+                rain.id = QStringLiteral("interaction-rain");
+                notes.append(rain);
+                continue;
+            }
+
+            notes.append(makeNormalNote(i * 2,
+                                        0,
+                                        1,
+                                        (i * 37) % 513,
+                                        QStringLiteral("interaction-%1").arg(i)));
+        }
+        chart.setNotes(std::move(notes));
+        return chart;
+    }
+
+    QList<QPair<Note, Note>> interactionMoveChanges(const Chart &chart,
+                                                    int noteCount)
+    {
+        QList<QPair<Note, Note>> changes;
+        changes.reserve(noteCount);
+        const QVector<Note> &notes = chart.notes();
+        for (int i = 0; i < noteCount && i < notes.size(); ++i)
+        {
+            const Note &original = notes[i];
+            Note moved = original;
+            moved.beatNum += 1;
+            if (moved.type == NoteType::RAIN)
+                moved.endBeatNum += 1;
+            moved.x = qMin(512, moved.x + 1);
+            changes.append(qMakePair(original, moved));
+        }
+        return changes;
+    }
+
+    qint64 benchmarkInteractionMove(int noteCount, bool rainTail)
+    {
+        Chart chart = makeInteractionBenchmarkChart(noteCount);
+        ChartController controller;
+        if (!controller.loadChartFromData(QString(), chart))
+            return -1;
+
+        QList<QPair<Note, Note>> changes;
+        if (rainTail)
+        {
+            const Note original = controller.chart()->notes().first();
+            Note resized = original;
+            resized.endBeatNum += 1;
+            changes.append(qMakePair(original, resized));
+        }
+        else
+        {
+            changes = interactionMoveChanges(*controller.chart(), noteCount);
+        }
+
+        qint64 bestNs = std::numeric_limits<qint64>::max();
+        constexpr int kSamples = 5;
+        for (int sample = 0; sample < kSamples; ++sample)
+        {
+            QElapsedTimer timer;
+            timer.start();
+            controller.moveNotes(changes);
+            const qint64 elapsedNs = timer.nsecsElapsed();
+            if (!controller.canUndo())
+                return -1;
+            bestNs = qMin(bestNs, elapsedNs);
+            controller.undo();
+        }
+        return bestNs;
+    }
+
+    bool testInteractionBenchmarks()
+    {
+        const int noteCounts[] = {1, 100, 4000};
+        for (const int noteCount : noteCounts)
+        {
+            const qint64 moveNs = benchmarkInteractionMove(noteCount, false);
+            const qint64 tailNs = benchmarkInteractionMove(noteCount, true);
+            if (moveNs < 0 || tailNs < 0)
+                return false;
+
+            std::fprintf(stdout,
+                         "INTERACTION_BENCHMARK notes=%d move_ms=%.3f rain_tail_ms=%.3f\n",
+                         noteCount,
+                         moveNs / 1000000.0,
+                         tailNs / 1000000.0);
+        }
+        return true;
+    }
+
     bool testRainRewardStateCore()
     {
         if (RainRewardGenerator::seedForNoteCount(3) != 0xCA7FBEA4u)
@@ -3579,6 +3680,7 @@ int main(int argc, char **argv)
         {"Chart sort notes keeps sound after normal on same beat", &testChartSortNotesSoundAfterNormalAtSameBeat},
         {"Note validation boundaries", &testNoteValidationBoundaries},
         {"Note isXValid for sound ignores range", &testNoteIsXValidForSoundIgnoresRange},
+        {"Interaction move and rain-tail benchmarks", &testInteractionBenchmarks},
         {"KEDAMONO render baseline", &testKedamonoRenderBaseline},
         {"ChartFileSystem registerFileType", &testChartFileSystemRegisterFileType},
         {"ChartFileSystem isAllowedFile", &testChartFileSystemIsAllowedFile},
