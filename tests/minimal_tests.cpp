@@ -3224,10 +3224,12 @@ namespace
         notes.reserve(noteCount);
         for (int i = 0; i < noteCount; ++i)
         {
-            notes.append(makeNormalNote(i * 2,
-                                        0,
-                                        1,
-                                        (i * 37) % 513));
+            Note note = makeNormalNote(i * 2,
+                                       0,
+                                       1,
+                                       (i * 37) % 513);
+            note.id.clear();
+            notes.append(std::move(note));
         }
         chart.setNotes(std::move(notes));
         return chart;
@@ -3643,6 +3645,7 @@ int main(int argc, char **argv)
     };
 
     const Case cases[] = {
+        {"ChartIO load/save benchmarks", &testChartIoLoadSaveBenchmarks},
         {"External process plugin async guards", &testExternalProcessPluginAsyncGuards},
         {"Playback speed 0.1x-10x bounds", &testPlaybackSpeedBounds},
         {"Playback wall time scales with rate", &testPlaybackWallTimeConversion},
@@ -3723,7 +3726,6 @@ int main(int argc, char **argv)
         {"ChartController undo/redo action text lifecycle", &testChartControllerUndoRedoActionTextLifecycle},
         {"ChartController loadChartFromData clears undo stack", &testChartControllerLoadChartFromDataClearsUndoStack},
         {"ChartController applyExternalMutation undo redo", &testChartControllerApplyExternalMutationUndoRedo},
-        {"ChartIO load/save benchmarks", &testChartIoLoadSaveBenchmarks},
         {"ChartController opaque snapshot bound", &testChartControllerOpaqueSnapshotBound},
         {"ChartController applyExternalMutation empty action default text", &testChartControllerApplyExternalMutationEmptyActionUsesDefaultUndoText},
         {"ChartController loadChartFromData sets path", &testChartControllerLoadChartFromDataSetsPath},
