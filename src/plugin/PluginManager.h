@@ -2,15 +2,21 @@
 
 #include <QObject>
 #include <QList>
+#include <QHash>
 #include <QPointer>
 #include <QStringList>
 #include <QVector>
+#include <functional>
 #include "plugin/PluginInterface.h"
 
 class PluginManager : public QObject
 {
     Q_OBJECT
 public:
+    using AsyncRequestId = quint64;
+    using AsyncToolActionCallback = std::function<void(bool)>;
+    using AsyncBatchEditCallback = std::function<void(bool, PluginInterface::BatchEdit)>;
+
     struct PluginInfo
     {
         QString pluginId;
@@ -54,11 +60,22 @@ public:
     QList<ToolActionEntry> toolActions() const;
     QList<FloatingPanelEntry> floatingPanels() const;
     bool runToolAction(const QString &pluginId, const QString &actionId, const QVariantMap &context);
+    AsyncRequestId runToolActionAsync(const QString &pluginId,
+                                      const QString &actionId,
+                                      const QVariantMap &context,
+                                      QObject *callbackContext,
+                                      AsyncToolActionCallback callback);
     bool supportsHostBatchEdit(const QString &pluginId) const;
     bool buildToolActionBatchEdit(const QString &pluginId,
                                   const QString &actionId,
                                   const QVariantMap &context,
                                   PluginInterface::BatchEdit *outEdit);
+    AsyncRequestId buildToolActionBatchEditAsync(const QString &pluginId,
+                                                 const QString &actionId,
+                                                 const QVariantMap &context,
+                                                 QObject *callbackContext,
+                                                 AsyncBatchEditCallback callback);
+    void cancelAsyncRequest(AsyncRequestId requestId);
     QWidget *createFloatingPanel(const QString &pluginId,
                                  const QString &panelId,
                                  QWidget *parent,
@@ -82,6 +99,12 @@ signals:
     void pluginsChanged();
 
 private:
+    struct AsyncCancel
+    {
+        PluginInterface *plugin = nullptr;
+        quint64 pluginRequestId = 0;
+    };
+
     QString localizedNameForLog(PluginInterface *plugin) const;
 
 private:
@@ -91,4 +114,6 @@ private:
     QStringList m_disabledPluginIds;
     QString m_pluginsDir;
     QPointer<QWidget> m_parentWidget;
+    QHash<AsyncRequestId, AsyncCancel> m_asyncCancels;
+    AsyncRequestId m_nextAsyncRequestId = 1;
 };

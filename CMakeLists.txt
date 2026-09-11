@@ -68,6 +68,7 @@ if(BUILD_TESTING)
         src/model/Chart.cpp
         src/utils/MathUtils.cpp
         src/utils/Logger.cpp
+        src/utils/Settings.cpp
         src/utils/PerformanceTimer.cpp
         src/utils/DiagnosticCollector.cpp
         src/utils/CalcHash.cpp
@@ -83,11 +84,12 @@ if(BUILD_TESTING)
         src/editor/NoteChain/NoteChainState.cpp
         src/editor/NoteChain/NoteChainPersistence.cpp
         src/audio/AudioConverter.cpp
+        src/plugin/ExternalProcessPlugin.cpp
     )
 
     target_include_directories(CatchChartEditorTests PRIVATE src)
     target_link_libraries(CatchChartEditorTests
-        Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test Qt6::Multimedia Vorbis::vorbis)
+        Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test Qt6::Multimedia Qt6::Concurrent Vorbis::vorbis)
 
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
 

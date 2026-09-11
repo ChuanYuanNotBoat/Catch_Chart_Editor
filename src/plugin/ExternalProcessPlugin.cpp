@@ -8,8 +8,15 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocale>
+#include <QMetaObject>
+#include <QPointer>
+#include <QRandomGenerator>
 #include <QVariantMap>
 #include <QProcessEnvironment>
+#include <QtConcurrent/QtConcurrentRun>
+#include <QMutexLocker>
+#include <atomic>
+#include <memory>
 #include <utility>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -73,6 +80,10 @@ namespace
     }
 
     constexpr int kHealthProbeTimeoutMs = 300;
+    constexpr int kAsyncStartTimeoutMs = 2000;
+    constexpr int kAsyncCancelPollMs = 25;
+    constexpr int kMaxConcurrentAsyncRequests = 2;
+    constexpr int kMaxStderrPreviewBytes = 8192;
     constexpr int kMaxNoteIdLength = 256;
     constexpr int kMaxSoundPathLength = 1024;
     constexpr int kMaxAbsBeatComponent = 1000000;
@@ -92,6 +103,281 @@ namespace
         };
     }
 
+    QJsonObject initializePayloadFor(const ExternalProcessPlugin::Manifest &manifest,
+                                     const QString &localeOverride)
+    {
+        QString locale = localeOverride.trimmed();
+        if (locale.isEmpty())
+            locale = Settings::instance().language().trimmed();
+        if (locale.isEmpty())
+            locale = QLocale::system().name();
+        return QJsonObject{
+            {"plugin_id", manifest.pluginId},
+            {"locale", locale},
+            {"host_api_version", PluginInterface::kHostApiVersion},
+        };
+    }
+
+    QStringList resolveProcessArguments(const ExternalProcessPlugin::Manifest &manifest,
+                                        QString *outExecutable,
+                                        QString *outBaseDir)
+    {
+        const QFileInfo manifestInfo(manifest.manifestPath);
+        const QString baseDir = manifestInfo.absolutePath();
+        if (outBaseDir)
+            *outBaseDir = baseDir;
+
+        QString executable = manifest.executable.trimmed();
+        QFileInfo execInfo(executable);
+        const bool looksLikePath = executable.contains('/') || executable.contains('\\')
+            || executable.startsWith('.');
+        if (looksLikePath && execInfo.isRelative())
+            executable = QDir(baseDir).filePath(executable);
+
+        QStringList args;
+        args.reserve(manifest.args.size());
+        for (const QString &arg : manifest.args)
+        {
+            const QString trimmed = arg.trimmed();
+            const bool argLooksLikePath = trimmed.contains('/') || trimmed.contains('\\')
+                || trimmed.startsWith('.');
+            QFileInfo argInfo(trimmed);
+            if (argLooksLikePath && argInfo.isRelative())
+                args.append(QDir(baseDir).filePath(trimmed));
+            else
+                args.append(trimmed);
+        }
+
+        if (outExecutable)
+            *outExecutable = executable;
+        return args;
+    }
+
+    void stopProcess(QProcess *process)
+    {
+        if (!process || process->state() == QProcess::NotRunning)
+            return;
+        process->terminate();
+        if (!process->waitForFinished(100))
+        {
+            process->kill();
+            process->waitForFinished(200);
+        }
+    }
+
+    bool writeProcessLine(QProcess *process,
+                          const QByteArray &line,
+                          QString *errorMessage)
+    {
+        if (!process || process->state() != QProcess::Running)
+        {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("process is not running");
+            return false;
+        }
+        if (line.size() > ExternalProcessPlugin::kMaxRequestPayloadBytes)
+        {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("request payload exceeds the host limit");
+            return false;
+        }
+        const qint64 written = process->write(line);
+        if (written != line.size())
+        {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("failed to write the complete request");
+            return false;
+        }
+        return true;
+    }
+
+    bool waitForProcessResponse(QProcess *process,
+                                const QString &requestId,
+                                int timeoutMs,
+                                const std::shared_ptr<std::atomic_bool> &cancelled,
+                                QJsonValue *outResult,
+                                QByteArray *outStderr,
+                                QString *errorMessage)
+    {
+        if (!process)
+            return false;
+
+        QByteArray pending;
+        QByteArray stderrPreview;
+        const qint64 deadline = QDateTime::currentMSecsSinceEpoch() + qMax(1, timeoutMs);
+        while (QDateTime::currentMSecsSinceEpoch() < deadline)
+        {
+            if (cancelled && cancelled->load(std::memory_order_relaxed))
+            {
+                if (errorMessage)
+                    *errorMessage = QStringLiteral("request cancelled");
+                stopProcess(process);
+                return false;
+            }
+
+            const QByteArray chunk = process->readAllStandardOutput();
+            if (!chunk.isEmpty())
+            {
+                pending.append(chunk);
+                if (pending.size() > ExternalProcessPlugin::kMaxResponsePayloadBytes)
+                {
+                    if (errorMessage)
+                        *errorMessage = QStringLiteral("response payload exceeds the host limit");
+                    stopProcess(process);
+                    return false;
+                }
+            }
+
+            const QByteArray stderrChunk = process->readAllStandardError();
+            if (!stderrChunk.isEmpty() && stderrPreview.size() < kMaxStderrPreviewBytes)
+            {
+                stderrPreview.append(stderrChunk.left(kMaxStderrPreviewBytes - stderrPreview.size()));
+            }
+
+            int newline = -1;
+            while ((newline = pending.indexOf('\n')) >= 0)
+            {
+                const QByteArray line = pending.left(newline).trimmed();
+                pending.remove(0, newline + 1);
+                if (line.isEmpty())
+                    continue;
+
+                QJsonParseError parseError;
+                const QJsonDocument doc = QJsonDocument::fromJson(line, &parseError);
+                if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+                    continue;
+                const QJsonObject obj = doc.object();
+                if (obj.value(QStringLiteral("type")).toString() != QLatin1String("response")
+                    || obj.value(QStringLiteral("id")).toString() != requestId)
+                    continue;
+                if (outResult)
+                    *outResult = obj.value(QStringLiteral("result"));
+                if (outStderr)
+                    *outStderr = stderrPreview;
+                return true;
+            }
+
+            const qint64 remaining = deadline - QDateTime::currentMSecsSinceEpoch();
+            if (remaining <= 0)
+                break;
+            const int waitMs = qMax(1, qMin(static_cast<int>(remaining), kAsyncCancelPollMs));
+            process->waitForReadyRead(waitMs);
+        }
+
+        if (outStderr)
+            *outStderr = stderrPreview;
+        if (cancelled && cancelled->load(std::memory_order_relaxed))
+        {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("request cancelled");
+        }
+        else if (errorMessage)
+        {
+            *errorMessage = QStringLiteral("request timed out");
+        }
+        stopProcess(process);
+        return false;
+    }
+
+    bool runIsolatedProcessRequest(const ExternalProcessPlugin::Manifest &manifest,
+                                   const QString &locale,
+                                   const QString &method,
+                                   const QJsonObject &payload,
+                                   int timeoutMs,
+                                   const std::shared_ptr<std::atomic_bool> &cancelled,
+                                   QJsonValue *outResult,
+                                   QString *errorMessage)
+    {
+        QString executable;
+        QString baseDir;
+        const QStringList args = resolveProcessArguments(manifest, &executable, &baseDir);
+        QProcess process;
+        process.setWorkingDirectory(baseDir);
+        process.setProgram(executable);
+        process.setArguments(args);
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        applyUtf8ProcessEnv(&env);
+        const QString resolvedLocale = locale.trimmed().isEmpty() ? QLocale::system().name() : locale.trimmed();
+        const QString language = languageFromLocale(resolvedLocale);
+        if (!resolvedLocale.isEmpty())
+            env.insert(QStringLiteral("MALODY_LOCALE"), resolvedLocale);
+        if (!language.isEmpty())
+            env.insert(QStringLiteral("MALODY_LANGUAGE"), language);
+        process.setProcessEnvironment(env);
+        process.setProcessChannelMode(QProcess::SeparateChannels);
+#ifdef Q_OS_WIN
+        process.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args)
+                                                   { args->flags |= CREATE_NO_WINDOW; });
+#endif
+
+        process.start();
+        const qint64 startDeadline = QDateTime::currentMSecsSinceEpoch() + kAsyncStartTimeoutMs;
+        while (process.state() != QProcess::Running
+               && QDateTime::currentMSecsSinceEpoch() < startDeadline)
+        {
+            if (cancelled && cancelled->load(std::memory_order_relaxed))
+            {
+                stopProcess(&process);
+                if (errorMessage)
+                    *errorMessage = QStringLiteral("request cancelled");
+                return false;
+            }
+            const qint64 remaining = startDeadline - QDateTime::currentMSecsSinceEpoch();
+            process.waitForStarted(qMax(1, qMin(static_cast<int>(remaining), kAsyncCancelPollMs)));
+        }
+        if (process.state() != QProcess::Running)
+        {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("process failed to start");
+            stopProcess(&process);
+            return false;
+        }
+
+        const QJsonObject initialize = {
+            {QStringLiteral("type"), QStringLiteral("notify")},
+            {QStringLiteral("event"), QStringLiteral("initialize")},
+            {QStringLiteral("payload"), initializePayloadFor(manifest, resolvedLocale)},
+        };
+        const QByteArray initializeLine = QJsonDocument(initialize).toJson(QJsonDocument::Compact) + '\n';
+        if (!writeProcessLine(&process, initializeLine, errorMessage))
+        {
+            stopProcess(&process);
+            return false;
+        }
+
+        const QString requestId = QStringLiteral("async_%1_%2")
+                                      .arg(QDateTime::currentMSecsSinceEpoch())
+                                      .arg(QRandomGenerator::global()->generate());
+        const QJsonObject request = {
+            {QStringLiteral("type"), QStringLiteral("request")},
+            {QStringLiteral("id"), requestId},
+            {QStringLiteral("method"), method},
+            {QStringLiteral("payload"), payload},
+        };
+        const QByteArray requestLine = QJsonDocument(request).toJson(QJsonDocument::Compact) + '\n';
+        if (!writeProcessLine(&process, requestLine, errorMessage))
+        {
+            stopProcess(&process);
+            return false;
+        }
+
+        QByteArray stderrPreview;
+        const bool ok = waitForProcessResponse(&process,
+                                               requestId,
+                                               timeoutMs,
+                                               cancelled,
+                                               outResult,
+                                               &stderrPreview,
+                                               errorMessage);
+        if (!stderrPreview.isEmpty())
+        {
+            Logger::warn(QStringLiteral("Process plugin async request '%1' stderr: %2")
+                             .arg(method, QString::fromUtf8(stderrPreview).trimmed()));
+        }
+        stopProcess(&process);
+        return ok;
+    }
+
 }
 
 ExternalProcessPlugin::ExternalProcessPlugin(Manifest manifest)
@@ -101,6 +387,25 @@ ExternalProcessPlugin::ExternalProcessPlugin(Manifest manifest)
 
 ExternalProcessPlugin::~ExternalProcessPlugin()
 {
+    {
+        QMutexLocker locker(&m_asyncJobsMutex);
+        for (auto it = m_asyncJobs.begin(); it != m_asyncJobs.end(); ++it)
+        {
+            if (it->cancelled)
+                it->cancelled->store(true, std::memory_order_relaxed);
+        }
+    }
+    QHash<AsyncRequestId, AsyncJob> jobs;
+    {
+        QMutexLocker locker(&m_asyncJobsMutex);
+        jobs = m_asyncJobs;
+        m_asyncJobs.clear();
+    }
+    for (auto it = jobs.begin(); it != jobs.end(); ++it)
+    {
+        if (it->future.isRunning() || !it->future.isFinished())
+            it->future.waitForFinished();
+    }
     shutdown();
 }
 
@@ -318,6 +623,155 @@ bool ExternalProcessPlugin::runToolAction(const QString &actionId, const QVarian
         {"context", toJsonObject(context)},
     };
     return requestBool("runToolAction", payload, false);
+}
+
+ExternalProcessPlugin::AsyncRequestId ExternalProcessPlugin::runToolActionAsync(
+    const QString &actionId,
+    const QVariantMap &context,
+    QObject *callbackContext,
+    AsyncToolActionCallback callback)
+{
+    if (actionId.trimmed().isEmpty() || !callbackContext || !callback)
+        return 0;
+
+    const QString locale = context.value(QStringLiteral("locale")).toString();
+    const QJsonObject payload{
+        {QStringLiteral("action_id"), actionId},
+        {QStringLiteral("context"), toJsonObject(context)},
+    };
+    return startAsyncJsonRequest(
+        QStringLiteral("runToolAction"),
+        payload,
+        locale,
+        callbackContext,
+        [callback = std::move(callback)](bool ok, const QJsonValue &result) {
+            const bool success = ok && result.isBool() && result.toBool(false);
+            callback(success);
+        });
+}
+
+ExternalProcessPlugin::AsyncRequestId ExternalProcessPlugin::buildToolActionBatchEditAsync(
+    const QString &actionId,
+    const QVariantMap &context,
+    QObject *callbackContext,
+    AsyncBatchEditCallback callback)
+{
+    if (actionId.trimmed().isEmpty() || !callbackContext || !callback)
+        return 0;
+
+    const QString locale = context.value(QStringLiteral("locale")).toString();
+    const QJsonObject payload{
+        {QStringLiteral("action_id"), actionId},
+        {QStringLiteral("context"), toJsonObject(context)},
+    };
+    return startAsyncJsonRequest(
+        QStringLiteral("buildBatchEdit"),
+        payload,
+        locale,
+        callbackContext,
+        [callback = std::move(callback)](bool ok, const QJsonValue &result) {
+            BatchEdit edit;
+            const bool success = ok && result.isObject()
+                && ExternalProcessPlugin::parseBatchEditJson(result.toObject(), &edit);
+            callback(success, std::move(edit));
+        });
+}
+
+ExternalProcessPlugin::AsyncRequestId ExternalProcessPlugin::startAsyncJsonRequest(
+    const QString &method,
+    const QJsonObject &payload,
+    const QString &locale,
+    QObject *callbackContext,
+    AsyncJsonCompletion callback)
+{
+    if (!callbackContext || !callback)
+        return 0;
+
+    const QByteArray serializedPayload = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    if (serializedPayload.size() > kMaxRequestPayloadBytes)
+    {
+        Logger::warn(QString("Process plugin '%1' async request '%2' rejected: payload is %3 bytes (limit %4).")
+                         .arg(m_manifest.pluginId)
+                         .arg(method)
+                         .arg(serializedPayload.size())
+                         .arg(kMaxRequestPayloadBytes));
+        return 0;
+    }
+
+    pruneCompletedAsyncJobs();
+    {
+        QMutexLocker locker(&m_asyncJobsMutex);
+        if (m_asyncJobs.size() >= kMaxConcurrentAsyncRequests)
+        {
+            Logger::warn(QString("Process plugin '%1' async request '%2' rejected: too many requests in flight.")
+                             .arg(m_manifest.pluginId)
+                             .arg(method));
+            return 0;
+        }
+    }
+
+    AsyncRequestId requestId = m_nextAsyncRequestId++;
+    if (requestId == 0)
+        requestId = m_nextAsyncRequestId++;
+    const auto cancelled = std::make_shared<std::atomic_bool>(false);
+    const Manifest manifest = m_manifest;
+    const QPointer<QObject> target(callbackContext);
+    const int timeoutMs = requestTimeoutMsForMethod(method);
+    const AsyncJsonCompletion completion = std::move(callback);
+
+    QFuture<void> future = QtConcurrent::run(
+        [manifest, locale, method, payload, timeoutMs, cancelled, target, completion]() mutable {
+            QJsonValue result;
+            QString errorMessage;
+            const bool ok = runIsolatedProcessRequest(manifest,
+                                                      locale,
+                                                      method,
+                                                      payload,
+                                                      timeoutMs,
+                                                      cancelled,
+                                                      &result,
+                                                      &errorMessage);
+            if (!ok)
+            {
+                Logger::warn(QString("Process plugin async request '%1' failed: %2")
+                                 .arg(method, errorMessage));
+            }
+
+            if (!target)
+                return;
+            QMetaObject::invokeMethod(
+                target.data(),
+                [completion, ok, result]() { completion(ok, result); },
+                Qt::QueuedConnection);
+        });
+
+    {
+        QMutexLocker locker(&m_asyncJobsMutex);
+        m_asyncJobs.insert(requestId, AsyncJob{cancelled, std::move(future)});
+    }
+    return requestId;
+}
+
+void ExternalProcessPlugin::cancelAsyncRequest(AsyncRequestId requestId)
+{
+    if (requestId == 0)
+        return;
+    QMutexLocker locker(&m_asyncJobsMutex);
+    const auto it = m_asyncJobs.constFind(requestId);
+    if (it != m_asyncJobs.constEnd() && it->cancelled)
+        it->cancelled->store(true, std::memory_order_relaxed);
+}
+
+void ExternalProcessPlugin::pruneCompletedAsyncJobs() const
+{
+    QMutexLocker locker(&m_asyncJobsMutex);
+    for (auto it = m_asyncJobs.begin(); it != m_asyncJobs.end();)
+    {
+        if (it->future.isFinished())
+            it = m_asyncJobs.erase(it);
+        else
+            ++it;
+    }
 }
 
 bool ExternalProcessPlugin::parseNoteJson(const QJsonObject &obj, Note *outNote)
@@ -593,7 +1047,17 @@ bool ExternalProcessPlugin::requestJson(const QString &method, const QJsonObject
         const int waitSlice = qMax(1, qMin(remaining, 50));
         if (!m_process.waitForReadyRead(waitSlice))
             continue;
-        const QString responseLine = QString::fromUtf8(m_process.readLine()).trimmed();
+        const QByteArray rawResponseLine = m_process.readLine(kMaxResponsePayloadBytes + 1);
+        if (rawResponseLine.size() > kMaxResponsePayloadBytes)
+        {
+            Logger::warn(QString("Process plugin '%1' request '%2' rejected: response payload exceeds %3 bytes.")
+                             .arg(m_manifest.pluginId)
+                             .arg(method)
+                             .arg(kMaxResponsePayloadBytes));
+            m_pendingProcessRestart = true;
+            return false;
+        }
+        const QString responseLine = QString::fromUtf8(rawResponseLine).trimmed();
         if (responseLine.isEmpty())
             continue;
 
@@ -740,7 +1204,16 @@ bool ExternalProcessPlugin::runToolActionOneShot(const QString &actionId, const 
         return false;
     }
 
-    const QByteArray out = oneShot.readAll();
+    const QByteArray out = oneShot.read(kMaxResponsePayloadBytes + 1);
+    if (out.size() > kMaxResponsePayloadBytes)
+    {
+        oneShot.kill();
+        oneShot.waitForFinished(1000);
+        Logger::warn(QString("Process plugin '%1' one-shot output exceeded %2 bytes.")
+                         .arg(m_manifest.pluginId)
+                         .arg(kMaxResponsePayloadBytes));
+        return false;
+    }
     const QString outText = QString::fromUtf8(out).trimmed();
     if (!outText.isEmpty())
     {
@@ -784,7 +1257,10 @@ bool ExternalProcessPlugin::probeProcessHealth(int timeoutMs) const
         if (!m_process.waitForReadyRead(waitSlice))
             continue;
 
-        const QString responseLine = QString::fromUtf8(m_process.readLine()).trimmed();
+        const QByteArray rawResponseLine = m_process.readLine(kMaxResponsePayloadBytes + 1);
+        if (rawResponseLine.size() > kMaxResponsePayloadBytes)
+            return false;
+        const QString responseLine = QString::fromUtf8(rawResponseLine).trimmed();
         if (responseLine.isEmpty())
             continue;
 
@@ -948,6 +1424,15 @@ bool ExternalProcessPlugin::writeLine(const QByteArray &line)
 {
     if (m_process.state() != QProcess::Running)
         return false;
+
+    if (line.size() > kMaxRequestPayloadBytes)
+    {
+        Logger::warn(QString("Process plugin '%1' request rejected: payload is %2 bytes (limit %3).")
+                         .arg(m_manifest.pluginId)
+                         .arg(line.size())
+                         .arg(kMaxRequestPayloadBytes));
+        return false;
+    }
 
     const qint64 written = m_process.write(line);
     return written > 0;

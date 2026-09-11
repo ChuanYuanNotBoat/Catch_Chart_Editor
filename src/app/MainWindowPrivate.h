@@ -152,6 +152,8 @@ public:
     QHash<QString, QAction *> shortcutActions;
     QHash<QString, QKeySequence> shortcutDefaults;
     QList<QString> shortcutActionOrder;
+    quint64 pendingPluginRequestId = 0;
+    quint64 pluginActionGeneration = 0;
 
     QString currentChartPath;
     QString sourceChartPath;

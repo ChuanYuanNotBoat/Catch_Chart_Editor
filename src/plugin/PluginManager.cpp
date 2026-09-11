@@ -1,9 +1,11 @@
 #include "PluginManager.h"
+#include "ExternalProcessPlugin.h"
 #include "file/PluginLoader.h"
 #include "utils/Logger.h"
 #include "utils/PlaybackStutterProbe.h"
 #include "utils/Settings.h"
 #include <QLocale>
+#include <QMetaObject>
 #include <QSet>
 #include <QElapsedTimer>
 #include <QTimer>
@@ -82,6 +84,12 @@ PluginManager::PluginManager(QObject *parent) : QObject(parent)
 
 PluginManager::~PluginManager()
 {
+    for (auto it = m_asyncCancels.constBegin(); it != m_asyncCancels.constEnd(); ++it)
+    {
+        if (auto *external = dynamic_cast<ExternalProcessPlugin *>(it->plugin))
+            external->cancelAsyncRequest(it->pluginRequestId);
+    }
+    m_asyncCancels.clear();
     unloadPlugins();
 }
 
@@ -240,6 +248,13 @@ void PluginManager::reloadPlugins()
 
 void PluginManager::unloadPlugins()
 {
+    for (auto it = m_asyncCancels.constBegin(); it != m_asyncCancels.constEnd(); ++it)
+    {
+        if (auto *external = dynamic_cast<ExternalProcessPlugin *>(it->plugin))
+            external->cancelAsyncRequest(it->pluginRequestId);
+    }
+    m_asyncCancels.clear();
+
     if (!m_plugins.isEmpty())
     {
         for (PluginInterface *p : m_plugins)
@@ -376,6 +391,71 @@ bool PluginManager::runToolAction(const QString &pluginId, const QString &action
     return false;
 }
 
+PluginManager::AsyncRequestId PluginManager::runToolActionAsync(
+    const QString &pluginId,
+    const QString &actionId,
+    const QVariantMap &context,
+    QObject *callbackContext,
+    AsyncToolActionCallback callback)
+{
+    if (!callbackContext || !callback)
+        return 0;
+
+    const QVariantMap enrichedContext = enrichContextWithLocale(context);
+    AsyncRequestId requestId = m_nextAsyncRequestId++;
+    if (requestId == 0)
+        requestId = m_nextAsyncRequestId++;
+    QPointer<PluginManager> managerGuard(this);
+    const auto complete = [managerGuard, requestId, callback = std::move(callback)](bool ok) {
+        if (!managerGuard)
+            return;
+        managerGuard->m_asyncCancels.remove(requestId);
+        callback(ok);
+    };
+
+    for (PluginInterface *p : m_plugins)
+    {
+        if (!p || p->pluginId() != pluginId || !p->hasCapability(PluginInterface::kCapabilityToolActions))
+            continue;
+
+        if (auto *external = dynamic_cast<ExternalProcessPlugin *>(p))
+        {
+            const quint64 pluginRequestId = external->runToolActionAsync(
+                actionId,
+                enrichedContext,
+                callbackContext,
+                complete);
+            if (pluginRequestId != 0)
+            {
+                m_asyncCancels.insert(requestId, AsyncCancel{external, pluginRequestId});
+                return requestId;
+            }
+            break;
+        }
+
+        bool ok = false;
+        try
+        {
+            ok = p->runToolAction(actionId, enrichedContext);
+        }
+        catch (...)
+        {
+            Logger::warn(QString("Error in plugin '%1' async runToolAction(%2)")
+                             .arg(localizedNameForLog(p))
+                             .arg(actionId));
+        }
+        QMetaObject::invokeMethod(callbackContext,
+                                  [complete, ok]() { complete(ok); },
+                                  Qt::QueuedConnection);
+        return requestId;
+    }
+
+    QMetaObject::invokeMethod(callbackContext,
+                              [complete]() { complete(false); },
+                              Qt::QueuedConnection);
+    return requestId;
+}
+
 bool PluginManager::supportsHostBatchEdit(const QString &pluginId) const
 {
     for (PluginInterface *p : m_plugins)
@@ -419,6 +499,82 @@ bool PluginManager::buildToolActionBatchEdit(const QString &pluginId,
         }
     }
     return false;
+}
+
+PluginManager::AsyncRequestId PluginManager::buildToolActionBatchEditAsync(
+    const QString &pluginId,
+    const QString &actionId,
+    const QVariantMap &context,
+    QObject *callbackContext,
+    AsyncBatchEditCallback callback)
+{
+    if (!callbackContext || !callback)
+        return 0;
+
+    const QVariantMap enrichedContext = enrichContextWithLocale(context);
+    AsyncRequestId requestId = m_nextAsyncRequestId++;
+    if (requestId == 0)
+        requestId = m_nextAsyncRequestId++;
+    QPointer<PluginManager> managerGuard(this);
+    const auto complete = [managerGuard, requestId, callback = std::move(callback)](
+                              bool ok, PluginInterface::BatchEdit edit) {
+        if (!managerGuard)
+            return;
+        managerGuard->m_asyncCancels.remove(requestId);
+        callback(ok, std::move(edit));
+    };
+
+    for (PluginInterface *p : m_plugins)
+    {
+        if (!p || p->pluginId() != pluginId)
+            continue;
+
+        if (auto *external = dynamic_cast<ExternalProcessPlugin *>(p))
+        {
+            const quint64 pluginRequestId = external->buildToolActionBatchEditAsync(
+                actionId,
+                enrichedContext,
+                callbackContext,
+                complete);
+            if (pluginRequestId != 0)
+            {
+                m_asyncCancels.insert(requestId, AsyncCancel{external, pluginRequestId});
+                return requestId;
+            }
+            break;
+        }
+
+        PluginInterface::BatchEdit edit;
+        bool ok = false;
+        try
+        {
+            ok = p->buildToolActionBatchEdit(actionId, enrichedContext, &edit);
+        }
+        catch (...)
+        {
+            Logger::warn(QString("Error in plugin '%1' async buildToolActionBatchEdit(%2)")
+                             .arg(localizedNameForLog(p))
+                             .arg(actionId));
+        }
+        QMetaObject::invokeMethod(callbackContext,
+                                  [complete, ok, edit]() mutable { complete(ok, std::move(edit)); },
+                                  Qt::QueuedConnection);
+        return requestId;
+    }
+
+    QMetaObject::invokeMethod(callbackContext,
+                              [complete]() mutable { complete(false, PluginInterface::BatchEdit{}); },
+                              Qt::QueuedConnection);
+    return requestId;
+}
+
+void PluginManager::cancelAsyncRequest(AsyncRequestId requestId)
+{
+    const auto it = m_asyncCancels.constFind(requestId);
+    if (it == m_asyncCancels.constEnd())
+        return;
+    if (auto *external = dynamic_cast<ExternalProcessPlugin *>(it->plugin))
+        external->cancelAsyncRequest(it->pluginRequestId);
 }
 
 QWidget *PluginManager::createFloatingPanel(const QString &pluginId,

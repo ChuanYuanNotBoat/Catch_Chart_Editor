@@ -220,7 +220,26 @@ tool panels remain simultaneously visible rather than becoming switching tabs.
 - Plugins can ignore these fields safely if not needed.
 - For one-shot mode (--run-tool-action), host also exports:
   - MALODY_LOCALE
-  - MALODY_LANGUAGE
+- MALODY_LANGUAGE
+
+## 7.1 Host-side async action guardrails
+
+The host runs `runToolAction` and `buildBatchEdit` requests in an isolated
+worker process. The editor event loop is not blocked while the worker waits for
+the plugin response. The host may cancel a request; cancellation terminates the
+isolated worker and the action is treated as failed.
+
+The current host limits are:
+
+- request payload (including the JSON envelope): 1 MiB;
+- response payload: 4 MiB;
+- at most two asynchronous worker requests per process plugin;
+- method-specific response deadlines, including 15 seconds for
+  `runToolAction` and 8 seconds for `buildBatchEdit`.
+
+Oversized or timed-out requests fail without applying a chart mutation. Canvas
+overlay/input requests keep their existing short synchronous deadlines because
+they are used on latency-sensitive paint and pointer paths.
 
 ## 8. Host API v3 Extensions (Addendum)
 

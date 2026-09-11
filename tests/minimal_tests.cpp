@@ -1,11 +1,15 @@
 ﻿#include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <QTextStream>
+#include <QThread>
+#include <QTimer>
 #include <QtGlobal>
 #include <QSignalSpy>
 #include <algorithm>
@@ -31,9 +35,112 @@
 #include "utils/FileUtils.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackSpeed.h"
+#include "plugin/ExternalProcessPlugin.h"
 
 namespace
 {
+    int runExternalProcessPluginTestHelper()
+    {
+        QTextStream input(stdin);
+        QTextStream output(stdout);
+        while (!input.atEnd())
+        {
+            const QJsonDocument document = QJsonDocument::fromJson(input.readLine().toUtf8());
+            if (!document.isObject())
+                continue;
+            const QJsonObject request = document.object();
+            if (request.value(QStringLiteral("type")).toString() != QLatin1String("request"))
+                continue;
+
+            const QString method = request.value(QStringLiteral("method")).toString();
+            const QString requestId = request.value(QStringLiteral("id")).toString();
+            const QJsonObject payload = request.value(QStringLiteral("payload")).toObject();
+            QJsonValue result = false;
+            if (method == QLatin1String("runToolAction"))
+            {
+                if (payload.value(QStringLiteral("action_id")).toString() == QLatin1String("slow"))
+                    QThread::msleep(5000);
+                result = true;
+            }
+            else if (method == QLatin1String("buildBatchEdit"))
+            {
+                result = QJsonObject{{QStringLiteral("add"), QJsonArray()}};
+            }
+
+            const QJsonObject response{
+                {QStringLiteral("type"), QStringLiteral("response")},
+                {QStringLiteral("id"), requestId},
+                {QStringLiteral("result"), result},
+            };
+            output << QJsonDocument(response).toJson(QJsonDocument::Compact) << '\n';
+            output.flush();
+        }
+        return 0;
+    }
+
+    bool testExternalProcessPluginAsyncGuards()
+    {
+        ExternalProcessPlugin::Manifest manifest;
+        manifest.pluginId = QStringLiteral("test.process");
+        manifest.displayName = QStringLiteral("Test Process");
+        manifest.version = QStringLiteral("1");
+        manifest.description = QStringLiteral("test");
+        manifest.author = QStringLiteral("test");
+        manifest.apiVersion = PluginInterface::kHostApiVersion;
+        manifest.executable = QCoreApplication::applicationFilePath();
+        manifest.args = {QStringLiteral("--process-plugin-test-helper")};
+        manifest.capabilities = {QStringLiteral("tool_actions")};
+        manifest.manifestPath = QCoreApplication::applicationFilePath();
+
+        ExternalProcessPlugin plugin(manifest);
+        QEventLoop loop;
+        QTimer timeout;
+        timeout.setSingleShot(true);
+        bool callbackCalled = false;
+        bool callbackResult = false;
+        timeout.setInterval(3000);
+        QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+        const auto successId = plugin.runToolActionAsync(
+            QStringLiteral("ok"),
+            {},
+            &loop,
+            [&](bool ok) {
+                callbackCalled = true;
+                callbackResult = ok;
+                loop.quit();
+            });
+        if (successId == 0)
+            return false;
+        timeout.start();
+        loop.exec();
+        if (!callbackCalled || !callbackResult)
+            return false;
+
+        callbackCalled = false;
+        callbackResult = true;
+        const auto cancelId = plugin.runToolActionAsync(
+            QStringLiteral("slow"),
+            {},
+            &loop,
+            [&](bool ok) {
+                callbackCalled = true;
+                callbackResult = ok;
+                loop.quit();
+            });
+        if (cancelId == 0)
+            return false;
+        QTimer::singleShot(100, &loop, [&plugin, cancelId]() { plugin.cancelAsyncRequest(cancelId); });
+        timeout.start();
+        loop.exec();
+        if (!callbackCalled || callbackResult)
+            return false;
+
+        const QVariantMap oversized{{QStringLiteral("blob"), QString(2 * 1024 * 1024, QLatin1Char('x'))}};
+        const auto rejectedId = plugin.runToolActionAsync(
+            QStringLiteral("ok"), oversized, &loop, [](bool) {});
+        return rejectedId == 0;
+    }
+
     bool nearlyEqual(double a, double b, double eps = 1e-6)
     {
         return qAbs(a - b) <= eps;
@@ -3249,6 +3356,9 @@ int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
 
+    if (app.arguments().contains(QStringLiteral("--process-plugin-test-helper")))
+        return runExternalProcessPluginTestHelper();
+
     struct Case
     {
         const char *name;
@@ -3256,6 +3366,7 @@ int main(int argc, char **argv)
     };
 
     const Case cases[] = {
+        {"External process plugin async guards", &testExternalProcessPluginAsyncGuards},
         {"Playback speed 0.1x-10x bounds", &testPlaybackSpeedBounds},
         {"Playback wall time scales with rate", &testPlaybackWallTimeConversion},
         {"Playback startup remains continuous at all rates", &testPlaybackStartupContinuity},

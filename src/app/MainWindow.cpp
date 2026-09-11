@@ -1592,6 +1592,13 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
     connect(d->chartController, &ChartController::chartChanged, this, [this]()
             {
+        if (d->pendingPluginRequestId != 0)
+        {
+            if (PluginManager *pm = activePluginManager())
+                pm->cancelAsyncRequest(d->pendingPluginRequestId);
+            d->pendingPluginRequestId = 0;
+            ++d->pluginActionGeneration;
+        }
         const bool userEdit = !d->isLoadingChart;
         if (userEdit)
         {
@@ -1750,6 +1757,12 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
 MainWindow::~MainWindow()
 {
+    if (d->pendingPluginRequestId != 0)
+    {
+        if (PluginManager *pm = activePluginManager())
+            pm->cancelAsyncRequest(d->pendingPluginRequestId);
+        d->pendingPluginRequestId = 0;
+    }
     // Private is deleted before QObject tears down child objects. Destroy the
     // watcher explicitly so a background completion cannot deliver a lambda
     // that reads Private during that gap. The worker owns only its Chart

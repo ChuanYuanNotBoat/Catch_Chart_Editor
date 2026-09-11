@@ -183,7 +183,7 @@ Host API 当前为 v3，扩展点包括 tool actions、floating panels、canvas 
 - `builtin.note_color_formatter` 是当前内置进程插件；
 - `builtin.note_chain_assist` 源码仅保留 legacy 兼容参考，宿主明确跳过；
 - 新插件从 [../src/plugin/README.md](../src/plugin/README.md) 和 `plugins/samples/` 开始。
-- 当前进程插件 request/response 仍会同步等待；高频画布工具优先留在原生 C++，异步请求、取消和有界 payload 属于后续协议重构。
+- `runToolAction` / `buildBatchEdit` 由宿主通过隔离 worker 异步执行，并带取消、超时和有界 payload；高频画布工具仍保持短超时同步路径。
 
 ## 10. 文档与版本规则
 

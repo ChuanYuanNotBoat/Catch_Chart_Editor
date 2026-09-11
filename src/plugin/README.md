@@ -46,7 +46,10 @@ The former `builtin.note_chain_assist` process plugin is not an active SDK
 example. It is skipped by the host because the authoritative implementation is
 the native module under `src/editor/NoteChain`.
 
-Process-plugin requests still use bounded synchronous waits in the host. Keep
-canvas callbacks small and move heavy work behind explicit actions. Async
-requests, cancellation, backpressure, and bounded chart payloads are tracked in
-[the engineering TODO](../../docs/ENGINEERING_TODO.md).
+Tool actions and host batch-edit requests use an isolated worker process, so
+slow plugin work does not block the editor event loop. Each request has a
+method-specific timeout, can be cancelled by the host, and is rejected when
+the serialized request exceeds 1 MiB or the response exceeds 4 MiB. At most two
+worker requests are in flight per process plugin. Canvas overlay/input calls
+remain bounded synchronous calls because they are latency-sensitive; keep
+those callbacks small and move heavy work behind explicit actions.

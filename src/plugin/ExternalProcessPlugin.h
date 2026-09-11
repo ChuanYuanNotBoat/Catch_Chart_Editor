@@ -3,12 +3,29 @@
 #include "plugin/PluginInterface.h"
 #include <QJsonValue>
 #include <QJsonObject>
+#include <QFuture>
+#include <QHash>
+#include <QMutex>
 #include <QProcess>
 #include <QStringList>
+#include <atomic>
+#include <functional>
+#include <memory>
+
+class QObject;
 
 class ExternalProcessPlugin final : public PluginInterface
 {
 public:
+    using AsyncRequestId = quint64;
+    using AsyncToolActionCallback = std::function<void(bool)>;
+    using AsyncBatchEditCallback = std::function<void(bool, BatchEdit)>;
+
+    // Keep process-plugin IPC bounded even when a plugin is misbehaving or a
+    // chart context accidentally contains a large serialized document.
+    static constexpr qint64 kMaxRequestPayloadBytes = 1024 * 1024;
+    static constexpr qint64 kMaxResponsePayloadBytes = 4 * 1024 * 1024;
+
     struct Manifest
     {
         QString pluginId;
@@ -52,6 +69,21 @@ public:
     QList<ToolAction> toolActions() const override;
     bool runToolAction(const QString &actionId, const QVariantMap &context) override;
     bool buildToolActionBatchEdit(const QString &actionId, const QVariantMap &context, BatchEdit *outEdit) override;
+
+    // Expensive action requests run in an isolated worker process so the host
+    // event loop stays responsive. The callback is queued to callbackContext.
+    // A request id can be cancelled; cancellation terminates the worker
+    // process and completes the callback with false.
+    AsyncRequestId runToolActionAsync(const QString &actionId,
+                                      const QVariantMap &context,
+                                      QObject *callbackContext,
+                                      AsyncToolActionCallback callback);
+    AsyncRequestId buildToolActionBatchEditAsync(const QString &actionId,
+                                                 const QVariantMap &context,
+                                                 QObject *callbackContext,
+                                                 AsyncBatchEditCallback callback);
+    void cancelAsyncRequest(AsyncRequestId requestId);
+
     QList<CanvasOverlayItem> canvasOverlays(const QVariantMap &context) const override;
     bool handleCanvasInput(const QVariantMap &context,
                            const CanvasInputEvent &event,
@@ -63,6 +95,12 @@ private:
     bool requestBool(const QString &method, const QJsonObject &payload, bool defaultValue) const;
     bool requestJson(const QString &method, const QJsonObject &payload, QJsonValue *result) const;
     bool runToolActionOneShot(const QString &actionId, const QVariantMap &context) const;
+    using AsyncJsonCompletion = std::function<void(bool, const QJsonValue &)>;
+    AsyncRequestId startAsyncJsonRequest(const QString &method,
+                                         const QJsonObject &payload,
+                                         const QString &locale,
+                                         QObject *callbackContext,
+                                         AsyncJsonCompletion callback);
     bool probeProcessHealth(int timeoutMs) const;
     void forceRestartProcess(const QString &reason);
     bool sendInitializeNotification();
@@ -76,6 +114,14 @@ private:
 
     void invalidateToolActionsCache();
 
+    struct AsyncJob
+    {
+        std::shared_ptr<std::atomic_bool> cancelled;
+        QFuture<void> future;
+    };
+
+    void pruneCompletedAsyncJobs() const;
+
 private:
     Manifest m_manifest;
     mutable QProcess m_process;
@@ -87,5 +133,8 @@ private:
     mutable bool m_canvasOverlaysCached = false;
     mutable bool m_pendingProcessRestart = false;
     mutable qint64 m_processStartEpochMs = 0;
+    mutable QMutex m_asyncJobsMutex;
+    mutable QHash<AsyncRequestId, AsyncJob> m_asyncJobs;
+    mutable AsyncRequestId m_nextAsyncRequestId = 1;
     void invalidateCanvasOverlayCache();
 };

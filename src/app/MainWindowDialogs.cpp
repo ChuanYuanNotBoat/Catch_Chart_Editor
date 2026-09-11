@@ -720,61 +720,123 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
                      .arg(actionId)
                      .arg(chartPath));
 
-    const QString actionKey = pluginId + "::" + actionId;
-    PluginInterface::BatchEdit batchEdit;
-    const bool batchEditAvailable =
-        app->pluginManager()->supportsHostBatchEdit(pluginId) &&
-        !d->batchEditDisabledActions.contains(actionKey);
-    if (batchEditAvailable &&
-        app->pluginManager()->buildToolActionBatchEdit(pluginId, actionId, context, &batchEdit))
+    if (d->pendingPluginRequestId != 0)
     {
-        const bool ok = d->chartController->applyBatchEdit(
-            tr("Plugin Action: %1").arg(actionTitle),
-            batchEdit.notesToAdd,
-            batchEdit.notesToRemove,
-            batchEdit.notesToMove);
+        app->pluginManager()->cancelAsyncRequest(d->pendingPluginRequestId);
+        d->pendingPluginRequestId = 0;
+    }
+    const quint64 actionGeneration = ++d->pluginActionGeneration;
+
+    const auto finishToolAction = [this,
+                                   pluginId,
+                                   actionId,
+                                   actionTitle,
+                                   chartPath,
+                                   requiresUndo,
+                                   actionGeneration,
+                                   applyPostActionPluginModeSync](bool ok) {
+        if (d->pluginActionGeneration != actionGeneration)
+            return;
+        d->pendingPluginRequestId = 0;
         if (!ok)
         {
-            QMessageBox::warning(this, tr("Plugin Action"), tr("Plugin batch edit is empty or invalid: %1").arg(actionTitle));
-            return false;
+            Logger::warn(QString("Plugin action returned false: plugin=%1 action=%2 path=%3")
+                             .arg(pluginId)
+                             .arg(actionId)
+                             .arg(chartPath));
+            QMessageBox::warning(this, tr("Plugin Action"), tr("Plugin action failed: %1").arg(actionTitle));
+            return;
         }
+
+        Chart mutated;
+        if (!ChartIO::load(chartPath, mutated, false))
+        {
+            QMessageBox::warning(this,
+                                 tr("Plugin Action"),
+                                 tr("Plugin action finished, but failed to reload chart."));
+            return;
+        }
+
+        if (requiresUndo)
+            d->chartController->applyExternalChartMutation(tr("Plugin Action: %1").arg(actionTitle), mutated);
+        else
+            d->chartController->loadChart(chartPath);
+
         statusBar()->showMessage(tr("Plugin action completed: %1").arg(actionTitle), 2500);
         refreshPluginUiExtensions();
         applyPostActionPluginModeSync();
+    };
+
+    const QString actionKey = pluginId + "::" + actionId;
+    const bool batchEditAvailable =
+        app->pluginManager()->supportsHostBatchEdit(pluginId)
+        && !d->batchEditDisabledActions.contains(actionKey);
+
+    const auto startRunToolAction = [this,
+                                     app,
+                                     pluginId,
+                                     actionId,
+                                     context,
+                                     actionGeneration,
+                                     finishToolAction]() {
+        if (d->pluginActionGeneration != actionGeneration)
+            return;
+        d->pendingPluginRequestId = app->pluginManager()->runToolActionAsync(
+            pluginId,
+            actionId,
+            context,
+            this,
+            finishToolAction);
+    };
+
+    if (batchEditAvailable)
+    {
+        d->pendingPluginRequestId = app->pluginManager()->buildToolActionBatchEditAsync(
+            pluginId,
+            actionId,
+            context,
+            this,
+            [this,
+             actionKey,
+             actionTitle,
+             actionGeneration,
+             startRunToolAction,
+             applyPostActionPluginModeSync](bool ok, PluginInterface::BatchEdit batchEdit) {
+                if (d->pluginActionGeneration != actionGeneration)
+                    return;
+                d->pendingPluginRequestId = 0;
+                if (ok)
+                {
+                    const bool applied = d->chartController->applyBatchEdit(
+                        tr("Plugin Action: %1").arg(actionTitle),
+                        batchEdit.notesToAdd,
+                        batchEdit.notesToRemove,
+                        batchEdit.notesToMove);
+                    if (!applied)
+                    {
+                        QMessageBox::warning(
+                            this,
+                            tr("Plugin Action"),
+                            tr("Plugin batch edit is empty or invalid: %1").arg(actionTitle));
+                        return;
+                    }
+                    statusBar()->showMessage(tr("Plugin action completed: %1").arg(actionTitle), 2500);
+                    refreshPluginUiExtensions();
+                    applyPostActionPluginModeSync();
+                    return;
+                }
+
+                d->batchEditDisabledActions.insert(actionKey);
+                Logger::warn(QString("Plugin action batch-edit disabled for this session after failure: %1")
+                                 .arg(actionKey));
+                startRunToolAction();
+            });
+        statusBar()->showMessage(tr("Plugin action running: %1").arg(actionTitle), 1500);
         return true;
     }
-    else if (batchEditAvailable)
-    {
-        d->batchEditDisabledActions.insert(actionKey);
-        Logger::warn(QString("Plugin action batch-edit disabled for this session after failure: %1")
-                         .arg(actionKey));
-    }
 
-    if (!app->pluginManager()->runToolAction(pluginId, actionId, context))
-    {
-        Logger::warn(QString("Plugin action returned false: plugin=%1 action=%2 path=%3")
-                         .arg(pluginId)
-                         .arg(actionId)
-                         .arg(chartPath));
-        QMessageBox::warning(this, tr("Plugin Action"), tr("Plugin action failed: %1").arg(actionTitle));
-        return false;
-    }
-
-    Chart mutated;
-    if (!ChartIO::load(chartPath, mutated, false))
-    {
-        QMessageBox::warning(this, tr("Plugin Action"), tr("Plugin action finished, but failed to reload chart."));
-        return false;
-    }
-
-    if (requiresUndo)
-        d->chartController->applyExternalChartMutation(tr("Plugin Action: %1").arg(actionTitle), mutated);
-    else
-        d->chartController->loadChart(chartPath);
-
-    statusBar()->showMessage(tr("Plugin action completed: %1").arg(actionTitle), 2500);
-    refreshPluginUiExtensions();
-    applyPostActionPluginModeSync();
+    startRunToolAction();
+    statusBar()->showMessage(tr("Plugin action running: %1").arg(actionTitle), 1500);
     return true;
 }
 
