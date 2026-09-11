@@ -3215,6 +3215,73 @@ namespace
         return true;
     }
 
+    Chart makeChartIoBenchmarkChart(int noteCount)
+    {
+        Chart chart;
+        chart.clearNotes();
+
+        QVector<Note> notes;
+        notes.reserve(noteCount);
+        for (int i = 0; i < noteCount; ++i)
+        {
+            notes.append(makeNormalNote(i * 2,
+                                        0,
+                                        1,
+                                        (i * 37) % 513));
+        }
+        chart.setNotes(std::move(notes));
+        return chart;
+    }
+
+    bool testChartIoLoadSaveBenchmarks()
+    {
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+            return false;
+
+        const int noteCounts[] = {5000, 20000, 100000};
+        for (const int noteCount : noteCounts)
+        {
+            const QString path = tempDir.filePath(QStringLiteral("benchmark_%1.mc").arg(noteCount));
+
+            qint64 saveMs = 0;
+            {
+                const Chart source = makeChartIoBenchmarkChart(noteCount);
+                QElapsedTimer saveTimer;
+                saveTimer.start();
+                if (!ChartIO::save(path, source))
+                    return false;
+                saveMs = saveTimer.elapsed();
+            }
+
+            Chart loaded;
+            QElapsedTimer loadTimer;
+            loadTimer.start();
+            if (!ChartIO::load(path, loaded, false))
+                return false;
+            const qint64 loadMs = loadTimer.elapsed();
+            if (loaded.notes().size() != noteCount)
+                return false;
+
+            std::fprintf(stdout,
+                         "LOAD_SAVE_BENCHMARK notes=%d save_ms=%lld load_ms=%lld\n",
+                         noteCount,
+                         static_cast<long long>(saveMs),
+                         static_cast<long long>(loadMs));
+
+            const qint64 maxMs = noteCount <= 20000 ? 5000 : 15000;
+            if (saveMs > maxMs || loadMs > maxMs)
+            {
+                std::fprintf(stderr,
+                             "FAILED: load/save benchmark exceeded %lld ms for %d notes\n",
+                             static_cast<long long>(maxMs),
+                             noteCount);
+                return false;
+            }
+        }
+        return true;
+    }
+
     bool testRainRewardStateCore()
     {
         if (RainRewardGenerator::seedForNoteCount(3) != 0xCA7FBEA4u)
@@ -3656,6 +3723,7 @@ int main(int argc, char **argv)
         {"ChartController undo/redo action text lifecycle", &testChartControllerUndoRedoActionTextLifecycle},
         {"ChartController loadChartFromData clears undo stack", &testChartControllerLoadChartFromDataClearsUndoStack},
         {"ChartController applyExternalMutation undo redo", &testChartControllerApplyExternalMutationUndoRedo},
+        {"ChartIO load/save benchmarks", &testChartIoLoadSaveBenchmarks},
         {"ChartController opaque snapshot bound", &testChartControllerOpaqueSnapshotBound},
         {"ChartController applyExternalMutation empty action default text", &testChartControllerApplyExternalMutationEmptyActionUsesDefaultUndoText},
         {"ChartController loadChartFromData sets path", &testChartControllerLoadChartFromDataSetsPath},
