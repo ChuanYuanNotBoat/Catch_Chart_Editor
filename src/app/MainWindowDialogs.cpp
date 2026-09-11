@@ -37,6 +37,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QDesktopServices>
+#include <QEventLoop>
 #include <QUrl>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -694,9 +695,33 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
     QVariantMap context;
     if (!d->workingChartPath.isEmpty())
     {
-        if (!d->chartController->saveChart(d->workingChartPath))
+        bool completed = false;
+        bool synced = false;
+        QString syncError;
+        QEventLoop syncLoop;
+        saveDocumentAsync(
+            d->workingChartPath,
+            d->workingChartPath,
+            false,
+            true,
+            [&completed, &synced, &syncError, &syncLoop](bool success,
+                                                         const QString &,
+                                                         const QString &error)
+            {
+                completed = true;
+                synced = success;
+                syncError = error;
+                syncLoop.quit();
+            });
+        if (!completed)
+            syncLoop.exec();
+        if (!synced)
         {
-            QMessageBox::warning(this, tr("Plugin Action"), tr("Failed to sync working copy before plugin action."));
+            QMessageBox::warning(
+                this,
+                tr("Plugin Action"),
+                syncError.isEmpty() ? tr("Failed to sync working copy before plugin action.")
+                                    : syncError);
             return false;
         }
     }

@@ -3052,6 +3052,148 @@ QString MainWindow::beatmapRootPath() const
     return Settings::instance().defaultBeatmapPath();
 }
 
+void MainWindow::enqueueDocumentTransaction(DocumentTransaction transaction)
+{
+    if (!transaction)
+        return;
+
+    d->documentTransactions.enqueue(std::move(transaction));
+    if (d->documentTransactionRunning)
+        return;
+
+    d->documentTransactionRunning = true;
+    DocumentTransaction next = d->documentTransactions.dequeue();
+    next();
+}
+
+void MainWindow::finishDocumentTransaction()
+{
+    if (!d)
+        return;
+
+    d->documentTransactionRunning = false;
+    if (d->documentTransactions.isEmpty())
+        return;
+
+    d->documentTransactionRunning = true;
+    DocumentTransaction next = d->documentTransactions.dequeue();
+    next();
+}
+
+void MainWindow::saveDocumentAsync(const QString &path,
+                                   const QString &workingPath,
+                                   bool syncResources,
+                                   bool showProgress,
+                                   DocumentSaveCompletion completion)
+{
+    if (!d->chartController || path.trimmed().isEmpty())
+    {
+        if (completion)
+            completion(false, workingPath, tr("Chart save path is empty."));
+        return;
+    }
+
+    Chart snapshot = *d->chartController->chart();
+    const QString targetPath = path;
+    const QString sessionWorkingPath = workingPath;
+    enqueueDocumentTransaction(
+        [this,
+         snapshot = std::move(snapshot),
+         targetPath,
+         sessionWorkingPath,
+         syncResources,
+         showProgress,
+         completion = std::move(completion)]() mutable
+        {
+            struct SaveJobState
+            {
+                bool success = false;
+                QString workingPath;
+                QString error;
+            };
+            const auto state = std::make_shared<SaveJobState>();
+
+            QPointer<QProgressDialog> progressGuard;
+            if (showProgress)
+            {
+                auto *progressDialog = new QProgressDialog(
+                    tr("Saving chart..."), QString(), 0, 0, this);
+                progressDialog->setWindowTitle(tr("Save Chart"));
+                progressDialog->setWindowModality(Qt::ApplicationModal);
+                progressDialog->setCancelButton(nullptr);
+                progressDialog->setMinimumDuration(0);
+                progressDialog->show();
+                progressGuard = progressDialog;
+            }
+
+            QThread *worker = QThread::create(
+                [state,
+                 snapshot = std::move(snapshot),
+                 targetPath,
+                 sessionWorkingPath,
+                 syncResources]() mutable
+                {
+                    QString error;
+                    bool success = ChartIO::save(targetPath, snapshot);
+                    QString resolvedWorkingPath = sessionWorkingPath;
+                    if (!success)
+                    {
+                        error = QObject::tr("Failed to save chart: %1").arg(targetPath);
+                    }
+                    else if (!sessionWorkingPath.isEmpty() &&
+                             QDir::cleanPath(sessionWorkingPath) != QDir::cleanPath(targetPath))
+                    {
+                        if (!ChartIO::save(sessionWorkingPath, snapshot))
+                        {
+                            success = false;
+                            error = QObject::tr("Failed to update working copy: %1")
+                                        .arg(sessionWorkingPath);
+                        }
+                        else if (syncResources)
+                        {
+                            copyReferencedExternalResources(sessionWorkingPath, targetPath);
+                            syncSidecarDirectoryForChart(sessionWorkingPath, targetPath);
+                        }
+                    }
+                    else if (success && sessionWorkingPath.isEmpty())
+                    {
+                        if (!createWorkingCopyFromSource(targetPath,
+                                                          &resolvedWorkingPath,
+                                                          &error))
+                        {
+                            success = false;
+                            if (error.isEmpty())
+                                error = QObject::tr("Failed to create working copy.");
+                        }
+                    }
+
+                    state->success = success;
+                    state->workingPath = resolvedWorkingPath;
+                    state->error = error;
+                });
+
+            QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+            QObject::connect(worker,
+                             &QThread::finished,
+                             this,
+                             [this,
+                              state,
+                              progressGuard,
+                              completion = std::move(completion)]() mutable
+                             {
+                if (progressGuard)
+                {
+                    progressGuard->close();
+                    progressGuard->deleteLater();
+                }
+                if (completion)
+                    completion(state->success, state->workingPath, state->error);
+                finishDocumentTransaction();
+            });
+            worker->start();
+        });
+}
+
 void MainWindow::persistRecoveryState()
 {
     if (d->workingChartPath.isEmpty() || !d->isModified)
@@ -3094,13 +3236,22 @@ void MainWindow::flushRecoverySnapshot()
         return;
     }
 
-    if (!d->chartController->saveChart(d->workingChartPath))
-    {
-        Logger::warn(QString("Failed to persist recovery snapshot: %1")
-                         .arg(d->workingChartPath));
-        return;
-    }
-    persistRecoveryState();
+    const QString workingPath = d->workingChartPath;
+    saveDocumentAsync(
+        workingPath,
+        workingPath,
+        false,
+        false,
+        [this, workingPath](bool success, const QString &, const QString &error)
+        {
+            if (!success)
+            {
+                Logger::warn(QString("Failed to persist recovery snapshot: %1 (%2)")
+                                 .arg(workingPath, error));
+                return;
+            }
+            persistRecoveryState();
+        });
 }
 
 void MainWindow::clearWorkingCopySession(bool removeWorkingFile)
@@ -3146,23 +3297,33 @@ void MainWindow::performAutoSaveTick()
     if (sourcePath.isEmpty())
         return;
 
-    if (!d->chartController->saveChart(sourcePath))
-    {
-        Logger::warn(QString("Auto-save failed: %1").arg(sourcePath));
-        return;
-    }
+    const quint64 saveRevision = d->chartController->revision();
+    saveDocumentAsync(
+        sourcePath,
+        d->workingChartPath,
+        true,
+        false,
+        [this, sourcePath, saveRevision](bool success,
+                                         const QString &workingPath,
+                                         const QString &error)
+        {
+            if (!success)
+            {
+                Logger::warn(QString("Auto-save failed: %1 (%2)").arg(sourcePath, error));
+                return;
+            }
 
-    d->sourceChartPath = sourcePath;
-    d->currentChartPath = sourcePath;
-    if (d->canvas)
-        d->canvas->setSourceChartPath(sourcePath);
-    d->isModified = false;
-    if (!d->workingChartPath.isEmpty())
-        d->chartController->saveChart(d->workingChartPath);
-    syncReferencedResourcesForSavedChart(d->workingChartPath, sourcePath);
-    syncSidecarDirectoryForChart(d->workingChartPath, sourcePath);
-    persistRecoveryState();
-    statusBar()->showMessage(tr("Auto-saved: %1").arg(sourcePath), 1200);
+            d->sourceChartPath = sourcePath;
+            d->currentChartPath = sourcePath;
+            d->workingChartPath = workingPath;
+            if (d->canvas)
+                d->canvas->setSourceChartPath(sourcePath);
+            if (d->chartController->revision() == saveRevision)
+                d->isModified = false;
+            persistRecoveryState();
+            if (!d->isModified)
+                statusBar()->showMessage(tr("Auto-saved: %1").arg(sourcePath), 1200);
+        });
 }
 
 void MainWindow::tryRecoverPreviousSession()
@@ -3367,33 +3528,52 @@ bool MainWindow::confirmSaveIfModified(const QString &reasonText)
             return false;
     }
 
-    if (!d->chartController->saveChart(savePath))
+    bool completed = false;
+    bool saved = false;
+    QString saveError;
+    QEventLoop loop;
+    saveDocumentAsync(
+        savePath,
+        d->workingChartPath,
+        true,
+        true,
+        [this, savePath, &completed, &saved, &saveError, &loop](bool success,
+                                                                const QString &workingPath,
+                                                                const QString &error)
+        {
+            completed = true;
+            saved = success;
+            saveError = error;
+            if (success)
+            {
+                if (d->editStatisticsChartPath != savePath)
+                {
+                    saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+                    d->editStatisticsChartPath = savePath;
+                }
+                d->sourceChartPath = savePath;
+                d->currentChartPath = savePath;
+                d->workingChartPath = workingPath;
+                if (d->canvas)
+                    d->canvas->setSourceChartPath(savePath);
+                Settings::instance().setLastOpenPath(QFileInfo(savePath).absolutePath());
+                d->isModified = false;
+                persistRecoveryState();
+                statusBar()->showMessage(tr("Saved: %1").arg(savePath), 2000);
+                if (PluginManager *pm = activePluginManager())
+                    pm->notifyChartSaved(savePath);
+            }
+            loop.quit();
+        });
+    if (!completed)
+        loop.exec();
+    if (!saved)
     {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to save chart."));
+        QMessageBox::critical(this,
+                              tr("Error"),
+                              saveError.isEmpty() ? tr("Failed to save chart.") : saveError);
         return false;
     }
-
-    if (d->editStatisticsChartPath != savePath)
-    {
-        saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
-        d->editStatisticsChartPath = savePath;
-    }
-    d->sourceChartPath = savePath;
-    d->currentChartPath = savePath;
-    if (d->canvas)
-        d->canvas->setSourceChartPath(savePath);
-    Settings::instance().setLastOpenPath(QFileInfo(savePath).absolutePath());
-    d->isModified = false;
-    if (!d->workingChartPath.isEmpty())
-        d->chartController->saveChart(d->workingChartPath);
-    syncReferencedResourcesForSavedChart(d->workingChartPath, savePath);
-    syncSidecarDirectoryForChart(d->workingChartPath, savePath);
-    if (d->workingChartPath.isEmpty())
-        createWorkingCopyFromSource(savePath, &d->workingChartPath, nullptr);
-    persistRecoveryState();
-    statusBar()->showMessage(tr("Saved: %1").arg(savePath), 2000);
-    if (PluginManager *pm = activePluginManager())
-        pm->notifyChartSaved(savePath);
     return true;
 }
 
@@ -4287,36 +4467,45 @@ void MainWindow::saveChart()
         }
     }
 
-    if (d->chartController->saveChart(currentPath))
-    {
-        if (d->editStatisticsChartPath != currentPath)
+    const quint64 saveRevision = d->chartController->revision();
+    saveDocumentAsync(
+        currentPath,
+        d->workingChartPath,
+        true,
+        true,
+        [this, currentPath, saveRevision](bool success,
+                                          const QString &workingPath,
+                                          const QString &error)
         {
-            saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
-            d->editStatisticsChartPath = currentPath;
-        }
-        d->sourceChartPath = currentPath;
-        d->currentChartPath = currentPath;
-        if (d->canvas)
-            d->canvas->setSourceChartPath(currentPath);
-        Settings::instance().setLastOpenPath(QFileInfo(currentPath).absolutePath());
-        d->isModified = false;
-        if (!d->workingChartPath.isEmpty())
-            d->chartController->saveChart(d->workingChartPath);
-        syncReferencedResourcesForSavedChart(d->workingChartPath, currentPath);
-        syncSidecarDirectoryForChart(d->workingChartPath, currentPath);
-        if (d->workingChartPath.isEmpty())
-            createWorkingCopyFromSource(currentPath, &d->workingChartPath, nullptr);
-        persistRecoveryState();
-        statusBar()->showMessage(tr("Saved: %1").arg(currentPath), 2000);
-        Logger::info("Chart saved: " + currentPath);
-        if (PluginManager *pm = activePluginManager())
-            pm->notifyChartSaved(currentPath);
-    }
-    else
-    {
-        Logger::error("Failed to save chart: " + currentPath);
-        QMessageBox::critical(this, tr("Error"), tr("Failed to save chart."));
-    }
+            if (!success)
+            {
+                Logger::error("Failed to save chart: " + currentPath + " (" + error + ")");
+                QMessageBox::critical(
+                    this,
+                    tr("Error"),
+                    error.isEmpty() ? tr("Failed to save chart.") : error);
+                return;
+            }
+
+            if (d->editStatisticsChartPath != currentPath)
+            {
+                saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+                d->editStatisticsChartPath = currentPath;
+            }
+            d->sourceChartPath = currentPath;
+            d->currentChartPath = currentPath;
+            d->workingChartPath = workingPath;
+            if (d->canvas)
+                d->canvas->setSourceChartPath(currentPath);
+            Settings::instance().setLastOpenPath(QFileInfo(currentPath).absolutePath());
+            if (d->chartController->revision() == saveRevision)
+                d->isModified = false;
+            persistRecoveryState();
+            statusBar()->showMessage(tr("Saved: %1").arg(currentPath), 2000);
+            Logger::info("Chart saved: " + currentPath);
+            if (PluginManager *pm = activePluginManager())
+                pm->notifyChartSaved(currentPath);
+        });
 }
 
 void MainWindow::saveChartAs()
@@ -4329,35 +4518,44 @@ void MainWindow::saveChartAs()
         Logger::debug("Save as cancelled");
         return;
     }
-    if (d->chartController->saveChart(fileName))
-    {
-        if (d->editStatisticsChartPath != fileName)
+    const quint64 saveRevision = d->chartController->revision();
+    saveDocumentAsync(
+        fileName,
+        d->workingChartPath,
+        true,
+        true,
+        [this, fileName, saveRevision](bool success,
+                                       const QString &workingPath,
+                                       const QString &error)
         {
-            saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
-            d->editStatisticsChartPath = fileName;
-        }
-        d->sourceChartPath = fileName;
-        d->currentChartPath = fileName;
-        if (d->canvas)
-            d->canvas->setSourceChartPath(fileName);
-        d->isModified = false;
-        if (!d->workingChartPath.isEmpty())
-            d->chartController->saveChart(d->workingChartPath);
-        syncReferencedResourcesForSavedChart(d->workingChartPath, fileName);
-        syncSidecarDirectoryForChart(d->workingChartPath, fileName);
-        if (d->workingChartPath.isEmpty())
-            createWorkingCopyFromSource(fileName, &d->workingChartPath, nullptr);
-        persistRecoveryState();
-        statusBar()->showMessage(tr("Saved: %1").arg(fileName), 2000);
-        Logger::info("Chart saved as: " + fileName);
-        if (PluginManager *pm = activePluginManager())
-            pm->notifyChartSaved(fileName);
-    }
-    else
-    {
-        Logger::error("Failed to save chart as: " + fileName);
-        QMessageBox::critical(this, tr("Error"), tr("Failed to save chart."));
-    }
+            if (!success)
+            {
+                Logger::error("Failed to save chart as: " + fileName + " (" + error + ")");
+                QMessageBox::critical(
+                    this,
+                    tr("Error"),
+                    error.isEmpty() ? tr("Failed to save chart.") : error);
+                return;
+            }
+
+            if (d->editStatisticsChartPath != fileName)
+            {
+                saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+                d->editStatisticsChartPath = fileName;
+            }
+            d->sourceChartPath = fileName;
+            d->currentChartPath = fileName;
+            d->workingChartPath = workingPath;
+            if (d->canvas)
+                d->canvas->setSourceChartPath(fileName);
+            if (d->chartController->revision() == saveRevision)
+                d->isModified = false;
+            persistRecoveryState();
+            statusBar()->showMessage(tr("Saved: %1").arg(fileName), 2000);
+            Logger::info("Chart saved as: " + fileName);
+            if (PluginManager *pm = activePluginManager())
+                pm->notifyChartSaved(fileName);
+        });
 }
 
 void MainWindow::exportMcz()

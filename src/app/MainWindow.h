@@ -112,6 +112,17 @@ private:
     bool runPluginActionWithMeta(const QVariantMap &meta);
     void closePluginPanels(const QString &reasonText = QString());
     bool confirmSaveIfModified(const QString &reasonText);
+    using DocumentTransaction = std::function<void()>;
+    using DocumentSaveCompletion = std::function<void(bool success,
+                                                      const QString &workingPath,
+                                                      const QString &error)>;
+    void enqueueDocumentTransaction(DocumentTransaction transaction);
+    void finishDocumentTransaction();
+    void saveDocumentAsync(const QString &path,
+                           const QString &workingPath,
+                           bool syncResources,
+                           bool showProgress,
+                           DocumentSaveCompletion completion);
     using ChartLoadCompletion = std::function<void(bool success, const QString &error)>;
     void loadChartFile(const QString &filePath,
                        bool confirmUnsaved = true,

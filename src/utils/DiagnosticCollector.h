@@ -5,6 +5,7 @@
 #include <QMap>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QMutex>
 
 /**
  * @brief 诊断数据收集器
@@ -176,4 +177,5 @@ private:
         int notesRenderedCount;
     };
     QVector<RenderMetricsData> m_renderMetrics;
+    mutable QMutex m_mutex;
 };

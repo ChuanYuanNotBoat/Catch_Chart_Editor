@@ -1,5 +1,6 @@
 #include "DiagnosticCollector.h"
 #include <QJsonArray>
+#include <QMutexLocker>
 
 DiagnosticCollector &DiagnosticCollector::instance()
 {
@@ -13,6 +14,7 @@ void DiagnosticCollector::recordSkippedNote(int noteIndex,
                                             const QStringList &missingFields,
                                             const QStringList &presentFields)
 {
+    QMutexLocker locker(&m_mutex);
     SkippedNoteDetail detail;
     detail.index = noteIndex;
     detail.type = noteType;
@@ -28,6 +30,7 @@ void DiagnosticCollector::recordLoadMetrics(const QString &filePath,
                                             int loadedNotes,
                                             int skippedNotes)
 {
+    QMutexLocker locker(&m_mutex);
     LoadMetrics metrics;
     metrics.filePath = filePath;
     metrics.duration = duration;
@@ -41,6 +44,7 @@ void DiagnosticCollector::recordSaveMetrics(const QString &filePath,
                                             qint64 duration,
                                             int notesCount)
 {
+    QMutexLocker locker(&m_mutex);
     SaveMetrics metrics;
     metrics.filePath = filePath;
     metrics.duration = duration;
@@ -50,6 +54,7 @@ void DiagnosticCollector::recordSaveMetrics(const QString &filePath,
 
 void DiagnosticCollector::recordRenderMetrics(qint64 frameTimeMs, int notesRenderedCount)
 {
+    QMutexLocker locker(&m_mutex);
     RenderMetricsData metrics;
     metrics.frameTimeMs = frameTimeMs;
     metrics.notesRenderedCount = notesRenderedCount;
@@ -58,6 +63,7 @@ void DiagnosticCollector::recordRenderMetrics(qint64 frameTimeMs, int notesRende
 
 DiagnosticCollector::DiagnosticReport DiagnosticCollector::generateReport() const
 {
+    QMutexLocker locker(&m_mutex);
     DiagnosticReport report;
 
     // 统计跳过的notes
@@ -119,6 +125,7 @@ DiagnosticCollector::DiagnosticReport DiagnosticCollector::generateReport() cons
 
 void DiagnosticCollector::clear()
 {
+    QMutexLocker locker(&m_mutex);
     m_skippedNotes.clear();
     m_loadMetrics.clear();
     m_saveMetrics.clear();
@@ -127,6 +134,7 @@ void DiagnosticCollector::clear()
 
 QVector<DiagnosticCollector::SkippedNoteDetail> DiagnosticCollector::getSkippedNoteDetails() const
 {
+    QMutexLocker locker(&m_mutex);
     return m_skippedNotes;
 }
 
@@ -243,6 +251,7 @@ QJsonDocument DiagnosticCollector::toJsonDocument() const
 
     // 添加详细跳过notes列表
     QJsonArray skippedDetailsArray;
+    QMutexLocker locker(&m_mutex);
     for (const auto &detail : m_skippedNotes)
     {
         QJsonObject detailObj;

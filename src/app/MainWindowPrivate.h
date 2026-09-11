@@ -6,12 +6,14 @@
 #include <QList>
 #include <QPointer>
 #include <QKeySequence>
+#include <QQueue>
 #include <QSet>
 #include <QString>
 #include <QByteArray>
 #include <QElapsedTimer>
 #include <QVariantMap>
 #include <QFutureWatcher>
+#include <functional>
 #include <limits>
 
 class ChartController;
@@ -167,6 +169,8 @@ public:
     quint64 statsFutureRevision = 0;
     quint64 statsSourceRevision = 0;
     bool statsRefreshPending = false;
+    QQueue<std::function<void()>> documentTransactions;
+    bool documentTransactionRunning = false;
 
     // Cached resource paths for detecting changes after undo/redo/plugin edits.
     QString lastLoadedAudioFile;
