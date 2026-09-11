@@ -40,6 +40,7 @@ class RealtimePreviewWidget;
 class PluginActionPanel;
 class ChartStatsPanel;
 class DetailedStatsDialog;
+class WorkbenchLayout;
 
 namespace ads
 {
@@ -72,6 +73,7 @@ public:
     ads::CDockWidget *metaPanelDock = nullptr;
     ads::CDockWidget *statsToolsDock = nullptr;
     QWidget *workspaceContainer = nullptr;
+    WorkbenchLayout *workbenchLayout = nullptr;
     QSplitter *legacySplitter = nullptr;
     QScrollArea *legacyRightScrollArea = nullptr;
     QWidget *legacyRightPanelContainer = nullptr;

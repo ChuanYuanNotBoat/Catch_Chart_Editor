@@ -39,6 +39,8 @@
 #include "utils/MathUtils.h"
 #include "utils/NativeWindowTheme.h"
 #include "utils/PlaybackStutterProbe.h"
+#include "ui/PaneContainer.h"
+#include "ui/WorkbenchLayout.h"
 #include <DockManager.h>
 #include <DockWidget.h>
 #include <DockAreaWidget.h>
@@ -5007,11 +5009,29 @@ void MainWindow::showEditorPanel(QWidget *panel)
             Settings::instance().setClassicRightPanelId(panelId);
         }
         if (d->notePanel)
-            d->notePanel->setVisible(panel == d->notePanel);
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
+                    QStringLiteral("note"), panel == d->notePanel);
+            else
+                d->notePanel->setVisible(panel == d->notePanel);
+        }
         if (d->bpmPanel)
-            d->bpmPanel->setVisible(panel == d->bpmPanel);
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
+                    QStringLiteral("bpm"), panel == d->bpmPanel);
+            else
+                d->bpmPanel->setVisible(panel == d->bpmPanel);
+        }
         if (d->metaPanel)
-            d->metaPanel->setVisible(panel == d->metaPanel);
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
+                    QStringLiteral("meta"), panel == d->metaPanel);
+            else
+                d->metaPanel->setVisible(panel == d->metaPanel);
+        }
         if (d->legacyRightScrollArea)
             d->legacyRightScrollArea->show();
         return;
@@ -5225,16 +5245,34 @@ void MainWindow::resetDockLayout()
     {
         Settings::instance().clearClassicLayoutState();
         d->currentRightPanel = d->notePanel;
+        if (d->workbenchLayout)
+            d->workbenchLayout->resetState();
         if (d->notePanel)
         {
-            d->notePanel->setVisible(true);
+            if (d->workbenchLayout)
+                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
+                    QStringLiteral("note"), true);
+            else
+                d->notePanel->setVisible(true);
             d->notePanel->setEmbeddedPluginToolsVisible(false);
         }
         if (d->bpmPanel)
-            d->bpmPanel->setVisible(false);
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
+                    QStringLiteral("bpm"), false);
+            else
+                d->bpmPanel->setVisible(false);
+        }
         if (d->metaPanel)
-            d->metaPanel->setVisible(false);
-        if (d->legacySplitter)
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
+                    QStringLiteral("meta"), false);
+            else
+                d->metaPanel->setVisible(false);
+        }
+        if (d->legacySplitter && !d->workbenchLayout)
             d->legacySplitter->setSizes({150, 200, 700, 300});
         statusBar()->showMessage(tr("Classic panel layout reset."), 2000);
         return;

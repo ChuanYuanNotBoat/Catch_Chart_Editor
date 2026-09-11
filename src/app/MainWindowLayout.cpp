@@ -7,6 +7,8 @@
 #include "ui/MetaEditPanel.h"
 #include "ui/CustomWidgets/RealtimePreviewWidget.h"
 #include "ui/DockLayoutPolicy.h"
+#include "ui/PaneContainer.h"
+#include "ui/WorkbenchLayout.h"
 #include "utils/Logger.h"
 #include "utils/Settings.h"
 
@@ -53,8 +55,14 @@ void MainWindow::ensureWorkspaceDockVisible()
 void MainWindow::saveClassicLayoutState()
 {
     Settings &settings = Settings::instance();
-    if (d->legacySplitter)
+    if (d->workbenchLayout)
+    {
+        settings.setClassicLayoutState(d->workbenchLayout->saveState());
+    }
+    else if (d->legacySplitter)
+    {
         settings.setClassicLayoutState(d->legacySplitter->saveState());
+    }
 
     QString panelId = QStringLiteral("note");
     if (d->currentRightPanel == d->bpmPanel)
@@ -78,14 +86,39 @@ void MainWindow::restoreClassicLayoutState()
         panel = d->metaPanel;
     d->currentRightPanel = panel;
 
-    if (d->notePanel)
-        d->notePanel->setVisible(panel == d->notePanel);
-    if (d->bpmPanel)
-        d->bpmPanel->setVisible(panel == d->bpmPanel);
-    if (d->metaPanel)
-        d->metaPanel->setVisible(panel == d->metaPanel);
+    if (d->workbenchLayout)
+    {
+        const QByteArray state = settings.classicLayoutState();
+        const bool restored = !state.isEmpty() && d->workbenchLayout->restoreState(state);
+        if (!restored)
+        {
+            d->workbenchLayout->resetState();
+            d->workbenchLayout->primarySidebar()->setPaneVisible(
+                QStringLiteral("navigation"), d->leftPanelWasVisible);
+            d->workbenchLayout->primarySidebar()->setPaneVisible(
+                QStringLiteral("preview"), d->previewWasVisible);
+        }
+        d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
+            QStringLiteral("note"), panel == d->notePanel);
+        d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
+            QStringLiteral("bpm"), panel == d->bpmPanel);
+        d->workbenchLayout->auxiliarySidebar()->setPaneVisible(
+            QStringLiteral("meta"), panel == d->metaPanel);
+    }
+    else
+    {
+        if (d->notePanel)
+            d->notePanel->setVisible(panel == d->notePanel);
+        if (d->bpmPanel)
+            d->bpmPanel->setVisible(panel == d->bpmPanel);
+        if (d->metaPanel)
+            d->metaPanel->setVisible(panel == d->metaPanel);
+    }
     if (d->notePanel)
         d->notePanel->setEmbeddedPluginToolsVisible(settings.classicPluginToolsVisible());
+
+    if (d->workbenchLayout)
+        return;
 
     if (!d->legacySplitter)
         return;
@@ -212,48 +245,74 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         if (d->leftPanel && statsTools)
             d->leftPanel->attachStatsSection(statsTools);
 
-        if (!d->legacySplitter)
-        {
-            d->legacySplitter = new QSplitter(Qt::Horizontal, this);
-            d->legacyRightPanelContainer = new QWidget;
-            d->legacyRightPanelContainer->setObjectName(QStringLiteral("rightPanelRoot"));
-            d->legacyRightPanelContainer->setAttribute(Qt::WA_StyledBackground, true);
-            d->legacyRightPanelLayout = new QVBoxLayout(d->legacyRightPanelContainer);
-            d->legacyRightPanelLayout->setContentsMargins(0, 0, 0, 0);
-
-            d->legacyRightScrollArea = new QScrollArea(d->legacySplitter);
-            d->legacyRightScrollArea->setObjectName(QStringLiteral("legacyRightPanelScrollArea"));
-            d->legacyRightScrollArea->setWidgetResizable(true);
-            d->legacyRightScrollArea->setSizeAdjustPolicy(QAbstractScrollArea::AdjustIgnored);
-            d->legacyRightScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-            d->legacyRightScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-            d->legacyRightScrollArea->setFrameShape(QFrame::NoFrame);
-            d->legacyRightScrollArea->setWidget(d->legacyRightPanelContainer);
-            d->legacySplitter->addWidget(d->legacyRightScrollArea);
-        }
-
+        d->workbenchLayout = new WorkbenchLayout(this);
+        d->workbenchLayout->setObjectName(QStringLiteral("classicWorkbench"));
+        d->workbenchLayout->setEditorWidget(workspace);
         if (leftPanel)
-            d->legacySplitter->insertWidget(0, leftPanel);
+            d->workbenchLayout->addPane(WorkbenchLayout::Part::PrimarySidebar,
+                                        QStringLiteral("navigation"),
+                                        leftPanel,
+                                        d->leftPanelWasVisible,
+                                        true);
         if (preview)
-            d->legacySplitter->insertWidget(1, preview);
-        if (workspace)
-            d->legacySplitter->insertWidget(2, workspace);
+            d->workbenchLayout->addPane(WorkbenchLayout::Part::PrimarySidebar,
+                                        QStringLiteral("preview"),
+                                        preview,
+                                        d->previewWasVisible,
+                                        false);
         if (notePanel)
-            d->legacyRightPanelLayout->addWidget(notePanel);
+            d->workbenchLayout->addPane(WorkbenchLayout::Part::AuxiliarySidebar,
+                                        QStringLiteral("note"),
+                                        notePanel,
+                                        d->notePanelWasVisible,
+                                        true);
         if (bpmPanel)
-            d->legacyRightPanelLayout->addWidget(bpmPanel);
+            d->workbenchLayout->addPane(WorkbenchLayout::Part::AuxiliarySidebar,
+                                        QStringLiteral("bpm"),
+                                        bpmPanel,
+                                        d->bpmPanelWasVisible,
+                                        true);
         if (metaPanel)
-            d->legacyRightPanelLayout->addWidget(metaPanel);
+            d->workbenchLayout->addPane(WorkbenchLayout::Part::AuxiliarySidebar,
+                                        QStringLiteral("meta"),
+                                        metaPanel,
+                                        d->metaPanelWasVisible,
+                                        true);
 
         QWidget *oldCentral = takeCentralWidget();
         if (oldCentral)
             oldCentral->hide();
-        setCentralWidget(d->legacySplitter);
-        d->legacySplitter->show();
+        setCentralWidget(d->workbenchLayout);
+        d->legacySplitter = d->workbenchLayout->horizontalSplitter();
+        d->legacyRightPanelContainer = d->workbenchLayout->auxiliarySidebar();
+        d->legacyRightPanelContainer->setObjectName(QStringLiteral("rightPanelRoot"));
+        d->legacyRightScrollArea = d->workbenchLayout->auxiliarySidebar()
+                                       ->scrollAreaForPane(QStringLiteral("note"));
+        d->legacyRightPanelLayout = nullptr;
+        d->workbenchLayout->show();
         restoreClassicLayoutState();
     }
     else
     {
+        if (d->workbenchLayout)
+        {
+            d->workbenchLayout->takeEditorWidget();
+            for (const auto pane : {
+                     qMakePair(WorkbenchLayout::Part::PrimarySidebar,
+                               QStringLiteral("navigation")),
+                     qMakePair(WorkbenchLayout::Part::PrimarySidebar,
+                               QStringLiteral("preview")),
+                     qMakePair(WorkbenchLayout::Part::AuxiliarySidebar,
+                               QStringLiteral("note")),
+                     qMakePair(WorkbenchLayout::Part::AuxiliarySidebar,
+                               QStringLiteral("bpm")),
+                     qMakePair(WorkbenchLayout::Part::AuxiliarySidebar,
+                               QStringLiteral("meta"))})
+            {
+                d->workbenchLayout->takePane(pane.first, pane.second);
+            }
+        }
+
         QWidget *timingTools = d->notePanel ? d->notePanel->takeTimingToolsWidget() : nullptr;
         QWidget *playbackSpeedTools = d->notePanel
                                           ? d->notePanel->takePlaybackSpeedToolsWidget()
@@ -279,6 +338,15 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
         QWidget *oldCentral = takeCentralWidget();
         if (oldCentral)
             oldCentral->hide();
+        if (oldCentral == d->workbenchLayout)
+        {
+            delete d->workbenchLayout;
+            d->workbenchLayout = nullptr;
+        }
+        d->legacySplitter = nullptr;
+        d->legacyRightScrollArea = nullptr;
+        d->legacyRightPanelContainer = nullptr;
+        d->legacyRightPanelLayout = nullptr;
         setCentralWidget(d->dockManager);
         d->dockManager->show();
 

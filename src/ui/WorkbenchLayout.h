@@ -27,6 +27,7 @@ public:
     PaneContainer *paneContainer(Part part) const;
 
     bool setEditorWidget(QWidget *widget);
+    QWidget *takeEditorWidget();
     bool addPane(Part part,
                  const QString &paneId,
                  QWidget *content,

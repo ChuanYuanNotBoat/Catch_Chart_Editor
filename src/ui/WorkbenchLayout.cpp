@@ -100,6 +100,17 @@ bool WorkbenchLayout::setEditorWidget(QWidget *widget)
     return true;
 }
 
+QWidget *WorkbenchLayout::takeEditorWidget()
+{
+    if (!m_editorWidget)
+        return nullptr;
+
+    QWidget *widget = m_editorWidget;
+    m_editorWidget = nullptr;
+    widget->setParent(nullptr);
+    return widget;
+}
+
 bool WorkbenchLayout::addPane(Part part,
                               const QString &paneId,
                               QWidget *content,
