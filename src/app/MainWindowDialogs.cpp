@@ -1310,43 +1310,25 @@ void MainWindow::exportDiagnosticsReport()
     try
     {
         DiagnosticCollector &collector = DiagnosticCollector::instance();
-        DiagnosticCollector::DiagnosticReport report = collector.generateReport();
-
-        if (fileName.endsWith(".json"))
+        const DiagnosticCollector::ReportFormat format =
+            fileName.endsWith(".json", Qt::CaseInsensitive)
+                ? DiagnosticCollector::ReportFormat::Json
+                : DiagnosticCollector::ReportFormat::Text;
+        QString error;
+        if (collector.exportReport(fileName, format, &error))
         {
-            QJsonDocument doc = collector.toJsonDocument();
-            QFile file(fileName);
-            if (file.open(QIODevice::WriteOnly))
-            {
-                file.write(doc.toJson());
-                file.close();
-                Logger::info("Diagnostics report exported to JSON: " + fileName);
-                QMessageBox::information(this, tr("Export Successful"),
-                                         tr("Diagnostics report exported to:\n%1").arg(fileName));
-            }
-            else
-            {
-                Logger::error("Failed to open file for writing: " + fileName);
-                QMessageBox::warning(this, tr("Export Failed"), tr("Failed to open file for writing."));
-            }
+            Logger::info(QString("Diagnostics report exported to %1: %2")
+                             .arg(format == DiagnosticCollector::ReportFormat::Json ? "JSON" : "text",
+                                  fileName));
+            QMessageBox::information(this, tr("Export Successful"),
+                                     tr("Diagnostics report exported to:\n%1").arg(fileName));
         }
         else
         {
-            QFile file(fileName);
-            if (file.open(QIODevice::WriteOnly | QIODevice::Text))
-            {
-                QTextStream stream(&file);
-                stream << report.toFormattedString();
-                file.close();
-                Logger::info("Diagnostics report exported to text: " + fileName);
-                QMessageBox::information(this, tr("Export Successful"),
-                                         tr("Diagnostics report exported to:\n%1").arg(fileName));
-            }
-            else
-            {
-                Logger::error("Failed to open file for writing: " + fileName);
-                QMessageBox::warning(this, tr("Export Failed"), tr("Failed to open file for writing."));
-            }
+            Logger::error("Failed to export diagnostics report: " + fileName + " (" + error + ")");
+            QMessageBox::warning(this,
+                                 tr("Export Failed"),
+                                 error.isEmpty() ? tr("Failed to write diagnostics report.") : error);
         }
     }
     catch (const std::exception &e)

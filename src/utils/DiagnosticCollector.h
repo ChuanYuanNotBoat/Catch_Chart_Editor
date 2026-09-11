@@ -26,6 +26,12 @@ public:
      */
     static DiagnosticCollector &instance();
 
+    enum class ReportFormat
+    {
+        Json,
+        Text,
+    };
+
     // Note跳过记录
 
     /**
@@ -146,6 +152,10 @@ public:
      * @brief 以JSON格式导出诊断数据
      */
     QJsonDocument toJsonDocument() const;
+
+    bool exportReport(const QString &filePath,
+                      ReportFormat format,
+                      QString *errorMessage = nullptr) const;
 
 private:
     // 私有构造函数（单例）

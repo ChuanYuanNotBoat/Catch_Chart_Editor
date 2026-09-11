@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QByteArray>
 #include <QString>
 #include <QStringList>
 
@@ -18,6 +19,9 @@ public:
     static bool copyFileAtomically(const QString &src,
                                    const QString &dest,
                                    QString *errorOut = nullptr);
+    static bool writeFileAtomically(const QString &dest,
+                                    const QByteArray &data,
+                                    QString *errorOut = nullptr);
     static bool removeFile(const QString &path);
     static bool exists(const QString &path);
     static QStringList getFilesInDir(const QString &dir, const QStringList &filters);

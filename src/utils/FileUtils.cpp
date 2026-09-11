@@ -111,6 +111,43 @@ bool FileUtils::copyFileSafely(const QString &src,
     return copyFileAtomically(src, dest, errorOut);
 }
 
+bool FileUtils::writeFileAtomically(const QString &dest,
+                                    const QByteArray &data,
+                                    QString *errorOut)
+{
+    if (errorOut)
+        errorOut->clear();
+
+    const QString targetAbsolute = QFileInfo(dest).absoluteFilePath();
+    QSaveFile target(targetAbsolute);
+    target.setDirectWriteFallback(false);
+    if (!target.open(QIODevice::WriteOnly))
+    {
+        if (errorOut)
+            *errorOut = QStringLiteral("Failed to prepare target file:\n%1")
+                            .arg(targetAbsolute);
+        return false;
+    }
+
+    if (target.write(data) != data.size())
+    {
+        if (errorOut)
+            *errorOut = QStringLiteral("Failed while writing target file:\n%1")
+                            .arg(targetAbsolute);
+        target.cancelWriting();
+        return false;
+    }
+
+    if (!target.commit())
+    {
+        if (errorOut)
+            *errorOut = QStringLiteral("Failed to atomically replace target file:\n%1")
+                            .arg(targetAbsolute);
+        return false;
+    }
+    return true;
+}
+
 bool FileUtils::removeFile(const QString &path)
 {
     return QFile::remove(path);

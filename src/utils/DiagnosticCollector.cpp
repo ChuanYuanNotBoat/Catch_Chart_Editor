@@ -1,4 +1,5 @@
 #include "DiagnosticCollector.h"
+#include "FileUtils.h"
 #include <QJsonArray>
 #include <QMutexLocker>
 
@@ -278,4 +279,17 @@ QJsonDocument DiagnosticCollector::toJsonDocument() const
     root["skipped_notes_details"] = skippedDetailsArray;
 
     return QJsonDocument(root);
+}
+
+bool DiagnosticCollector::exportReport(const QString &filePath,
+                                       ReportFormat format,
+                                       QString *errorMessage) const
+{
+    if (errorMessage)
+        errorMessage->clear();
+
+    const QByteArray data = format == ReportFormat::Json
+                                ? toJsonDocument().toJson(QJsonDocument::Indented)
+                                : generateReport().toFormattedString().toUtf8();
+    return FileUtils::writeFileAtomically(filePath, data, errorMessage);
 }

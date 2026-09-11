@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDebug>
+#include "utils/FileUtils.h"
 #include "utils/Logger.h"
 
 Skin::Skin() : m_valid(false), m_skinPath("")
@@ -150,13 +151,14 @@ bool Skin::saveConfig() const
     }
     root["noteScales"] = scales;
     QJsonDocument doc(root);
-    QFile file(configPath);
-    if (!file.open(QIODevice::WriteOnly))
+    QString error;
+    if (!FileUtils::writeFileAtomically(configPath,
+                                        doc.toJson(QJsonDocument::Indented),
+                                        &error))
     {
-        Logger::error("Failed to open skin config for writing: " + configPath);
+        Logger::error("Failed to save skin config: " + configPath + " (" + error + ")");
         return false;
     }
-    file.write(doc.toJson());
     Logger::info("Skin config saved to " + configPath);
     return true;
 }
