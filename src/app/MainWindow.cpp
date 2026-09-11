@@ -38,6 +38,7 @@
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
 #include "utils/NativeWindowTheme.h"
+#include "utils/PlaybackStutterProbe.h"
 #include <DockManager.h>
 #include <DockWidget.h>
 #include <DockAreaWidget.h>
@@ -81,6 +82,8 @@
 #include <QLineEdit>
 #include <QDesktopServices>
 #include <QEventLoop>
+#include <QElapsedTimer>
+#include <QEvent>
 #include <QUrl>
 #include <QSysInfo>
 #include <QGroupBox>
@@ -4908,6 +4911,34 @@ void MainWindow::togglePlayback()
         else
             Logger::warn(QString("Playback start request rejected at %1ms").arg(startTime));
     }
+}
+
+bool MainWindow::event(QEvent *event)
+{
+    const bool profileBackingStoreUpdate =
+        event && event->type() == QEvent::UpdateRequest &&
+        d && d->playbackController &&
+        d->playbackController->state() == PlaybackController::Playing &&
+        PlaybackStutterProbe::sessionActive();
+    QElapsedTimer timer;
+    if (profileBackingStoreUpdate)
+        timer.start();
+
+    const bool handled = QMainWindow::event(event);
+
+    if (profileBackingStoreUpdate)
+    {
+        const double elapsedMs =
+            static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
+        const double frameBudgetMs =
+            1000.0 / qMax(1.0, d->playbackController->effectiveFrameRate());
+        PlaybackStutterProbe::recordDuration(
+            QStringLiteral("ui.backing_store.MainWindow.UpdateRequest"),
+            elapsedMs,
+            frameBudgetMs,
+            true);
+    }
+    return handled;
 }
 
 void MainWindow::changeEvent(QEvent *event)

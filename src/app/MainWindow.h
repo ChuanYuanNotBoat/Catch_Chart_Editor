@@ -44,6 +44,7 @@ public:
     bool loadChartForAutomation(const QString &filePath, QString *errorMessage = nullptr);
 
 protected:
+    bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;

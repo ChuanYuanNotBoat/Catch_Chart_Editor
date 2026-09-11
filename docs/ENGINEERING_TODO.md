@@ -78,7 +78,7 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [x] Consolidate the duplicate diagnostics exporters and atomically write the remaining user-facing report/skin-configuration files.
 - [x] Add interaction benchmarks for moving 1 / 100 / 4,000 notes and resizing rain tails.
 - [x] Add load/save benchmarks at 5k / 20k / 100k notes and fail CI on major regressions.
-- [ ] Profile the Windows top-level backing-store/update path behind the 10.5 ms p95 measurement.
+- [x] Profile the Windows top-level backing-store/update path behind the 10.5 ms p95 measurement.
 - [ ] Replace the global ADS-leaf layout with stable Editor/Sidebar/Auxiliary Sidebar/Bottom Panel workbench parts and pane containers that cache expansion, order, visibility, and size by stable ID.
 - [ ] Add explicit `Move View...` and `Reset View Location` commands before replacing raw floating docks with auxiliary pane-container windows.
 

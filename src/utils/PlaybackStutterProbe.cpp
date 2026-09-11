@@ -1057,6 +1057,14 @@ namespace PlaybackStutterProbe
                        p95(QStringLiteral("ui.event.MainWindow.UpdateRequest")));
         summary.insert("window_update_request_max_ms",
                        s.session.durations.value(QStringLiteral("ui.event.MainWindow.UpdateRequest")).maxMs);
+        const QString backingStoreUpdateKey =
+            QStringLiteral("ui.backing_store.MainWindow.UpdateRequest");
+        summary.insert("backing_store_update_request_count",
+                       static_cast<double>(sampleCount(backingStoreUpdateKey)));
+        summary.insert("backing_store_update_request_p95_ms",
+                       p95(backingStoreUpdateKey));
+        summary.insert("backing_store_update_request_max_ms",
+                       s.session.durations.value(backingStoreUpdateKey).maxMs);
         const qint64 canvasFrameSamples = sampleCount(QStringLiteral("canvas.paint_total"));
         const qint64 windowUpdateSamples =
             sampleCount(QStringLiteral("ui.event.MainWindow.UpdateRequest"));
