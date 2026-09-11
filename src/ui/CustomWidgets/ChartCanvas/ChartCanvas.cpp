@@ -305,7 +305,8 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteTypes.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
-        m_sortedRainPrefixMaxEndBeats.clear();
+        m_rainIntervalIndex.clear();
+        m_playableNoteIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
         m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
@@ -325,7 +326,8 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteTypes.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
-        m_sortedRainPrefixMaxEndBeats.clear();
+        m_rainIntervalIndex.clear();
+        m_playableNoteIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
         m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
@@ -343,7 +345,8 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteTypes.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
-        m_sortedRainPrefixMaxEndBeats.clear();
+        m_rainIntervalIndex.clear();
+        m_playableNoteIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
         m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
@@ -359,9 +362,10 @@ void ChartCanvas::rebuildNoteTimesCache()
     m_noteTypes.resize(N);
     m_sortedNormalNoteIndicesByBeat.clear();
     m_sortedRainNoteIndicesByBeat.clear();
-    m_sortedRainPrefixMaxEndBeats.clear();
     m_sortedNormalNoteIndicesByBeat.reserve(N);
     m_sortedRainNoteIndicesByBeat.reserve(N);
+    QVector<int> playableNoteIndices;
+    playableNoteIndices.reserve(N);
     m_playableNoteTimesMs.clear();
     m_playableNoteTimesMs.reserve(N);
 
@@ -380,6 +384,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         double beat = MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator);
         m_noteBeatPositions[i] = beat;
         m_noteTimesMs[i] = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, bpmCache);
+        playableNoteIndices.append(i);
         m_playableNoteTimesMs.append(m_noteTimesMs[i]);
         if (note.type == NoteType::RAIN)
         {
@@ -407,8 +412,10 @@ void ChartCanvas::rebuildNoteTimesCache()
               {
                   return m_noteBeatPositions[a] < m_noteBeatPositions[b];
               });
-    m_sortedRainPrefixMaxEndBeats = RainVisibilityIndex::buildPrefixMaxEndBeats(
-        m_sortedRainNoteIndicesByBeat, m_noteEndBeatPositions);
+    m_rainIntervalIndex.build(
+        m_sortedRainNoteIndicesByBeat, m_noteBeatPositions, m_noteEndBeatPositions);
+    m_playableNoteIntervalIndex.build(
+        playableNoteIndices, m_noteTimesMs, m_noteTimesMs);
 
     std::sort(m_playableNoteTimesMs.begin(), m_playableNoteTimesMs.end());
     m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(

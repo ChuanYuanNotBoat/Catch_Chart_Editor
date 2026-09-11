@@ -471,6 +471,41 @@ namespace
         return RainVisibilityIndex::firstPotentiallyVisible(nonOverlapping, 3, 10.0) == 3;
     }
 
+    bool testRainIntervalIndexQueriesOverlapAndContainment()
+    {
+        const QVector<int> indices = {0, 1, 2, 3};
+        const QVector<double> starts = {1.0, 4.0, 7.0, 12.0};
+        const QVector<double> ends = {3.0, 100.0, 9.0, 12.0};
+
+        RainVisibilityIndex::IntervalIndex index;
+        index.build(indices, starts, ends);
+        if (index.size() != 4)
+            return false;
+
+        const auto overlapping = index.overlapping(8.0, 8.5);
+        if (overlapping.begin != 1 || overlapping.end != 3 ||
+            index.entryAt(overlapping.begin).index != 1 ||
+            index.entryAt(overlapping.begin + 1).index != 2)
+        {
+            return false;
+        }
+
+        const auto containing = index.containing(2.0);
+        if (containing.begin != 0 || containing.end != 1 ||
+            index.entryAt(containing.begin).index != 0)
+        {
+            return false;
+        }
+
+        // The range is a candidate span: the prefix maximum can include a
+        // short interval after an earlier long interval. Consumers validate
+        // each candidate's actual end before drawing or hit-testing it.
+        const auto candidates = index.overlapping(10.0, 11.0);
+        return candidates.begin == 1 && candidates.end == 3 &&
+               index.entryAt(candidates.begin).index == 1 &&
+               index.entryAt(candidates.begin + 1).index == 2;
+    }
+
     bool testChartBulkMutationKeepsIdentityAndSortOrder()
     {
         Chart chart;
@@ -3438,6 +3473,7 @@ int main(int argc, char **argv)
         {"Recovery working path containment", &testSessionWorkingPathContainment},
         {"Safe file copy preserves target", &testSafeFileCopyPreservesExistingTargetOnFailure},
         {"Rain visibility non-monotonic end prefix", &testRainVisibilityPrefixHandlesNonMonotonicEnds},
+        {"Rain interval index overlap + containment", &testRainIntervalIndexQueriesOverlapAndContainment},
         {"Chart bulk mutation identity + sorting", &testChartBulkMutationKeepsIdentityAndSortOrder},
         {"ProjectIO scan + difficulty", &testProjectIoReadDifficultyAndScan},
         {"ProjectIO invalid difficulty json", &testProjectIoGetDifficultyInvalidJsonReturnsEmpty},

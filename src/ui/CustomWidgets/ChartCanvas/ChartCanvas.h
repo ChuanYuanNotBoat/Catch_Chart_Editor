@@ -14,6 +14,7 @@
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
 #include "editor/NoteChain/NoteChainEditor.h"
+#include "render/RainVisibilityIndex.h"
 
 class ChartController;
 struct ChartChange;
@@ -315,7 +316,8 @@ private:
     QVector<NoteType> m_noteTypes;
     QVector<int> m_sortedNormalNoteIndicesByBeat;
     QVector<int> m_sortedRainNoteIndicesByBeat;
-    QVector<double> m_sortedRainPrefixMaxEndBeats;
+    RainVisibilityIndex::IntervalIndex m_rainIntervalIndex;
+    RainVisibilityIndex::IntervalIndex m_playableNoteIntervalIndex;
     bool m_noteDataDirty;
     bool m_timesDirty;
     mutable QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;

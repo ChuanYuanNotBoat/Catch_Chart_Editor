@@ -4,6 +4,7 @@
 #include <QVector>
 #include <QWidget>
 #include <QElapsedTimer>
+#include "render/RainVisibilityIndex.h"
 
 class ChartController;
 class PlaybackController;
@@ -81,6 +82,7 @@ private:
     QVector<double> m_noteEndTimesMs;
     QVector<int> m_normalIndices;
     QVector<int> m_rainIndices;
+    RainVisibilityIndex::IntervalIndex m_rainIntervalIndex;
     QVector<TimedNoteEntry> m_sortedNormalEntries;
     bool m_noteCacheValid = false;
     quint64 m_noteCacheRevision = 0;

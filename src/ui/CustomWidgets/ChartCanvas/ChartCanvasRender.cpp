@@ -325,31 +325,16 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         }
     };
 
-    if (!m_sortedRainNoteIndicesByBeat.isEmpty())
+    const RainVisibilityIndex::IntervalRange rainRange =
+        m_rainIntervalIndex.overlapping(startBeat, endBeat);
+    for (qsizetype position = rainRange.begin; position < rainRange.end; ++position)
     {
-        const auto rainBegin = std::lower_bound(
-            m_sortedRainNoteIndicesByBeat.cbegin(),
-            m_sortedRainNoteIndicesByBeat.cend(),
-            startBeat,
-            [this](int idx, double beatValue) {
-                return m_noteBeatPositions[idx] < beatValue;
-            });
-
-        // Prefix maxima keep this lookup correct when an old, very long rain
-        // precedes shorter rains whose tails already ended before the view.
-        const qsizetype rainBeginPos = std::distance(
-            m_sortedRainNoteIndicesByBeat.cbegin(), rainBegin);
-        const qsizetype rainStartPos = RainVisibilityIndex::firstPotentiallyVisible(
-            m_sortedRainPrefixMaxEndBeats, rainBeginPos, startBeat);
-        auto rainStartIt = m_sortedRainNoteIndicesByBeat.cbegin() + rainStartPos;
-
-        for (auto it = rainStartIt; it != m_sortedRainNoteIndicesByBeat.cend(); ++it)
-        {
-            const int idx = *it;
-            if (m_noteBeatPositions[idx] >= endBeat)
-                break;
-            renderNoteAtIndex(idx, nullptr);
-        }
+        const int idx = m_rainIntervalIndex.entryAt(position).index;
+        if (idx < 0 || idx >= m_noteBeatPositions.size())
+            continue;
+        if (m_noteBeatPositions[idx] >= endBeat)
+            break;
+        renderNoteAtIndex(idx, nullptr);
     }
 
     if (!m_sortedNormalNoteIndicesByBeat.isEmpty())
@@ -1117,13 +1102,37 @@ int ChartCanvas::hitTestRainTailHandle(const QPointF &pos) const
         return m_rainTailDragIndex;
 
     const auto &notes = chart()->notes();
-    // Topmost (last drawn) rain wins; iterate in reverse draw order.
-    for (int i = notes.size() - 1; i >= 0; --i)
+    if (m_timesDirty || m_noteDataDirty)
+        const_cast<ChartCanvas *>(this)->rebuildNoteTimesCache();
+
+    // The tail grip is a point on the rain interval. Query only rains that
+    // can contain the pointer beat, then preserve the old topmost-by-index
+    // tie-break when several grips overlap.
+    const double pointerBeat = yToBeat(pos.y());
+    const RainVisibilityIndex::IntervalRange candidates =
+        m_rainIntervalIndex.containing(pointerBeat);
+    int hit = -1;
+    for (qsizetype position = candidates.begin; position < candidates.end; ++position)
     {
-        if (notes[i].type != NoteType::RAIN)
+        const int index = m_rainIntervalIndex.entryAt(position).index;
+        if (index < 0 || index >= notes.size() || notes[index].type != NoteType::RAIN)
             continue;
-        if (rainTailHandleRect(notes[i]).adjusted(-3, -3, 3, 3).contains(pos))
-            return i;
+        if (rainTailHandleRect(notes[index]).adjusted(-3, -3, 3, 3).contains(pos))
+            hit = qMax(hit, index);
+    }
+    if (hit >= 0)
+        return hit;
+
+    // Keep hit testing usable while a chart without a valid BPM cache is
+    // being edited; such charts cannot populate the time-based index.
+    if (m_rainIntervalIndex.isEmpty())
+    {
+        for (int i = notes.size() - 1; i >= 0; --i)
+        {
+            if (notes[i].type == NoteType::RAIN &&
+                rainTailHandleRect(notes[i]).adjusted(-3, -3, 3, 3).contains(pos))
+                return i;
+        }
     }
     return -1;
 }
@@ -1142,20 +1151,23 @@ void ChartCanvas::drawRainTailHandles(QPainter &painter)
                                 : theme.button;
 
     const auto &notes = chart()->notes();
-    for (int i = 0; i < notes.size(); ++i)
+    const RainVisibilityIndex::IntervalRange visibleRains =
+        m_rainIntervalIndex.overlapping(m_scrollBeat,
+                                        m_scrollBeat + effectiveVisibleBeatRange());
+    auto drawHandle = [&](int index)
     {
-        if (notes[i].type != NoteType::RAIN)
-            continue;
-        const Note &displayNote = (m_rainTailDragIndex == i)
+        if (index < 0 || index >= notes.size() || notes[index].type != NoteType::RAIN)
+            return;
+        const Note &displayNote = (m_rainTailDragIndex == index)
                                       ? m_rainTailDragPreview
-                                      : notes[i];
+                                      : notes[index];
         const QRectF handle = rainTailHandleRect(displayNote);
         if (!handle.intersects(QRectF(rect())))
-            continue;
+            return;
 
         painter.save();
         painter.setRenderHint(QPainter::Antialiasing, true);
-        painter.setPen(QPen(gripBorder, m_rainTailDragIndex == i ? 2 : 1));
+        painter.setPen(QPen(gripBorder, m_rainTailDragIndex == index ? 2 : 1));
         painter.setBrush(gripFill);
         painter.drawRoundedRect(handle, 3, 3);
         painter.setPen(QPen(theme.text, 1));
@@ -1166,6 +1178,17 @@ void ChartCanvas::drawRainTailHandles(QPainter &painter)
             painter.drawLine(QPointF(nx, handle.top() + 2), QPointF(nx, handle.bottom() - 2));
         }
         painter.restore();
+    };
+
+    if (!visibleRains.isEmpty())
+    {
+        for (qsizetype position = visibleRains.begin; position < visibleRains.end; ++position)
+            drawHandle(m_rainIntervalIndex.entryAt(position).index);
+    }
+    else if (m_rainIntervalIndex.isEmpty())
+    {
+        for (int i = 0; i < notes.size(); ++i)
+            drawHandle(i);
     }
 }
 
@@ -1175,31 +1198,41 @@ int ChartCanvas::hitTestNote(const QPointF &pos) const
         return -1;
 
     const auto &notes = chart()->notes();
+    if (m_timesDirty || m_noteDataDirty)
+        const_cast<ChartCanvas *>(this)->rebuildNoteTimesCache();
+
     int noteSize = m_noteRenderer->getNoteSize();
     double minDist = noteSize * 0.6;
     int hit = -1;
 
+    const RainVisibilityIndex::IntervalRange rainCandidates =
+        m_rainIntervalIndex.containing(yToBeat(pos.y()));
+    int rainHit = -1;
+    for (qsizetype position = rainCandidates.begin;
+         position < rainCandidates.end;
+         ++position)
+    {
+        const int index = m_rainIntervalIndex.entryAt(position).index;
+        if (index < 0 || index >= notes.size() || notes[index].type != NoteType::RAIN)
+            continue;
+        if (getRainNoteRect(notes[index]).contains(pos))
+            rainHit = rainHit < 0 ? index : qMin(rainHit, index);
+    }
+    if (rainHit >= 0)
+        return rainHit;
+
     for (int i = 0; i < notes.size(); ++i)
     {
         const Note &note = notes[i];
-        if (note.type == NoteType::SOUND)
+        if (note.type == NoteType::SOUND || note.type == NoteType::RAIN)
             continue;
 
-        if (note.type == NoteType::RAIN)
+        QPointF notePos = noteToPos(note);
+        double dist = QLineF(notePos, pos).length();
+        if (dist < minDist)
         {
-            QRectF rainRect = getRainNoteRect(note);
-            if (rainRect.contains(pos))
-                return i;
-        }
-        else
-        {
-            QPointF notePos = noteToPos(note);
-            double dist = QLineF(notePos, pos).length();
-            if (dist < minDist)
-            {
-                minDist = dist;
-                hit = i;
-            }
+            minDist = dist;
+            hit = i;
         }
     }
     return hit;

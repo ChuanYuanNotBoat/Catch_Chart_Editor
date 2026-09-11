@@ -1014,7 +1014,7 @@ src/
 ├── render/
 │   ├── NoteRenderer.h                          # 音符渲染
 │   ├── RainRewardGenerator.h / .cpp             # Catch Rain 奖励点确定性缓存
-│   ├── RainVisibilityIndex.h                    # 非单调长 Rain 可见区前缀索引
+│   ├── RainVisibilityIndex.h                    # 非单调 Rain 区间查询索引
 │   ├── GridRenderer.h                          # 网格渲染
 │   ├── BackgroundRenderer.h                    # 背景渲染
 │   └── BeatDivisionColor.h                     # 分度颜色

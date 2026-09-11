@@ -107,19 +107,29 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
     }
 
     double lastTriggeredTimeMs = -std::numeric_limits<double>::infinity();
-    while (m_nextPlayableNoteIndex < m_playableNoteTimesMs.size() &&
-           m_playableNoteTimesMs[m_nextPlayableNoteIndex] <=
-               schedulingTimeMs + kComparisonEpsilonMs)
+    if (schedulingTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs)
     {
-        const double noteTimeMs = m_playableNoteTimesMs[m_nextPlayableNoteIndex];
-        if (noteTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs &&
-            noteTimeMs > lastTriggeredTimeMs + kComparisonEpsilonMs)
+        const RainVisibilityIndex::IntervalRange dueNotes =
+            m_playableNoteIntervalIndex.overlapping(
+                m_lastNoteSoundTimeMs + kComparisonEpsilonMs,
+                schedulingTimeMs + kComparisonEpsilonMs);
+        for (qsizetype position = dueNotes.begin; position < dueNotes.end; ++position)
         {
-            m_noteSoundPlayer->playHitSound();
-            lastTriggeredTimeMs = noteTimeMs;
+            const double noteTimeMs = m_playableNoteIntervalIndex.entryAt(position).start;
+            if (noteTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs &&
+                noteTimeMs > lastTriggeredTimeMs + kComparisonEpsilonMs)
+            {
+                m_noteSoundPlayer->playHitSound();
+                lastTriggeredTimeMs = noteTimeMs;
+            }
         }
-        ++m_nextPlayableNoteIndex;
     }
+
+    m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
+                                                   m_playableNoteTimesMs.begin(),
+                                                   m_playableNoteTimesMs.end(),
+                                                   schedulingTimeMs) -
+                                               m_playableNoteTimesMs.begin());
 
     m_lastNoteSoundTimeMs = schedulingTimeMs;
 }

@@ -329,6 +329,7 @@ void RealtimePreviewWidget::invalidateNoteCache()
     m_noteEndTimesMs.clear();
     m_normalIndices.clear();
     m_rainIndices.clear();
+    m_rainIntervalIndex.clear();
     m_sortedNormalEntries.clear();
 }
 
@@ -348,6 +349,7 @@ void RealtimePreviewWidget::ensureNoteCache()
     m_noteEndTimesMs.clear();
     m_normalIndices.clear();
     m_rainIndices.clear();
+    m_rainIntervalIndex.clear();
     m_sortedNormalEntries.clear();
 
     if (!m_chartController || !m_chartController->chart())
@@ -410,6 +412,8 @@ void RealtimePreviewWidget::ensureNoteCache()
               [](const TimedNoteEntry &a, const TimedNoteEntry &b) {
                   return a.startMs < b.startMs;
               });
+
+    m_rainIntervalIndex.build(m_rainIndices, m_noteStartTimesMs, m_noteEndTimesMs);
 
     finish();
 }
@@ -513,8 +517,12 @@ void RealtimePreviewWidget::paintEvent(QPaintEvent *event)
         RainRewardGenerator::instance().ensureChart(
             notes, chart->bpmList(), chart->meta().offset, m_chartRevision);
 
-    for (int idx : m_rainIndices)
+    const RainVisibilityIndex::IntervalRange rainRange =
+        m_rainIntervalIndex.overlapping(
+            m_currentTimeMs - lowerSpanMs, m_currentTimeMs + upperSpanMs);
+    for (qsizetype position = rainRange.begin; position < rainRange.end; ++position)
     {
+        const int idx = m_rainIntervalIndex.entryAt(position).index;
         if (idx < 0 || idx >= notes.size())
             continue;
         const Note &note = notes[idx];
