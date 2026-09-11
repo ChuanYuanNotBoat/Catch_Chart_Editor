@@ -120,6 +120,103 @@ namespace
             .arg(note.offset);
     }
 
+    bool noteExactEqual(const Note &a, const Note &b)
+    {
+        return a.beatNum == b.beatNum &&
+               a.numerator == b.numerator &&
+               a.denominator == b.denominator &&
+               a.id == b.id &&
+               a.type == b.type &&
+               a.x == b.x &&
+               a.isRain == b.isRain &&
+               a.endBeatNum == b.endBeatNum &&
+               a.endNumerator == b.endNumerator &&
+               a.endDenominator == b.endDenominator &&
+               a.sound == b.sound &&
+               a.vol == b.vol &&
+               a.offset == b.offset;
+    }
+
+    bool notesEqual(const QVector<Note> &a, const QVector<Note> &b)
+    {
+        if (a.size() != b.size())
+            return false;
+        for (int index = 0; index < a.size(); ++index)
+        {
+            if (!noteExactEqual(a.at(index), b.at(index)))
+                return false;
+        }
+        return true;
+    }
+
+    bool bpmListsEqual(const QVector<BpmEntry> &a, const QVector<BpmEntry> &b)
+    {
+        if (a.size() != b.size())
+            return false;
+        for (int index = 0; index < a.size(); ++index)
+        {
+            if (!bpmExactEqual(a.at(index), b.at(index)))
+                return false;
+        }
+        return true;
+    }
+
+    bool metadataEqual(const MetaData &a, const MetaData &b)
+    {
+        return a.title == b.title &&
+               a.titleOrg == b.titleOrg &&
+               a.artist == b.artist &&
+               a.artistOrg == b.artistOrg &&
+               a.difficulty == b.difficulty &&
+               a.chartAuthor == b.chartAuthor &&
+               a.audioFile == b.audioFile &&
+               a.backgroundFile == b.backgroundFile &&
+               a.previewTime == b.previewTime &&
+               std::abs(a.firstBpm - b.firstBpm) < 1e-9 &&
+               a.offset == b.offset &&
+               a.speed == b.speed;
+    }
+
+    bool resourceReferencesEqual(const Chart &a, const Chart &b)
+    {
+        return a.meta().audioFile == b.meta().audioFile &&
+               a.meta().backgroundFile == b.meta().backgroundFile &&
+               a.audioSourceFullPath() == b.audioSourceFullPath();
+    }
+
+    ChartChangeSet metadataChangeSet(const MetaData &before, const MetaData &after)
+    {
+        ChartChangeSet changes;
+        if (metadataEqual(before, after))
+            return changes;
+
+        changes |= ChartChangeType::Metadata;
+        if (before.offset != after.offset)
+            changes |= ChartChangeType::Timing;
+        if (before.audioFile != after.audioFile ||
+            before.backgroundFile != after.backgroundFile)
+        {
+            changes |= ChartChangeType::Resources;
+        }
+        return changes;
+    }
+
+    ChartChangeSet chartChangeSet(const Chart &before, const Chart &after)
+    {
+        ChartChangeSet changes;
+        if (!notesEqual(before.notes(), after.notes()))
+            changes |= ChartChangeType::Notes;
+        if (!bpmListsEqual(before.bpmList(), after.bpmList()) ||
+            before.meta().offset != after.meta().offset)
+        {
+            changes |= ChartChangeType::Timing;
+        }
+        changes |= metadataChangeSet(before.meta(), after.meta());
+        if (!resourceReferencesEqual(before, after))
+            changes |= ChartChangeType::Resources;
+        return changes;
+    }
+
     bool isReferenceNoteValid(const Note &note)
     {
         // Remove/move-from notes are references to existing data.
@@ -245,13 +342,13 @@ public:
     void undo() override
     {
         m_controller->m_chart.removeNote(m_note);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.addNote(m_note);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
 
@@ -268,13 +365,13 @@ public:
     void undo() override
     {
         m_controller->m_chart.removeNotes(m_notes);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.addNotes(m_notes);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
 
@@ -290,13 +387,13 @@ public:
     void undo() override
     {
         m_controller->m_chart.addNote(m_note);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.removeNote(m_note);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
 
@@ -313,13 +410,13 @@ public:
     void undo() override
     {
         m_controller->m_chart.addNotes(m_notes);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.removeNotes(m_notes);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
 
@@ -337,14 +434,14 @@ public:
     {
         m_controller->m_chart.replaceNotes(
             QList<QPair<Note, Note>>{qMakePair(m_new, m_original)});
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.replaceNotes(
             QList<QPair<Note, Note>>{qMakePair(m_original, m_new)});
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
 
@@ -365,13 +462,13 @@ public:
         for (const auto &change : m_changes)
             reverseChanges.append(qMakePair(change.second, change.first));
         m_controller->m_chart.replaceNotes(reverseChanges);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.replaceNotes(m_changes);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
 
@@ -387,13 +484,13 @@ public:
     void undo() override
     {
         removeBpmByValue(m_controller->m_chart, m_bpm, m_controller->m_chart.bpmList().size() - 1);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Timing);
         m_controller->bpmListChanged();
     }
     void redo() override
     {
         m_controller->m_chart.addBpm(m_bpm);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Timing);
         m_controller->bpmListChanged();
     }
 
@@ -410,13 +507,13 @@ public:
     void undo() override
     {
         m_controller->m_chart.addBpm(m_bpm);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Timing);
         m_controller->bpmListChanged();
     }
     void redo() override
     {
         removeBpmByValue(m_controller->m_chart, m_bpm, m_index);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Timing);
         m_controller->bpmListChanged();
     }
 
@@ -434,13 +531,13 @@ public:
     void undo() override
     {
         replaceBpmByValue(m_controller->m_chart, m_new, m_old, m_index);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Timing);
         m_controller->bpmListChanged();
     }
     void redo() override
     {
         replaceBpmByValue(m_controller->m_chart, m_old, m_new, m_index);
-        m_controller->chartChanged();
+        m_controller->publishChange(ChartChangeType::Timing);
         m_controller->bpmListChanged();
     }
 
@@ -454,22 +551,26 @@ class ChartController::SetMetaCommand : public ChartController::ChartCommand
 {
 public:
     SetMetaCommand(ChartController *controller, const MetaData &oldMeta, const MetaData &newMeta)
-        : ChartCommand(controller, "Edit Meta"), m_old(oldMeta), m_new(newMeta) {}
+        : ChartCommand(controller, "Edit Meta"),
+          m_old(oldMeta),
+          m_new(newMeta),
+          m_changes(metadataChangeSet(oldMeta, newMeta)) {}
     void undo() override
     {
         m_controller->m_chart.meta() = m_old;
-        m_controller->chartChanged();
+        m_controller->publishChange(m_changes);
         m_controller->metaDataChanged();
     }
     void redo() override
     {
         m_controller->m_chart.meta() = m_new;
-        m_controller->chartChanged();
+        m_controller->publishChange(m_changes);
         m_controller->metaDataChanged();
     }
 
 private:
     MetaData m_old, m_new;
+    ChartChangeSet m_changes;
 };
 
 class ChartController::ExternalMutationCommand : public ChartController::ChartCommand
@@ -481,14 +582,15 @@ public:
                             const Chart &after)
         : ChartCommand(controller, actionName.isEmpty() ? "Plugin Mutation" : actionName),
           m_before(before),
-          m_after(after)
+          m_after(after),
+          m_changes(chartChangeSet(before, after))
     {
     }
 
     void undo() override
     {
         m_controller->m_chart = m_before;
-        m_controller->chartChanged();
+        m_controller->publishChange(m_changes);
         m_controller->notesChanged();
         m_controller->bpmListChanged();
         m_controller->metaDataChanged();
@@ -497,7 +599,7 @@ public:
     void redo() override
     {
         m_controller->m_chart = m_after;
-        m_controller->chartChanged();
+        m_controller->publishChange(m_changes);
         m_controller->notesChanged();
         m_controller->bpmListChanged();
         m_controller->metaDataChanged();
@@ -506,6 +608,7 @@ public:
 private:
     Chart m_before;
     Chart m_after;
+    ChartChangeSet m_changes;
 };
 
 class ChartController::UndoMarkerCommand : public QUndoCommand
@@ -523,11 +626,27 @@ public:
 // ---------- ChartController 实现 ----------
 ChartController::ChartController(QObject *parent) : QObject(parent)
 {
+    qRegisterMetaType<ChartChange>();
     m_undoStack = new QUndoStack(this);
 }
 
 ChartController::~ChartController()
 {
+}
+
+void ChartController::publishChange(ChartChangeSet changes)
+{
+    if (changes)
+    {
+        ChartChange change;
+        change.revision = ++m_revision;
+        change.types = changes;
+        emit chartChangeCommitted(change);
+    }
+    // Keep the historical signal available to consumers that only need a
+    // dirty notification. The typed signal above is the authoritative source
+    // for revision-aware cache invalidation.
+    emit chartChanged();
 }
 
 void ChartController::addNote(const Note &note)
@@ -715,7 +834,12 @@ bool ChartController::loadChartFromData(const QString &path, Chart loadedChart)
         m_undoStack->clear();
         Logger::debug("ChartController::loadChartFromData: Undo stack cleared");
 
-        emit chartChanged();
+        ChartChangeSet allChanges;
+        allChanges |= ChartChangeType::Notes;
+        allChanges |= ChartChangeType::Timing;
+        allChanges |= ChartChangeType::Metadata;
+        allChanges |= ChartChangeType::Resources;
+        publishChange(allChanges);
         emit notesChanged();
         emit bpmListChanged();
         emit metaDataChanged();

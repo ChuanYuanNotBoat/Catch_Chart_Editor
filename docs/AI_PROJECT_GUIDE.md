@@ -100,7 +100,7 @@ MainWindow
 约束：
 
 - 数据修改优先经 Controller 完成，避免 UI 直接产生无法撤销的模型变更。
-- `ChartController` 已把粗粒度 `chartChanged` 拆分为 notes/BPM/meta 信号；新增监听时选最小范围。
+- `ChartController` 保留粗粒度 `chartChanged` 兼容信号，并通过 `chartChangeCommitted` 提供单调 revision 与 `notes/timing/metadata/resources` 类型化变更集；新增缓存监听时选最小范围。
 - 大批量 Note 修改使用 `Chart::addNotes/removeNotes/replaceNotes/applyNoteBatch`，只在变更边界排序一次。
 - Note/Rain 拖动期间只维护绘制预览，松手后经 Controller 提交一次；不要恢复每个 pointer event 修改模型的做法。
 - 播放态视觉刷新由 `PlaybackController` 帧信号驱动，不要再增加独立高频定时器。

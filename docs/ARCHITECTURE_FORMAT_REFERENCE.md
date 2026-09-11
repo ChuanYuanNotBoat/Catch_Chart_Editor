@@ -1009,6 +1009,7 @@ src/
 │   ├── NoteChainPersistence.h / .cpp          # V3 JSON、CAS 与原子保存
 │   └── NoteChainEditor.h / .cpp               # 输入、绘制、命令与宿主协作
 ├── controller/
+│   ├── ChartChange.h                            # revision 与类型化变更集
 │   └── ChartController.h / .cpp               # 编辑控制器 + Undo/Redo
 ├── render/
 │   ├── NoteRenderer.h                          # 音符渲染
@@ -1027,7 +1028,7 @@ src/
 - `Chart Workspace` Dock 是稳定的顶层 workbench part：禁止关闭、移动和浮动，使用 `420x300` 最低内容尺寸，全部 splitter 祖先不可折叠，目标区域只接受左/右侧拆分。恢复 ADS 状态后会重新应用约束并修复旧布局中的关闭状态。普通面板可从顶部 `Panels` 或 `View -> Panels` 单独/批量恢复。
 - ADS 多窗口状态与经典四栏状态使用独立 Settings 键；经典状态包含 splitter 尺寸、Note/BPM/Meta 当前页和嵌入式插件区可见性，切换与重置不交叉覆盖。
 - `DockLayoutPolicy` 将 Timing、Playback Speed、Range、Mirror、Curve、Plugin Tools 和 Chart Statistics 标记为纵向紧凑内容；该限制只在主窗口停靠态生效，进入任意浮动容器后恢复原始 size policy/maximum height。普通编辑区吸收纵向空闲空间，因此关闭工具块不会把其余工具块或内部控件拉高。
-- `chartChanged` 只承担文档 dirty/revision、编辑统计和恢复调度；画布、密度、奖励点及资源监听使用 notes/BPM/meta 细分信号。
+- `ChartController::chartChangeCommitted` 为每次成功加载或内容变更分配单调 revision，并携带 `notes/timing/metadata/resources` 类型化变更集；无 revision 感知的旧消费者仍可使用 `chartChanged` 与 notes/BPM/meta 细分信号。
 - ChartCanvas 拖动以临时 Note 快照绘制，指针移动不修改 Chart；release 时经 `ChartController::moveNotes` 提交一个 Undo 命令。
 - Rain 绘制按开始拍有序索引查询，并用结束拍前缀最大值向前定位仍可能覆盖 viewport 的长 Rain。
 - `ChartStatsCalculator` 在 Qt Concurrent 工作线程上读取独立 Chart 快照和独立 `RainRewardGenerator`；`chartRevision` 不匹配的结果不会写回 UI。

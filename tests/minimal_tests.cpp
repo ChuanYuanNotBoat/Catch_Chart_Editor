@@ -2093,6 +2093,121 @@ namespace
                bpmSpy.count() == 0;
     }
 
+    bool testChartControllerRevisionAndTypedChanges()
+    {
+        ChartController controller;
+        if (controller.revision() != 0)
+            return false;
+
+        QSignalSpy changeSpy(&controller, &ChartController::chartChangeCommitted);
+        Chart seed;
+        seed.clearNotes();
+        seed.addNote(makeNormalNote(1, 0, 1, 64, "typed-seed"));
+
+        if (!controller.loadChartFromData(QStringLiteral("typed.mc"), seed) ||
+            controller.revision() != 1 || changeSpy.count() != 1)
+        {
+            return false;
+        }
+
+        const ChartChange loaded = qvariant_cast<ChartChange>(changeSpy.at(0).at(0));
+        ChartChangeSet allChanges;
+        allChanges |= ChartChangeType::Notes;
+        allChanges |= ChartChangeType::Timing;
+        allChanges |= ChartChangeType::Metadata;
+        allChanges |= ChartChangeType::Resources;
+        if (loaded.revision != 1 || loaded.types != allChanges)
+            return false;
+
+        auto takeSingleChange = [&changeSpy](ChartChangeSet expected, quint64 revision)
+        {
+            if (changeSpy.count() != 1)
+                return false;
+            const ChartChange change = qvariant_cast<ChartChange>(changeSpy.at(0).at(0));
+            return change.revision == revision && change.types == expected;
+        };
+
+        changeSpy.clear();
+        controller.addNote(makeNormalNote(2, 0, 1, 128, "typed-note"));
+        if (controller.revision() != 2 ||
+            !takeSingleChange(ChartChangeType::Notes, 2))
+        {
+            return false;
+        }
+
+        changeSpy.clear();
+        controller.addBpm(BpmEntry(4, 0, 1, 180.0));
+        if (controller.revision() != 3 ||
+            !takeSingleChange(ChartChangeType::Timing, 3))
+        {
+            return false;
+        }
+
+        MetaData metadata = controller.chart()->meta();
+        metadata.title = QStringLiteral("Typed Metadata");
+        changeSpy.clear();
+        controller.setMetaData(metadata);
+        if (controller.revision() != 4 ||
+            !takeSingleChange(ChartChangeType::Metadata, 4))
+        {
+            return false;
+        }
+
+        metadata.offset += 12;
+        changeSpy.clear();
+        controller.setMetaData(metadata);
+        ChartChangeSet timingAndMetadata;
+        timingAndMetadata |= ChartChangeType::Timing;
+        timingAndMetadata |= ChartChangeType::Metadata;
+        if (controller.revision() != 5 ||
+            !takeSingleChange(timingAndMetadata, 5))
+        {
+            return false;
+        }
+
+        metadata.audioFile = QStringLiteral("typed.ogg");
+        changeSpy.clear();
+        controller.setMetaData(metadata);
+        ChartChangeSet resourceAndMetadata;
+        resourceAndMetadata |= ChartChangeType::Resources;
+        resourceAndMetadata |= ChartChangeType::Metadata;
+        if (controller.revision() != 6 ||
+            !takeSingleChange(resourceAndMetadata, 6))
+        {
+            return false;
+        }
+
+        Chart mutated = *controller.chart();
+        mutated.addNote(makeNormalNote(3, 0, 1, 256, "typed-external"));
+        changeSpy.clear();
+        if (!controller.applyExternalChartMutation(QStringLiteral("typed external"), mutated) ||
+            controller.revision() != 7 ||
+            !takeSingleChange(ChartChangeType::Notes, 7))
+        {
+            return false;
+        }
+
+        changeSpy.clear();
+        controller.undo();
+        if (controller.revision() != 8 ||
+            !takeSingleChange(ChartChangeType::Notes, 8))
+        {
+            return false;
+        }
+
+        changeSpy.clear();
+        controller.redo();
+        if (controller.revision() != 9 ||
+            !takeSingleChange(ChartChangeType::Notes, 9))
+        {
+            return false;
+        }
+
+        changeSpy.clear();
+        controller.pushUndoMarker(QStringLiteral("typed marker"));
+        return controller.revision() == 9 && changeSpy.count() == 0;
+    }
+
     bool testNoteIsXValidForSoundIgnoresRange()
     {
         Note sound(1, 0, 1, "hit.wav", 50, 0);
@@ -3210,6 +3325,7 @@ int main(int argc, char **argv)
         {"ChartController signal addNotes batch emits once", &testChartControllerSignalAddNotesEmitsOnce},
         {"ChartController signal removeNotes batch emits once", &testChartControllerSignalRemoveNotesEmitsOnce},
         {"ChartController signal no-op does not emit", &testChartControllerSignalNoOpDoesNotEmit},
+        {"ChartController revision and typed changes", &testChartControllerRevisionAndTypedChanges},
         {"ChartController invalid BPM index no-op", &testChartControllerInvalidBpmIndexNoOp},
         {"Chart remove by content when id missing", &testChartRemoveByContentWhenIdMissing},
         {"Chart sort notes keeps sound after normal on same beat", &testChartSortNotesSoundAfterNormalAtSameBeat},
