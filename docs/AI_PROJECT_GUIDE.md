@@ -2,9 +2,9 @@
 
 > 面向新开发者和代码代理的当前仓库速查。
 > 当前版本：**Beta v1.11.1（2026-09-07）**
-> 仓库状态：**Unreleased maintenance（2026-09-10）**
+> 仓库状态：**Unreleased maintenance（2026-09-11）**
 > Git 标签：待发布
-> 最后核对：2026-09-10
+> 最后核对：2026-09-11
 
 ## 1. 项目边界
 
@@ -17,6 +17,7 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 - 当前曲线编辑器是内部 C++ 模块，不是 Python 插件。
 - 面板系统使用 vendored Qt Advanced Docking System 5.1.1。
 - 用户已有工作区可能包含未提交修改；修改前必须检查 Git 状态并保留无关变更。
+- 未来架构以 [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) 为准：先在 CCE 仓库内成熟文档/图层边界，再考虑核心拆仓；父目录中的旧 core/mobile 尝试当前不是本仓库依赖或行为事实来源。
 
 ## 2. 技术栈与目标
 
@@ -115,7 +116,10 @@ MainWindow
 - `Navigation` 默认位于左侧；
 - `Realtime Preview`、`Note Editor`、`BPM & Timing`、`Metadata` 可停靠、拆分、标签组合和浮动；
 - 长编辑面板使用 `ForceScrollArea`，不得让内容最小高度传到主窗口；
-- 布局通过 `Settings::dockLayoutState` 保存，`View -> Panels -> Reset Panel Layout` 恢复默认值；
+- `Chart Workspace` 必须保持 `DockWidgetClosable=false`，布局恢复后由 `ensureWorkspaceDockVisible()` 修复旧版保存的关闭状态；
+- 多窗口布局通过 `Settings::dockLayoutState` 保存；经典布局通过独立的 splitter/right-panel/plugin 状态保存，切换和重置不得让两套状态互相覆盖；
+- 顶部 `Panels` 动作与 `View -> Panels` 是普通面板关闭后的明确恢复入口；经典模式仍保留其独立重置入口；
+- 紧凑工具 Dock 必须经 `DockLayoutPolicy::applyCompactToolDockPolicy()` 配置：内容使用自然高度，纵向栈的剩余空间优先交给普通编辑面板，不得因关闭相邻模块而拉伸控件；
 - 插件 panel 也必须进入 ADS，不应另建固定右侧堆叠布局。
 
 性能注意：

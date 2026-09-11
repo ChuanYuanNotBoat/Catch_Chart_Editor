@@ -2,9 +2,11 @@
 
 > **目的**：完整描述当前编辑器的数据模型、文件格式、插件体系、坐标系统、外置 sidecar 文件格式等，为重构格式与导出到标准 mcz/mc 提供精确的结构定义。
 >
-> **版本**：Beta v1.11.1 + Unreleased maintenance | **最后更新**：2026-09-10
+> **版本**：Beta v1.11.1 + Unreleased maintenance | **最后更新**：2026-09-11
 >
 > ⚠️ **核心约束**：`.mc` 文件的 JSON 结构**永远不能更改**，必须保持与 Malody 官方格式完全兼容。所有扩展数据必须存放在 `.mcce-plugin/` 或独立辅助文件中。如果需要更改，则需要保证有可以导出为规范.mc/mcz的能力。
+>
+> 本文只描述当前已实现架构。未来的多难度工程、可复用图层、评论、版本、移动兼容与通用核心方向见 [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md)；规划中的工程格式不会改变标准 `.mc` 导出边界。
 
 ---
 
@@ -1022,6 +1024,9 @@ src/
 
 ### 11.1a MainWindow 与主编辑区性能边界
 
+- `Chart Workspace` Dock 禁止关闭；恢复 ADS 状态后会修复旧布局中的关闭状态。普通面板可从顶部 `Panels` 或 `View -> Panels` 单独/批量恢复。
+- ADS 多窗口状态与经典四栏状态使用独立 Settings 键；经典状态包含 splitter 尺寸、Note/BPM/Meta 当前页和嵌入式插件区可见性，切换与重置不交叉覆盖。
+- `DockLayoutPolicy` 将 Timing、Playback Speed、Range、Mirror、Curve、Plugin Tools 和 Chart Statistics 标记为纵向紧凑内容；普通编辑区拥有 splitter 扩张权重，因此关闭工具块不会把其余工具块或内部控件拉高。
 - `chartChanged` 只承担文档 dirty/revision、编辑统计和恢复调度；画布、密度、奖励点及资源监听使用 notes/BPM/meta 细分信号。
 - ChartCanvas 拖动以临时 Note 快照绘制，指针移动不修改 Chart；release 时经 `ChartController::moveNotes` 提交一个 Undo 命令。
 - Rain 绘制按开始拍有序索引查询，并用结束拍前缀最大值向前定位仍可能覆盖 viewport 的长 Rain。

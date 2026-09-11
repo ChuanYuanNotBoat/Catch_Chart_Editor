@@ -6,7 +6,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 ## Version status / 版本状态
 
 - Current release / 当前版本：**Beta v1.11.1（2026-09-07）**
-- Repository state / 仓库状态：**Unreleased maintenance（2026-09-10）**
+- Repository state / 仓库状态：**Unreleased maintenance（2026-09-11）**
 - Git tag / 标签：待发布
 - Download / 下载：[GitHub Releases](https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor/releases/latest)
 
@@ -20,6 +20,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - [完整更新历史](docs/history.md)
 - [开发者项目指南](docs/AI_PROJECT_GUIDE.md)
 - [工程优化与重构 TODO](docs/ENGINEERING_TODO.md)
+- [未来产品与架构规划](docs/FUTURE_ROADMAP.md)
 - [测试指南](TESTING.md)
 - [插件 SDK](src/plugin/README.md)
 
@@ -29,10 +30,10 @@ A Qt 6 desktop chart editor for Malody Catch mode.
   Beta v1.11.1 新增谱面统计、Catch Star 分析、官方逻辑 Rain 奖励点预览、Rain 尾部编辑、谱面刷新和自动 OGG 转换。
 - The current maintenance line hardens atomic save/recovery and removes large-chart editor hot paths through bulk mutations, render-only drag previews, typed invalidation, and asynchronous statistics.
   当前维护线加强原子保存与崩溃恢复，并通过批量变更、纯渲染拖拽预览、细分失效信号和异步统计消除大谱面编辑热点。
-- The next structural refactor is intentionally waiting for written future-design requirements; see the engineering TODO.
-  下一轮结构性重构会在未来设计需求明确后进行，详见工程 TODO。
+- Future requirements are now recorded: CCE will mature its internal document/layer architecture before any repository-level core split, while mobile may consume a compatible subset earlier.
+  未来需求已经形成规划：CCE 先在当前仓库内完善文档/图层架构，再考虑核心拆仓；移动端可在兼容边界稳定后提前接入受控子集。
 
-完整变更见 [docs/history.md](docs/history.md) 顶部，维护计划见 [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md)。
+完整变更见 [docs/history.md](docs/history.md) 顶部，近期维护见 [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md)，长期方向见 [docs/FUTURE_ROADMAP.md](docs/FUTURE_ROADMAP.md)。
 
 ## Features / 功能
 
@@ -43,7 +44,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - Native curve-to-note workflow with per-segment density and curve/polyline shapes.
 - V3 curve sidecar under `.mcce-plugin/*.curve_tbd.json`, with CAS revision checks and legacy data import.
 - Native and JSON-lines process plugins, tool actions, floating panels, canvas overlays, and host batch edits.
-- Configurable ADS workspace with persistent dock/floating layout.
+- Configurable ADS workspace with a protected main editor, discoverable panel recovery, stable compact-tool sizing, and independent classic/multi-window layouts.
 - Chinese, English, and Japanese UI translations.
 
 ## Build
@@ -87,7 +88,7 @@ Build output also receives the default skin, runtime plugins, documentation, not
 2. Use the `Note Editor` panel to choose Note, Rain, Delete, Select, or Curve mode.
 3. Use the mouse wheel to navigate; `Ctrl + wheel` changes the timeline scale.
 4. Press `Space` to play/pause and use `Time Division` plus `Grid Snap` for precise placement.
-5. Drag panel tabs to dock, split, combine, or float them; reset from `View -> Panels -> Reset Panel Layout`.
+5. Drag panel tabs to dock, split, combine, or float them; reopen closed panels from the toolbar `Panels` menu. Classic and multi-window layouts are saved independently.
 6. Save as `.mc` or export a Malody-compatible `.mcz` package.
 
 Detailed controls are documented in [docs/help.md](docs/help.md).

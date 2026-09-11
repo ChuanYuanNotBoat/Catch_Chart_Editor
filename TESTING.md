@@ -1,7 +1,7 @@
 # Testing Guide
 
 > 适用版本：Beta v1.11.1 + Unreleased maintenance
-> 最后核对：2026-09-10
+> 最后核对：2026-09-11
 
 ## 测试目标
 
@@ -47,6 +47,8 @@ CTest 名称：`ui_docking_layout_tests`
 - `ForceScrollArea` 和 viewport 在浮动首帧可见且尺寸有效；
 - 工具 QWidget 可在 ADS dock 与旧式单一纵向栏之间往返转移且对象身份不变；旧式右栏保留按需纵向滚动并强制关闭横向滚动；
 - 关闭浮动窗口会同步面板动作，动作可立即恢复面板，后续普通隐藏事件不会再次误关面板。
+- 主编辑区不提供关闭动作；经典与多窗口设置状态分别持久化，清除任一模式状态不会删除另一模式状态。
+- 关闭纵向栈中的任一紧凑工具块时，普通编辑面板吸收释放空间，其余紧凑工具块及其内部控件不被自动拉伸。
 
 ## 本地命令
 
@@ -139,7 +141,9 @@ build\Release\CatchChartEditor.exe `
 - Note Input、Timing & Grid、Playback Speed、Range Select、Mirror Flip、Curve Tools 和 Plugin Tools 分别验证纵向组合、拆分、拖动、浮动、关闭恢复和默认布局重置，并确认拖回后不变为切换标签；
 - 在新旧两种布局中验证 Playback Speed 的六个快捷按钮与 `0.1×–10×` 手动输入，确认输入边界、Playback 菜单双向同步、播放中切速和重启持久化；
 - 关闭 `View -> Enable Floating Windows`，确认界面恢复为引入 ADS 前的固定 Navigation / Preview / Workspace / 右编辑栏四栏布局，Note/BPM/Meta 只在同一右栏切换，没有任何 ADS 标题、标签或工具拆分块；右栏滚轮及纵向滚动条有效且始终没有横向滚动条；
-- 在两种模式间反复切换，确认当前 Note/BPM/Meta 页、曲线控件、范围输入和 Plugin Tools GUI 状态不丢失；重启后保持所选模式，重新启用 ADS 后恢复关闭前的停靠位置；
+- 先分别设置经典模式的四栏宽度、Note/BPM/Meta 页和 Plugin Tools 开关，以及多窗口模式的停靠/浮窗/关闭状态；反复切换并重启，确认每种模式只恢复自己的最后状态，互不手动同步或覆盖；
+- 多窗口模式尝试关闭 `Chart Workspace`，确认主编辑区没有关闭入口；关闭其他面板后，分别从顶部 `Panels`、`View -> Panels` 和 `Reopen All Closed Panels` 恢复；
+- 依次关闭 Timing、Playback Speed、Range、Mirror、Curve、Plugin Tools 或 Chart Statistics，确认相邻紧凑模块不被拉高；剩余空间由普通编辑面板吸收，纯工具浮窗中则表现为空白；
 - Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、浮动、关闭、无需重启恢复和重启持久化；BPM/Meta 等完整面板另验证标签组合；
 - 关闭主窗口后确认 GUI、日志终端、外部插件子进程和主进程均结束；
 - 深色/浅色主题下主窗口与浮动窗口标题栏、文字、边框和首帧内容；

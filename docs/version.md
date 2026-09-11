@@ -4,7 +4,7 @@
 
 - 当前版本：**Beta v1.11.1（2026-09-07）**
 - 上一版本：**Beta v1.11.0-patch.1（2026-08-31）**
-- 仓库状态：**Unreleased maintenance（最后核对 2026-09-10）**
+- 仓库状态：**Unreleased maintenance（最后核对 2026-09-11）**
 - Git 标签：待发布
 
 当前工作树在 Beta v1.11.1 上继续维护；未发布变更见 [history.md](history.md) 顶部的 `Unreleased`，已冻结的历史版本不回填后续内容。
@@ -14,7 +14,7 @@
 - 谱面：保持 Malody Catch `.mc` JSON 兼容，不写入编辑器私有字段。
 - 打包：支持 `.mcz` 导入/导出；发布前仍需使用真实 Malody 客户端验证包结构。
 - 曲线项目：使用 V3 `.mcce-plugin/*.curve_tbd.json`，兼容读取旧 Python anchors/handles/links。
-- 布局：Beta v1.11.0 使用 ADS 布局状态；损坏或不兼容状态会回退默认布局，可从 `View -> Panels -> Reset Panel Layout` 手动重置。
+- 布局：多窗口 ADS 与经典四栏布局分别保存和重置；主编辑区不可关闭，普通面板可从顶部 `Panels` 或 `View -> Panels` 恢复；紧凑工具块关闭后不会拉伸其余模块；损坏或不兼容的 ADS 状态会回退默认布局。
 - 插件：Host API 当前为 v3，支持 API v2-v3；旧 `builtin.note_chain_assist` 被原生 C++ 模块替代并由宿主跳过。
 - 保存与恢复：`.mc`、恢复清单、编辑统计、已有资源/sidecar 覆盖和 `.mcz` 最终发布使用原子替换；编辑中的工作副本按防抖节奏持久化，恢复清理只允许作用于会话根目录的直接子目录。
 
@@ -24,6 +24,6 @@
 - 从旧版本打开曲线 sidecar 后，保存会规范化为当前 V3 表达；重要工程建议先保留备份。
 - 外部进程插件仍依赖其运行环境，例如 Python 插件需要可用的 `python` 命令。
 - 大谱面统计在后台基于不可变快照计算；切谱或继续编辑时，过期结果会被版本检查丢弃。
-- 如面板布局异常，先执行 `View -> Panels -> Reset Panel Layout`，再重新排列并正常退出以保存。
+- 如面板布局异常，先在异常的模式中执行 `View -> Panels -> Reset Panel Layout`，再重新排列并正常退出；该操作不会清除另一模式的布局。
 
 本页会在程序的版本信息窗口中与运行时版本、Qt、ABI、系统信息和 [history.md](history.md) 一起显示。

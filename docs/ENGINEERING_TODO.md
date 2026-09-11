@@ -1,6 +1,6 @@
 # Engineering TODO
 
-Last audited: 2026-09-10
+Last audited: 2026-09-11
 
 Target: Beta v1.11.1 maintenance line (`v2-main`)
 
@@ -11,9 +11,13 @@ Use a **stabilize first, refactor with evidence** sequence:
 1. Fix data-safety and correctness defects that remain valid under any future UI design.
 2. Remove measured editor hot paths without changing the public chart or plugin format.
 3. Introduce only small reusable seams (bulk mutations, safe paths, coalesced work).
-4. Decide the MainWindow split, document model, render architecture, and plugin execution model after the future-design requirements are written down.
+4. Evolve the document and command boundaries inside CCE before any repository-level core split.
+5. Allow mobile to consume a narrow compatibility surface only after that surface passes the desktop behavior and performance gates.
 
-This avoids locking the project into a large structural rewrite before those requirements are known, while keeping the current branch safe to use.
+The future requirements and milestone gates are now defined in
+[FUTURE_ROADMAP.md](FUTURE_ROADMAP.md). This keeps the current branch safe to
+use, avoids another prematurely frozen core fork, and still creates reusable
+boundaries inside the desktop repository.
 
 ## Reference workload
 
@@ -53,6 +57,9 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [x] Coalesce density/stat refreshes and avoid work on unrelated chart changes.
 - [x] Replace in-place drag mutations with lightweight visual previews, committing only once through the undo stack.
 - [x] Keep the presentation clock continuous before the first audio-position callback and cover zero-warmup startup at 0.1x-10x.
+- [x] Make the primary chart workspace non-closable and add discoverable main-toolbar/menu recovery actions for every other panel.
+- [x] Persist and reset classic splitter/sidebar state independently from the multi-window ADS layout.
+- [x] Keep compact ADS tool modules content-height and route space released by closing a module to flexible editor panels.
 - [x] Re-run Release tests and the `Yugami - Nyanpasu- Lv.16` benchmark; record before/after numbers.
 
 ## P1 — measured follow-up
@@ -72,16 +79,37 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [ ] Add load/save benchmarks at 5k / 20k / 100k notes and fail CI on major regressions.
 - [ ] Profile the Windows top-level backing-store/update path behind the 10.5 ms p95 measurement.
 
-## P2 — design-dependent refactor
+## P2 — CCE-internal document architecture
 
-These items stay deliberately undecided until the future-design notes are available:
+The product direction is decided in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md):
+CCE remains the source of truth while these boundaries mature; repository-level
+core extraction comes later.
 
-- [ ] Split `MainWindow` into session, document, command, workspace, and plugin-UI coordinators.
-- [ ] Decide whether a document owns one chart or a multi-difficulty project.
-- [ ] Decide immutable snapshots versus mutable model + revisions for editor data.
-- [ ] Define background save/recovery semantics and conflict handling.
-- [ ] Redesign the process-plugin protocol around async requests, cancellation, capability scopes, and bounded payloads.
-- [ ] Decide whether canvas rendering remains QWidget/QPainter or gains a retained scene/render backend.
+- [ ] Introduce strong persistent IDs for document, difficulty, timeline, layer, and note entities.
+- [ ] Replace floating-point beat ordering with normalized rational comparison.
+- [ ] Migrate selection identity from note indices to note IDs while retaining fast render indices.
+- [ ] Add a read-only versioned document snapshot and remove UI access to unrestricted mutable Chart state.
+- [ ] Replace whole-Chart command snapshots with validated serializable deltas and inverse operations.
+- [ ] Split `MainWindow` incrementally into session, workspace, document, command, resource, diagnostics, and plugin-UI coordinators.
+- [ ] Establish a no-QtWidgets CMake target inside this repository; do not freeze or split its public ABI yet.
+- [ ] Model a legacy `.mc` as one difficulty using one Base layer without changing current user-visible behavior.
+- [ ] Define layer-aware clipboard commands for copy/cut/paste, atomic cross-layer and cross-difficulty transfer, and Timeline remapping previews.
+- [ ] Define project-shared, inheritable/overridable, per-difficulty-required, and structural Meta field policies.
+- [ ] Add transactional create/duplicate Difficulty services before exposing “New MC” in the project UI.
+- [ ] Add `ComposedChartView` and revision-driven per-layer/visible-object indices; never concatenate and sort all layers per paint.
+- [ ] Define the versioned directory-form project format, schema migration, atomic recovery, and resource hashing.
+- [ ] Implement layer composition and deterministic export projection before exposing the full layer UI.
+- [ ] Keep QWidget/QPainter unless measured multi-layer workloads demonstrate a rendering-backend limitation.
+- [ ] Redesign the process-plugin protocol around async requests, cancellation, capability scopes, bounded payloads, and layer-aware deltas.
+
+## Later milestones
+
+Multi-difficulty projects, reusable/shared layers, layer groups, cross-difficulty
+references, review threads, Git-like checkpoints, osu!ctb, the conditional mobile
+track, eventual core extraction, and optional real-time collaboration are sequenced
+with explicit entry/exit gates in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md). They are
+not duplicated as unchecked implementation items here until their prerequisite
+milestone becomes active.
 
 ## Acceptance gates
 
