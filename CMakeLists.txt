@@ -94,6 +94,8 @@ if(BUILD_TESTING)
     add_executable(DockingLayoutTests
         tests/docking_layout_tests.cpp
         src/utils/NativeWindowTheme.cpp
+        src/utils/Settings.cpp
+        src/ui/DockLayoutPolicy.cpp
         src/ui/PlaybackSpeedPanel.cpp
     )
     target_include_directories(DockingLayoutTests PRIVATE src)

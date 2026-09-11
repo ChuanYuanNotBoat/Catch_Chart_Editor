@@ -8,15 +8,19 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
+#include <QSettings>
 #include <QSizePolicy>
 #include <QSplitter>
+#include <QTemporaryDir>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <cmath>
 #include <cstdio>
 
 #include "ui/PlaybackSpeedPanel.h"
+#include "ui/DockLayoutPolicy.h"
 #include "utils/NativeWindowTheme.h"
+#include "utils/Settings.h"
 #include <DockAreaWidget.h>
 #include <FloatingDockContainer.h>
 #include <FloatingDragPreview.h>
@@ -174,6 +178,15 @@ int main(int argc, char **argv)
         ads::BottomDockWidgetArea, pluginToolsDock, mirrorArea);
     pluginToolsArea->setAllowedAreas(ads::OuterDockAreas);
 
+    for (ads::CDockWidget *dock : {speedDock, rangeDock, mirrorDock, pluginToolsDock})
+        DockLayoutPolicy::applyCompactToolDockPolicy(dock);
+    QObject::connect(manager, &ads::CDockManager::stateRestored,
+                     [speedDock, rangeDock, mirrorDock, pluginToolsDock]()
+                     {
+        for (ads::CDockWidget *dock : {speedDock, rangeDock, mirrorDock, pluginToolsDock})
+            DockLayoutPolicy::applyCompactToolDockPolicy(dock);
+    });
+
     window.show();
     app.processEvents();
 
@@ -236,11 +249,53 @@ int main(int argc, char **argv)
                       && mirrorArea->parentWidget() == toolSplitter
                       && pluginToolsArea->parentWidget() == toolSplitter,
                   "docked tool blocks must preserve the original vertical reading order");
+    ok &= require(speedPanel->sizePolicy().verticalPolicy() == QSizePolicy::Maximum,
+                  "compact tool content must remain content-height instead of stretching");
+    ok &= require(panelArea->sizePolicy().verticalStretch() == 1
+                      && speedArea->sizePolicy().verticalStretch() == 0
+                      && rangeArea->sizePolicy().verticalStretch() == 0
+                      && mirrorArea->sizePolicy().verticalStretch() == 0
+                      && pluginToolsArea->sizePolicy().verticalStretch() == 0,
+                  "normal panels must absorb free vertical space before compact tools");
     ok &= require(!speedArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
                       && !rangeArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
                       && !mirrorArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
                       && !pluginToolsArea->allowedAreas().testFlag(ads::CenterDockWidgetArea),
                   "tool blocks must reject switching-tab merges");
+
+    if (toolSplitter)
+        toolSplitter->setSizes({220, 85, 85, 85, 85});
+    app.processEvents();
+    const int panelHeightBeforeClose = panelArea->height();
+    const int speedHeightBeforeClose = speedArea->height();
+    const int mirrorHeightBeforeClose = mirrorArea->height();
+    const int pluginHeightBeforeClose = pluginToolsArea->height();
+    rangeDock->toggleView(false);
+    app.processEvents();
+    ok &= require(panelArea->height() > panelHeightBeforeClose
+                      && speedArea->height() <= speedHeightBeforeClose + 2
+                      && mirrorArea->height() <= mirrorHeightBeforeClose + 2
+                      && pluginToolsArea->height() <= pluginHeightBeforeClose + 2,
+                  "closing one tool block must not stretch the remaining compact modules");
+    ok &= require(manager->restoreState(initialState, 1),
+                  "compact stack must restore after the close/reflow regression check");
+    app.processEvents();
+    ok &= require(panelDock->dockAreaWidget()
+                      && speedDock->dockAreaWidget()
+                      && panelDock->dockAreaWidget()->sizePolicy().verticalStretch() == 1
+                      && speedDock->dockAreaWidget()->sizePolicy().verticalStretch() == 0,
+                  "restoring a saved layout must reapply compact stack stretch policy");
+
+    panelDock->toggleView(false);
+    app.processEvents();
+    const int speedContentHeightBeforeClose = speedPanel->height();
+    rangeDock->toggleView(false);
+    app.processEvents();
+    ok &= require(speedPanel->height() <= speedContentHeightBeforeClose + 2,
+                  "an all-tool stack may gain blank space but must not stretch tool content");
+    ok &= require(manager->restoreState(initialState, 1),
+                  "tool-only content sizing check must leave the saved layout recoverable");
+    app.processEvents();
 
     rangeDock->setFloating();
     app.processEvents();

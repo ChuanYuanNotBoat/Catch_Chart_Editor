@@ -7,6 +7,7 @@
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "ui/CustomWidgets/RealtimePreviewWidget.h"
 #include "ui/DensityCurve.h"
+#include "ui/DockLayoutPolicy.h"
 #include "ui/NoteEditPanel.h"
 #include "ui/BPMTimePanel.h"
 #include "ui/LongRangeSelector.h"
@@ -4617,18 +4618,22 @@ void MainWindow::configureCompactToolDock(ads::CDockWidget *dock)
         return;
 
     dock->setFeature(ads::CDockWidget::NoTab, true);
+    DockLayoutPolicy::applyCompactToolDockPolicy(dock);
     if (!dock->property("compactToolDockConfigured").toBool())
     {
         dock->setProperty("compactToolDockConfigured", true);
         const QPointer<ads::CDockWidget> guardedDock(dock);
+        const auto scheduleRefresh = [this, guardedDock]()
+        {
+            QTimer::singleShot(0, this, [this, guardedDock]()
+                               {
+                if (guardedDock)
+                    updateCompactToolDockHandle(guardedDock); });
+        };
         connect(dock, &ads::CDockWidget::topLevelChanged, this,
-                [this, guardedDock](bool)
-                {
-                    QTimer::singleShot(0, this, [this, guardedDock]()
-                                       {
-                        if (guardedDock)
-                            updateCompactToolDockHandle(guardedDock); });
-                });
+                [scheduleRefresh](bool) { scheduleRefresh(); });
+        connect(dock, &ads::CDockWidget::viewToggled, this,
+                [scheduleRefresh](bool) { scheduleRefresh(); });
     }
 
     updateCompactToolDockHandle(dock);
@@ -4636,6 +4641,7 @@ void MainWindow::configureCompactToolDock(ads::CDockWidget *dock)
 
 void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
 {
+    DockLayoutPolicy::applyCompactToolDockPolicy(dock);
     if (!dock || !dock->dockAreaWidget())
         return;
 

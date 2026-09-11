@@ -52,6 +52,7 @@ set(SOURCES
     ui/CustomWidgets/RealtimePreviewWidget.cpp
     ui/LongRangeSelector.cpp
     ui/PlaybackSpeedPanel.cpp
+    ui/DockLayoutPolicy.cpp
     ui/ChartStatsPanel.cpp
     ui/PluginActionPanel.cpp
     ui/NoteEditPanel.cpp
