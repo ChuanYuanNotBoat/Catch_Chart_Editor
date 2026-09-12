@@ -3262,13 +3262,18 @@ void MainWindow::flushRecoverySnapshot()
     }
 
     const QString workingPath = d->workingChartPath;
+    const quint64 documentGeneration = d->documentGeneration;
     saveDocumentAsync(
         workingPath,
         workingPath,
         false,
         false,
-        [this, workingPath](bool success, const QString &, const QString &error)
+        [this, workingPath, documentGeneration](bool success,
+                                                const QString &,
+                                                const QString &error)
         {
+            if (d->documentGeneration != documentGeneration)
+                return;
             if (!success)
             {
                 Logger::warn(QString("Failed to persist recovery snapshot: %1 (%2)")
@@ -3281,6 +3286,7 @@ void MainWindow::flushRecoverySnapshot()
 
 void MainWindow::clearWorkingCopySession(bool removeWorkingFile)
 {
+    ++d->documentGeneration;
     if (d->recoverySnapshotTimer)
         d->recoverySnapshotTimer->stop();
     if (removeWorkingFile && !d->workingChartPath.isEmpty())
@@ -3323,15 +3329,18 @@ void MainWindow::performAutoSaveTick()
         return;
 
     const quint64 saveRevision = d->chartController->revision();
+    const quint64 documentGeneration = d->documentGeneration;
     saveDocumentAsync(
         sourcePath,
         d->workingChartPath,
         true,
         false,
-        [this, sourcePath, saveRevision](bool success,
-                                         const QString &workingPath,
-                                         const QString &error)
+        [this, sourcePath, saveRevision, documentGeneration](bool success,
+                                                             const QString &workingPath,
+                                                             const QString &error)
         {
+            if (d->documentGeneration != documentGeneration)
+                return;
             if (!success)
             {
                 Logger::warn(QString("Auto-save failed: %1 (%2)").arg(sourcePath, error));
@@ -3410,6 +3419,7 @@ void MainWindow::tryRecoverPreviousSession()
         return;
     }
 
+    ++d->documentGeneration;
     d->sourceChartPath = state.sourcePath;
     d->workingChartPath = state.workingPath;
     d->currentChartPath = state.sourcePath;
@@ -3557,16 +3567,30 @@ bool MainWindow::confirmSaveIfModified(const QString &reasonText)
     bool saved = false;
     QString saveError;
     QEventLoop loop;
+    const quint64 documentGeneration = d->documentGeneration;
     saveDocumentAsync(
         savePath,
         d->workingChartPath,
         true,
         true,
-        [this, savePath, &completed, &saved, &saveError, &loop](bool success,
-                                                                const QString &workingPath,
-                                                                const QString &error)
+        [this,
+         savePath,
+         documentGeneration,
+         &completed,
+         &saved,
+         &saveError,
+         &loop](bool success,
+                const QString &workingPath,
+                const QString &error)
         {
             completed = true;
+            if (d->documentGeneration != documentGeneration)
+            {
+                saved = false;
+                saveError = tr("The active chart changed before saving completed.");
+                loop.quit();
+                return;
+            }
             saved = success;
             saveError = error;
             if (success)
@@ -4112,6 +4136,7 @@ void MainWindow::loadChartFile(const QString &filePath,
                         return;
                     }
 
+                    ++d->documentGeneration;
                     if (d->recoverySnapshotTimer)
                         d->recoverySnapshotTimer->stop();
                     if (!previousWorkingChartPath.isEmpty() &&
@@ -4493,15 +4518,18 @@ void MainWindow::saveChart()
     }
 
     const quint64 saveRevision = d->chartController->revision();
+    const quint64 documentGeneration = d->documentGeneration;
     saveDocumentAsync(
         currentPath,
         d->workingChartPath,
         true,
         true,
-        [this, currentPath, saveRevision](bool success,
-                                          const QString &workingPath,
-                                          const QString &error)
+        [this, currentPath, saveRevision, documentGeneration](bool success,
+                                                              const QString &workingPath,
+                                                              const QString &error)
         {
+            if (d->documentGeneration != documentGeneration)
+                return;
             if (!success)
             {
                 Logger::error("Failed to save chart: " + currentPath + " (" + error + ")");
@@ -4544,15 +4572,18 @@ void MainWindow::saveChartAs()
         return;
     }
     const quint64 saveRevision = d->chartController->revision();
+    const quint64 documentGeneration = d->documentGeneration;
     saveDocumentAsync(
         fileName,
         d->workingChartPath,
         true,
         true,
-        [this, fileName, saveRevision](bool success,
-                                       const QString &workingPath,
-                                       const QString &error)
+        [this, fileName, saveRevision, documentGeneration](bool success,
+                                                           const QString &workingPath,
+                                                           const QString &error)
         {
+            if (d->documentGeneration != documentGeneration)
+                return;
             if (!success)
             {
                 Logger::error("Failed to save chart as: " + fileName + " (" + error + ")");

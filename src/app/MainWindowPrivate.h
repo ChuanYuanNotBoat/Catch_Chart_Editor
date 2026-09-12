@@ -164,6 +164,7 @@ public:
     QString currentChartPath;
     QString sourceChartPath;
     QString workingChartPath;
+    quint64 documentGeneration = 1;
     bool isModified = false;
     bool isLoadingChart = false;
     bool audioPlaybackReady = false;
