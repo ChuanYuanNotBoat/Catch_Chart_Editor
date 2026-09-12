@@ -95,7 +95,7 @@ void MainWindow::restoreClassicLayoutState()
             d->workbenchLayout->resetState();
             d->workbenchLayout->primarySidebar()->setPaneVisible(
                 QStringLiteral("navigation"), d->leftPanelWasVisible);
-            d->workbenchLayout->primarySidebar()->setPaneVisible(
+            d->workbenchLayout->setPaneVisible(
                 QStringLiteral("preview"), d->previewWasVisible);
         }
         d->workbenchLayout->setPaneVisible(QStringLiteral("note"), panel == d->notePanel);
@@ -252,7 +252,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
                                         d->leftPanelWasVisible,
                                         true);
         if (preview)
-            d->workbenchLayout->addPane(WorkbenchLayout::Part::PrimarySidebar,
+            d->workbenchLayout->addPane(WorkbenchLayout::Part::PreviewArea,
                                         QStringLiteral("preview"),
                                         preview,
                                         d->previewWasVisible,

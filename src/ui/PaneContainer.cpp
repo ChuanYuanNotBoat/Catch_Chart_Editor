@@ -293,6 +293,16 @@ bool PaneContainer::paneScrollable(const QString &paneId) const
     return index >= 0 && m_panes.at(index).scrollable;
 }
 
+bool PaneContainer::hasVisiblePanes() const
+{
+    for (const PaneEntry &entry : m_panes)
+    {
+        if (entry.visible && entry.expanded)
+            return true;
+    }
+    return false;
+}
+
 QScrollArea *PaneContainer::scrollAreaForPane(const QString &paneId) const
 {
     const int index = indexOf(paneId);

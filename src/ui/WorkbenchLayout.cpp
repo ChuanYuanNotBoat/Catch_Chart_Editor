@@ -13,7 +13,9 @@
 
 namespace
 {
-constexpr int kWorkbenchStateVersion = 1;
+constexpr int kWorkbenchStateVersion = 2;
+constexpr int kDefaultEditorWidth = 700;
+constexpr int kDefaultEditorHeight = 600;
 
 QJsonObject stateObject(const QByteArray &state)
 {
@@ -31,6 +33,7 @@ WorkbenchLayout::WorkbenchLayout(QWidget *parent)
     : QWidget(parent),
       m_editorHost(new QWidget(this)),
       m_primarySidebar(new PaneContainer(QStringLiteral("primarySidebar"), this)),
+      m_previewArea(new PaneContainer(QStringLiteral("previewArea"), this)),
       m_auxiliarySidebar(new PaneContainer(QStringLiteral("auxiliarySidebar"), this)),
       m_bottomPanel(new PaneContainer(QStringLiteral("bottomPanel"), this)),
       m_horizontalSplitter(new QSplitter(Qt::Horizontal, this)),
@@ -39,6 +42,7 @@ WorkbenchLayout::WorkbenchLayout(QWidget *parent)
     setObjectName(QStringLiteral("workbenchLayout"));
     m_editorHost->setObjectName(QStringLiteral("workbench.editor"));
     m_primarySidebar->setObjectName(QStringLiteral("workbench.primarySidebar"));
+    m_previewArea->setObjectName(QStringLiteral("workbench.previewArea"));
     m_auxiliarySidebar->setObjectName(QStringLiteral("workbench.auxiliarySidebar"));
     m_bottomPanel->setObjectName(QStringLiteral("workbench.bottomPanel"));
     m_horizontalSplitter->setObjectName(QStringLiteral("workbench.horizontalSplitter"));
@@ -50,11 +54,13 @@ WorkbenchLayout::WorkbenchLayout(QWidget *parent)
 
     m_horizontalSplitter->setChildrenCollapsible(false);
     m_horizontalSplitter->addWidget(m_primarySidebar);
+    m_horizontalSplitter->addWidget(m_previewArea);
     m_horizontalSplitter->addWidget(m_editorHost);
     m_horizontalSplitter->addWidget(m_auxiliarySidebar);
     m_horizontalSplitter->setStretchFactor(0, 0);
-    m_horizontalSplitter->setStretchFactor(1, 1);
-    m_horizontalSplitter->setStretchFactor(2, 0);
+    m_horizontalSplitter->setStretchFactor(1, 0);
+    m_horizontalSplitter->setStretchFactor(2, 1);
+    m_horizontalSplitter->setStretchFactor(3, 0);
 
     m_bottomPanel->setMinimumHeight(0);
     m_verticalSplitter->setChildrenCollapsible(false);
@@ -67,6 +73,105 @@ WorkbenchLayout::WorkbenchLayout(QWidget *parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(m_verticalSplitter);
+
+    connect(m_primarySidebar, &PaneContainer::stateChanged,
+            this, &WorkbenchLayout::updatePartVisibility);
+    connect(m_previewArea, &PaneContainer::stateChanged,
+            this, &WorkbenchLayout::updatePartVisibility);
+    connect(m_auxiliarySidebar, &PaneContainer::stateChanged,
+            this, &WorkbenchLayout::updatePartVisibility);
+    connect(m_bottomPanel, &PaneContainer::stateChanged,
+            this, &WorkbenchLayout::updatePartVisibility);
+    connect(m_horizontalSplitter, &QSplitter::splitterMoved,
+            this, [this](int, int) { capturePartSizes(); });
+    connect(m_verticalSplitter, &QSplitter::splitterMoved,
+            this, [this](int, int) { capturePartSizes(); });
+    updatePartVisibility();
+}
+
+void WorkbenchLayout::capturePartSizes() const
+{
+    const QList<int> horizontalSizes = m_horizontalSplitter->sizes();
+    if (horizontalSizes.size() == 4)
+    {
+        if (m_primaryPartVisible && horizontalSizes.at(0) > 0)
+            m_primarySidebarSize = horizontalSizes.at(0);
+        if (m_previewPartVisible && horizontalSizes.at(1) > 0)
+            m_previewAreaSize = horizontalSizes.at(1);
+        if (m_auxiliaryPartVisible && horizontalSizes.at(3) > 0)
+            m_auxiliarySidebarSize = horizontalSizes.at(3);
+    }
+
+    const QList<int> verticalSizes = m_verticalSplitter->sizes();
+    if (verticalSizes.size() == 2 && m_bottomPartVisible && verticalSizes.at(1) > 0)
+        m_bottomPanelSize = verticalSizes.at(1);
+}
+
+void WorkbenchLayout::updatePartVisibility()
+{
+    capturePartSizes();
+
+    QList<int> horizontalSizes = m_horizontalSplitter->sizes();
+    QList<int> verticalSizes = m_verticalSplitter->sizes();
+    const bool showPrimary = m_primarySidebar->hasVisiblePanes();
+    const bool showPreview = m_previewArea->hasVisiblePanes();
+    const bool showAuxiliary = m_auxiliarySidebar->hasVisiblePanes();
+    const bool showBottom = m_bottomPanel->hasVisiblePanes();
+    const bool restorePrimarySize = showPrimary && !m_primaryPartVisible;
+    const bool restorePreviewSize = showPreview && !m_previewPartVisible;
+    const bool restoreAuxiliarySize = showAuxiliary && !m_auxiliaryPartVisible;
+    const bool restoreBottomSize = showBottom && !m_bottomPartVisible;
+
+    m_primarySidebar->setVisible(showPrimary);
+    m_previewArea->setVisible(showPreview);
+    m_auxiliarySidebar->setVisible(showAuxiliary);
+    m_bottomPanel->setVisible(showBottom);
+    m_primaryPartVisible = showPrimary;
+    m_previewPartVisible = showPreview;
+    m_auxiliaryPartVisible = showAuxiliary;
+    m_bottomPartVisible = showBottom;
+
+    if (horizontalSizes.size() == 4)
+    {
+        const int currentTotal = horizontalSizes.at(0)
+            + horizontalSizes.at(1) + horizontalSizes.at(2)
+            + horizontalSizes.at(3);
+        const int primarySize = showPrimary
+            ? (restorePrimarySize || horizontalSizes.at(0) <= 0
+                   ? m_primarySidebarSize
+                   : horizontalSizes.at(0))
+            : 0;
+        const int previewSize = showPreview
+            ? (restorePreviewSize || horizontalSizes.at(1) <= 0
+                   ? m_previewAreaSize
+                   : horizontalSizes.at(1))
+            : 0;
+        const int auxiliarySize = showAuxiliary
+            ? (restoreAuxiliarySize || horizontalSizes.at(3) <= 0
+                   ? m_auxiliarySidebarSize
+                   : horizontalSizes.at(3))
+            : 0;
+        const int total = currentTotal > 0
+            ? currentTotal
+            : primarySize + previewSize + kDefaultEditorWidth + auxiliarySize;
+        const int editorSize = qMax(1, total - primarySize - previewSize - auxiliarySize);
+        m_horizontalSplitter->setSizes({primarySize, previewSize, editorSize, auxiliarySize});
+    }
+
+    if (verticalSizes.size() == 2)
+    {
+        const int currentTotal = verticalSizes.at(0) + verticalSizes.at(1);
+        const int bottomSize = showBottom
+            ? (restoreBottomSize || verticalSizes.at(1) <= 0
+                   ? m_bottomPanelSize
+                   : verticalSizes.at(1))
+            : 0;
+        const int total = currentTotal > 0
+            ? currentTotal
+            : kDefaultEditorHeight + bottomSize;
+        const int editorSize = qMax(1, total - bottomSize);
+        m_verticalSplitter->setSizes({editorSize, bottomSize});
+    }
 }
 
 PaneContainer *WorkbenchLayout::paneContainer(Part part) const
@@ -75,6 +180,8 @@ PaneContainer *WorkbenchLayout::paneContainer(Part part) const
     {
     case Part::PrimarySidebar:
         return m_primarySidebar;
+    case Part::PreviewArea:
+        return m_previewArea;
     case Part::AuxiliarySidebar:
         return m_auxiliarySidebar;
     case Part::BottomPanel:
@@ -91,6 +198,7 @@ PaneContainer *WorkbenchLayout::paneContainerForPane(const QString &paneId,
     const QString normalized = paneId.trimmed();
     const QList<QPair<Part, PaneContainer *>> containers = {
         {Part::PrimarySidebar, m_primarySidebar},
+        {Part::PreviewArea, m_previewArea},
         {Part::AuxiliarySidebar, m_auxiliarySidebar},
         {Part::BottomPanel, m_bottomPanel}};
     for (const auto &entry : containers)
@@ -221,8 +329,13 @@ bool WorkbenchLayout::setPaneVisible(const QString &paneId, bool visible)
 
 QByteArray WorkbenchLayout::saveState() const
 {
+    capturePartSizes();
     QJsonObject root;
     root.insert(QStringLiteral("version"), kWorkbenchStateVersion);
+    root.insert(QStringLiteral("primary_sidebar_size"), m_primarySidebarSize);
+    root.insert(QStringLiteral("preview_area_size"), m_previewAreaSize);
+    root.insert(QStringLiteral("auxiliary_sidebar_size"), m_auxiliarySidebarSize);
+    root.insert(QStringLiteral("bottom_panel_size"), m_bottomPanelSize);
 
     QJsonArray horizontalSizes;
     for (const int size : m_horizontalSplitter->sizes())
@@ -234,6 +347,7 @@ QByteArray WorkbenchLayout::saveState() const
         verticalSizes.append(size);
     root.insert(QStringLiteral("vertical_sizes"), verticalSizes);
     root.insert(QStringLiteral("primary_sidebar"), stateObject(m_primarySidebar->saveState()));
+    root.insert(QStringLiteral("preview_area"), stateObject(m_previewArea->saveState()));
     root.insert(QStringLiteral("auxiliary_sidebar"), stateObject(m_auxiliarySidebar->saveState()));
     root.insert(QStringLiteral("bottom_panel"), stateObject(m_bottomPanel->saveState()));
     return stateBytes(root);
@@ -245,8 +359,18 @@ bool WorkbenchLayout::restoreState(const QByteArray &state)
     if (root.value(QStringLiteral("version")).toInt() != kWorkbenchStateVersion)
         return false;
 
+    m_primarySidebarSize = qMax(1, root.value(QStringLiteral("primary_sidebar_size"))
+                                      .toInt(m_primarySidebarSize));
+    m_previewAreaSize = qMax(1, root.value(QStringLiteral("preview_area_size"))
+                                   .toInt(m_previewAreaSize));
+    m_auxiliarySidebarSize = qMax(1, root.value(QStringLiteral("auxiliary_sidebar_size"))
+                                        .toInt(m_auxiliarySidebarSize));
+    m_bottomPanelSize = qMax(1, root.value(QStringLiteral("bottom_panel_size"))
+                                   .toInt(m_bottomPanelSize));
+
     const QList<QPair<Part, QString>> savedParts = {
         {Part::PrimarySidebar, QStringLiteral("primary_sidebar")},
+        {Part::PreviewArea, QStringLiteral("preview_area")},
         {Part::AuxiliarySidebar, QStringLiteral("auxiliary_sidebar")},
         {Part::BottomPanel, QStringLiteral("bottom_panel")}};
     QSet<QString> seen;
@@ -267,6 +391,8 @@ bool WorkbenchLayout::restoreState(const QByteArray &state)
 
     const bool primaryOk = m_primarySidebar->restoreState(
         stateBytes(root.value(QStringLiteral("primary_sidebar")).toObject()));
+    const bool previewOk = m_previewArea->restoreState(
+        stateBytes(root.value(QStringLiteral("preview_area")).toObject()));
     const bool auxiliaryOk = m_auxiliarySidebar->restoreState(
         stateBytes(root.value(QStringLiteral("auxiliary_sidebar")).toObject()));
     const bool bottomOk = m_bottomPanel->restoreState(
@@ -289,7 +415,8 @@ bool WorkbenchLayout::restoreState(const QByteArray &state)
             sizes.append(qMax(0, value.toInt()));
         m_verticalSplitter->setSizes(sizes);
     }
-    return primaryOk && auxiliaryOk && bottomOk;
+    updatePartVisibility();
+    return primaryOk && previewOk && auxiliaryOk && bottomOk;
 }
 
 void WorkbenchLayout::resetState()
@@ -297,8 +424,18 @@ void WorkbenchLayout::resetState()
     for (auto it = m_defaultPaneParts.constBegin(); it != m_defaultPaneParts.constEnd(); ++it)
         resetPaneLocation(it.key());
     m_primarySidebar->resetState();
+    m_previewArea->resetState();
     m_auxiliarySidebar->resetState();
     m_bottomPanel->resetState();
-    m_horizontalSplitter->setSizes({220, 700, 260});
-    m_verticalSplitter->setSizes({600, 160});
+    m_primarySidebarSize = 150;
+    m_previewAreaSize = 200;
+    m_auxiliarySidebarSize = 300;
+    m_bottomPanelSize = 160;
+    updatePartVisibility();
+    m_horizontalSplitter->setSizes({m_primaryPartVisible ? m_primarySidebarSize : 0,
+                                    m_previewPartVisible ? m_previewAreaSize : 0,
+                                    kDefaultEditorWidth,
+                                    m_auxiliaryPartVisible ? m_auxiliarySidebarSize : 0});
+    m_verticalSplitter->setSizes({kDefaultEditorHeight,
+                                  m_bottomPartVisible ? m_bottomPanelSize : 0});
 }

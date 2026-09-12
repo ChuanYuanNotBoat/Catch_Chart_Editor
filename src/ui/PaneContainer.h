@@ -38,6 +38,7 @@ public:
     bool paneExpanded(const QString &paneId) const;
     int paneSize(const QString &paneId) const;
     bool paneScrollable(const QString &paneId) const;
+    bool hasVisiblePanes() const;
     QScrollArea *scrollAreaForPane(const QString &paneId) const;
     QSplitter *splitter() const { return m_splitter; }
 

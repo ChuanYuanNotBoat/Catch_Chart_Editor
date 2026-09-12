@@ -613,6 +613,41 @@ int main(int argc, char **argv)
     if (detachedPane)
         delete detachedPane.data();
 
+    WorkbenchLayout collapsingWorkbench;
+    collapsingWorkbench.resize(900, 640);
+    collapsingWorkbench.setEditorWidget(new QWidget);
+    collapsingWorkbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                                QStringLiteral("onlyPane"), new QWidget, true, false);
+    collapsingWorkbench.show();
+    app.processEvents();
+    ok &= require(collapsingWorkbench.horizontalSplitter()->sizes().at(0) > 0
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(1) == 0
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(3) == 0
+                      && collapsingWorkbench.verticalSplitter()->sizes().at(1) == 0,
+                  "empty top-level workbench parts must not reserve layout space");
+    const int visiblePrimarySize = collapsingWorkbench.horizontalSplitter()->sizes().at(0);
+    ok &= require(collapsingWorkbench.setPaneVisible(QStringLiteral("onlyPane"), false)
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(0) == 0,
+                  "hiding the last visible pane must collapse its top-level part");
+    ok &= require(collapsingWorkbench.setPaneVisible(QStringLiteral("onlyPane"), true)
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(0) > 0,
+                  "showing a pane in an empty part must reveal that part");
+    ok &= require(std::abs(collapsingWorkbench.horizontalSplitter()->sizes().at(0)
+                           - visiblePrimarySize) <= 2,
+                  "revealed workbench parts must restore their cached size");
+    ok &= require(collapsingWorkbench.movePane(QStringLiteral("onlyPane"),
+                                               WorkbenchLayout::Part::BottomPanel)
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(0) == 0
+                      && collapsingWorkbench.verticalSplitter()->sizes().at(1) > 0,
+                  "moving the last pane must collapse its source and reveal its target part");
+    collapsingWorkbench.resetState();
+    app.processEvents();
+    ok &= require(collapsingWorkbench.primarySidebar()->containsPane(QStringLiteral("onlyPane"))
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(0) > 0
+                      && collapsingWorkbench.verticalSplitter()->sizes().at(1) == 0,
+                  "resetting a workbench without bottom panes must not create a blank bottom area");
+    collapsingWorkbench.close();
+
     WorkbenchLayout workbench;
     workbench.resize(900, 640);
     ok &= require(workbench.setEditorWidget(new QWidget),
@@ -626,6 +661,10 @@ int main(int argc, char **argv)
                                     QStringLiteral("statistics"), new QWidget,
                                     true, false),
                   "primary sidebar must retain a second pane");
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::PreviewArea,
+                                    QStringLiteral("preview"), new QWidget,
+                                    true, false),
+                  "realtime preview must use its own top-level workbench part");
     ok &= require(workbench.addPane(WorkbenchLayout::Part::AuxiliarySidebar,
                                     QStringLiteral("note"), new QWidget,
                                     true, true),
@@ -638,6 +677,12 @@ int main(int argc, char **argv)
     app.processEvents();
 
     PaneContainer *primarySidebar = workbench.primarySidebar();
+    WorkbenchLayout::Part previewPart = WorkbenchLayout::Part::Editor;
+    ok &= require(workbench.panePart(QStringLiteral("preview"), &previewPart)
+                      && previewPart == WorkbenchLayout::Part::PreviewArea
+                      && !primarySidebar->containsPane(QStringLiteral("preview"))
+                      && workbench.previewArea()->containsPane(QStringLiteral("preview")),
+                  "realtime preview must not be stacked into the primary sidebar");
     ok &= require(workbench.movePane(QStringLiteral("navigation"),
                                      WorkbenchLayout::Part::BottomPanel)
                       && navigationPane
@@ -666,6 +711,8 @@ int main(int argc, char **argv)
                               QStringLiteral("navigation"), new QWidget, true, false);
     restoredWorkbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
                               QStringLiteral("statistics"), new QWidget, true, false);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::PreviewArea,
+                              QStringLiteral("preview"), new QWidget, true, false);
     restoredWorkbench.addPane(WorkbenchLayout::Part::AuxiliarySidebar,
                               QStringLiteral("note"), new QWidget, true, true);
     restoredWorkbench.addPane(WorkbenchLayout::Part::BottomPanel,
@@ -675,6 +722,7 @@ int main(int argc, char **argv)
     ok &= require(restoredWorkbench.primarySidebar()->paneOrder()
                       == QStringList({QStringLiteral("statistics"), QStringLiteral("navigation")})
                       && !restoredWorkbench.primarySidebar()->paneExpanded(QStringLiteral("navigation"))
+                      && restoredWorkbench.previewArea()->containsPane(QStringLiteral("preview"))
                       && !restoredWorkbench.auxiliarySidebar()->containsPane(QStringLiteral("note"))
                       && restoredWorkbench.bottomPanel()->containsPane(QStringLiteral("note"))
                       && !restoredWorkbench.bottomPanel()->paneVisible(QStringLiteral("note")),

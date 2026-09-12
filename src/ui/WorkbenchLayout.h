@@ -15,6 +15,7 @@ public:
     {
         Editor,
         PrimarySidebar,
+        PreviewArea,
         AuxiliarySidebar,
         BottomPanel
     };
@@ -23,6 +24,7 @@ public:
 
     QWidget *editorWidget() const { return m_editorWidget; }
     PaneContainer *primarySidebar() const { return m_primarySidebar; }
+    PaneContainer *previewArea() const { return m_previewArea; }
     PaneContainer *auxiliarySidebar() const { return m_auxiliarySidebar; }
     PaneContainer *bottomPanel() const { return m_bottomPanel; }
     PaneContainer *paneContainer(Part part) const;
@@ -50,12 +52,24 @@ public:
     QSplitter *verticalSplitter() const { return m_verticalSplitter; }
 
 private:
+    void capturePartSizes() const;
+    void updatePartVisibility();
+
     QWidget *m_editorHost = nullptr;
     QWidget *m_editorWidget = nullptr;
     PaneContainer *m_primarySidebar = nullptr;
+    PaneContainer *m_previewArea = nullptr;
     PaneContainer *m_auxiliarySidebar = nullptr;
     PaneContainer *m_bottomPanel = nullptr;
     QSplitter *m_horizontalSplitter = nullptr;
     QSplitter *m_verticalSplitter = nullptr;
     QHash<QString, Part> m_defaultPaneParts;
+    mutable int m_primarySidebarSize = 150;
+    mutable int m_previewAreaSize = 200;
+    mutable int m_auxiliarySidebarSize = 300;
+    mutable int m_bottomPanelSize = 160;
+    bool m_primaryPartVisible = true;
+    bool m_previewPartVisible = true;
+    bool m_auxiliaryPartVisible = true;
+    bool m_bottomPartVisible = true;
 };

@@ -5041,6 +5041,8 @@ void MainWindow::moveView()
     auto *locationCombo = new QComboBox(&dialog);
     locationCombo->addItem(tr("Primary Sidebar"),
                            static_cast<int>(WorkbenchLayout::Part::PrimarySidebar));
+    locationCombo->addItem(tr("Realtime Preview"),
+                           static_cast<int>(WorkbenchLayout::Part::PreviewArea));
     locationCombo->addItem(tr("Auxiliary Sidebar"),
                            static_cast<int>(WorkbenchLayout::Part::AuxiliarySidebar));
     locationCombo->addItem(tr("Bottom Panel"),
