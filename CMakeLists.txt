@@ -112,11 +112,42 @@ if(BUILD_TESTING)
     )
     add_test(NAME ui_docking_layout_tests COMMAND DockingLayoutTests)
 
+    add_executable(MetaEditPanelTests
+        tests/meta_edit_panel_tests.cpp
+        src/model/Note.cpp
+        src/model/BpmEntry.cpp
+        src/model/MetaData.cpp
+        src/model/Chart.cpp
+        src/utils/Logger.cpp
+        src/utils/PerformanceTimer.cpp
+        src/utils/DiagnosticCollector.cpp
+        src/utils/CalcHash.cpp
+        src/utils/FileUtils.cpp
+        src/file/ChartIO.cpp
+        src/controller/ChartController.cpp
+        src/audio/AudioConverter.cpp
+        src/ui/CustomWidgets/RightPanel.cpp
+        src/ui/MetaEditPanel.cpp
+    )
+    target_include_directories(MetaEditPanelTests PRIVATE src)
+    target_link_libraries(MetaEditPanelTests
+        PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Widgets
+        Qt6::Test
+        Qt6::Multimedia
+        Vorbis::vorbis
+    )
+    add_test(NAME ui_meta_edit_panel_tests COMMAND MetaEditPanelTests)
+
     if(WIN32)
         target_link_libraries(DockingLayoutTests PRIVATE dwmapi)
         set_tests_properties(core_minimal_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
         set_tests_properties(ui_docking_layout_tests PROPERTIES
+            ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
+        set_tests_properties(ui_meta_edit_panel_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
     endif()
 endif()

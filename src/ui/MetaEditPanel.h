@@ -2,6 +2,7 @@
 
 #include "CustomWidgets/RightPanel.h"
 #include "model/MetaData.h"
+#include <functional>
 
 class QLineEdit;
 class QSpinBox;
@@ -33,17 +34,32 @@ private slots:
     void onMetaFieldChanged();
     void flushPendingMetaSave();
 
+protected:
+    using AudioConversionCompletion = std::function<void(bool, const QString &)>;
+    virtual void convertAudioToOggAsync(const QString &inputPath,
+                                        const QString &outputPath,
+                                        AudioConversionCompletion completion);
+
 private:
+    enum class ApplyResult
+    {
+        Failed,
+        Applied,
+        Pending
+    };
+
     void setupUi();
     QString importResourceToChartDirectory(const QString &sourcePath) const;
     MetaData collectMetaFromUi() const;
     bool isSameMeta(const MetaData &a, const MetaData &b) const;
-    bool applyMetaAndPersist(bool persistToDisk);
+    ApplyResult applyMetaAndPersist(bool persistToDisk);
 
     ChartController *m_chartController;
     QTimer *m_autoSaveTimer;
     bool m_isRefreshingUi;
     bool m_hasPendingMetaSave;
+    bool m_audioConversionInProgress = false;
+    bool m_saveAfterAudioConversion = false;
     QFormLayout *m_formLayout;
     QLabel *m_titleLabel;
     QLabel *m_titleOrgLabel;

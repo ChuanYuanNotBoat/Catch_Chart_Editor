@@ -3,7 +3,6 @@
 #include <QString>
 #include <functional>
 
-class QWidget;
 class QObject;
 
 namespace AudioConverter
@@ -22,7 +21,7 @@ bool isOggFile(const QString &path);
 // linearly resampled to the closest supported rate).
 //
 // This function blocks until the whole file is processed and therefore
-// must be called from a worker thread (see convertToOggWithProgress for
+// must be called from a worker thread (see convertToOggWithProgressAsync for
 // the UI-thread friendly wrapper).
 //
 // progress: optional callback receiving 0.0..1.0; return false to cancel.
@@ -38,11 +37,4 @@ void convertToOggWithProgressAsync(QObject *context,
                                    const QString &inputPath,
                                    const QString &outputPath,
                                    AsyncCompletion completion);
-
-// Blocking compatibility wrapper. UI code should use
-// convertToOggWithProgressAsync so the event loop remains responsive.
-QString convertToOggWithProgress(QWidget *parent,
-                                 const QString &inputPath,
-                                 const QString &outputPath,
-                                 QString *outError = nullptr);
 } // namespace AudioConverter

@@ -534,14 +534,4 @@ void convertToOggWithProgressAsync(QObject *context,
     worker->start();
 }
 
-QString convertToOggWithProgress(QWidget *,
-                                 const QString &inputPath,
-                                 const QString &outputPath,
-                                 QString *outError)
-{
-    if (outError)
-        outError->clear();
-    const bool success = convertToOgg(inputPath, outputPath, outError);
-    return success ? outputPath : QString();
-}
 } // namespace AudioConverter

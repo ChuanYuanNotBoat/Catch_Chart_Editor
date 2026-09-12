@@ -4,6 +4,7 @@
 #include "model/MetaData.h"
 #include "utils/Logger.h"
 #include <QMessageBox>
+#include <QPointer>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
@@ -18,6 +19,7 @@
 #include <QDir>
 #include <QTimer>
 #include <QSizePolicy>
+#include <utility>
 
 MetaEditPanel::MetaEditPanel(QWidget *parent)
     : RightPanel(parent),
@@ -56,6 +58,7 @@ void MetaEditPanel::setupUi()
     m_chartAuthorLabel = new QLabel(tr("Chart Author:"), this);
     m_formLayout->addRow(m_chartAuthorLabel, m_chartAuthorEdit);
     m_audioFileEdit = new QLineEdit(this);
+    m_audioFileEdit->setObjectName(QStringLiteral("metaAudioFileEdit"));
     m_audioBrowseBtn = new QPushButton(tr("Browse..."), this);
     QHBoxLayout *audioLayout = new QHBoxLayout;
     audioLayout->addWidget(m_audioFileEdit);
@@ -167,8 +170,17 @@ void MetaEditPanel::onSaveClicked()
 {
     m_hasPendingMetaSave = false;
     m_autoSaveTimer->stop();
-    applyMetaAndPersist(false);
-    emit saveRequested();
+    m_saveAfterAudioConversion = true;
+    const ApplyResult result = applyMetaAndPersist(false);
+    if (result == ApplyResult::Applied)
+    {
+        m_saveAfterAudioConversion = false;
+        emit saveRequested();
+    }
+    else if (result == ApplyResult::Failed)
+    {
+        m_saveAfterAudioConversion = false;
+    }
 }
 
 void MetaEditPanel::onMetaFieldChanged()
@@ -189,6 +201,8 @@ void MetaEditPanel::flushPendingMetaSave()
 
 void MetaEditPanel::setChartController(ChartController *controller)
 {
+    if (m_chartController != controller)
+        m_saveAfterAudioConversion = false;
     if (m_chartController)
     {
         disconnect(m_chartController, &ChartController::metaDataChanged, this, &MetaEditPanel::refreshMeta);
@@ -326,10 +340,12 @@ bool MetaEditPanel::isSameMeta(const MetaData &a, const MetaData &b) const
            a.speed == b.speed;
 }
 
-bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
+MetaEditPanel::ApplyResult MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
 {
     if (!m_chartController || !m_chartController->chart())
-        return false;
+        return ApplyResult::Failed;
+    if (m_audioConversionInProgress)
+        return ApplyResult::Pending;
 
     MetaData next = collectMetaFromUi();
     const MetaData current = m_chartController->chart()->meta();
@@ -371,7 +387,7 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
             {
                 QMessageBox::critical(this, tr("Error"),
                                       tr("Cannot convert audio: chart directory is not available."));
-                return false;
+                return ApplyResult::Failed;
             }
 
             const QFileInfo sourceInfo(importSource);
@@ -386,16 +402,54 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
                 targetPath = chartDir.filePath(fileName);
             }
 
-            QString convertError;
-            if (AudioConverter::convertToOggWithProgress(this, importSource, targetPath,
-                                                         &convertError)
-                    .isEmpty())
-            {
-                QMessageBox::critical(this, tr("Error"),
-                                      tr("Failed to convert audio to OGG:\n%1").arg(convertError));
-                return false;
-            }
-            importSource = targetPath;
+            const QPointer<ChartController> controllerGuard(m_chartController);
+            const quint64 sourceRevision = m_chartController->revision();
+            const QString sourceChartPath = chartPath;
+            m_audioConversionInProgress = true;
+            convertAudioToOggAsync(
+                importSource,
+                targetPath,
+                [this,
+                 controllerGuard,
+                 sourceRevision,
+                 sourceChartPath,
+                 importSource,
+                 targetPath,
+                 persistToDisk](bool success, const QString &convertError) {
+                    m_audioConversionInProgress = false;
+                    const bool stillCurrent = controllerGuard
+                        && controllerGuard == m_chartController
+                        && controllerGuard->chartFilePath() == sourceChartPath
+                        && controllerGuard->revision() == sourceRevision
+                        && m_audioFileEdit->text() == importSource;
+                    if (!stillCurrent)
+                    {
+                        QFile::remove(targetPath);
+                        m_saveAfterAudioConversion = false;
+                        return;
+                    }
+                    if (!success)
+                    {
+                        QFile::remove(targetPath);
+                        m_saveAfterAudioConversion = false;
+                        QMessageBox::critical(
+                            this,
+                            tr("Error"),
+                            tr("Failed to convert audio to OGG:\n%1").arg(convertError));
+                        return;
+                    }
+
+                    m_isRefreshingUi = true;
+                    m_audioFileEdit->setText(targetPath);
+                    m_isRefreshingUi = false;
+                    const bool saveAfterApply = std::exchange(m_saveAfterAudioConversion, false);
+                    const ApplyResult result = applyMetaAndPersist(persistToDisk);
+                    if (saveAfterApply && result == ApplyResult::Applied)
+                        emit saveRequested();
+                    else if (saveAfterApply && result == ApplyResult::Pending)
+                        m_saveAfterAudioConversion = true;
+                });
+            return ApplyResult::Pending;
         }
 
         const QString imported = importResourceToChartDirectory(importSource);
@@ -417,11 +471,11 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
         m_chartController->setMetaData(next);
 
     if (!persistToDisk)
-        return true;
+        return ApplyResult::Applied;
 
     const QString path = m_chartController->chartFilePath();
     if (path.isEmpty())
-        return false;
+        return ApplyResult::Failed;
     const bool saved = m_chartController->saveChart(path);
 
     // Emit resource change signals after save so MainWindow can reload.
@@ -430,5 +484,15 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
     if (audioChanged)
         emit audioFileChanged(next.audioFile);
 
-    return saved;
+    return saved ? ApplyResult::Applied : ApplyResult::Failed;
+}
+
+void MetaEditPanel::convertAudioToOggAsync(const QString &inputPath,
+                                           const QString &outputPath,
+                                           AudioConversionCompletion completion)
+{
+    AudioConverter::convertToOggWithProgressAsync(this,
+                                                  inputPath,
+                                                  outputPath,
+                                                  std::move(completion));
 }
