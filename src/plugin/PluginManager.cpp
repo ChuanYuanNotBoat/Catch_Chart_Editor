@@ -910,7 +910,9 @@ void PluginManager::initializePendingPlugins()
         });
     if (hasExternalProcessPlugin)
     {
-        QTimer::singleShot(ExternalProcessPlugin::kPostStartCooldownMs, this,
+        QTimer::singleShot(ExternalProcessPlugin::kPostStartRefreshDelayMs,
+                           Qt::PreciseTimer,
+                           this,
                            [this]() { emit pluginsChanged(); });
     }
 }

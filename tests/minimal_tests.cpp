@@ -62,6 +62,13 @@ namespace
                     QThread::msleep(5000);
                 result = true;
             }
+            else if (method == QLatin1String("listToolActions"))
+            {
+                result = QJsonArray{QJsonObject{
+                    {QStringLiteral("action_id"), QStringLiteral("ready")},
+                    {QStringLiteral("title"), QStringLiteral("Ready")},
+                }};
+            }
             else if (method == QLatin1String("buildBatchEdit"))
             {
                 result = QJsonObject{{QStringLiteral("add"), QJsonArray()}};
@@ -139,6 +146,37 @@ namespace
         const auto rejectedId = plugin.runToolActionAsync(
             QStringLiteral("ok"), oversized, &loop, [](bool) {});
         return rejectedId == 0;
+    }
+
+    bool testExternalProcessPluginActionsAfterStartupCooldown()
+    {
+        ExternalProcessPlugin::Manifest manifest;
+        manifest.pluginId = QStringLiteral("test.process.cooldown");
+        manifest.displayName = QStringLiteral("Test Process Cooldown");
+        manifest.version = QStringLiteral("1");
+        manifest.description = QStringLiteral("test");
+        manifest.author = QStringLiteral("test");
+        manifest.apiVersion = PluginInterface::kHostApiVersion;
+        manifest.executable = QCoreApplication::applicationFilePath();
+        manifest.args = {QStringLiteral("--process-plugin-test-helper")};
+        manifest.capabilities = {QStringLiteral("tool_actions")};
+        manifest.manifestPath = QCoreApplication::applicationFilePath();
+
+        ExternalProcessPlugin plugin(manifest);
+        if (!plugin.initialize(nullptr))
+            return false;
+
+        QEventLoop loop;
+        QTimer::singleShot(ExternalProcessPlugin::kPostStartRefreshDelayMs,
+                           Qt::PreciseTimer,
+                           &loop,
+                           &QEventLoop::quit);
+        loop.exec();
+
+        const QList<PluginInterface::ToolAction> actions = plugin.toolActions();
+        return actions.size() == 1
+            && actions.first().actionId == QStringLiteral("ready")
+            && actions.first().title == QStringLiteral("Ready");
     }
 
     bool nearlyEqual(double a, double b, double eps = 1e-6)
@@ -3647,6 +3685,7 @@ int main(int argc, char **argv)
     const Case cases[] = {
         {"ChartIO load/save benchmarks", &testChartIoLoadSaveBenchmarks},
         {"External process plugin async guards", &testExternalProcessPluginAsyncGuards},
+        {"External process plugin actions after startup cooldown", &testExternalProcessPluginActionsAfterStartupCooldown},
         {"Playback speed 0.1x-10x bounds", &testPlaybackSpeedBounds},
         {"Playback wall time scales with rate", &testPlaybackWallTimeConversion},
         {"Playback startup remains continuous at all rates", &testPlaybackStartupContinuity},
