@@ -398,9 +398,30 @@ int main(int argc, char **argv)
     const int dockedRangeMaximumHeight = rangeDock->maximumHeight();
     rangeDock->setFloating();
     app.processEvents();
-    DockLayoutPolicy::refreshCompactToolDockPolicies(manager);
     ok &= require(rangeDock->isFloating(),
                   "an individual tool block must detach from its merged group");
+    auto *floatingRoot = qobject_cast<QSplitter *>(
+        rangeDock->dockAreaWidget() ? rangeDock->dockAreaWidget()->parentWidget() : nullptr);
+    auto *rangeFloatingWindow = qobject_cast<ads::CFloatingDockContainer *>(rangeDock->window());
+    if (rangeFloatingWindow && floatingRoot)
+    {
+        rangeFloatingWindow->resize(320, 360);
+        app.processEvents();
+    }
+    DockLayoutPolicy::refreshCompactToolDockPolicies(manager);
+    app.processEvents();
+    ok &= require(rangeFloatingWindow && floatingRoot,
+                  "a detached tool must expose its floating container hierarchy");
+    ok &= require(floatingRoot && floatingRoot->maximumHeight() == QWIDGETSIZE_MAX,
+                  "a floating tool must release compact limits from its container root");
+    if (rangeFloatingWindow && floatingRoot)
+    {
+        QWidget *floatingContent = floatingRoot->parentWidget();
+        ok &= require(floatingContent
+                          && floatingRoot->y() <= 1
+                          && floatingRoot->height() >= floatingContent->height() - 2,
+                      "a resized floating tool must fill its window without top and bottom gaps");
+    }
     ok &= require(dockedRangeMaximumHeight < QWIDGETSIZE_MAX
                       && rangeDock->maximumHeight() == QWIDGETSIZE_MAX
                       && rangeDock->widget()->maximumHeight() == QWIDGETSIZE_MAX

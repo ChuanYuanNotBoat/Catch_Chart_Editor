@@ -137,6 +137,18 @@ void rebalanceVerticalAncestors(QWidget *widget, bool constrainCompactSubtrees)
     QWidget *current = widget;
     while (current)
     {
+        // A splitter can retain the aggregate maximum of its compact children.
+        // ADS may then reuse that branch as the root of a floating container,
+        // where it no longer has a splitter parent through which the limit can
+        // be released.
+        if (!constrainCompactSubtrees)
+        {
+            setCompactVerticalPolicy(current, false);
+            if (qobject_cast<QSplitter *>(current))
+                current->setMaximumHeight(QWIDGETSIZE_MAX);
+            current->updateGeometry();
+        }
+
         auto *splitter = qobject_cast<QSplitter *>(current->parentWidget());
         if (!splitter)
             break;
