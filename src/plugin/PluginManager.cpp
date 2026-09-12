@@ -899,4 +899,18 @@ void PluginManager::initializePendingPlugins()
                      .arg(m_plugins.size())
                      .arg(m_pluginInfos.size()));
     emit pluginsChanged();
+
+    // External process plugins intentionally defer their first request until
+    // their post-start cooldown expires. Notify listeners once more when that
+    // window has elapsed so UI extensions can be discovered without making
+    // individual UI surfaces aware of process startup timing.
+    const bool hasExternalProcessPlugin = std::any_of(
+        m_plugins.cbegin(), m_plugins.cend(), [](PluginInterface *plugin) {
+            return dynamic_cast<ExternalProcessPlugin *>(plugin) != nullptr;
+        });
+    if (hasExternalProcessPlugin)
+    {
+        QTimer::singleShot(ExternalProcessPlugin::kPostStartCooldownMs, this,
+                           [this]() { emit pluginsChanged(); });
+    }
 }

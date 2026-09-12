@@ -1010,7 +1010,6 @@ bool ExternalProcessPlugin::requestJson(const QString &method, const QJsonObject
     // the cold-start to avoid overwhelming a not-yet-ready process.  This
     // breaks the "timeout → restart → immediate timeout" storm.
     {
-        constexpr qint64 kPostStartCooldownMs = 100;
         const qint64 age = QDateTime::currentMSecsSinceEpoch() - m_processStartEpochMs;
         if (age < kPostStartCooldownMs)
         {

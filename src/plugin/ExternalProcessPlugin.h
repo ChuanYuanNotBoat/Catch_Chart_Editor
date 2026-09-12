@@ -21,6 +21,10 @@ public:
     using AsyncToolActionCallback = std::function<void(bool)>;
     using AsyncBatchEditCallback = std::function<void(bool, BatchEdit)>;
 
+    // Tool requests issued immediately after a process starts are deferred to
+    // prevent a restart/request timeout loop while the plugin runtime boots.
+    static constexpr int kPostStartCooldownMs = 100;
+
     // Keep process-plugin IPC bounded even when a plugin is misbehaving or a
     // chart context accidentally contains a large serialized document.
     static constexpr qint64 kMaxRequestPayloadBytes = 1024 * 1024;

@@ -361,7 +361,12 @@ void MainWindow::refreshPluginUiExtensions()
         panelAction.meta = meta;
         panelActions.append(panelAction);
 
-        const QString placement = entry.action.placement.toLower();
+        const QString placement = entry.action.placement.trimmed().toLower();
+        Logger::info(QString("refreshPluginUiExtensions: action %1::%2 title='%3' placement='%4'")
+                         .arg(entry.pluginId,
+                              entry.action.actionId,
+                              title,
+                              placement));
         if (placement == QString(PluginInterface::kPlacementTopToolbar) && d->pluginToolBar)
         {
             QAction *act = d->pluginToolBar->addAction(title);
@@ -388,6 +393,14 @@ void MainWindow::refreshPluginUiExtensions()
                 connect(act, &QAction::triggered, this, &MainWindow::triggerPluginToolAction);
             }
             d->pluginToolbarActions.append(act);
+            const QWidget *button = d->pluginToolBar->widgetForAction(act);
+            Logger::info(QString("refreshPluginUiExtensions: placed %1::%2 in top toolbar "
+                                 "(button created=%3, toolbar actions=%4, hidden=%5)")
+                             .arg(entry.pluginId,
+                                  entry.action.actionId)
+                             .arg(button != nullptr)
+                             .arg(d->pluginToolBar->actions().size())
+                             .arg(d->pluginToolBar->isHidden()));
         }
         else if (placement == QString(PluginInterface::kPlacementLeftSidebar))
         {
@@ -400,6 +413,8 @@ void MainWindow::refreshPluginUiExtensions()
             qa.checkable = entry.action.checkable;
             qa.checked = entry.action.checked;
             sidebarActions.append(qa);
+            Logger::info(QString("refreshPluginUiExtensions: placed %1::%2 in left sidebar")
+                             .arg(entry.pluginId, entry.action.actionId));
         }
         else if (placement == QString(PluginInterface::kPlacementRightNotePanel))
         {
@@ -413,13 +428,31 @@ void MainWindow::refreshPluginUiExtensions()
             qa.checkable = entry.action.checkable;
             qa.checked = entry.action.checked;
             notePanelActions.append(qa);
+            Logger::info(QString("refreshPluginUiExtensions: placed %1::%2 in right note panel")
+                             .arg(entry.pluginId, entry.action.actionId));
+        }
+        else
+        {
+            Logger::info(QString("refreshPluginUiExtensions: no direct placement branch for %1::%2 "
+                                 "(placement='%3', available through plugin menu/panel)")
+                             .arg(entry.pluginId,
+                                  entry.action.actionId,
+                                  placement));
         }
     }
 
     if (d->leftPanel)
+    {
         d->leftPanel->setPluginQuickActions(sidebarActions);
+        Logger::info(QString("refreshPluginUiExtensions: sent %1 actions to left sidebar")
+                         .arg(sidebarActions.size()));
+    }
     if (d->notePanel)
+    {
         d->notePanel->setPluginPlacementActions(notePanelActions);
+        Logger::info(QString("refreshPluginUiExtensions: sent %1 actions to right note panel")
+                         .arg(notePanelActions.size()));
+    }
     if (d->pluginActionPanel)
     {
         d->pluginActionPanel->setActions(panelActions);
