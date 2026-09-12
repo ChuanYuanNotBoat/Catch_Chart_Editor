@@ -601,12 +601,25 @@ int main(int argc, char **argv)
     // Stable workbench parts keep pane identity and local state independent
     // from the ADS leaf layout. Unknown panes can be added later without
     // invalidating a saved state for the existing panes.
+    PaneContainer detachedPaneContainer(QStringLiteral("detachedPaneTest"));
+    QPointer<QWidget> detachedPane = new QWidget;
+    ok &= require(detachedPaneContainer.addPane(QStringLiteral("preview"), detachedPane,
+                                                true, false),
+                  "non-scrollable panes must be accepted without a wrapper");
+    QWidget *takenPane = detachedPaneContainer.takePane(QStringLiteral("preview"));
+    ok &= require(detachedPane && takenPane == detachedPane.data()
+                      && takenPane->parentWidget() == nullptr,
+                  "taking a non-scrollable pane must preserve its content widget");
+    if (detachedPane)
+        delete detachedPane.data();
+
     WorkbenchLayout workbench;
     workbench.resize(900, 640);
     ok &= require(workbench.setEditorWidget(new QWidget),
                   "workbench must accept one stable editor part");
+    QPointer<QWidget> navigationPane = new QWidget;
     ok &= require(workbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
-                                    QStringLiteral("navigation"), new QWidget,
+                                    QStringLiteral("navigation"), navigationPane,
                                     true, false),
                   "primary sidebar must register panes by stable id");
     ok &= require(workbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
@@ -625,6 +638,14 @@ int main(int argc, char **argv)
     app.processEvents();
 
     PaneContainer *primarySidebar = workbench.primarySidebar();
+    ok &= require(workbench.movePane(QStringLiteral("navigation"),
+                                     WorkbenchLayout::Part::BottomPanel)
+                      && navigationPane
+                      && workbench.bottomPanel()->containsPane(QStringLiteral("navigation"))
+                      && workbench.resetPaneLocation(QStringLiteral("navigation"))
+                      && navigationPane
+                      && primarySidebar->containsPane(QStringLiteral("navigation")),
+                  "moving a non-scrollable pane must preserve the content widget");
     ok &= require(primarySidebar->setPaneSize(QStringLiteral("navigation"), 145)
                       && primarySidebar->movePane(QStringLiteral("statistics"), 0)
                       && primarySidebar->setPaneExpanded(QStringLiteral("navigation"), false),

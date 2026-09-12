@@ -106,21 +106,23 @@ void PaneContainer::removeHost(PaneEntry &entry, bool deleteContent)
     if (!entry.host)
         return;
 
+    QWidget *content = entry.content;
+    QWidget *host = entry.host;
+
     if (entry.scrollArea)
     {
         entry.scrollArea->takeWidget();
-        if (entry.content)
-            entry.content->setParent(nullptr);
     }
-    else if (entry.content)
-    {
-        entry.content->setParent(nullptr);
-    }
+    if (content)
+        content->setParent(nullptr);
 
-    entry.host->setParent(nullptr);
-    if (deleteContent && entry.content)
-        delete entry.content;
-    delete entry.host;
+    if (host != content)
+    {
+        host->setParent(nullptr);
+        delete host;
+    }
+    if (deleteContent)
+        delete content;
     entry.content = nullptr;
     entry.host = nullptr;
     entry.scrollArea = nullptr;
@@ -144,7 +146,9 @@ QWidget *PaneContainer::takePane(const QString &paneId,
         content->setParent(nullptr);
         content->setProperty("workbenchPaneId", QVariant());
     }
-    if (entry.host)
+    // A non-scrollable pane is its own host. Only delete the wrapper created
+    // for scrollable panes; the caller receives the content widget alive.
+    if (entry.host && entry.host != content)
     {
         entry.host->setParent(nullptr);
         delete entry.host;
