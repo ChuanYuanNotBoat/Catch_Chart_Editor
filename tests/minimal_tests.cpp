@@ -43,13 +43,27 @@ namespace
     {
         QTextStream input(stdin);
         QTextStream output(stdout);
+        QString loadedChartPath;
         while (!input.atEnd())
         {
             const QJsonDocument document = QJsonDocument::fromJson(input.readLine().toUtf8());
             if (!document.isObject())
                 continue;
             const QJsonObject request = document.object();
-            if (request.value(QStringLiteral("type")).toString() != QLatin1String("request"))
+            const QString messageType = request.value(QStringLiteral("type")).toString();
+            if (messageType == QLatin1String("notify"))
+            {
+                if (request.value(QStringLiteral("event")).toString()
+                    == QLatin1String("onChartLoaded"))
+                {
+                    loadedChartPath = request.value(QStringLiteral("payload"))
+                                          .toObject()
+                                          .value(QStringLiteral("chart_path"))
+                                          .toString();
+                }
+                continue;
+            }
+            if (messageType != QLatin1String("request"))
                 continue;
 
             const QString method = request.value(QStringLiteral("method")).toString();
@@ -58,9 +72,18 @@ namespace
             QJsonValue result = false;
             if (method == QLatin1String("runToolAction"))
             {
-                if (payload.value(QStringLiteral("action_id")).toString() == QLatin1String("slow"))
+                const QString actionId = payload.value(QStringLiteral("action_id")).toString();
+                if (actionId == QLatin1String("slow"))
                     QThread::msleep(5000);
-                result = true;
+                if (actionId == QLatin1String("stateful_slow"))
+                {
+                    QThread::msleep(200);
+                    result = loadedChartPath == QLatin1String("stateful.mc");
+                }
+                else
+                {
+                    result = true;
+                }
             }
             else if (method == QLatin1String("listToolActions"))
             {
@@ -71,7 +94,19 @@ namespace
             }
             else if (method == QLatin1String("buildBatchEdit"))
             {
-                result = QJsonObject{{QStringLiteral("add"), QJsonArray()}};
+                const QString actionId = payload.value(QStringLiteral("action_id")).toString();
+                result = actionId != QLatin1String("stateful_batch")
+                        || loadedChartPath == QLatin1String("stateful.mc")
+                    ? QJsonValue(QJsonObject{{
+                          QStringLiteral("add"),
+                          QJsonArray{QJsonObject{
+                              {QStringLiteral("beat"), QJsonArray{1, 0, 1}},
+                              {QStringLiteral("type"), 0},
+                              {QStringLiteral("x"), 256},
+                              {QStringLiteral("id"), QStringLiteral("stateful-note")},
+                          }},
+                      }})
+                    : QJsonValue(false);
             }
 
             const QJsonObject response{
@@ -177,6 +212,98 @@ namespace
         return actions.size() == 1
             && actions.first().actionId == QStringLiteral("ready")
             && actions.first().title == QStringLiteral("Ready");
+    }
+
+    bool testExternalProcessPluginStatefulAsyncUsesSession()
+    {
+        ExternalProcessPlugin::Manifest manifest;
+        manifest.pluginId = QStringLiteral("test.process.stateful");
+        manifest.displayName = QStringLiteral("Test Stateful Process");
+        manifest.version = QStringLiteral("1");
+        manifest.description = QStringLiteral("test");
+        manifest.author = QStringLiteral("test");
+        manifest.apiVersion = PluginInterface::kHostApiVersion;
+        manifest.executable = QCoreApplication::applicationFilePath();
+        manifest.args = {QStringLiteral("--process-plugin-test-helper")};
+        manifest.capabilities = {
+            QStringLiteral("tool_actions"),
+            QStringLiteral("host_batch_edit"),
+            QStringLiteral("contextual_tool_actions"),
+        };
+        manifest.manifestPath = QCoreApplication::applicationFilePath();
+
+        ExternalProcessPlugin plugin(manifest);
+        if (!plugin.initialize(nullptr))
+            return false;
+        plugin.onChartLoaded(QStringLiteral("stateful.mc"));
+
+        QEventLoop loop;
+        QTimer timeout;
+        timeout.setSingleShot(true);
+        timeout.setInterval(3000);
+        QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+
+        bool callbackCalled = false;
+        bool callbackResult = false;
+        bool eventLoopAdvanced = false;
+        QTimer::singleShot(20, &loop, [&plugin, &eventLoopAdvanced]() {
+            eventLoopAdvanced = true;
+            // A latency-sensitive synchronous query must not consume the
+            // response belonging to the queued stateful action.
+            plugin.canvasOverlays({});
+        });
+        const auto actionRequestId = plugin.runToolActionAsync(
+            QStringLiteral("stateful_slow"),
+            {},
+            &loop,
+            [&](bool ok) {
+                callbackCalled = true;
+                callbackResult = ok;
+                loop.quit();
+            });
+        if (actionRequestId == 0)
+            return false;
+        timeout.start();
+        loop.exec();
+        timeout.stop();
+        if (!callbackCalled || !callbackResult || !eventLoopAdvanced)
+        {
+            std::fprintf(stderr,
+                         "Stateful async action details: callback=%d result=%d event_loop=%d\n",
+                         callbackCalled,
+                         callbackResult,
+                         eventLoopAdvanced);
+            return false;
+        }
+
+        callbackCalled = false;
+        callbackResult = false;
+        bool batchHasExpectedNote = false;
+        const auto batchRequestId = plugin.buildToolActionBatchEditAsync(
+            QStringLiteral("stateful_batch"),
+            {},
+            &loop,
+            [&](bool ok, PluginInterface::BatchEdit edit) {
+                callbackCalled = true;
+                callbackResult = ok;
+                batchHasExpectedNote = edit.notesToAdd.size() == 1
+                    && edit.notesToAdd.first().id == QStringLiteral("stateful-note");
+                loop.quit();
+            });
+        if (batchRequestId == 0)
+            return false;
+        timeout.start();
+        loop.exec();
+        timeout.stop();
+        if (!callbackCalled || !callbackResult || !batchHasExpectedNote)
+        {
+            std::fprintf(stderr,
+                         "Stateful async batch details: callback=%d result=%d payload=%d\n",
+                         callbackCalled,
+                         callbackResult,
+                         batchHasExpectedNote);
+        }
+        return callbackCalled && callbackResult && batchHasExpectedNote;
     }
 
     bool nearlyEqual(double a, double b, double eps = 1e-6)
@@ -3686,6 +3813,7 @@ int main(int argc, char **argv)
         {"ChartIO load/save benchmarks", &testChartIoLoadSaveBenchmarks},
         {"External process plugin async guards", &testExternalProcessPluginAsyncGuards},
         {"External process plugin actions after startup cooldown", &testExternalProcessPluginActionsAfterStartupCooldown},
+        {"External process plugin stateful async session", &testExternalProcessPluginStatefulAsyncUsesSession},
         {"Playback speed 0.1x-10x bounds", &testPlaybackSpeedBounds},
         {"Playback wall time scales with rate", &testPlaybackWallTimeConversion},
         {"Playback startup remains continuous at all rates", &testPlaybackStartupContinuity},

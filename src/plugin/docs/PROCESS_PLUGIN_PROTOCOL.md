@@ -228,16 +228,19 @@ tool panels remain simultaneously visible rather than becoming switching tabs.
 
 ## 7.1 Host-side async action guardrails
 
-The host runs `runToolAction` and `buildBatchEdit` requests in an isolated
-worker process. The editor event loop is not blocked while the worker waits for
-the plugin response. The host may cancel a request; cancellation terminates the
-isolated worker and the action is treated as failed.
+The host runs stateless `runToolAction` and `buildBatchEdit` requests in an
+isolated worker process. Plugins that declare stateful interaction capabilities
+(`canvas_interaction`, `panel_workspace`, or `contextual_tool_actions`) instead
+use a serialized, event-driven request queue on their persistent session so
+in-memory state is preserved. Neither path blocks the editor event loop. The
+host may cancel a request; cancellation terminates the process handling the
+request and the action is treated as failed.
 
 The current host limits are:
 
 - request payload (including the JSON envelope): 1 MiB;
 - response payload: 4 MiB;
-- at most two asynchronous worker requests per process plugin;
+- at most two queued or running asynchronous requests per process plugin;
 - method-specific response deadlines, including 15 seconds for
   `runToolAction` and 8 seconds for `buildBatchEdit`.
 

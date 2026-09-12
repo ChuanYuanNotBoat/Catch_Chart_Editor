@@ -11,6 +11,7 @@
 #include <QMetaObject>
 #include <QPointer>
 #include <QRandomGenerator>
+#include <QTimer>
 #include <QVariantMap>
 #include <QProcessEnvironment>
 #include <QtConcurrent/QtConcurrentRun>
@@ -383,10 +384,19 @@ namespace
 ExternalProcessPlugin::ExternalProcessPlugin(Manifest manifest)
     : m_manifest(std::move(manifest))
 {
+    QObject::connect(&m_process,
+                     &QProcess::readyReadStandardOutput,
+                     &m_process,
+                     [this]() { handlePersistentAsyncOutput(); });
+    QObject::connect(&m_process,
+                     &QProcess::finished,
+                     &m_process,
+                     [this](int, QProcess::ExitStatus) { handlePersistentProcessFinished(); });
 }
 
 ExternalProcessPlugin::~ExternalProcessPlugin()
 {
+    cancelAllPersistentAsyncRequests();
     {
         QMutexLocker locker(&m_asyncJobsMutex);
         for (auto it = m_asyncJobs.begin(); it != m_asyncJobs.end(); ++it)
@@ -477,6 +487,7 @@ bool ExternalProcessPlugin::initialize(QWidget *mainWindow)
 
 void ExternalProcessPlugin::shutdown()
 {
+    cancelAllPersistentAsyncRequests();
     if (m_initialized)
     {
         sendNotification("shutdown");
@@ -601,12 +612,7 @@ bool ExternalProcessPlugin::runToolAction(const QString &actionId, const QVarian
 
     // Stateful interaction plugins must execute tool actions in the persistent
     // session process; one-shot child process would lose in-memory state.
-    const bool requiresPersistentSession =
-        hasCapability(kCapabilityCanvasInteraction) ||
-        hasCapability(kCapabilityPanelWorkspace) ||
-        hasCapability(kCapabilityContextualToolActions);
-
-    if (!requiresPersistentSession)
+    if (!requiresPersistentSession())
     {
         // Prefer one-shot execution for stateless/script-like actions to avoid
         // request/response channel stalls on long-running file operations.
@@ -639,15 +645,23 @@ ExternalProcessPlugin::AsyncRequestId ExternalProcessPlugin::runToolActionAsync(
         {QStringLiteral("action_id"), actionId},
         {QStringLiteral("context"), toJsonObject(context)},
     };
-    return startAsyncJsonRequest(
-        QStringLiteral("runToolAction"),
-        payload,
-        locale,
-        callbackContext,
-        [callback = std::move(callback)](bool ok, const QJsonValue &result) {
-            const bool success = ok && result.isBool() && result.toBool(false);
-            callback(success);
-        });
+    AsyncJsonCompletion completion = [callback = std::move(callback)](
+                                         bool ok, const QJsonValue &result) {
+        const bool success = ok && result.isBool() && result.toBool(false);
+        callback(success);
+    };
+    if (requiresPersistentSession())
+    {
+        return startPersistentAsyncJsonRequest(QStringLiteral("runToolAction"),
+                                               payload,
+                                               callbackContext,
+                                               std::move(completion));
+    }
+    return startAsyncJsonRequest(QStringLiteral("runToolAction"),
+                                 payload,
+                                 locale,
+                                 callbackContext,
+                                 std::move(completion));
 }
 
 ExternalProcessPlugin::AsyncRequestId ExternalProcessPlugin::buildToolActionBatchEditAsync(
@@ -664,17 +678,32 @@ ExternalProcessPlugin::AsyncRequestId ExternalProcessPlugin::buildToolActionBatc
         {QStringLiteral("action_id"), actionId},
         {QStringLiteral("context"), toJsonObject(context)},
     };
-    return startAsyncJsonRequest(
-        QStringLiteral("buildBatchEdit"),
-        payload,
-        locale,
-        callbackContext,
-        [callback = std::move(callback)](bool ok, const QJsonValue &result) {
-            BatchEdit edit;
-            const bool success = ok && result.isObject()
-                && ExternalProcessPlugin::parseBatchEditJson(result.toObject(), &edit);
-            callback(success, std::move(edit));
-        });
+    AsyncJsonCompletion completion = [callback = std::move(callback)](
+                                         bool ok, const QJsonValue &result) {
+        BatchEdit edit;
+        const bool success = ok && result.isObject()
+            && ExternalProcessPlugin::parseBatchEditJson(result.toObject(), &edit);
+        callback(success, std::move(edit));
+    };
+    if (requiresPersistentSession())
+    {
+        return startPersistentAsyncJsonRequest(QStringLiteral("buildBatchEdit"),
+                                               payload,
+                                               callbackContext,
+                                               std::move(completion));
+    }
+    return startAsyncJsonRequest(QStringLiteral("buildBatchEdit"),
+                                 payload,
+                                 locale,
+                                 callbackContext,
+                                 std::move(completion));
+}
+
+bool ExternalProcessPlugin::requiresPersistentSession() const
+{
+    return hasCapability(kCapabilityCanvasInteraction)
+        || hasCapability(kCapabilityPanelWorkspace)
+        || hasCapability(kCapabilityContextualToolActions);
 }
 
 ExternalProcessPlugin::AsyncRequestId ExternalProcessPlugin::startAsyncJsonRequest(
@@ -752,10 +781,267 @@ ExternalProcessPlugin::AsyncRequestId ExternalProcessPlugin::startAsyncJsonReque
     return requestId;
 }
 
+ExternalProcessPlugin::AsyncRequestId ExternalProcessPlugin::startPersistentAsyncJsonRequest(
+    const QString &method,
+    const QJsonObject &payload,
+    QObject *callbackContext,
+    AsyncJsonCompletion callback)
+{
+    if (!callbackContext || !callback)
+        return 0;
+
+    const QByteArray serializedPayload = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    if (serializedPayload.size() > kMaxRequestPayloadBytes)
+    {
+        Logger::warn(QString("Process plugin '%1' persistent async request '%2' rejected: "
+                             "payload is %3 bytes (limit %4).")
+                         .arg(m_manifest.pluginId)
+                         .arg(method)
+                         .arg(serializedPayload.size())
+                         .arg(kMaxRequestPayloadBytes));
+        return 0;
+    }
+
+    if (m_persistentAsyncRequests.size() >= kMaxConcurrentAsyncRequests)
+    {
+        Logger::warn(QString("Process plugin '%1' persistent async request '%2' rejected: "
+                             "too many requests in flight.")
+                         .arg(m_manifest.pluginId)
+                         .arg(method));
+        return 0;
+    }
+
+    AsyncRequestId requestId = m_nextAsyncRequestId++;
+    if (requestId == 0)
+        requestId = m_nextAsyncRequestId++;
+    PersistentAsyncRequest request;
+    request.requestId = requestId;
+    request.protocolRequestId = QStringLiteral("persistent_async_%1_%2")
+                                    .arg(requestId)
+                                    .arg(QRandomGenerator::global()->generate());
+    request.method = method;
+    request.payload = payload;
+    request.callbackContext = callbackContext;
+    request.completion = std::move(callback);
+    m_persistentAsyncRequests.append(std::move(request));
+    startNextPersistentAsyncRequest();
+    return requestId;
+}
+
+void ExternalProcessPlugin::startNextPersistentAsyncRequest()
+{
+    if (m_activePersistentRequestId != 0 || m_persistentAsyncRequests.isEmpty())
+        return;
+    if (!ensureProcessRunning())
+    {
+        finishPersistentAsyncRequest(m_persistentAsyncRequests.first().requestId, false);
+        return;
+    }
+
+    const qint64 age = QDateTime::currentMSecsSinceEpoch() - m_processStartEpochMs;
+    if (age < kPostStartCooldownMs)
+    {
+        if (!m_persistentStartScheduled)
+        {
+            const qint64 remaining = kPostStartCooldownMs - age;
+            const int delayMs = static_cast<int>(qBound<qint64>(qint64(1),
+                                                                remaining,
+                                                                qint64(kPostStartCooldownMs)));
+            m_persistentStartScheduled = true;
+            QTimer::singleShot(delayMs, Qt::PreciseTimer, &m_process, [this]() {
+                m_persistentStartScheduled = false;
+                startNextPersistentAsyncRequest();
+            });
+        }
+        return;
+    }
+
+    const PersistentAsyncRequest &request = m_persistentAsyncRequests.first();
+    m_activePersistentRequestId = request.requestId;
+    m_persistentResponseBuffer.clear();
+    const QJsonObject message{
+        {QStringLiteral("type"), QStringLiteral("request")},
+        {QStringLiteral("id"), request.protocolRequestId},
+        {QStringLiteral("method"), request.method},
+        {QStringLiteral("payload"), request.payload},
+    };
+    const QByteArray line = QJsonDocument(message).toJson(QJsonDocument::Compact) + '\n';
+    if (!writeLine(line))
+    {
+        const AsyncRequestId failedId = request.requestId;
+        finishPersistentAsyncRequest(failedId, false);
+        forceRestartProcess(QStringLiteral("persistent async request write failed"));
+        return;
+    }
+
+    const AsyncRequestId activeId = request.requestId;
+    const int timeoutMs = requestTimeoutMsForMethod(request.method);
+    QTimer::singleShot(timeoutMs, Qt::PreciseTimer, &m_process, [this, activeId]() {
+        if (m_activePersistentRequestId != activeId)
+            return;
+        const QString method = m_persistentAsyncRequests.isEmpty()
+            ? QString()
+            : m_persistentAsyncRequests.first().method;
+        const QByteArray stderrMessage = m_process.readAllStandardError().left(kMaxStderrPreviewBytes);
+        Logger::warn(QString("Process plugin '%1' persistent async request '%2' timed out%3.")
+                         .arg(m_manifest.pluginId)
+                         .arg(method)
+                         .arg(stderrMessage.isEmpty()
+                                  ? QString()
+                                  : QStringLiteral(", stderr: %1")
+                                        .arg(QString::fromUtf8(stderrMessage).trimmed())));
+        finishPersistentAsyncRequest(activeId, false);
+        forceRestartProcess(QStringLiteral("persistent async request timed out"));
+    });
+}
+
+void ExternalProcessPlugin::handlePersistentAsyncOutput()
+{
+    if (m_activePersistentRequestId == 0 || m_persistentAsyncRequests.isEmpty())
+        return;
+
+    m_persistentResponseBuffer.append(m_process.readAllStandardOutput());
+    if (m_persistentResponseBuffer.size() > kMaxResponsePayloadBytes)
+    {
+        const AsyncRequestId failedId = m_activePersistentRequestId;
+        Logger::warn(QString("Process plugin '%1' persistent async response exceeded %2 bytes.")
+                         .arg(m_manifest.pluginId)
+                         .arg(kMaxResponsePayloadBytes));
+        finishPersistentAsyncRequest(failedId, false);
+        forceRestartProcess(QStringLiteral("persistent async response exceeded host limit"));
+        return;
+    }
+
+    int newline = -1;
+    while ((newline = m_persistentResponseBuffer.indexOf('\n')) >= 0)
+    {
+        const QByteArray line = m_persistentResponseBuffer.left(newline).trimmed();
+        m_persistentResponseBuffer.remove(0, newline + 1);
+        if (line.isEmpty())
+            continue;
+
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(line, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !document.isObject())
+            continue;
+
+        const QJsonObject response = document.object();
+        const PersistentAsyncRequest &request = m_persistentAsyncRequests.first();
+        if (response.value(QStringLiteral("type")).toString() != QLatin1String("response")
+            || response.value(QStringLiteral("id")).toString() != request.protocolRequestId)
+        {
+            continue;
+        }
+
+        finishPersistentAsyncRequest(request.requestId,
+                                     true,
+                                     response.value(QStringLiteral("result")));
+        return;
+    }
+}
+
+void ExternalProcessPlugin::handlePersistentProcessFinished()
+{
+    if (m_initialized)
+        m_needsReinitialize = true;
+    if (m_activePersistentRequestId == 0)
+        return;
+
+    handlePersistentAsyncOutput();
+    if (m_activePersistentRequestId == 0)
+        return;
+
+    const AsyncRequestId failedId = m_activePersistentRequestId;
+    const QString method = m_persistentAsyncRequests.isEmpty()
+        ? QString()
+        : m_persistentAsyncRequests.first().method;
+    const QByteArray stderrMessage = m_process.readAllStandardError().left(kMaxStderrPreviewBytes);
+    Logger::warn(QString("Process plugin '%1' exited during persistent async request '%2'%3.")
+                     .arg(m_manifest.pluginId)
+                     .arg(method)
+                     .arg(stderrMessage.isEmpty()
+                              ? QString()
+                              : QStringLiteral(", stderr: %1")
+                                    .arg(QString::fromUtf8(stderrMessage).trimmed())));
+    finishPersistentAsyncRequest(failedId, false);
+}
+
+void ExternalProcessPlugin::finishPersistentAsyncRequest(AsyncRequestId requestId,
+                                                         bool ok,
+                                                         const QJsonValue &result)
+{
+    int requestIndex = -1;
+    for (int i = 0; i < m_persistentAsyncRequests.size(); ++i)
+    {
+        if (m_persistentAsyncRequests.at(i).requestId == requestId)
+        {
+            requestIndex = i;
+            break;
+        }
+    }
+    if (requestIndex < 0)
+        return;
+
+    const bool wasActive = m_activePersistentRequestId == requestId;
+    const bool wasFront = requestIndex == 0;
+    PersistentAsyncRequest request = std::move(m_persistentAsyncRequests[requestIndex]);
+    m_persistentAsyncRequests.removeAt(requestIndex);
+    if (wasActive)
+    {
+        m_activePersistentRequestId = 0;
+        m_persistentResponseBuffer.clear();
+    }
+
+    if (request.callbackContext && request.completion)
+    {
+        const QPointer<QObject> target = request.callbackContext;
+        const AsyncJsonCompletion completion = std::move(request.completion);
+        QMetaObject::invokeMethod(target.data(),
+                                  [completion, ok, result]() { completion(ok, result); },
+                                  Qt::QueuedConnection);
+    }
+
+    if ((wasActive || wasFront) && !m_persistentAsyncRequests.isEmpty())
+    {
+        QTimer::singleShot(0, &m_process, [this]() { startNextPersistentAsyncRequest(); });
+    }
+}
+
+void ExternalProcessPlugin::cancelAllPersistentAsyncRequests()
+{
+    QList<PersistentAsyncRequest> requests;
+    requests.swap(m_persistentAsyncRequests);
+    m_activePersistentRequestId = 0;
+    m_persistentResponseBuffer.clear();
+
+    for (PersistentAsyncRequest &request : requests)
+    {
+        if (!request.callbackContext || !request.completion)
+            continue;
+        const QPointer<QObject> target = request.callbackContext;
+        const AsyncJsonCompletion completion = std::move(request.completion);
+        QMetaObject::invokeMethod(target.data(),
+                                  [completion]() { completion(false, QJsonValue()); },
+                                  Qt::QueuedConnection);
+    }
+}
+
 void ExternalProcessPlugin::cancelAsyncRequest(AsyncRequestId requestId)
 {
     if (requestId == 0)
         return;
+
+    for (int i = 0; i < m_persistentAsyncRequests.size(); ++i)
+    {
+        if (m_persistentAsyncRequests.at(i).requestId != requestId)
+            continue;
+        const bool wasActive = m_activePersistentRequestId == requestId;
+        finishPersistentAsyncRequest(requestId, false);
+        if (wasActive)
+            forceRestartProcess(QStringLiteral("persistent async request cancelled"));
+        return;
+    }
+
     QMutexLocker locker(&m_asyncJobsMutex);
     const auto it = m_asyncJobs.constFind(requestId);
     if (it != m_asyncJobs.constEnd() && it->cancelled)
@@ -869,7 +1155,6 @@ QList<PluginInterface::CanvasOverlayItem> ExternalProcessPlugin::canvasOverlays(
     QJsonValue result;
     if (!requestJson("listCanvasOverlays", QJsonObject(), &result))
     {
-        m_canvasOverlaysCached = true;
         return {};
     }
     if (!result.isArray())
@@ -995,6 +1280,11 @@ bool ExternalProcessPlugin::requestJson(const QString &method, const QJsonObject
 {
     if (result)
         *result = QJsonValue();
+    // The persistent protocol has a single response channel. Synchronous
+    // latency-sensitive queries must not consume an action response while an
+    // asynchronous stateful request is queued or active.
+    if (!m_persistentAsyncRequests.isEmpty())
+        return false;
     if (m_process.state() != QProcess::Running)
     {
         if (!const_cast<ExternalProcessPlugin *>(this)->ensureProcessRunning())
@@ -1434,7 +1724,7 @@ bool ExternalProcessPlugin::writeLine(const QByteArray &line)
     }
 
     const qint64 written = m_process.write(line);
-    return written > 0;
+    return written == line.size();
 }
 
 bool ExternalProcessPlugin::parseBatchEditJson(const QJsonObject &obj, BatchEdit *outEdit)

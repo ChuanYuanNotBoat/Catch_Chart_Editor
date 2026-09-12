@@ -896,9 +896,11 @@ static QString sidecarPathForChart(const QString &chartFilePath);
 | `openAdvancedColorEditor` |  10000  | 复杂 UI  |
 | `getPanelWorkspaceConfig` |   3000   | 配置查询 |
 
-这些超时是兼容上限，不是 UI 帧预算。`runToolAction` 和 `buildBatchEdit` 由宿主通过隔离
-worker 异步执行，支持取消和有界 request/response payload；`handleCanvasInput`、
-`listCanvasOverlays` 等高频回调仍是短超时同步路径，插件不得在其中执行全谱 I/O 或长计算。
+这些超时是兼容上限，不是 UI 帧预算。无状态插件的 `runToolAction` 和 `buildBatchEdit`
+由宿主通过隔离 worker 异步执行；声明交互状态能力的插件则在原持久会话上通过串行事件队列
+异步执行，避免丢失内存状态。两条路径均支持取消和有界 request/response payload；
+`handleCanvasInput`、`listCanvasOverlays` 等高频回调仍是短超时同步路径，插件不得在其中执行
+全谱 I/O 或长计算。
 
 ### 9.4 CanvasInputEvent
 
