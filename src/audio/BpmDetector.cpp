@@ -182,6 +182,79 @@ namespace
             return false;
         }
     }
+    static bool runDetectionPipeline(const QString &audioFilePath,
+                                     double startMs,
+                                     double durationMs,
+                                     BpmDetector::DetectionResult &outResult,
+                                     bool runAnalysis,
+                                     const AutoTiming2Options &analysisOptions,
+                                     QString *outError,
+                                     std::atomic<bool> *cancelFlag)
+    {
+        outResult = BpmDetector::DetectionResult();
+        if (audioFilePath.isEmpty())
+        {
+            if (outError)
+                *outError = "Audio path is empty.";
+            return false;
+        }
+        if (durationMs <= 0.0)
+        {
+            if (outError)
+                *outError = "Duration must be > 0.";
+            return false;
+        }
+
+        const double maxDurationMs = 120000.0;
+        if (durationMs > maxDurationMs)
+            durationMs = maxDurationMs;
+
+        if (cancelFlag && cancelFlag->load())
+        {
+            if (outError)
+                *outError = QStringLiteral("操作已取消。");
+            return false;
+        }
+
+        QVector<float> mono;
+        int sampleRate = 0;
+        if (!decodeMonoRange(audioFilePath, startMs, durationMs, mono, sampleRate, outError))
+            return false;
+
+        if (!detectByMalodyCore(mono, sampleRate, outResult, outError))
+            return false;
+
+        if (!runAnalysis)
+            return true;
+
+        // AutoTiming 2 analysis. Reuse the same linear resampler as the legacy
+        // path so analyze() never receives an unsupported sample rate.
+        if (cancelFlag && cancelFlag->load())
+            return true; // keep the legacy result; analysis skipped
+
+        int useRate = sampleRate;
+        QVector<float> work = mono;
+        if (useRate != 32000 && useRate != 44100 && useRate != 48000)
+        {
+            useRate = 44100;
+            work = resampleLinear(mono, sampleRate, useRate);
+        }
+
+        AutoTiming2Summary summary;
+        QString analysisError;
+        if (AutoTiming2Bridge::analyzeMono(work, useRate, analysisOptions, summary, &analysisError))
+        {
+            outResult.hasAnalysis = true;
+            outResult.analysis = summary;
+        }
+        else
+        {
+            // Analysis abstain/failure must not invalidate the legacy result.
+            // hasAnalysis stays false; a low-confidence analysis is reported as
+            // uncertainty by callers, never silently converted into a result.
+        }
+        return true;
+    }
 } // namespace
 
 bool BpmDetector::detectFromFile(const QString &audioFilePath,
@@ -206,34 +279,21 @@ bool BpmDetector::detectFromFileDetailed(const QString &audioFilePath,
                                          DetectionResult &outResult,
                                          QString *outError)
 {
-    outResult = DetectionResult();
-    if (audioFilePath.isEmpty())
-    {
-        if (outError)
-            *outError = "Audio path is empty.";
-        return false;
-    }
-    if (durationMs <= 0.0)
-    {
-        if (outError)
-            *outError = "Duration must be > 0.";
-        return false;
-    }
+    return runDetectionPipeline(audioFilePath, startMs, durationMs, outResult,
+                                /*runAnalysis=*/false, AutoTiming2Options{},
+                                outError, /*cancelFlag=*/nullptr);
+}
 
-    const double maxDurationMs = 120000.0;
-    if (durationMs > maxDurationMs)
-        durationMs = maxDurationMs;
-
-    QVector<float> mono;
-    int sampleRate = 0;
-    if (!decodeMonoRange(audioFilePath, startMs, durationMs, mono, sampleRate, outError))
-        return false;
-
-    if (!detectByMalodyCore(mono, sampleRate, outResult, outError))
-        return false;
-
-    // Segment diagnostics are disabled for full-song default measurement.
-    return true;
+bool BpmDetector::analyzeFromFileDetailed(const QString &audioFilePath,
+                                          double startMs,
+                                          double durationMs,
+                                          DetectionResult &outResult,
+                                          QString *outError,
+                                          const AutoTiming2Options &analysisOptions)
+{
+    return runDetectionPipeline(audioFilePath, startMs, durationMs, outResult,
+                                /*runAnalysis=*/true, analysisOptions,
+                                outError, /*cancelFlag=*/nullptr);
 }
 
 void BpmDetector::detectFromFileDetailedAsync(QObject *context,
@@ -257,6 +317,46 @@ void BpmDetector::detectFromFileDetailedAsync(QObject *context,
                                       {
         state->success = BpmDetector::detectFromFileDetailed(
             audioFilePath, startMs, durationMs, state->result, &state->error);
+    });
+
+    QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+    QObject::connect(worker,
+                     &QThread::finished,
+                     context,
+                     [state, callback = std::move(callback)]() mutable
+                     {
+        callback(state->success, std::move(state->result), state->error);
+    });
+    worker->start();
+}
+
+void BpmDetector::analyzeFromFileDetailedAsync(QObject *context,
+                                               const QString &audioFilePath,
+                                               double startMs,
+                                               double durationMs,
+                                               AsyncAnalysisCallback callback,
+                                               std::shared_ptr<std::atomic<bool>> cancelFlag)
+{
+    if (!context || !callback)
+        return;
+
+    struct AnalysisState
+    {
+        bool success = false;
+        DetectionResult result;
+        QString error;
+    };
+
+    if (!cancelFlag)
+        cancelFlag = std::make_shared<std::atomic<bool>>(false);
+
+    const auto state = std::make_shared<AnalysisState>();
+    const auto options = std::make_shared<AutoTiming2Options>();
+    QThread *worker = QThread::create([state, cancelFlag, options, audioFilePath, startMs, durationMs]()
+                                      {
+        state->success = runDetectionPipeline(
+            audioFilePath, startMs, durationMs, state->result,
+            /*runAnalysis=*/true, *options, &state->error, cancelFlag.get());
     });
 
     QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);

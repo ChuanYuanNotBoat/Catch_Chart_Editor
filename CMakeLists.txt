@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.16)
 project(CatchChartEditor VERSION 1.11.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -140,6 +140,66 @@ if(BUILD_TESTING)
         Vorbis::vorbis
     )
     add_test(NAME ui_meta_edit_panel_tests COMMAND MetaEditPanelTests)
+
+    # ---- CCE AutoTiming 2 bridge tests (synthetic pulse trains, no UI) ----
+    add_executable(AutoTimingBridgeTests
+        tests/autotiming_bridge_tests.cpp
+        src/audio/AutoTiming2Bridge.cpp
+        src/audio/BpmDetector.cpp
+    )
+    target_include_directories(AutoTimingBridgeTests PRIVATE src)
+    target_link_libraries(AutoTimingBridgeTests PRIVATE Qt6::Core Qt6::Multimedia autotiming_core)
+    if(MSVC)
+        target_compile_options(AutoTimingBridgeTests PRIVATE /EHsc)
+    endif()
+    add_test(NAME audio_autotiming_bridge_tests COMMAND AutoTimingBridgeTests)
+    if(WIN32)
+        set_tests_properties(audio_autotiming_bridge_tests PROPERTIES
+            ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$ENV{PATH}")
+    endif()
+
+    # ---- Vendored AutoTimingCore upstream tests (see docs/AUTOTIMING_VENDORING.md) ----
+    set(AUTOTIMING_CORE_DIR ${CMAKE_SOURCE_DIR}/src/audio/autotiming/core)
+
+    add_executable(AutoTimingLegacyTests
+        ${AUTOTIMING_CORE_DIR}/tests/legacy_baseline_tests.cpp
+    )
+    target_link_libraries(AutoTimingLegacyTests PRIVATE autotiming_legacy)
+    target_compile_features(AutoTimingLegacyTests PRIVATE cxx_std_17)
+    if(MSVC)
+        target_compile_options(AutoTimingLegacyTests PRIVATE /utf-8 /EHsc)
+    endif()
+    add_test(NAME autotiming.legacy.baseline COMMAND AutoTimingLegacyTests)
+
+    add_executable(AutoTimingAnalysisTests
+        ${AUTOTIMING_CORE_DIR}/tests/analysis_tests.cpp
+    )
+    target_link_libraries(AutoTimingAnalysisTests PRIVATE autotiming_core)
+    target_compile_features(AutoTimingAnalysisTests PRIVATE cxx_std_17)
+    if(MSVC)
+        target_compile_options(AutoTimingAnalysisTests PRIVATE /utf-8 /EHsc)
+    endif()
+    add_test(NAME autotiming.analysis.evidence COMMAND AutoTimingAnalysisTests)
+
+    add_executable(AutoTimingPhaseAccuracyTests
+        ${AUTOTIMING_CORE_DIR}/tests/phase_accuracy_tests.cpp
+    )
+    target_link_libraries(AutoTimingPhaseAccuracyTests PRIVATE autotiming_core)
+    target_compile_features(AutoTimingPhaseAccuracyTests PRIVATE cxx_std_17)
+    if(MSVC)
+        target_compile_options(AutoTimingPhaseAccuracyTests PRIVATE /utf-8 /EHsc)
+    endif()
+    add_test(NAME autotiming.analysis.phase_accuracy COMMAND AutoTimingPhaseAccuracyTests)
+
+    add_executable(autotiming_probe
+        ${AUTOTIMING_CORE_DIR}/tools/autotiming_probe.cpp
+    )
+    target_link_libraries(autotiming_probe PRIVATE autotiming_core)
+    target_compile_features(autotiming_probe PRIVATE cxx_std_17)
+    if(MSVC)
+        target_compile_options(autotiming_probe PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME autotiming.probe.help COMMAND autotiming_probe --help)
 
     if(WIN32)
         target_link_libraries(DockingLayoutTests PRIVATE dwmapi)

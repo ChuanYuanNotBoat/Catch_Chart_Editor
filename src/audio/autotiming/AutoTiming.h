@@ -26,6 +26,11 @@ public:
         double offset;
     };
 
+    // Compatibility alias: the vendored AutoTiming 2 core (src/audio/autotiming/core)
+    // refers to the upstream legacy name AutoTimingResult. CCE renames the struct
+    // to Result; keep both names valid so vendored code stays verbatim.
+    using AutoTimingResult = Result;
+
     /// Detect BPM and offset from raw PCM buffer.
     /// @param buffer     raw PCM bytes.
     /// @param size       byte count.
