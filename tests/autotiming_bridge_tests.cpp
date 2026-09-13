@@ -5,6 +5,8 @@
 #include "audio/BpmDetector.h"
 
 #include <QCoreApplication>
+#include <QEventLoop>
+#include <QTimer>
 #include <QVector>
 
 #include <cmath>
@@ -195,17 +197,80 @@ namespace
                 "non-positive duration must fail");
         require(!error.isEmpty(), "non-positive duration must carry an error");
     }
+    void testAnalysisStatusOnLegacyFailure()
+    {
+        // Deterministic: the decoder cannot open a nonexistent file, so the
+        // legacy stage fails and the analysis stage must never be entered.
+        BpmDetector::DetectionResult result;
+        QString error;
+        require(!BpmDetector::analyzeFromFileDetailed(QStringLiteral("_definitely_missing_audio_.ogg"),
+                                                      0.0, 10000.0, result, &error),
+                "nonexistent file must fail");
+        require(result.analysisStatus == BpmDetector::AnalysisStatus::NotRequested,
+                "legacy failure must leave analysisStatus == NotRequested");
+        require(!result.hasAnalysis, "legacy failure must not set hasAnalysis");
+        require(result.analysisError.isEmpty(),
+                "legacy failure must not carry an analysis error");
+        require(!error.isEmpty(), "legacy failure must explain itself via outError");
+    }
+
+    void testAsyncCancelBeforeStart()
+    {
+        // Deterministic: the flag is set before the worker runs, so the call
+        // is rejected before any decoding happens.
+        auto cancelFlag = std::make_shared<std::atomic<bool>>(true);
+
+        bool callbackInvoked = false;
+        bool success = true;
+        BpmDetector::DetectionResult result;
+        QString error;
+
+        QObject context;
+        QEventLoop loop;
+        QTimer::singleShot(10000, &loop, [&loop]() { loop.quit(); }); // watchdog
+
+        BpmDetector::analyzeFromFileDetailedAsync(
+            &context, QStringLiteral("_definitely_missing_audio_.ogg"), 0.0, 10000.0,
+            [&](bool ok, BpmDetector::DetectionResult r, const QString &e)
+            {
+                callbackInvoked = true;
+                success = ok;
+                result = std::move(r);
+                error = e;
+                loop.quit();
+            },
+            AutoTiming2Options{}, cancelFlag);
+
+        loop.exec();
+
+        require(callbackInvoked, "cancel before start must still deliver the callback");
+        require(!success, "cancelled call must report failure");
+        require(error.contains(QStringLiteral("取消")),
+                "cancel error must explain the cancellation");
+        require(result.analysisStatus == BpmDetector::AnalysisStatus::NotRequested,
+                "cancel before legacy run must leave analysisStatus == NotRequested");
+        require(!result.hasAnalysis, "cancelled call must not set hasAnalysis");
+    }
 } // namespace
 
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
 
-    testPulseTrainPipeline();
-    testShortAudioAbstains();
-    testSilenceAbstains();
-    testInvalidParameters();
-    testBpmDetectorValidation();
+    const auto runTest = [](const char *name, void (*fn)())
+    {
+        std::printf("[bridge-test] %s ...\n", name);
+        std::fflush(stdout);
+        fn();
+    };
+
+    runTest("pulse_train_pipeline", testPulseTrainPipeline);
+    runTest("short_audio_abstains", testShortAudioAbstains);
+    runTest("silence_abstains", testSilenceAbstains);
+    runTest("invalid_parameters", testInvalidParameters);
+    runTest("bpm_detector_validation", testBpmDetectorValidation);
+    runTest("analysis_status_on_legacy_failure", testAnalysisStatusOnLegacyFailure);
+    runTest("async_cancel_before_start", testAsyncCancelBeforeStart);
 
     if (g_failures != 0)
     {

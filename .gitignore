@@ -57,6 +57,8 @@ ui_*.h
 Thumbs.db
 __pycache__
 *.pyc
+temp/*
+#不要删temp整个文件夹
 
 # 可能的不应提交的资源
 *.exe

@@ -5222,17 +5222,12 @@ void MainWindow::showEditorPanel(QWidget *panel)
             else
                 d->metaPanel->setVisible(panel == d->metaPanel);
         }
-        QScrollArea *scrollArea = d->legacyRightScrollArea;
-        if (d->workbenchLayout)
-        {
-            if (PaneContainer *container = d->workbenchLayout->paneContainerForPane(
-                    QStringLiteral("note")))
-            {
-                scrollArea = container->scrollAreaForPane(QStringLiteral("note"));
-            }
-        }
-        if (scrollArea)
-            scrollArea->show();
+        // PaneContainer::setPaneVisible() owns visibility in the stable classic
+        // workbench. Re-showing Note's scroll host here would undo hiding it
+        // whenever BPM or Meta is selected. Only the old legacy fallback
+        // layout uses one shared scroll area that must be shown explicitly.
+        if (!d->workbenchLayout && d->legacyRightScrollArea)
+            d->legacyRightScrollArea->show();
         return;
     }
 

@@ -78,6 +78,17 @@ set(SOURCES
     editor/NoteChain/NoteChainPersistence.cpp
 )
 
+# These two translation units contain user-facing Chinese error literals; they
+# are written as UTF-8 and must be compiled with /utf-8 so the literals do not
+# depend on the system code page. /utf-8 is safe for the remaining (ASCII)
+# content of both files. AutoTimingBridgeTests compiles the same files and
+# applies /utf-8 at target level (root CMakeLists.txt) to stay identical.
+set_source_files_properties(
+    audio/BpmDetector.cpp
+    audio/AutoTiming2Bridge.cpp
+    PROPERTIES COMPILE_OPTIONS "/utf-8"
+)
+
 # ---- Vendored AutoTimingCore (upstream=90f7a95, see docs/AUTOTIMING_VENDORING.md) ----
 # Malody legacy AutoTiming baseline, kept as a static library with the CCE host
 # adaptations (Result naming, k* constants, full FMOD format enum).
@@ -100,6 +111,7 @@ target_compile_features(autotiming_legacy PUBLIC cxx_std_17)
 if(MSVC)
     # /EHsc: vendored legacy code and the analysis core use exceptions for
     # error/abstain signalling; the host project omits /EHsc by default.
+    # /W3 matches the upstream AutoTimingCore CMakeLists for the legacy set.
     target_compile_options(autotiming_legacy PRIVATE /W3 /permissive- /utf-8 /EHsc)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
     target_compile_options(autotiming_legacy PRIVATE -msse2 -mfpmath=sse)
@@ -124,6 +136,7 @@ target_include_directories(autotiming_core PUBLIC
 target_link_libraries(autotiming_core PRIVATE autotiming_legacy)
 target_compile_features(autotiming_core PUBLIC cxx_std_17)
 if(MSVC)
+    # /W4 matches the upstream AutoTimingCore CMakeLists for the analysis core.
     target_compile_options(autotiming_core PRIVATE /W4 /permissive- /utf-8 /EHsc)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
     target_compile_options(autotiming_core PRIVATE -msse2 -mfpmath=sse)

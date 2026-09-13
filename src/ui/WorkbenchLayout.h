@@ -2,6 +2,7 @@
 
 #include <QByteArray>
 #include <QHash>
+#include <QStringList>
 #include <QWidget>
 
 class PaneContainer;
@@ -42,6 +43,7 @@ public:
     bool movePane(const QString &paneId, Part targetPart, int targetIndex = -1);
     bool resetPaneLocation(const QString &paneId);
     bool setPaneVisible(const QString &paneId, bool visible);
+    void setExclusivePaneGroup(const QStringList &paneIds);
     bool panePart(const QString &paneId, Part *part = nullptr) const;
 
     QByteArray saveState() const;
@@ -64,6 +66,7 @@ private:
     QSplitter *m_horizontalSplitter = nullptr;
     QSplitter *m_verticalSplitter = nullptr;
     QHash<QString, Part> m_defaultPaneParts;
+    QHash<QString, QStringList> m_exclusivePaneGroups;
     mutable int m_primarySidebarSize = 150;
     mutable int m_previewAreaSize = 200;
     mutable int m_auxiliarySidebarSize = 300;

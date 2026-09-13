@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+﻿cmake_minimum_required(VERSION 3.16)
 project(CatchChartEditor VERSION 1.11.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -150,7 +150,11 @@ if(BUILD_TESTING)
     target_include_directories(AutoTimingBridgeTests PRIVATE src)
     target_link_libraries(AutoTimingBridgeTests PRIVATE Qt6::Core Qt6::Multimedia autotiming_core)
     if(MSVC)
-        target_compile_options(AutoTimingBridgeTests PRIVATE /EHsc)
+        # /utf-8: shared TUs (BpmDetector.cpp / AutoTiming2Bridge.cpp) carry
+        # UTF-8 Chinese literals and are also built with /utf-8 in the app;
+        # the test cpp itself contains the same literals. /EHsc: the bridge
+        # catches exceptions thrown by the vendored analysis core.
+        target_compile_options(AutoTimingBridgeTests PRIVATE /utf-8 /EHsc)
     endif()
     add_test(NAME audio_autotiming_bridge_tests COMMAND AutoTimingBridgeTests)
     if(WIN32)

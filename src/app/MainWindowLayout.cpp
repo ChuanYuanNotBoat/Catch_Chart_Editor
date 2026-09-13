@@ -276,6 +276,12 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
                                         d->metaPanelWasVisible,
                                         true);
 
+        // Note/BPM/Meta are three pages of the classic editor sidebar, not
+        // independently stackable tools. Keep that switch semantics even when
+        // a page has been moved to another workbench part.
+        d->workbenchLayout->setExclusivePaneGroup(
+            {QStringLiteral("note"), QStringLiteral("bpm"), QStringLiteral("meta")});
+
         QWidget *oldCentral = takeCentralWidget();
         if (oldCentral)
             oldCentral->hide();

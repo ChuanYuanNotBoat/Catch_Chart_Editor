@@ -323,8 +323,64 @@ bool WorkbenchLayout::resetPaneLocation(const QString &paneId)
 
 bool WorkbenchLayout::setPaneVisible(const QString &paneId, bool visible)
 {
-    PaneContainer *container = paneContainerForPane(paneId);
-    return container && container->setPaneVisible(paneId, visible);
+    const QString normalized = paneId.trimmed();
+    PaneContainer *container = paneContainerForPane(normalized);
+    if (!container)
+        return false;
+
+    // Some views are pages of one logical selector even though the workbench
+    // can move their pane hosts between top-level parts. Showing one page must
+    // therefore hide the other members wherever they currently live.
+    if (visible)
+    {
+        const auto groupIt = m_exclusivePaneGroups.constFind(normalized);
+        if (groupIt != m_exclusivePaneGroups.constEnd())
+        {
+            for (const QString &memberId : groupIt.value())
+            {
+                if (PaneContainer *memberContainer = paneContainerForPane(memberId))
+                    memberContainer->setPaneVisible(memberId, memberId == normalized);
+            }
+            return true;
+        }
+    }
+
+    return container->setPaneVisible(normalized, visible);
+}
+
+void WorkbenchLayout::setExclusivePaneGroup(const QStringList &paneIds)
+{
+    QStringList normalizedIds;
+    for (const QString &paneId : paneIds)
+    {
+        const QString normalized = paneId.trimmed();
+        if (!normalized.isEmpty() && !normalizedIds.contains(normalized))
+            normalizedIds.append(normalized);
+    }
+
+    if (normalizedIds.size() < 2)
+        return;
+
+    for (const QString &paneId : normalizedIds)
+        m_exclusivePaneGroups.insert(paneId, normalizedIds);
+
+    // Registration may happen after panes were restored from a state that
+    // persisted several members as visible. Keep the first currently visible
+    // member and collapse the rest immediately so the group starts coherent.
+    QString activePaneId;
+    for (const QString &paneId : normalizedIds)
+    {
+        if (PaneContainer *memberContainer = paneContainerForPane(paneId);
+            memberContainer && memberContainer->paneVisible(paneId))
+        {
+            activePaneId = paneId;
+            break;
+        }
+    }
+    if (activePaneId.isEmpty())
+        activePaneId = normalizedIds.first();
+
+    setPaneVisible(activePaneId, true);
 }
 
 QByteArray WorkbenchLayout::saveState() const

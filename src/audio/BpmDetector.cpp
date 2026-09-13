@@ -79,6 +79,7 @@ namespace
 
         qint64 processedFrames = 0;
         bool success = true;
+        bool decoderDone = false;
         QString errorText;
         QObject::connect(&decoder, &QAudioDecoder::bufferReady, &decoder, [&]()
                          {
@@ -113,13 +114,23 @@ namespace
         QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), &decoder, [&](QAudioDecoder::Error)
                          {
         success = false;
+        decoderDone = true;
         errorText = decoder.errorString().isEmpty() ? QStringLiteral("QAudioDecoder failed.") : decoder.errorString(); });
 
         QEventLoop loop;
-        QObject::connect(&decoder, &QAudioDecoder::finished, &loop, &QEventLoop::quit);
-        QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), &loop, &QEventLoop::quit);
+        QObject::connect(&decoder, &QAudioDecoder::finished, &decoder, [&]()
+                         {
+        decoderDone = true;
+        loop.quit(); });
+        QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), &decoder, [&]()
+                         {
+        loop.quit(); });
         decoder.start();
-        loop.exec();
+        // A backend may report the outcome synchronously from start() (e.g. a
+        // missing or unreadable file). quit() on a not-yet-running loop is a
+        // no-op, so only block while the decoder is still running.
+        if (!decoderDone)
+            loop.exec();
 
         if (!success)
         {
@@ -230,7 +241,11 @@ namespace
         // AutoTiming 2 analysis. Reuse the same linear resampler as the legacy
         // path so analyze() never receives an unsupported sample rate.
         if (cancelFlag && cancelFlag->load())
-            return true; // keep the legacy result; analysis skipped
+        {
+            outResult.analysisStatus = BpmDetector::AnalysisStatus::Cancelled;
+            outResult.analysisError = QStringLiteral("AutoTiming 2 分析已取消（legacy 结果已完成）。");
+            return true; // keep the legacy result
+        }
 
         int useRate = sampleRate;
         QVector<float> work = mono;
@@ -244,14 +259,17 @@ namespace
         QString analysisError;
         if (AutoTiming2Bridge::analyzeMono(work, useRate, analysisOptions, summary, &analysisError))
         {
+            outResult.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
             outResult.hasAnalysis = true;
             outResult.analysis = summary;
         }
         else
         {
-            // Analysis abstain/failure must not invalidate the legacy result.
-            // hasAnalysis stays false; a low-confidence analysis is reported as
-            // uncertainty by callers, never silently converted into a result.
+            // Analysis abstain/failure must not invalidate the legacy result,
+            // but the reason must stay observable: surface it as Failed with
+            // the bridge error instead of silently dropping it.
+            outResult.analysisStatus = BpmDetector::AnalysisStatus::Failed;
+            outResult.analysisError = analysisError;
         }
         return true;
     }
@@ -335,6 +353,7 @@ void BpmDetector::analyzeFromFileDetailedAsync(QObject *context,
                                                double startMs,
                                                double durationMs,
                                                AsyncAnalysisCallback callback,
+                                               const AutoTiming2Options &analysisOptions,
                                                std::shared_ptr<std::atomic<bool>> cancelFlag)
 {
     if (!context || !callback)
@@ -351,12 +370,15 @@ void BpmDetector::analyzeFromFileDetailedAsync(QObject *context,
         cancelFlag = std::make_shared<std::atomic<bool>>(false);
 
     const auto state = std::make_shared<AnalysisState>();
-    const auto options = std::make_shared<AutoTiming2Options>();
+    // AutoTiming2Options is a plain POD struct: capture a copy by value; no
+    // shared_ptr needed. cancelFlag keeps shared ownership because the caller
+    // must be able to flip it from another thread while the worker runs.
+    const AutoTiming2Options options = analysisOptions;
     QThread *worker = QThread::create([state, cancelFlag, options, audioFilePath, startMs, durationMs]()
                                       {
         state->success = runDetectionPipeline(
             audioFilePath, startMs, durationMs, state->result,
-            /*runAnalysis=*/true, *options, &state->error, cancelFlag.get());
+            /*runAnalysis=*/true, options, &state->error, cancelFlag.get());
     });
 
     QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
