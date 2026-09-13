@@ -15,12 +15,14 @@
 // vendored headers, and maps upstream exceptions into QString errors.
 //
 // Semantics preserved from the upstream contract (docs/AUTOTIMING_2_DESIGN.md):
-//   - pulseTimeSeconds is an absolute audio time, legacyOffsetMilliseconds is
-//     the legacy delay-style offset; the two must never be merged.
+//   - pulseTimeSeconds is an absolute time on the supplied AudioView timeline,
+//     legacyOffsetMilliseconds is the legacy delay-style offset; the two must
+//     never be merged. Direct bridge calls start that timeline at zero;
+//     BpmDetector translates location fields to whole-file time.
 //   - PeriodicityLayer rational values are evidence only, not subdivision or
 //     polyrhythm assertions.
 //   - averageObjectiveCost is a diagnostic cost, not a calibrated probability.
-//   - Low confidence must be reported as uncertainty, never as a result.
+//   - Low confidence must be reported as uncertainty, not as an analysis error.
 // ---------------------------------------------------------------------------
 
 struct AutoTiming2Candidate
@@ -28,8 +30,11 @@ struct AutoTiming2Candidate
     double bpm = 0.0;
     double rawBpm = 0.0;
     double periodSeconds = 0.0;
-    // Absolute audio time of a reference pulse; NOT the legacy offset.
+    // Absolute time of a reference pulse on the current analysis timeline;
+    // NOT the legacy offset. Global candidates do not carry phase and leave
+    // hasPulseTime false.
     double pulseTimeSeconds = 0.0;
+    bool hasPulseTime = false;
     double legacyOffsetMilliseconds = 0.0;
     double rawBpmUncertainty = 0.0;
     double phaseConfidence = 0.0;
@@ -177,11 +182,20 @@ class AutoTiming2Bridge
 public:
     // Analyze mono float PCM. sampleRate must be 32000/44100/48000 Hz; callers
     // must resample other rates beforehand (BpmDetector::analyzeFromFileDetailed
-    // does this via the existing linear resampler). Returns false on abstain or
-    // error and fills *outError (Chinese user-facing message).
+    // does this via the existing linear resampler). A structurally valid
+    // analysis with no candidate or zero confidence still returns true. False
+    // is reserved for invalid input/options or an analysis exception and fills
+    // *outError (Chinese user-facing message).
     static bool analyzeMono(const QVector<float> &mono,
                             int sampleRate,
                             const AutoTiming2Options &options,
                             AutoTiming2Summary &outSummary,
                             QString *outError = nullptr);
+
+    // Translate every absolute *location* in a mapped summary by offsetSeconds.
+    // Durations, periods, lags and legacy offsets are deliberately unchanged.
+    // BpmDetector uses this once after analyzing a cropped PCM range so callers
+    // receive whole-file audio coordinates. Kept public as a small testable
+    // adapter operation; UI code must not call it.
+    static void translateTimeline(AutoTiming2Summary &summary, double offsetSeconds);
 };

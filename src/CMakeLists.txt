@@ -55,6 +55,7 @@ set(SOURCES
     ui/ChartStatsPanel.cpp
     ui/PluginActionPanel.cpp
     ui/NoteEditPanel.cpp
+    ui/BpmMeasureUtils.cpp
     ui/BPMTimePanel.cpp
     ui/MetaEditPanel.cpp
     ui/SpeedPopup.cpp

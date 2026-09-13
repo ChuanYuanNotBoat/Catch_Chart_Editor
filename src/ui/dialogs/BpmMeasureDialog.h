@@ -26,6 +26,7 @@ public:
     explicit BpmMeasureDialog(QWidget *parent = nullptr);
 
     double measuredBpm() const { return m_measuredBpm; }
+    double autoTimingSuggestionBpm() const { return m_autoTimingSuggestionBpm; }
     double finalBpm() const;
     int finalOffset() const;
     bool applyOffset() const;
@@ -33,8 +34,13 @@ public:
 
     void setCurrentTimeText(const QString &text);
     void setMeasuredBpm(double bpm);
+    void setLegacyUnavailable(const QString &text = QString());
+    void setAutoTimingSuggestion(double bpm, const QString &qualifier = QString());
+    void setAutoTimingUnavailable(const QString &text);
+    void setMultiplierHint(int factor, const QString &text);
     void setResultDetailsText(const QString &text);
     void setMeasuring(bool measuring);
+    void setMeasurementComplete();
     void setStatusText(const QString &text);
     void setMeasuredOffset(int offsetMs);
     int durationSeconds() const;
@@ -48,10 +54,15 @@ private slots:
     void onOkClicked();
     void onQuickMultiply(int factor);
     void onUndoQuick();
+    void onUseAutoTimingSuggestion();
     void onModeChanged(int index);
 
 private:
     void setupUi();
+    void resetMeasurementResults();
+    void invalidateCompletedMeasurement();
+    void updateActionState();
+    QPushButton *quickButtonForFactor(int factor) const;
 
     QLabel *m_currentTimeLabel;
     QLabel *m_durationLabel;
@@ -60,6 +71,10 @@ private:
     QComboBox *m_modeCombo;
     QLabel *m_resultLabel;
     QLineEdit *m_resultEdit;
+    QLabel *m_autoTimingSuggestionLabel;
+    QLineEdit *m_autoTimingSuggestionEdit;
+    QPushButton *m_useAutoTimingSuggestionBtn;
+    QLabel *m_multiplierHintLabel;
     QLabel *m_statusLabel;
     QProgressBar *m_progressBar;
     QTextEdit *m_detailsEdit;
@@ -86,6 +101,11 @@ private:
     QShortcut *m_undoShortcut;
 
     double m_measuredBpm;
+    double m_autoTimingSuggestionBpm;
     double m_lastFinalBpm; // for undo
     int m_measureDuration;
+    bool m_isMeasuring;
+    bool m_measurementCompleted;
+    bool m_hasAdoptedBpm;
+    bool m_hasLegacyOffset;
 };

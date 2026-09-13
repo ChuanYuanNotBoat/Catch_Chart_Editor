@@ -141,6 +141,33 @@ if(BUILD_TESTING)
     )
     add_test(NAME ui_meta_edit_panel_tests COMMAND MetaEditPanelTests)
 
+    add_executable(BpmMeasurementTests
+        tests/bpm_measurement_tests.cpp
+        src/model/Note.cpp
+        src/model/BpmEntry.cpp
+        src/utils/MathUtils.cpp
+        src/utils/Logger.cpp
+        src/utils/Settings.cpp
+        src/utils/NativeWindowTheme.cpp
+        src/ui/BpmMeasureUtils.cpp
+        src/ui/dialogs/BpmMeasureDialog.cpp
+    )
+    target_include_directories(BpmMeasurementTests PRIVATE src)
+    target_link_libraries(BpmMeasurementTests
+        PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Widgets
+        Qt6::Test
+    )
+    if(MSVC)
+        target_compile_options(BpmMeasurementTests PRIVATE /utf-8 /EHsc)
+    endif()
+    if(WIN32)
+        target_link_libraries(BpmMeasurementTests PRIVATE dwmapi)
+    endif()
+    add_test(NAME ui_bpm_measurement_tests COMMAND BpmMeasurementTests)
+
     # ---- CCE AutoTiming 2 bridge tests (synthetic pulse trains, no UI) ----
     add_executable(AutoTimingBridgeTests
         tests/autotiming_bridge_tests.cpp
@@ -212,6 +239,8 @@ if(BUILD_TESTING)
         set_tests_properties(ui_docking_layout_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
         set_tests_properties(ui_meta_edit_panel_tests PROPERTIES
+            ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
+        set_tests_properties(ui_bpm_measurement_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
     endif()
 endif()

@@ -42,263 +42,536 @@
 <context>
     <name>BPMTimePanel</name>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="42"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="397"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="46"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="594"/>
         <source>Time:</source>
         <translation>時間:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="45"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="407"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="49"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="604"/>
         <source>e.g. 0:1/1</source>
         <translation>例: 0:1/1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="50"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="399"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="54"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="596"/>
         <source>BPM:</source>
         <translation>BPM:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="60"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="401"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="64"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="598"/>
         <source>Add/Update</source>
         <translation>追加/更新</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="61"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="403"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="65"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="600"/>
         <source>Remove</source>
         <translation>削除</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="69"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="405"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="73"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="602"/>
         <source>Measure BPM...</source>
         <translation>BPMを測定...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="194"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="204"/>
+        <source>%1-%2 s</source>
+        <translation>%1-%2 秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="209"/>
+        <source>+%1 more</source>
+        <translation>ほか %1 件</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="210"/>
+        <source>none</source>
+        <translation>なし</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="217"/>
+        <source>Analysis starts at audio time: </source>
+        <translation>分析開始位置（音声時間）：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="218"/>
+        <source> s</source>
+        <translation> 秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="222"/>
+        <source>Legacy BPM: </source>
+        <translation>従来版 BPM：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="224"/>
+        <source>Legacy offset: </source>
+        <translation>従来版オフセット：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="229"/>
+        <source>Legacy BPM: unavailable</source>
+        <translation>従来版 BPM：利用不可</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="231"/>
+        <source>Legacy reason: </source>
+        <translation>従来版の理由：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="243"/>
+        <source>AutoTiming 2 recommendation: </source>
+        <translation>AutoTiming 2 の推奨値：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="244"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="257"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="263"/>
+        <source> BPM</source>
+        <translation> BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="245"/>
+        <source>Evidence: </source>
+        <translation>根拠：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="247"/>
+        <source>supported</source>
+        <translation>十分</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="248"/>
+        <source>uncertain</source>
+        <translation>不確実</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="256"/>
+        <source>Power-of-two tempo family: </source>
+        <translation>2 の累乗テンポファミリー：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="261"/>
+        <source>Power-of-two tempo family reference: </source>
+        <translation>2 の累乗テンポファミリー基準値：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="268"/>
+        <source>AutoTiming 2 recommendation: no stable candidate</source>
+        <translation>AutoTiming 2 の推奨値：安定した候補なし</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="269"/>
+        <source>Evidence: uncertain</source>
+        <translation>根拠：不確実</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="273"/>
+        <source>Confidence - overall: %1, tempo: %2, family: %3</source>
+        <translation>信頼度 - 総合：%1、テンポ：%2、ファミリー：%3</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="278"/>
+        <source>Reliable coverage: </source>
+        <translation>信頼できる区間のカバー率：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="279"/>
+        <source>Reliable sections: </source>
+        <translation>信頼できる区間：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="280"/>
+        <source>Uncertain sections: </source>
+        <translation>不確実な区間：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="284"/>
+        <source>AutoTiming 2: unavailable</source>
+        <translation>AutoTiming 2：利用不可</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="286"/>
+        <source>AutoTiming 2 reason: </source>
+        <translation>AutoTiming 2 の理由：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="289"/>
+        <source>AutoTiming 2: cancelled</source>
+        <translation>AutoTiming 2：キャンセル済み</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="292"/>
+        <source>AutoTiming 2: not run</source>
+        <translation>AutoTiming 2：未実行</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="320"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="380"/>
         <source>%1 ms</source>
         <translation>%1 ミリ秒</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="197"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="323"/>
         <source>Ready to measure.</source>
         <translation>測定準備完了。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="201"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="346"/>
         <source>Measuring audio...</source>
         <translation>オーディオを測定中...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="209"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="359"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="416"/>
         <source>Measurement failed.</source>
         <translation>測定失敗。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="210"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="361"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="419"/>
         <source>Measurement Failed</source>
         <translation>測定失敗</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="211"/>
-        <source>Failed to measure BPM from audio.</source>
-        <translation>オーディオからのBPM測定に失敗しました。</translation>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="408"/>
+        <source>Chart changed; result discarded.</source>
+        <translation>譜面が変更されたため、結果を破棄しました。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="241"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="409"/>
+        <source>The chart or linked audio changed while analysis was running. Measure again.</source>
+        <translation>分析中に譜面または関連付けられた音声が変更されました。もう一度測定してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="420"/>
+        <source>Failed to prepare audio for BPM measurement.</source>
+        <translation>BPM 測定用の音声を準備できませんでした。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="446"/>
+        <source>(supported)</source>
+        <translation>（十分）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="447"/>
+        <source>(uncertain)</source>
+        <translation>（不確実）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="452"/>
+        <source>No stable recommendation</source>
+        <translation>安定した推奨値なし</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="456"/>
+        <source>Cancelled</source>
+        <translation>キャンセル済み</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="460"/>
+        <source>Unavailable</source>
+        <translation>利用不可</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="470"/>
+        <source>AutoTiming 2 matches measured BPM x%1 (a power-of-two tempo relation). You can use the existing x%1 button.</source>
+        <translation>AutoTiming 2 は測定 BPM の x%1 倍と一致します（2 の累乗テンポ関係）。既存の x%1 ボタンを使用できます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="472"/>
+        <source>AutoTiming 2 is numerically close to measured BPM x%1. Use the existing x%1 button only if that grid is intended.</source>
+        <translation>AutoTiming 2 は数値上、測定 BPM の x%1 倍に近い値です。そのグリッドを意図している場合のみ、既存の x%1 ボタンを使用してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="483"/>
+        <source>Measurement complete. Review the AutoTiming 2 suggestion before applying.</source>
+        <translation>測定が完了しました。適用前に AutoTiming 2 の推奨値を確認してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="485"/>
+        <source>Legacy measurement complete; AutoTiming 2 has no usable suggestion.</source>
+        <translation>従来版の測定が完了しました。AutoTiming 2 に利用可能な推奨値はありません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="487"/>
+        <source>Legacy measurement unavailable; AutoTiming 2 suggestion is ready for review.</source>
+        <translation>従来版の測定は利用できません。AutoTiming 2 の推奨値を確認できます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="489"/>
+        <source>Analysis complete, but no reliable BPM result was found.</source>
+        <translation>分析は完了しましたが、信頼できる BPM 結果が見つかりませんでした。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="506"/>
+        <source>Measurement Expired</source>
+        <translation>測定結果の期限切れ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="507"/>
+        <source>The chart changed after measurement. No timing data was written.</source>
+        <translation>測定後に譜面が変更されたため、タイミングデータは書き込まれませんでした。</translation>
+    </message>
+    <message>
+        <source>Failed to measure BPM from audio.</source>
+        <translation type="vanished">オーディオからのBPM測定に失敗しました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="215"/>
         <source>Mode: </source>
         <translation>モード: </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="216"/>
         <source>From Song Start</source>
         <translation>曲の先頭から</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="216"/>
         <source>From Current Time</source>
         <translation>現在の時刻から</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="243"/>
         <source>Estimated BPM: </source>
-        <translation>推定BPM: </translation>
+        <translation type="vanished">推定BPM: </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="244"/>
         <source>Uncertainty (segment stddev): </source>
-        <translation>不確かさ (セグメント標準偏差): </translation>
+        <translation type="vanished">不確かさ (セグメント標準偏差): </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="246"/>
         <source>Estimated offset: </source>
-        <translation>推定オフセット: </translation>
+        <translation type="vanished">推定オフセット: </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="246"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="225"/>
         <source> ms</source>
         <translation> ミリ秒</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="247"/>
         <source>Segments:</source>
-        <translation>セグメント:</translation>
+        <translation type="vanished">セグメント:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="255"/>
         <source>bpm=</source>
-        <translation>bpm=</translation>
+        <translation type="vanished">bpm=</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="255"/>
         <source>, score=</source>
-        <translation>, スコア=</translation>
+        <translation type="vanished">, スコア=</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="257"/>
         <source>invalid</source>
-        <translation>無効</translation>
+        <translation type="vanished">無効</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="261"/>
         <source>Measurement complete.</source>
-        <translation>測定完了。</translation>
+        <translation type="vanished">測定完了。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="290"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="523"/>
         <source>Write BPM</source>
         <translation>BPMを書き込む</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="292"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="525"/>
         <source>Write measured BPM %1 at chart start (0:0/1)?</source>
         <translation>測定BPM %1 をチャート開始 (0:0/1) に書き込みますか？</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="293"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="526"/>
         <source>Write measured BPM %1 at current time?</source>
         <translation>測定BPM %1 を現在の時刻に書き込みますか？</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="343"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="365"/>
         <source>Duration must be greater than 0.</source>
         <translation>時間は0より大きくなければなりません。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="350"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="363"/>
+        <source>The chart changed. Reopen Measure BPM and try again.</source>
+        <translation>譜面が変更されました。BPM 測定を開き直して、もう一度お試しください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="366"/>
         <source>No audio file is linked to this chart.</source>
         <translation>このチャートにオーディオファイルがリンクされていません。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="363"/>
         <source>Audio BPM detection failed.</source>
-        <translation>オーディオBPM検出に失敗しました。</translation>
+        <translation type="vanished">オーディオBPM検出に失敗しました。</translation>
     </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="27"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="35"/>
         <source>Measure BPM</source>
         <translation>BPMを測定</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="34"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="42"/>
         <source>Current Time:</source>
         <translation>現在時刻:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="35"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="43"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="156"/>
         <source>Not set</source>
         <translation>未設定</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="43"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="51"/>
         <source>Measure Duration (seconds):</source>
         <translation>測定時間 (秒):</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="55"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="64"/>
         <source>Measure Mode:</source>
         <translation>測定モード:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="57"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="67"/>
         <source>From Song Start</source>
         <translation>曲の先頭から</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="58"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="68"/>
         <source>From Current Time</source>
         <translation>現在の時刻から</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="67"/>
-        <source>Measured BPM:</source>
-        <translation>測定BPM:</translation>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="77"/>
+        <source>Measured BPM (legacy):</source>
+        <translation>測定 BPM（従来版）：</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="70"/>
+        <source>Measured BPM:</source>
+        <translation type="vanished">測定BPM:</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="81"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="367"/>
         <source>Click &apos;Measure&apos; to start</source>
         <translation>「測定」をクリックして開始</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="74"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="85"/>
         <source>x2</source>
         <translation>x2</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="76"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="88"/>
         <source>x3</source>
         <translation>x3</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="78"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="91"/>
         <source>x4</source>
         <translation>x4</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="80"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="94"/>
         <source>x6</source>
         <translation>x6</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="82"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="97"/>
         <source>x8</source>
         <translation>x8</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="91"/>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="235"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="110"/>
+        <source>AutoTiming 2 suggestion:</source>
+        <translation>AutoTiming 2 の推奨値：</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="114"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="369"/>
+        <source>Not analyzed yet</source>
+        <translation>未分析</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="115"/>
+        <source>Use suggestion</source>
+        <translation>推奨値を使用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="129"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="466"/>
         <source>Ready.</source>
         <translation>準備完了。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="102"/>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="205"/>
-        <source>No segment data yet.</source>
-        <translation>セグメントデータがまだありません。</translation>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="141"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="333"/>
+        <source>No analysis yet.</source>
+        <translation>まだ分析されていません。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="106"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="274"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="302"/>
+        <source>Unavailable</source>
+        <translation>利用不可</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="285"/>
+        <source>No stable recommendation</source>
+        <translation>安定した推奨値なし</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="290"/>
+        <source> BPM</source>
+        <translation> BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="346"/>
+        <source>Measuring...</source>
+        <translation>測定中...</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="348"/>
+        <source>Analyzing...</source>
+        <translation>分析中...</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="356"/>
+        <source>Analyzing legacy timing and AutoTiming 2 evidence...</source>
+        <translation>従来版タイミングと AutoTiming 2 の根拠を分析中...</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="371"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="377"/>
+        <source>Measurement settings changed. Measure again.</source>
+        <translation>測定設定が変更されました。もう一度測定してください。</translation>
+    </message>
+    <message>
+        <source>No segment data yet.</source>
+        <translation type="vanished">セグメントデータがまだありません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="145"/>
         <source>Measure</source>
         <translation>測定</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="111"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="150"/>
         <source>BPM to Add:</source>
         <translation>追加するBPM:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="122"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="163"/>
         <source>Offset to Apply:</source>
         <translation>適用するオフセット:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="127"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="169"/>
         <source>Apply offset</source>
         <translation>オフセットを適用</translation>
     </message>

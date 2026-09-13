@@ -36,6 +36,7 @@ namespace
         out.rawBpm = c.rawBpm;
         out.periodSeconds = c.periodSeconds;
         out.pulseTimeSeconds = c.pulseTimeSeconds;
+        out.hasPulseTime = true;
         out.legacyOffsetMilliseconds = c.legacyOffsetMilliseconds;
         out.rawBpmUncertainty = c.rawBpmUncertainty;
         out.phaseConfidence = c.phaseConfidence;
@@ -165,8 +166,6 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
                 out.memberCandidateIndices.append(qsizetype(i));
             outSummary.tempoFamilies.append(out);
         }
-        // __CHUNK_B__
-
         outSummary.tempoTrack = mapTrack(result.tempoTrack);
 
         outSummary.tempoHypotheses.reserve(result.tempoHypotheses.size());
@@ -225,8 +224,6 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
                 out.supportingWindowIds.append(qsizetype(w));
             outSummary.anchors.append(out);
         }
-        // __CHUNK_C__
-
         outSummary.windows.reserve(result.diagnostics.windows.size());
         for (const autotiming::AnalysisWindow &w : result.diagnostics.windows)
         {
@@ -280,5 +277,59 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
         if (outError)
             *outError = QStringLiteral("AutoTiming 2 分析异常：未知错误。");
         return false;
+    }
+}
+
+void AutoTiming2Bridge::translateTimeline(AutoTiming2Summary &summary, double offsetSeconds)
+{
+    if (offsetSeconds == 0.0)
+        return;
+
+    const auto translateTrack = [offsetSeconds](QVector<AutoTiming2TrackPoint> &track)
+    {
+        for (AutoTiming2TrackPoint &point : track)
+        {
+            point.timeSeconds += offsetSeconds;
+            point.pulseTimeSeconds += offsetSeconds;
+        }
+    };
+
+    // Global candidates currently carry tempo only. If the bridge gains a
+    // phase-bearing global candidate later, hasPulseTime makes the translation
+    // explicit instead of turning a default zero into a fake pulse position.
+    for (AutoTiming2Candidate &candidate : summary.tempoCandidates)
+    {
+        if (candidate.hasPulseTime)
+            candidate.pulseTimeSeconds += offsetSeconds;
+    }
+
+    translateTrack(summary.tempoTrack);
+    for (AutoTiming2Hypothesis &hypothesis : summary.tempoHypotheses)
+        translateTrack(hypothesis.track);
+
+    for (AutoTiming2Layer &layer : summary.periodicityLayers)
+    {
+        layer.startSeconds += offsetSeconds;
+        layer.endSeconds += offsetSeconds;
+    }
+    for (AutoTiming2Region &region : summary.uncertainRegions)
+    {
+        region.startSeconds += offsetSeconds;
+        region.endSeconds += offsetSeconds;
+    }
+    for (AutoTiming2Anchor &anchor : summary.anchors)
+    {
+        anchor.startSeconds += offsetSeconds;
+        anchor.endSeconds += offsetSeconds;
+    }
+    for (AutoTiming2Window &window : summary.windows)
+    {
+        window.startSeconds += offsetSeconds;
+        window.endSeconds += offsetSeconds;
+        for (AutoTiming2Candidate &candidate : window.tempoCandidates)
+        {
+            if (candidate.hasPulseTime)
+                candidate.pulseTimeSeconds += offsetSeconds;
+        }
     }
 }

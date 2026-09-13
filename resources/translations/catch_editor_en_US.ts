@@ -42,263 +42,536 @@
 <context>
     <name>BPMTimePanel</name>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="42"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="397"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="46"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="594"/>
         <source>Time:</source>
         <translation>Time:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="45"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="407"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="49"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="604"/>
         <source>e.g. 0:1/1</source>
         <translation>e.g. 0:1/1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="50"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="399"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="54"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="596"/>
         <source>BPM:</source>
         <translation>BPM:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="60"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="401"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="64"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="598"/>
         <source>Add/Update</source>
         <translation>Add/Update</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="61"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="403"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="65"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="600"/>
         <source>Remove</source>
         <translation>Remove</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="69"/>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="405"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="73"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="602"/>
         <source>Measure BPM...</source>
         <translation>Measure BPM...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="194"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="204"/>
+        <source>%1-%2 s</source>
+        <translation>%1-%2 s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="209"/>
+        <source>+%1 more</source>
+        <translation>+%1 more</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="210"/>
+        <source>none</source>
+        <translation>none</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="217"/>
+        <source>Analysis starts at audio time: </source>
+        <translation>Analysis starts at audio time: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="218"/>
+        <source> s</source>
+        <translation> s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="222"/>
+        <source>Legacy BPM: </source>
+        <translation>Legacy BPM: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="224"/>
+        <source>Legacy offset: </source>
+        <translation>Legacy offset: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="229"/>
+        <source>Legacy BPM: unavailable</source>
+        <translation>Legacy BPM: unavailable</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="231"/>
+        <source>Legacy reason: </source>
+        <translation>Legacy reason: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="243"/>
+        <source>AutoTiming 2 recommendation: </source>
+        <translation>AutoTiming 2 recommendation: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="244"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="257"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="263"/>
+        <source> BPM</source>
+        <translation> BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="245"/>
+        <source>Evidence: </source>
+        <translation>Evidence: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="247"/>
+        <source>supported</source>
+        <translation>supported</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="248"/>
+        <source>uncertain</source>
+        <translation>uncertain</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="256"/>
+        <source>Power-of-two tempo family: </source>
+        <translation>Power-of-two tempo family: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="261"/>
+        <source>Power-of-two tempo family reference: </source>
+        <translation>Power-of-two tempo family reference: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="268"/>
+        <source>AutoTiming 2 recommendation: no stable candidate</source>
+        <translation>AutoTiming 2 recommendation: no stable candidate</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="269"/>
+        <source>Evidence: uncertain</source>
+        <translation>Evidence: uncertain</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="273"/>
+        <source>Confidence - overall: %1, tempo: %2, family: %3</source>
+        <translation>Confidence - overall: %1, tempo: %2, family: %3</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="278"/>
+        <source>Reliable coverage: </source>
+        <translation>Reliable coverage: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="279"/>
+        <source>Reliable sections: </source>
+        <translation>Reliable sections: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="280"/>
+        <source>Uncertain sections: </source>
+        <translation>Uncertain sections: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="284"/>
+        <source>AutoTiming 2: unavailable</source>
+        <translation>AutoTiming 2: unavailable</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="286"/>
+        <source>AutoTiming 2 reason: </source>
+        <translation>AutoTiming 2 reason: </translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="289"/>
+        <source>AutoTiming 2: cancelled</source>
+        <translation>AutoTiming 2: cancelled</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="292"/>
+        <source>AutoTiming 2: not run</source>
+        <translation>AutoTiming 2: not run</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="320"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="380"/>
         <source>%1 ms</source>
         <translation>%1 ms</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="197"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="323"/>
         <source>Ready to measure.</source>
         <translation>Ready to measure.</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="201"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="346"/>
         <source>Measuring audio...</source>
         <translation>Measuring audio...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="209"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="359"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="416"/>
         <source>Measurement failed.</source>
         <translation>Measurement failed.</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="210"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="361"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="419"/>
         <source>Measurement Failed</source>
         <translation>Measurement Failed</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="211"/>
-        <source>Failed to measure BPM from audio.</source>
-        <translation>Failed to measure BPM from audio.</translation>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="408"/>
+        <source>Chart changed; result discarded.</source>
+        <translation>Chart changed; result discarded.</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="241"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="409"/>
+        <source>The chart or linked audio changed while analysis was running. Measure again.</source>
+        <translation>The chart or linked audio changed while analysis was running. Measure again.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="420"/>
+        <source>Failed to prepare audio for BPM measurement.</source>
+        <translation>Failed to prepare audio for BPM measurement.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="446"/>
+        <source>(supported)</source>
+        <translation>(supported)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="447"/>
+        <source>(uncertain)</source>
+        <translation>(uncertain)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="452"/>
+        <source>No stable recommendation</source>
+        <translation>No stable recommendation</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="456"/>
+        <source>Cancelled</source>
+        <translation>Cancelled</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="460"/>
+        <source>Unavailable</source>
+        <translation>Unavailable</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="470"/>
+        <source>AutoTiming 2 matches measured BPM x%1 (a power-of-two tempo relation). You can use the existing x%1 button.</source>
+        <translation>AutoTiming 2 matches measured BPM x%1 (a power-of-two tempo relation). You can use the existing x%1 button.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="472"/>
+        <source>AutoTiming 2 is numerically close to measured BPM x%1. Use the existing x%1 button only if that grid is intended.</source>
+        <translation>AutoTiming 2 is numerically close to measured BPM x%1. Use the existing x%1 button only if that grid is intended.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="483"/>
+        <source>Measurement complete. Review the AutoTiming 2 suggestion before applying.</source>
+        <translation>Measurement complete. Review the AutoTiming 2 suggestion before applying.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="485"/>
+        <source>Legacy measurement complete; AutoTiming 2 has no usable suggestion.</source>
+        <translation>Legacy measurement complete; AutoTiming 2 has no usable suggestion.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="487"/>
+        <source>Legacy measurement unavailable; AutoTiming 2 suggestion is ready for review.</source>
+        <translation>Legacy measurement unavailable; AutoTiming 2 suggestion is ready for review.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="489"/>
+        <source>Analysis complete, but no reliable BPM result was found.</source>
+        <translation>Analysis complete, but no reliable BPM result was found.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="506"/>
+        <source>Measurement Expired</source>
+        <translation>Measurement Expired</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="507"/>
+        <source>The chart changed after measurement. No timing data was written.</source>
+        <translation>The chart changed after measurement. No timing data was written.</translation>
+    </message>
+    <message>
+        <source>Failed to measure BPM from audio.</source>
+        <translation type="vanished">Failed to measure BPM from audio.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="215"/>
         <source>Mode: </source>
         <translation>Mode: </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="216"/>
         <source>From Song Start</source>
         <translation>From Song Start</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="242"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="216"/>
         <source>From Current Time</source>
         <translation>From Current Time</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="243"/>
         <source>Estimated BPM: </source>
-        <translation>Estimated BPM: </translation>
+        <translation type="vanished">Estimated BPM: </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="244"/>
         <source>Uncertainty (segment stddev): </source>
-        <translation>Uncertainty (segment stddev): </translation>
+        <translation type="vanished">Uncertainty (segment stddev): </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="246"/>
         <source>Estimated offset: </source>
-        <translation>Estimated offset: </translation>
+        <translation type="vanished">Estimated offset: </translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="246"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="225"/>
         <source> ms</source>
         <translation> ms</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="247"/>
         <source>Segments:</source>
-        <translation>Segments:</translation>
+        <translation type="vanished">Segments:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="255"/>
         <source>bpm=</source>
-        <translation>bpm=</translation>
+        <translation type="vanished">bpm=</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="255"/>
         <source>, score=</source>
-        <translation>, score=</translation>
+        <translation type="vanished">, score=</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="257"/>
         <source>invalid</source>
-        <translation>invalid</translation>
+        <translation type="vanished">invalid</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="261"/>
         <source>Measurement complete.</source>
-        <translation>Measurement complete.</translation>
+        <translation type="vanished">Measurement complete.</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="290"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="523"/>
         <source>Write BPM</source>
         <translation>Write BPM</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="292"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="525"/>
         <source>Write measured BPM %1 at chart start (0:0/1)?</source>
         <translation>Write measured BPM %1 at chart start (0:0/1)?</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="293"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="526"/>
         <source>Write measured BPM %1 at current time?</source>
         <translation>Write measured BPM %1 at current time?</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="343"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="365"/>
         <source>Duration must be greater than 0.</source>
         <translation>Duration must be greater than 0.</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="350"/>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="363"/>
+        <source>The chart changed. Reopen Measure BPM and try again.</source>
+        <translation>The chart changed. Reopen Measure BPM and try again.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="366"/>
         <source>No audio file is linked to this chart.</source>
         <translation>No audio file is linked to this chart.</translation>
     </message>
     <message>
-        <location filename="../../src/ui/BPMTimePanel.cpp" line="363"/>
         <source>Audio BPM detection failed.</source>
-        <translation>Audio BPM detection failed.</translation>
+        <translation type="vanished">Audio BPM detection failed.</translation>
     </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="27"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="35"/>
         <source>Measure BPM</source>
         <translation>Measure BPM</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="34"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="42"/>
         <source>Current Time:</source>
         <translation>Current Time:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="35"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="43"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="156"/>
         <source>Not set</source>
         <translation>Not set</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="43"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="51"/>
         <source>Measure Duration (seconds):</source>
         <translation>Measure Duration (seconds):</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="55"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="64"/>
         <source>Measure Mode:</source>
         <translation>Measure Mode:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="57"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="67"/>
         <source>From Song Start</source>
         <translation>From Song Start</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="58"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="68"/>
         <source>From Current Time</source>
         <translation>From Current Time</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="67"/>
-        <source>Measured BPM:</source>
-        <translation>Measured BPM:</translation>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="77"/>
+        <source>Measured BPM (legacy):</source>
+        <translation>Measured BPM (legacy):</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="70"/>
+        <source>Measured BPM:</source>
+        <translation type="vanished">Measured BPM:</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="81"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="367"/>
         <source>Click &apos;Measure&apos; to start</source>
         <translation>Click &apos;Measure&apos; to start</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="74"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="85"/>
         <source>x2</source>
         <translation>x2</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="76"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="88"/>
         <source>x3</source>
         <translation>x3</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="78"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="91"/>
         <source>x4</source>
         <translation>x4</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="80"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="94"/>
         <source>x6</source>
         <translation>x6</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="82"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="97"/>
         <source>x8</source>
         <translation>x8</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="91"/>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="235"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="110"/>
+        <source>AutoTiming 2 suggestion:</source>
+        <translation>AutoTiming 2 suggestion:</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="114"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="369"/>
+        <source>Not analyzed yet</source>
+        <translation>Not analyzed yet</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="115"/>
+        <source>Use suggestion</source>
+        <translation>Use suggestion</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="129"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="466"/>
         <source>Ready.</source>
         <translation>Ready.</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="102"/>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="205"/>
-        <source>No segment data yet.</source>
-        <translation>No segment data yet.</translation>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="141"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="333"/>
+        <source>No analysis yet.</source>
+        <translation>No analysis yet.</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="106"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="274"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="302"/>
+        <source>Unavailable</source>
+        <translation>Unavailable</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="285"/>
+        <source>No stable recommendation</source>
+        <translation>No stable recommendation</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="290"/>
+        <source> BPM</source>
+        <translation> BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="346"/>
+        <source>Measuring...</source>
+        <translation>Measuring...</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="348"/>
+        <source>Analyzing...</source>
+        <translation>Analyzing...</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="356"/>
+        <source>Analyzing legacy timing and AutoTiming 2 evidence...</source>
+        <translation>Analyzing legacy timing and AutoTiming 2 evidence...</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="371"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="377"/>
+        <source>Measurement settings changed. Measure again.</source>
+        <translation>Measurement settings changed. Measure again.</translation>
+    </message>
+    <message>
+        <source>No segment data yet.</source>
+        <translation type="vanished">No segment data yet.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="145"/>
         <source>Measure</source>
         <translation>Measure</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="111"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="150"/>
         <source>BPM to Add:</source>
         <translation>BPM to Add:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="122"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="163"/>
         <source>Offset to Apply:</source>
         <translation>Offset to Apply:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="127"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="169"/>
         <source>Apply offset</source>
         <translation>Apply offset</translation>
     </message>

@@ -193,60 +193,91 @@ namespace
             return false;
         }
     }
-    static bool runDetectionPipeline(const QString &audioFilePath,
-                                     double startMs,
-                                     double durationMs,
-                                     BpmDetector::DetectionResult &outResult,
-                                     bool runAnalysis,
-                                     const AutoTiming2Options &analysisOptions,
-                                     QString *outError,
-                                     std::atomic<bool> *cancelFlag)
+    static void markEarlyCancellation(BpmDetector::DetectionResult &outResult,
+                                      bool runAnalysis,
+                                      const QString &message)
+    {
+        outResult.legacyStatus = BpmDetector::LegacyStatus::Cancelled;
+        outResult.legacyError = message;
+        if (runAnalysis)
+        {
+            outResult.analysisStatus = BpmDetector::AnalysisStatus::Cancelled;
+            outResult.analysisError = message;
+        }
+    }
+
+    static bool runMonoPipeline(const QVector<float> &mono,
+                                int sampleRate,
+                                double analysisStartMs,
+                                BpmDetector::DetectionResult &outResult,
+                                bool runAnalysis,
+                                const AutoTiming2Options &analysisOptions,
+                                QString *outError,
+                                std::atomic<bool> *cancelFlag)
     {
         outResult = BpmDetector::DetectionResult();
-        if (audioFilePath.isEmpty())
-        {
-            if (outError)
-                *outError = "Audio path is empty.";
-            return false;
-        }
-        if (durationMs <= 0.0)
-        {
-            if (outError)
-                *outError = "Duration must be > 0.";
-            return false;
-        }
+        if (outError)
+            outError->clear();
 
-        const double maxDurationMs = 120000.0;
-        if (durationMs > maxDurationMs)
-            durationMs = maxDurationMs;
+        if (mono.isEmpty())
+        {
+            if (outError)
+                *outError = QStringLiteral("Audio PCM is empty.");
+            return false;
+        }
+        if (sampleRate <= 0)
+        {
+            if (outError)
+                *outError = QStringLiteral("Audio sample rate must be > 0.");
+            return false;
+        }
+        if (!qIsFinite(analysisStartMs))
+        {
+            if (outError)
+                *outError = QStringLiteral("Analysis start time must be finite.");
+            return false;
+        }
+        outResult.analysisStartMs = qMax(0.0, analysisStartMs);
 
         if (cancelFlag && cancelFlag->load())
         {
+            const QString message = QStringLiteral("操作已取消。");
+            markEarlyCancellation(outResult, runAnalysis, message);
             if (outError)
-                *outError = QStringLiteral("操作已取消。");
+                *outError = message;
             return false;
         }
 
-        QVector<float> mono;
-        int sampleRate = 0;
-        if (!decodeMonoRange(audioFilePath, startMs, durationMs, mono, sampleRate, outError))
-            return false;
-
-        if (!detectByMalodyCore(mono, sampleRate, outResult, outError))
-            return false;
+        QString legacyError;
+        if (detectByMalodyCore(mono, sampleRate, outResult, &legacyError))
+        {
+            outResult.legacyStatus = BpmDetector::LegacyStatus::Succeeded;
+        }
+        else
+        {
+            outResult.legacyStatus = BpmDetector::LegacyStatus::Failed;
+            outResult.legacyError = legacyError.isEmpty()
+                                        ? QStringLiteral("Legacy AutoTiming returned no result.")
+                                        : legacyError;
+        }
 
         if (!runAnalysis)
-            return true;
+        {
+            if (!outResult.hasLegacyResult() && outError)
+                *outError = outResult.legacyError;
+            return outResult.hasLegacyResult();
+        }
 
-        // AutoTiming 2 analysis. Reuse the same linear resampler as the legacy
-        // path so analyze() never receives an unsupported sample rate.
         if (cancelFlag && cancelFlag->load())
         {
             outResult.analysisStatus = BpmDetector::AnalysisStatus::Cancelled;
-            outResult.analysisError = QStringLiteral("AutoTiming 2 分析已取消（legacy 结果已完成）。");
-            return true; // keep the legacy result
+            outResult.analysisError = QStringLiteral("AutoTiming 2 分析已取消（legacy 阶段已完成）。");
+            return true;
         }
 
+        // Keep the legacy input path frozen. V2 derives its supported-rate PCM
+        // independently from the same decoded mono buffer, so adding analysis
+        // cannot change legacy sample-rate or resampling behavior.
         int useRate = sampleRate;
         QVector<float> work = mono;
         if (useRate != 32000 && useRate != 44100 && useRate != 48000)
@@ -259,19 +290,82 @@ namespace
         QString analysisError;
         if (AutoTiming2Bridge::analyzeMono(work, useRate, analysisOptions, summary, &analysisError))
         {
+            AutoTiming2Bridge::translateTimeline(summary, outResult.analysisStartMs / 1000.0);
             outResult.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
-            outResult.hasAnalysis = true;
             outResult.analysis = summary;
         }
         else
         {
-            // Analysis abstain/failure must not invalidate the legacy result,
-            // but the reason must stay observable: surface it as Failed with
-            // the bridge error instead of silently dropping it.
             outResult.analysisStatus = BpmDetector::AnalysisStatus::Failed;
-            outResult.analysisError = analysisError;
+            outResult.analysisError = analysisError.isEmpty()
+                                          ? QStringLiteral("AutoTiming 2 analysis failed.")
+                                          : analysisError;
         }
+
+        // Reaching both independent stages means the rich public operation
+        // completed. Callers must inspect the stage statuses and evidence;
+        // this bool intentionally does not mean "tempo detected".
         return true;
+    }
+
+    static bool runDetectionPipeline(const QString &audioFilePath,
+                                     double startMs,
+                                     double durationMs,
+                                     BpmDetector::DetectionResult &outResult,
+                                     bool runAnalysis,
+                                     const AutoTiming2Options &analysisOptions,
+                                     QString *outError,
+                                     std::atomic<bool> *cancelFlag)
+    {
+        outResult = BpmDetector::DetectionResult();
+        if (outError)
+            outError->clear();
+
+        if (audioFilePath.isEmpty())
+        {
+            if (outError)
+                *outError = QStringLiteral("Audio path is empty.");
+            return false;
+        }
+        if (!qIsFinite(startMs))
+        {
+            if (outError)
+                *outError = QStringLiteral("Start time must be finite.");
+            return false;
+        }
+        if (!qIsFinite(durationMs) || durationMs <= 0.0)
+        {
+            if (outError)
+                *outError = QStringLiteral("Duration must be finite and > 0.");
+            return false;
+        }
+
+        const double maxDurationMs = 120000.0;
+        durationMs = qMin(durationMs, maxDurationMs);
+        const double clampedStartMs = qMax(0.0, startMs);
+
+        if (cancelFlag && cancelFlag->load())
+        {
+            const QString message = QStringLiteral("操作已取消。");
+            markEarlyCancellation(outResult, runAnalysis, message);
+            if (outError)
+                *outError = message;
+            return false;
+        }
+
+        QVector<float> mono;
+        int sampleRate = 0;
+        if (!decodeMonoRange(audioFilePath, clampedStartMs, durationMs, mono, sampleRate, outError))
+            return false;
+
+        return runMonoPipeline(mono,
+                               sampleRate,
+                               clampedStartMs,
+                               outResult,
+                               runAnalysis,
+                               analysisOptions,
+                               outError,
+                               cancelFlag);
     }
 } // namespace
 
@@ -312,6 +406,38 @@ bool BpmDetector::analyzeFromFileDetailed(const QString &audioFilePath,
     return runDetectionPipeline(audioFilePath, startMs, durationMs, outResult,
                                 /*runAnalysis=*/true, analysisOptions,
                                 outError, /*cancelFlag=*/nullptr);
+}
+
+bool BpmDetector::detectFromMonoDetailed(const QVector<float> &mono,
+                                         int sampleRate,
+                                         DetectionResult &outResult,
+                                         QString *outError)
+{
+    return runMonoPipeline(mono,
+                           sampleRate,
+                           /*analysisStartMs=*/0.0,
+                           outResult,
+                           /*runAnalysis=*/false,
+                           AutoTiming2Options{},
+                           outError,
+                           /*cancelFlag=*/nullptr);
+}
+
+bool BpmDetector::analyzeFromMonoDetailed(const QVector<float> &mono,
+                                          int sampleRate,
+                                          double analysisStartMs,
+                                          DetectionResult &outResult,
+                                          QString *outError,
+                                          const AutoTiming2Options &analysisOptions)
+{
+    return runMonoPipeline(mono,
+                           sampleRate,
+                           analysisStartMs,
+                           outResult,
+                           /*runAnalysis=*/true,
+                           analysisOptions,
+                           outError,
+                           /*cancelFlag=*/nullptr);
 }
 
 void BpmDetector::detectFromFileDetailedAsync(QObject *context,
