@@ -1,5 +1,5 @@
 #include "BpmDetector.h"
-#include "autotiming/AutoTiming.h"
+#include "AutoTiming.h"
 #include <QAudioBuffer>
 #include <QAudioDecoder>
 #include <QAudioFormat>
@@ -168,7 +168,8 @@ namespace
         {
             const char *buf = reinterpret_cast<const char *>(work.constData());
             const uint32_t sizeBytes = static_cast<uint32_t>(work.size() * static_cast<int>(sizeof(float)));
-            const AutoTiming::Result ret = AutoTiming::detect(buf, sizeBytes, kFmtPcmFloat, useRate, 1);
+            const AutoTiming::AutoTimingResult ret =
+                AutoTiming::detect(buf, sizeBytes, kFmtPcmFloat, useRate, 1);
             if (!(ret.bpm > 0.0))
             {
                 if (outError)

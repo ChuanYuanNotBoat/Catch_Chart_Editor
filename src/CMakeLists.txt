@@ -90,59 +90,6 @@ set_source_files_properties(
     PROPERTIES COMPILE_OPTIONS "/utf-8"
 )
 
-# ---- Vendored AutoTimingCore (upstream=90f7a95, see docs/AUTOTIMING_VENDORING.md) ----
-# Malody legacy AutoTiming baseline, kept as a static library with the CCE host
-# adaptations (Result naming, k* constants, full FMOD format enum).
-set(AUTOTIMING_LEGACY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/audio/autotiming)
-add_library(autotiming_legacy STATIC
-    ${AUTOTIMING_LEGACY_DIR}/AutoTiming.cpp
-    ${AUTOTIMING_LEGACY_DIR}/AutoTiming.h
-    ${AUTOTIMING_LEGACY_DIR}/dsp.cpp
-    ${AUTOTIMING_LEGACY_DIR}/dsp.h
-    ${AUTOTIMING_LEGACY_DIR}/fft.cpp
-    ${AUTOTIMING_LEGACY_DIR}/fft.h
-    ${AUTOTIMING_LEGACY_DIR}/platform.h
-    ${AUTOTIMING_LEGACY_DIR}/util.cpp
-    ${AUTOTIMING_LEGACY_DIR}/util.h
-)
-target_include_directories(autotiming_legacy PUBLIC
-    "$<BUILD_INTERFACE:${AUTOTIMING_LEGACY_DIR}>"
-)
-target_compile_features(autotiming_legacy PUBLIC cxx_std_17)
-if(MSVC)
-    # /EHsc: vendored legacy code and the analysis core use exceptions for
-    # error/abstain signalling; the host project omits /EHsc by default.
-    # /W3 matches the upstream AutoTimingCore CMakeLists for the legacy set.
-    target_compile_options(autotiming_legacy PRIVATE /W3 /permissive- /utf-8 /EHsc)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
-    target_compile_options(autotiming_legacy PRIVATE -msse2 -mfpmath=sse)
-endif()
-
-# AutoTiming 2 analysis pipeline (autotiming::analyze), vendored verbatim from
-# upstream AutoTimingCore@90f7a95 under src/audio/autotiming/core/.
-set(AUTOTIMING_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/audio/autotiming/core)
-add_library(autotiming_core STATIC
-    ${AUTOTIMING_CORE_DIR}/include/autotiming/Analysis.h
-    ${AUTOTIMING_CORE_DIR}/src/Analysis.cpp
-    ${AUTOTIMING_CORE_DIR}/src/Periodicity.cpp
-    ${AUTOTIMING_CORE_DIR}/src/Periodicity.h
-    ${AUTOTIMING_CORE_DIR}/src/RhythmLayers.cpp
-    ${AUTOTIMING_CORE_DIR}/src/RhythmLayers.h
-    ${AUTOTIMING_CORE_DIR}/src/TempoTracker.cpp
-    ${AUTOTIMING_CORE_DIR}/src/TempoTracker.h
-)
-target_include_directories(autotiming_core PUBLIC
-    "$<BUILD_INTERFACE:${AUTOTIMING_CORE_DIR}/include>"
-)
-target_link_libraries(autotiming_core PRIVATE autotiming_legacy)
-target_compile_features(autotiming_core PUBLIC cxx_std_17)
-if(MSVC)
-    # /W4 matches the upstream AutoTimingCore CMakeLists for the analysis core.
-    target_compile_options(autotiming_core PRIVATE /W4 /permissive- /utf-8 /EHsc)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
-    target_compile_options(autotiming_core PRIVATE -msse2 -mfpmath=sse)
-endif()
-
 qt_add_executable(CatchChartEditor
     MANUAL_FINALIZATION
     ${SOURCES}
@@ -156,7 +103,8 @@ target_link_libraries(CatchChartEditor
     Qt6::Concurrent
     ads::qtadvanceddocking-qt6
     Vorbis::vorbis
-    autotiming_core
+    AutoTimingCore::core
+    AutoTimingCore::legacy
 )
 
 if(WIN32)
@@ -231,6 +179,11 @@ add_custom_command(TARGET CatchChartEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/third_party/libvorbis/COPYING
         $<TARGET_FILE_DIR:CatchChartEditor>/licenses/libvorbis
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        $<TARGET_FILE_DIR:CatchChartEditor>/notices/AutoTimingCore
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/third_party/AutoTimingCore/ATTRIBUTION.md
+        $<TARGET_FILE_DIR:CatchChartEditor>/notices/AutoTimingCore
 )
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/resources/note_sounds")

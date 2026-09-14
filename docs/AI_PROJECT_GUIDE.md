@@ -16,6 +16,7 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 - `.mc` JSON 必须保持 Malody 兼容，编辑器扩展数据只能写入 sidecar。
 - 当前曲线编辑器是内部 C++ 模块，不是 Python 插件。
 - 面板系统使用 vendored Qt Advanced Docking System 5.1.1。
+- BPM/AutoTiming 使用固定提交的 `third_party/AutoTimingCore` Git submodule；构建前必须初始化。
 - 用户已有工作区可能包含未提交修改；修改前必须检查 Git 状态并保留无关变更。
 - 未来架构以 [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) 为准：先在 CCE 仓库内成熟文档/图层边界，再考虑核心拆仓；父目录中的旧 core/mobile 尝试当前不是本仓库依赖或行为事实来源。
 
@@ -27,10 +28,10 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 | UI | Qt 6 Widgets |
 | 音频 | Qt 6 Multimedia |
 | 后台任务 | Qt 6 Concurrent（当前用于全谱统计快照） |
-| 构建 | CMake 3.16+ |
+| 构建 | CMake 3.20+ |
 | 面板 | Qt Advanced Docking System 5.1.1（静态 vendored） |
 | 翻译 | Qt Linguist，`resources/translations/*.ts` |
-| 测试 | CTest + 两个独立测试可执行程序 |
+| 测试 | CTest；CCE 五项测试 + AutoTimingCore 四项上游回归 |
 | 桌面平台 | Windows 为主要验证平台；代码保留 macOS/Linux 支持 |
 
 主目标：
@@ -44,6 +45,7 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 Windows 多配置构建：
 
 ```powershell
+git submodule update --init --recursive
 cmake -S . -B build -DBUILD_TESTING=ON
 cmake --build build --config Debug --parallel
 ctest --test-dir build -C Debug --output-on-failure
@@ -82,6 +84,7 @@ cmake --build build --config Debug --target CatchChartEditor --parallel
 | `plugins/` | 运行时插件、同步脚本和样例 |
 | `tests/` | 核心与 ADS UI 回归测试 |
 | `third_party/QtAdvancedDockingSystem/` | vendored ADS 源码及 LGPL 文件 |
+| `third_party/AutoTimingCore/` | 固定提交的 AutoTimingCore submodule；提供 legacy 与 V2 CMake targets |
 
 ## 5. 运行时数据流
 

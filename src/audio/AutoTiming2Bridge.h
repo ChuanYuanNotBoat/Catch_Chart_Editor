@@ -9,10 +9,10 @@
 // ---------------------------------------------------------------------------
 // AutoTiming2Bridge
 //
-// CCE-side adapter for the vendored AutoTiming 2 analysis core
-// (src/audio/autotiming/core, autotiming::analyze). The bridge mirrors the
+// CCE-side adapter for the pinned AutoTimingCore submodule
+// (third_party/AutoTimingCore, autotiming::analyze). The bridge mirrors the
 // upstream contract into Qt-friendly PODs so UI/tests do not need to include
-// vendored headers, and maps upstream exceptions into QString errors.
+// dependency headers, and maps upstream exceptions into QString errors.
 //
 // Semantics preserved from the upstream contract (docs/AUTOTIMING_2_DESIGN.md):
 //   - pulseTimeSeconds is an absolute time on the supplied AudioView timeline,

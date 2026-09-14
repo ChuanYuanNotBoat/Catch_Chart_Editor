@@ -1,0 +1,3 @@
+[submodule "third_party/AutoTimingCore"]
+	path = third_party/AutoTimingCore
+	url = https://github.com/ChuanYuanNotBoat/AutoTimingCore.git

@@ -51,11 +51,19 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 ### Requirements
 
-- CMake 3.16+
+- CMake 3.20+
 - C++17 compiler
 - Qt 6 components: Core, Widgets, Multimedia, Concurrent, LinguistTools, Test
 
-Qt Advanced Docking System 5.1.1 is vendored in `third_party/QtAdvancedDockingSystem`; building does not download it from the network.
+Qt Advanced Docking System 5.1.1 is vendored in `third_party/QtAdvancedDockingSystem`.
+AutoTimingCore is pinned as a Git submodule in `third_party/AutoTimingCore`.
+Neither dependency is downloaded by CMake.
+
+After cloning, initialize submodules once:
+
+```powershell
+git submodule update --init --recursive
+```
 
 ### Windows / multi-config
 
@@ -80,7 +88,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Build output also receives the default skin, runtime plugins, documentation, note sounds when present, and ADS license files.
+Build output also receives the default skin, runtime plugins, documentation, note sounds when present, third-party license files, and the AutoTimingCore attribution notice.
 
 ## Quick start / 快速上手
 
@@ -108,7 +116,7 @@ src/audio/               playback, note sounds, BPM and AutoTiming
 tests/                   core and docking regression tests
 docs/                    user and developer documentation
 plugins/                 runtime plugins and SDK samples
-third_party/             vendored dependencies and their licenses
+third_party/             vendored dependencies and pinned submodules
 ```
 
 ## File compatibility / 文件兼容
@@ -124,5 +132,10 @@ See [docs/ARCHITECTURE_FORMAT_REFERENCE.md](docs/ARCHITECTURE_FORMAT_REFERENCE.m
 The project is licensed under GPL-3.0; see [LICENSE](LICENSE).
 
 Qt Advanced Docking System 5.1.1 is licensed under LGPL-2.1. Its source and license files are included in [third_party/QtAdvancedDockingSystem](third_party/QtAdvancedDockingSystem).
+
+AutoTimingCore is pinned at `90f7a9529e1bcdb15475bfa9db5d873b0a38f1e2`.
+Its Malody legacy source license is not confirmed; see
+[docs/AUTOTIMING_VENDORING.md](docs/AUTOTIMING_VENDORING.md) and the submodule's
+`ATTRIBUTION.md` before redistribution.
 
 Special thanks to **myhome** for the included skin: [skin page](https://m.mugzone.net/store/skin/detail/5982).

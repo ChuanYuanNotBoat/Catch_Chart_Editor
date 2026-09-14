@@ -1,50 +1,61 @@
-# AutoTiming vendoring notes
+# AutoTimingCore dependency notes
 
-本文件记录 CCE 内 vendored AutoTimingCore 代码的来源边界、版本钉扎与文件映射。它是来源说明，不是许可证；不自行授予、限制或改变任何代码的使用权利。
+本文件记录 CCE 使用 AutoTimingCore 的来源边界、版本钉扎与更新流程。它是来源说明，不是许可证；不自行授予、限制或改变任何代码的使用权利。
 
 ## 版本钉扎
 
-- 上游仓库：`E:\projects\tools\working\malody_tools\AutoTimingCore`（本地开发仓库）
-- 上游同步提交：`90f7a95`（master，`e7e4290` Initial import 之后 25 个提交）
-- 同步日期：2026-09-13
-- 同步方式：方案 A（vendored 拷贝，非 submodule）
-- 再同步流程固定为：fetch SHA → diff → 更新本映射表 → 跑双回归（legacy golden + 上游 4 项 + CCE 三项）→ 发版
+- 上游仓库：`https://github.com/ChuanYuanNotBoat/AutoTimingCore.git`
+- 子模块路径：`third_party/AutoTimingCore`
+- 固定提交：`90f7a9529e1bcdb15475bfa9db5d873b0a38f1e2`
+- 接入日期：2026-09-14
+- 接入方式：Git submodule；CCE 仓库的 gitlink 是唯一版本来源
 
-## 文件映射表（upstream → CCE）
+克隆后必须初始化子模块：
 
-| 上游 | CCE | 状态 |
-| --- | --- | --- |
-| `AutoTiming.cpp/.h`、`dsp.*`、`fft.*`、`util.*`、`platform.h` | `src/audio/autotiming/*` | 迁移+宿主适配版（非逐字节拷贝），算法与上游 90f7a95 token 级等价（2026-09-13 已核验，见下文） |
-| `include/autotiming/Analysis.h` | `src/audio/autotiming/core/include/autotiming/Analysis.h` | 原样拷贝（SHA256 校验一致） |
-| `src/Analysis.cpp`、`src/Periodicity.*`、`src/RhythmLayers.*`、`src/TempoTracker.*` | `src/audio/autotiming/core/src/` | 原样拷贝（SHA256 校验一致） |
-| `tests/legacy_baseline_tests.cpp`、`tests/analysis_tests.cpp`、`tests/phase_accuracy_tests.cpp` | `src/audio/autotiming/core/tests/` | 原样拷贝 |
-| `tools/autotiming_probe.cpp` | `src/audio/autotiming/core/tools/` | 原样拷贝 |
+```bash
+git submodule update --init --recursive
+```
 
-构建接线：`src/CMakeLists.txt` 定义 `autotiming_legacy`（legacy 基线，4 cpp）与 `autotiming_core`（AutoTiming 2 新增，PRIVATE link legacy）；根 `CMakeLists.txt` 在 `BUILD_TESTING` 下构建上游 3 个测试目标 + `autotiming_probe`（ctest：`autotiming.legacy.baseline`、`autotiming.analysis.evidence`、`autotiming.analysis.phase_accuracy`、`autotiming.probe.help`）。
+根 `CMakeLists.txt` 会在子模块未初始化时直接给出上述命令。CCE 直接消费上游导出的 `AutoTimingCore::legacy` 与 `AutoTimingCore::core` 目标，不再维护 `src/audio/autotiming` 的源码副本，也不再重复声明上游测试目标。
 
-## 本地宿主适配（legacy 基线）
+在 `BUILD_TESTING=ON` 时，上游仍由自己的 CMake 配置注册以下回归测试：
 
-本地 `src/audio/autotiming/` 不是逐字节同步上游，是"迁移 + 宿主适配"版本。与上游 90f7a95 的全部已知差异（2026-09-13 token 流对比核验，除下列各项外等价）：
+- `autotiming.legacy.baseline`
+- `autotiming.analysis.evidence`
+- `autotiming.analysis.phase_accuracy`
+- `autotiming.probe.help`
 
-- `AutoTiming::AutoTimingResult` → `AutoTiming::Result`（字段集完全一致）
-- `_flagFftInit` → `s_flagFftInit`；`std::` 显式限定代替 `using namespace std;`
-- 常量重命名：`FilterDelay`→`kFilterDelay`、`MAX_BPM`→`kMaxBpm`、`SubbandWeights`→`kSubbandWeights`、`Filters`→`kFilterSections`、`SubbandFilterDelay`→`kSubbandFilterDelay`、`FilterCoeffSos*`→`kFilterCoeffSos*`、`BpmSnap`→`kBpmSnapTable`、`FFT_MAXV`→`kFftMaxV`、`CPLX`→`Complex`、`PI`→`kPi`
-- `AutoTiming.cpp` 使用完整 `FmodSoundFormat` 枚举（值 2/3/5 与上游 `LegacyFmodPcm*` 常量一致），不依赖 Malody `../define.h`
-- `AutoTiming.h` 去掉宿主用 `AutoTimingEvent` 枚举（CCE 未使用）
-- `size_t estindex = 0;` 防御性初始化（上游未初始化，使用前必赋值，无行为差异）
-- `fft.h` 用 `using` 别名代替 `typedef`；`util.h`/`platform.h` 仅注释、include guard 与 static_assert 文案差异
-- 全文件中文注释 → 英文重写 + doxygen
+CCE 的 `audio_autotiming_bridge_tests` 继续验证 `AutoTimingCore -> AutoTiming2Bridge -> BpmDetector` 的宿主边界和 legacy/V2 行为。
 
-上游 e7e4290→90f7a95 对 legacy 9 文件的变更仅为 provenance 头注释、去 `../define.h` 依赖与 `LegacyFmodPcm*` 局部常量（+38/-4），无算法变更；因此本地无需合入任何 legacy 算法修复。
+## 更新固定版本
+
+更新必须作为独立依赖变更处理，不跟随普通功能修改漂移：
+
+```bash
+git -C third_party/AutoTimingCore fetch origin
+git -C third_party/AutoTimingCore checkout <reviewed-full-sha>
+git add third_party/AutoTimingCore docs/AUTOTIMING_VENDORING.md
+```
+
+随后更新本文件中的完整 SHA，并从全新构建目录运行 Debug/Release 构建、上游四项回归与 CCE 全套测试。不要在 CCE 中直接修改子模块算法源码；需要的算法修复应先进入 AutoTimingCore，再更新 gitlink。
+
+## 宿主边界
+
+- AutoTimingCore 保持上游 API 与实现。
+- `src/audio/AutoTiming2Bridge.*` 将 `autotiming::analyze` 的结果转换为 CCE/Qt 友好的数据结构。
+- `src/audio/BpmDetector.*` 负责音频准备、legacy/V2 独立状态以及整首音频绝对时间映射。
+- UI 不直接包含 `autotiming/Analysis.h`，也不把 V2 phase 当作 Malody offset。
+
+迁移前 CCE 的 legacy 版本与上游该提交已做 token 级算法等价核验；迁移后直接使用上游 `AutoTiming::AutoTimingResult`。legacy golden test 与 CCE bridge parity regression 用于冻结这条行为。
 
 ## 来源边界与许可证状态
 
-以下内容摘自上游 `ATTRIBUTION.md`（90f7a95）并适用于本 vendored 副本：
+以下内容来自子模块 `ATTRIBUTION.md`（固定提交 `90f7a9529e1bcdb15475bfa9db5d873b0a38f1e2`）：
 
-- Legacy source set（`AutoTiming.cpp/.h`、`dsp.*`、`fft.*`、`util.*`、`platform.h`）源自 Malody 内部 AutoTiming 原始实现（原文件头 "Created by dolly on 16/1/3" 应保留）。此前放入 CCE 的代码是对该实现的迁移、兼容和宿主适配，不是独立上游或另一套原始算法。
-- AutoTiming 2 新增（`core/` 下全部文件）是在 legacy 基线上继续发展的扩展。
-- 上游当前**没有确认** Malody legacy 源码适用的开源许可证：
-  - 不得据源码可见或存在本文件推断 legacy 采用 MIT/BSD/GPL/Apache-2.0 等许可证；
+- Legacy source set（`AutoTiming.cpp/.h`、`dsp.*`、`fft.*`、`util.*`、`platform.h`）源自 Malody 内部 AutoTiming 原始实现（原文件头 “Created by dolly on 16/1/3” 应保留）。
+- AutoTiming 2 是在 legacy 基线上继续发展的扩展。
+- 上游当前没有确认 Malody legacy 源码适用的开源许可证：
+  - 不得据源码可见、子模块存在或本文件推断 legacy 采用 MIT/BSD/GPL/Apache-2.0 等许可证；
   - 不给 legacy 文件添加未经确认的 SPDX identifier；
-  - CCE 顶层 `LICENSE` 不得覆盖 legacy 文件；若未来为 AutoTiming 2 原创增量添加许可证，须明确排除 legacy source set；
+  - CCE 顶层 `LICENSE` 不得被解释为覆盖 legacy source set；
   - 如需公开分发或第三方使用，先由项目维护者确认适用授权。

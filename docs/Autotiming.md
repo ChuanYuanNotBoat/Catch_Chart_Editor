@@ -1,8 +1,8 @@
 # AutoTiming 自动节拍检测模块技术文档
 
 > 适用版本：Beta v1.11.1 + Unreleased maintenance
-> 权威实现：`src/audio/autotiming/`，桌面集成入口：`src/audio/BpmDetector.cpp`
-> 最后核对：2026-09-10
+> 权威实现：`third_party/AutoTimingCore/`（固定版本 submodule），桌面集成入口：`src/audio/BpmDetector.cpp`
+> 最后核对：2026-09-14
 
 1. 引言
 
@@ -279,7 +279,7 @@ BPM 不确定度由回归残差和样本数量推算，并考虑自相关峰值�
 ```cpp
 // 假设已有 PCM16 数据指针 data，长度 size，采样率 44100，立体声。
 // format 使用与 FMOD_SOUND_FORMAT 相同的数值；PCM16 = 2。
-AutoTiming::Result res = AutoTiming::detect(
+AutoTiming::AutoTimingResult res = AutoTiming::detect(
     data, size, 2, 44100, 2);
 if (res.bpm > 0) {
     printf("BPM: %.2f\n", res.bpm);
