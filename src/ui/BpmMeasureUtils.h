@@ -50,11 +50,56 @@ namespace BpmMeasureUtils
         explicit operator bool() const noexcept { return factor > 0; }
     };
 
+    // Controls the CCE projection of an AutoTiming 2 pulse/tempo track into
+    // Malody's piecewise-constant BPM list. The error target is measured
+    // against the continuous model fitted between detected pulse anchors; it
+    // is not a claim about the accuracy of those audio-derived anchors.
+    struct TimingMapOptions
+    {
+        double maximumModelErrorMs = 2.0;
+        double maximumAcceptedAnchorResidualMs = 5.0;
+        double minimumPointConfidence = 0.05;
+        double minimumPhaseConfidence = 0.01;
+        double tempoChangeRelativeTolerance = 0.01;
+        double maximumContinuousSlopeOctavesPerSecond = 0.08;
+        int maximumEntries = 2048;
+        int maximumBeatDenominator = 65536;
+    };
+
+    struct TimingMapProposal
+    {
+        bool available = false;
+        QVector<BpmEntry> bpmList;
+        QString unavailableReason;
+
+        int sourceAnchorCount = 0;
+        int generatedEntryCount = 0;
+        double sourceStartSeconds = 0.0;
+        double sourceEndSeconds = 0.0;
+        double firstAnchorBeat = 0.0;
+        double maximumAnchorResidualMs = 0.0;
+        double maximumModelErrorMs = 0.0;
+        bool hasTempoChange = false;
+        bool hasContinuousChange = false;
+        bool hasAbruptChange = false;
+    };
+
     Recommendation selectRecommendation(const BpmDetector::DetectionResult &result);
 
     // Only returns factors backed by existing dialog buttons. A lower V2 value
     // never produces a divide/0.5x suggestion because the UI cannot perform it.
     MultiplierHint findMultiplierHint(double legacyBpm, double suggestedBpm);
+
+    // Builds a complete BPM list by preserving entries before the first
+    // detected pulse anchor and replacing the remainder with a phase-locked
+    // AutoTiming 2 projection. Every accepted source anchor is validated
+    // through MathUtils::beatToMs so cumulative drift cannot be hidden by a
+    // locally plausible BPM value. This function never mutates the chart.
+    TimingMapProposal buildTimingMapProposal(
+        const AutoTiming2Summary &summary,
+        const QVector<BpmEntry> &existingBpmList,
+        int offsetMs,
+        const TimingMapOptions &options = {});
 
     // Centralizes the chart-start invariant used by the confirmation workflow.
     BpmEntry makeTargetEntry(bool fromStart,

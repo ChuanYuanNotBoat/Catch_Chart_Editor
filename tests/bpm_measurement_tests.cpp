@@ -2,6 +2,7 @@
 #include "model/BpmEntry.h"
 #include "ui/BpmMeasureUtils.h"
 #include "ui/dialogs/BpmMeasureDialog.h"
+#include "utils/MathUtils.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -31,6 +32,26 @@ namespace
     bool nearlyEqual(double left, double right, double tolerance = 1e-9)
     {
         return std::fabs(left - right) <= tolerance;
+    }
+
+    AutoTiming2TrackPoint trackPoint(double pulseTimeSeconds, double bpm)
+    {
+        AutoTiming2TrackPoint point;
+        point.timeSeconds = pulseTimeSeconds;
+        point.pulseTimeSeconds = pulseTimeSeconds;
+        point.bpm = bpm;
+        point.confidence = 0.9;
+        point.phaseConfidence = 0.9;
+        point.state = QStringLiteral("observed");
+        return point;
+    }
+
+    double linearRampPulseTime(double beats, double startBpm, double slopeBpmPerSecond)
+    {
+        const double startRate = startBpm / 60.0;
+        const double rateSlope = slopeBpmPerSecond / 60.0;
+        return 2.0 * beats /
+               (startRate + std::sqrt(startRate * startRate + 2.0 * rateSlope * beats));
     }
 
     void testRecommendationSelectionAndUncertainty()
@@ -118,6 +139,100 @@ namespace
             false, 750.0, bpmList, 0, 150.0);
         require(current.beatNum == 1 && current.numerator == 1 && current.denominator == 2,
                 "From Current Time must continue using MathUtils ms-to-beat conversion");
+    }
+
+    void testTimingMapProjectionPreventsFixedAndStepDrift()
+    {
+        const QVector<BpmEntry> existing = {BpmEntry(0, 0, 1, 120.0)};
+
+        AutoTiming2Summary fixed;
+        fixed.tempoTrack = {
+            trackPoint(0.125, 120.0),
+            trackPoint(4.125, 120.0),
+            trackPoint(8.125, 120.0),
+        };
+        const BpmMeasureUtils::TimingMapProposal fixedProposal =
+            BpmMeasureUtils::buildTimingMapProposal(fixed, existing, 0);
+        require(fixedProposal.available, "fixed pulse track must produce a BPM map proposal");
+        require(fixedProposal.maximumAnchorResidualMs < 0.1,
+                "fixed BPM map must retain all pulse anchors without cumulative drift");
+        require(!fixedProposal.hasTempoChange,
+                "fixed pulse track must not be presented as a tempo change");
+
+        AutoTiming2Summary step;
+        step.tempoTrack = {
+            trackPoint(0.125, 100.0),
+            trackPoint(12.125, 100.0),
+            trackPoint(16.125, 150.0),
+            trackPoint(28.125, 150.0),
+        };
+        const BpmMeasureUtils::TimingMapProposal stepProposal =
+            BpmMeasureUtils::buildTimingMapProposal(step, existing, 0);
+        require(stepProposal.available, "tempo-step pulse track must produce a BPM map proposal");
+        require(stepProposal.hasTempoChange && stepProposal.hasAbruptChange,
+                "tempo-step pulse track must retain an abrupt change in the proposal");
+        require(stepProposal.generatedEntryCount >= 2,
+                "tempo-step proposal must contain more than a single global BPM");
+        require(stepProposal.maximumAnchorResidualMs < 0.1,
+                "tempo-step map must not accumulate offset after the change");
+    }
+
+    void testTimingMapProjectionApproximatesContinuousRampBelowFiveMs()
+    {
+        constexpr double startTime = 0.125;
+        constexpr double startBpm = 90.0;
+        constexpr double slope = 1.25;
+        AutoTiming2Summary ramp;
+        for (int beat = 0; beat <= 96; beat += 8)
+        {
+            const double localTime = linearRampPulseTime(beat, startBpm, slope);
+            ramp.tempoTrack.append(trackPoint(
+                startTime + localTime,
+                startBpm + slope * localTime));
+        }
+
+        BpmMeasureUtils::TimingMapOptions options;
+        options.maximumModelErrorMs = 1.0;
+        const QVector<BpmEntry> existing = {BpmEntry(0, 0, 1, 120.0)};
+        const BpmMeasureUtils::TimingMapProposal proposal =
+            BpmMeasureUtils::buildTimingMapProposal(ramp, existing, 0, options);
+        require(proposal.available, "continuous-ramp pulse track must produce a BPM map proposal");
+        require(proposal.hasTempoChange && proposal.hasContinuousChange,
+                "continuous-ramp proposal must retain continuous tempo motion");
+        require(proposal.generatedEntryCount > 2,
+                "continuous-ramp projection must not collapse to one BPM");
+
+        double maximumPulseErrorMs = 0.0;
+        for (int beat = 0; beat <= 96; ++beat)
+        {
+            const double expectedMs =
+                (startTime + linearRampPulseTime(beat, startBpm, slope)) * 1000.0;
+            const double projectedBeat = proposal.firstAnchorBeat + beat;
+            int beatNum = 0;
+            int numerator = 0;
+            int denominator = 1;
+            MathUtils::floatToBeat(projectedBeat, beatNum, numerator, denominator, 65536);
+            const double actualMs = MathUtils::beatToMs(
+                beatNum, numerator, denominator, proposal.bpmList, 0);
+            maximumPulseErrorMs = std::max(maximumPulseErrorMs, std::fabs(actualMs - expectedMs));
+        }
+        require(maximumPulseErrorMs < 5.0,
+                "continuous-ramp CCE BPM list exceeded the 5 ms pulse-grid target");
+        require(proposal.maximumAnchorResidualMs < 0.1,
+                "continuous-ramp map accumulated drift at a source anchor");
+    }
+
+    void testTimingMapProjectionAbstainsWithoutPhaseCoverage()
+    {
+        AutoTiming2Summary summary;
+        AutoTiming2TrackPoint uncertain = trackPoint(2.0, 120.0);
+        uncertain.state = QStringLiteral("uncertain");
+        summary.tempoTrack.append(uncertain);
+        const QVector<BpmEntry> existing = {BpmEntry(0, 0, 1, 120.0)};
+        const BpmMeasureUtils::TimingMapProposal proposal =
+            BpmMeasureUtils::buildTimingMapProposal(summary, existing, 0);
+        require(!proposal.available && !proposal.unavailableReason.isEmpty(),
+                "insufficient phase coverage must abstain instead of fabricating a BPM list");
     }
 
     void testV2SuggestionRequiresExplicitUse()
@@ -227,6 +342,9 @@ int main(int argc, char **argv)
     runTest("recommendation_selection", testRecommendationSelectionAndUncertainty);
     runTest("multiplier_hints", testMultiplierHintsMatchOnlyExistingActions);
     runTest("chart_start_target", testTargetEntryUsesTrueChartStart);
+    runTest("timing_map_fixed_and_step", testTimingMapProjectionPreventsFixedAndStepDrift);
+    runTest("timing_map_continuous_ramp", testTimingMapProjectionApproximatesContinuousRampBelowFiveMs);
+    runTest("timing_map_abstains", testTimingMapProjectionAbstainsWithoutPhaseCoverage);
     runTest("v2_explicit_use", testV2SuggestionRequiresExplicitUse);
     runTest("legacy_default_workflow", testLegacyWorkflowRemainsDefault);
     runTest("parameter_change_invalidation", testParameterChangesInvalidateCompletedResult);
