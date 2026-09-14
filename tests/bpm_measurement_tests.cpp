@@ -265,6 +265,38 @@ namespace
                 "Use suggestion must not apply V2 phase as an offset");
     }
 
+    void testTimingMapRequiresExplicitSelectionAndExcludesLegacyOffset()
+    {
+        BpmMeasureDialog dialog;
+        dialog.setMeasuring(true);
+        dialog.setMeasuredBpm(120.0);
+        dialog.setMeasuredOffset(125);
+        dialog.setAutoTimingSuggestion(150.0, QStringLiteral("(supported)"));
+        dialog.setAutoTimingMapSuggestion(QStringLiteral("6 generated BPM points"));
+        dialog.setMeasurementComplete();
+
+        QCheckBox *mapCheck = dialog.findChild<QCheckBox *>(
+            QStringLiteral("applyAutoTiming2MapCheck"));
+        require(mapCheck != nullptr && mapCheck->isEnabled() && !mapCheck->isChecked(),
+                "a timing-map proposal must remain an explicit opt-in action");
+        require(!dialog.applyAutoTimingMap(),
+                "presenting a timing map must not select it automatically");
+        require(dialog.applyOffset(),
+                "legacy offset remains available until the timing map is selected");
+
+        if (mapCheck)
+            mapCheck->setChecked(true);
+        require(dialog.applyAutoTimingMap(),
+                "checking the timing-map action must select the full map");
+        require(!dialog.applyOffset(),
+                "a phase-anchored BPM map must not also apply an independently measured legacy offset");
+
+        QDoubleSpinBox *singleBpm = dialog.findChild<QDoubleSpinBox *>(
+            QStringLiteral("bpmToAddSpin"));
+        require(singleBpm != nullptr && !singleBpm->isEnabled(),
+                "single-BPM editing must be disabled while the full timing map is selected");
+    }
+
     void testLegacyWorkflowRemainsDefault()
     {
         BpmMeasureDialog dialog;
@@ -346,6 +378,7 @@ int main(int argc, char **argv)
     runTest("timing_map_continuous_ramp", testTimingMapProjectionApproximatesContinuousRampBelowFiveMs);
     runTest("timing_map_abstains", testTimingMapProjectionAbstainsWithoutPhaseCoverage);
     runTest("v2_explicit_use", testV2SuggestionRequiresExplicitUse);
+    runTest("timing_map_explicit_use", testTimingMapRequiresExplicitSelectionAndExcludesLegacyOffset);
     runTest("legacy_default_workflow", testLegacyWorkflowRemainsDefault);
     runTest("parameter_change_invalidation", testParameterChangesInvalidateCompletedResult);
 

@@ -30,6 +30,7 @@ public:
     double finalBpm() const;
     int finalOffset() const;
     bool applyOffset() const;
+    bool applyAutoTimingMap() const;
     int measureDurationSeconds() const { return m_measureDuration; }
 
     void setCurrentTimeText(const QString &text);
@@ -37,6 +38,8 @@ public:
     void setLegacyUnavailable(const QString &text = QString());
     void setAutoTimingSuggestion(double bpm, const QString &qualifier = QString());
     void setAutoTimingUnavailable(const QString &text);
+    void setAutoTimingMapSuggestion(const QString &summary);
+    void setAutoTimingMapUnavailable(const QString &text = QString());
     void setMultiplierHint(int factor, const QString &text);
     void setResultDetailsText(const QString &text);
     void setMeasuring(bool measuring);
@@ -74,6 +77,8 @@ private:
     QLabel *m_autoTimingSuggestionLabel;
     QLineEdit *m_autoTimingSuggestionEdit;
     QPushButton *m_useAutoTimingSuggestionBtn;
+    QCheckBox *m_applyAutoTimingMapCheck;
+    QLabel *m_autoTimingMapSummaryLabel;
     QLabel *m_multiplierHintLabel;
     QLabel *m_statusLabel;
     QProgressBar *m_progressBar;
@@ -108,4 +113,5 @@ private:
     bool m_measurementCompleted;
     bool m_hasAdoptedBpm;
     bool m_hasLegacyOffset;
+    bool m_hasAutoTimingMap;
 };

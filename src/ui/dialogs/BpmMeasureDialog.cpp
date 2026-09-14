@@ -24,7 +24,8 @@ BpmMeasureDialog::BpmMeasureDialog(QWidget *parent)
       m_isMeasuring(false),
       m_measurementCompleted(false),
       m_hasAdoptedBpm(false),
-      m_hasLegacyOffset(false)
+      m_hasLegacyOffset(false),
+      m_hasAutoTimingMap(false)
 {
     setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
     setupUi();
@@ -120,6 +121,17 @@ void BpmMeasureDialog::setupUi()
     suggestionLayout->addWidget(m_useAutoTimingSuggestionBtn);
     mainLayout->addLayout(suggestionLayout);
 
+    QHBoxLayout *timingMapLayout = new QHBoxLayout;
+    m_applyAutoTimingMapCheck = new QCheckBox(tr("Apply AutoTiming 2 BPM map"), this);
+    m_applyAutoTimingMapCheck->setObjectName(QStringLiteral("applyAutoTiming2MapCheck"));
+    m_applyAutoTimingMapCheck->setEnabled(false);
+    m_autoTimingMapSummaryLabel = new QLabel(tr("No timing map available"), this);
+    m_autoTimingMapSummaryLabel->setObjectName(QStringLiteral("autoTiming2MapSummaryLabel"));
+    m_autoTimingMapSummaryLabel->setWordWrap(true);
+    timingMapLayout->addWidget(m_applyAutoTimingMapCheck);
+    timingMapLayout->addWidget(m_autoTimingMapSummaryLabel, 1);
+    mainLayout->addLayout(timingMapLayout);
+
     m_multiplierHintLabel = new QLabel(this);
     m_multiplierHintLabel->setObjectName(QStringLiteral("multiplierHintLabel"));
     m_multiplierHintLabel->setWordWrap(true);
@@ -194,6 +206,13 @@ void BpmMeasureDialog::setupUi()
             &QPushButton::clicked,
             this,
             &BpmMeasureDialog::onUseAutoTimingSuggestion);
+    connect(m_applyAutoTimingMapCheck,
+            &QCheckBox::toggled,
+            this,
+            [this](bool)
+            {
+                updateActionState();
+            });
 
     connect(m_x2Btn, &QPushButton::clicked, this, [this]()
             { onQuickMultiply(2); });
@@ -303,6 +322,35 @@ void BpmMeasureDialog::setAutoTimingUnavailable(const QString &text)
     updateActionState();
 }
 
+void BpmMeasureDialog::setAutoTimingMapSuggestion(const QString &summary)
+{
+    m_hasAutoTimingMap = true;
+    if (m_applyAutoTimingMapCheck)
+    {
+        m_applyAutoTimingMapCheck->setChecked(false);
+        m_applyAutoTimingMapCheck->setEnabled(!m_isMeasuring);
+    }
+    if (m_autoTimingMapSummaryLabel)
+        m_autoTimingMapSummaryLabel->setText(summary);
+    updateActionState();
+}
+
+void BpmMeasureDialog::setAutoTimingMapUnavailable(const QString &text)
+{
+    m_hasAutoTimingMap = false;
+    if (m_applyAutoTimingMapCheck)
+    {
+        m_applyAutoTimingMapCheck->setChecked(false);
+        m_applyAutoTimingMapCheck->setEnabled(false);
+    }
+    if (m_autoTimingMapSummaryLabel)
+    {
+        m_autoTimingMapSummaryLabel->setText(
+            text.isEmpty() ? tr("No variable-tempo map detected") : text);
+    }
+    updateActionState();
+}
+
 void BpmMeasureDialog::setMultiplierHint(int factor, const QString &text)
 {
     const int factors[] = {2, 3, 4, 6, 8};
@@ -340,12 +388,20 @@ void BpmMeasureDialog::resetMeasurementResults()
     m_measurementCompleted = false;
     m_hasAdoptedBpm = false;
     m_hasLegacyOffset = false;
+    m_hasAutoTimingMap = false;
     m_lastFinalBpm = 0.0;
 
     if (m_resultEdit)
         m_resultEdit->setText(tr("Measuring..."));
     if (m_autoTimingSuggestionEdit)
         m_autoTimingSuggestionEdit->setText(tr("Analyzing..."));
+    if (m_applyAutoTimingMapCheck)
+    {
+        m_applyAutoTimingMapCheck->setChecked(false);
+        m_applyAutoTimingMapCheck->setEnabled(false);
+    }
+    if (m_autoTimingMapSummaryLabel)
+        m_autoTimingMapSummaryLabel->setText(tr("Analyzing tempo track..."));
     if (m_finalBpmSpin)
         m_finalBpmSpin->setValue(0.0);
     if (m_finalOffsetSpin)
@@ -367,6 +423,8 @@ void BpmMeasureDialog::invalidateCompletedMeasurement()
         m_resultEdit->setText(tr("Click 'Measure' to start"));
     if (m_autoTimingSuggestionEdit)
         m_autoTimingSuggestionEdit->setText(tr("Not analyzed yet"));
+    if (m_autoTimingMapSummaryLabel)
+        m_autoTimingMapSummaryLabel->setText(tr("No timing map available"));
     if (m_detailsEdit)
         m_detailsEdit->setPlainText(tr("Measurement settings changed. Measure again."));
     if (m_progressBar)
@@ -401,18 +459,27 @@ void BpmMeasureDialog::updateActionState()
 {
     const bool hasLegacyBpm = m_measuredBpm > 0.0;
     const bool canUseSuggestion = m_autoTimingSuggestionBpm > 0.0;
+    const bool usingTimingMap = m_hasAutoTimingMap &&
+                                m_applyAutoTimingMapCheck &&
+                                m_applyAutoTimingMapCheck->isChecked();
     const bool canConfirm = !m_isMeasuring &&
                             m_measurementCompleted &&
-                            m_hasAdoptedBpm &&
-                            m_finalBpmSpin &&
-                            m_finalBpmSpin->value() > 0.0;
+                            (usingTimingMap ||
+                             (m_hasAdoptedBpm &&
+                              m_finalBpmSpin &&
+                              m_finalBpmSpin->value() > 0.0));
 
     if (m_okBtn)
         m_okBtn->setEnabled(canConfirm);
     if (m_useAutoTimingSuggestionBtn)
-        m_useAutoTimingSuggestionBtn->setEnabled(!m_isMeasuring && canUseSuggestion);
+        m_useAutoTimingSuggestionBtn->setEnabled(
+            !m_isMeasuring && canUseSuggestion && !usingTimingMap);
+    if (m_applyAutoTimingMapCheck)
+        m_applyAutoTimingMapCheck->setEnabled(!m_isMeasuring && m_hasAutoTimingMap);
+    if (m_finalBpmSpin)
+        m_finalBpmSpin->setEnabled(!m_isMeasuring && !usingTimingMap);
 
-    const bool quickEnabled = !m_isMeasuring && hasLegacyBpm;
+    const bool quickEnabled = !m_isMeasuring && hasLegacyBpm && !usingTimingMap;
     const int factors[] = {2, 3, 4, 6, 8};
     for (int factor : factors)
     {
@@ -422,7 +489,8 @@ void BpmMeasureDialog::updateActionState()
 
     const bool offsetEnabled = !m_isMeasuring &&
                                mode() == MeasureMode::FromStart &&
-                               m_hasLegacyOffset;
+                               m_hasLegacyOffset &&
+                               !usingTimingMap;
     if (m_finalOffsetSpin)
         m_finalOffsetSpin->setEnabled(offsetEnabled);
     if (m_applyOffsetCheck)
@@ -490,7 +558,16 @@ int BpmMeasureDialog::finalOffset() const
 
 bool BpmMeasureDialog::applyOffset() const
 {
-    return m_applyOffsetCheck ? m_applyOffsetCheck->isChecked() : false;
+    return !applyAutoTimingMap() &&
+           m_applyOffsetCheck &&
+           m_applyOffsetCheck->isChecked();
+}
+
+bool BpmMeasureDialog::applyAutoTimingMap() const
+{
+    return m_hasAutoTimingMap &&
+           m_applyAutoTimingMapCheck &&
+           m_applyAutoTimingMapCheck->isChecked();
 }
 
 void BpmMeasureDialog::setMeasuredOffset(int offsetMs)
@@ -513,7 +590,8 @@ void BpmMeasureDialog::onMeasureClicked()
 
 void BpmMeasureDialog::onOkClicked()
 {
-    if (m_measurementCompleted && m_hasAdoptedBpm && finalBpm() > 0.0)
+    if (m_measurementCompleted &&
+        (applyAutoTimingMap() || (m_hasAdoptedBpm && finalBpm() > 0.0)))
     {
         accept();
     }

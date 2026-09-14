@@ -312,6 +312,7 @@ void BPMTimePanel::onMeasureBpmClicked()
         int targetOffsetMs = 0;
         bool measuredFromStart = true;
         bool hasCompletedResult = false;
+        BpmMeasureUtils::TimingMapProposal timingMap;
     };
 
     const double chartMs = currentChartTimeMs();
@@ -425,6 +426,7 @@ void BPMTimePanel::onMeasureBpmClicked()
                 session->targetOffsetMs = requestOffsetMs;
                 session->measuredFromStart = fromStart;
                 session->hasCompletedResult = true;
+                session->timingMap = BpmMeasureUtils::TimingMapProposal{};
 
                 if (result.hasLegacyResult())
                 {
@@ -458,6 +460,31 @@ void BPMTimePanel::onMeasureBpmClicked()
                 else
                 {
                     dialog.setAutoTimingUnavailable(tr("Unavailable"));
+                }
+
+                if (result.hasAnalysis())
+                {
+                    session->timingMap = BpmMeasureUtils::buildTimingMapProposal(
+                        result.analysis,
+                        m_chartController->chart()->bpmList(),
+                        requestOffsetMs);
+                }
+                if (session->timingMap.available && session->timingMap.hasTempoChange)
+                {
+                    dialog.setAutoTimingMapSuggestion(
+                        tr("%1 generated BPM points from %2 phase anchors; range %3-%4 s; detected-anchor fit %5 ms. Existing timing before the first anchor is preserved.")
+                            .arg(session->timingMap.generatedEntryCount)
+                            .arg(session->timingMap.sourceAnchorCount)
+                            .arg(session->timingMap.sourceStartSeconds, 0, 'f', 2)
+                            .arg(session->timingMap.sourceEndSeconds, 0, 'f', 2)
+                            .arg(session->timingMap.maximumAnchorResidualMs, 0, 'f', 3));
+                }
+                else
+                {
+                    dialog.setAutoTimingMapUnavailable(
+                        session->timingMap.unavailableReason.isEmpty()
+                            ? tr("No variable-tempo map detected")
+                            : session->timingMap.unavailableReason);
                 }
 
                 BpmMeasureUtils::MultiplierHint multiplierHint;
@@ -505,6 +532,50 @@ void BPMTimePanel::onMeasureBpmClicked()
             QMessageBox::warning(this,
                                  tr("Measurement Expired"),
                                  tr("The chart changed after measurement. No timing data was written."));
+            return;
+        }
+
+        if (dialog.applyAutoTimingMap())
+        {
+            const BpmMeasureUtils::TimingMapProposal &proposal = session->timingMap;
+            if (!proposal.available || !proposal.hasTempoChange || proposal.bpmList.isEmpty())
+            {
+                QMessageBox::warning(
+                    this,
+                    tr("Timing Map Unavailable"),
+                    tr("The AutoTiming 2 timing-map proposal is no longer available. No timing data was written."));
+                return;
+            }
+
+            const QMessageBox::StandardButton mapReply = QMessageBox::question(
+                this,
+                tr("Apply AutoTiming 2 BPM Map"),
+                tr("Replace BPM entries from beat %1 onward with %2 generated timing points?\n\n"
+                   "The map follows detected pulse anchors through %3-%4 s and keeps earlier BPM entries. "
+                   "It is audio-derived, not chart ground truth, and can be undone as one action.")
+                    .arg(proposal.firstAnchorBeat, 0, 'f', 4)
+                    .arg(proposal.generatedEntryCount)
+                    .arg(proposal.sourceStartSeconds, 0, 'f', 2)
+                    .arg(proposal.sourceEndSeconds, 0, 'f', 2),
+                QMessageBox::Yes | QMessageBox::No);
+            if (mapReply != QMessageBox::Yes)
+                return;
+
+            Chart mutated = *m_chartController->chart();
+            mutated.bpmList() = proposal.bpmList;
+            if (!mutated.bpmList().isEmpty())
+                mutated.meta().firstBpm = mutated.bpmList().first().bpm;
+            if (!m_chartController->applyExternalChartMutation(
+                    tr("Apply AutoTiming 2 BPM map"),
+                    mutated))
+            {
+                QMessageBox::warning(
+                    this,
+                    tr("Timing Map Failed"),
+                    tr("The BPM map could not be applied. No timing data was written."));
+                return;
+            }
+            refreshBpmList();
             return;
         }
 
