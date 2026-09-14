@@ -1,1 +1,52 @@
 third_party/QtAdvancedDockingSystem/** -whitespace
+
+# 自动识别文本文件，并在 Git 仓库内部统一为 LF。
+* text=auto
+
+# 源代码 / 配置文件工作区也强制 LF。
+*.c       text eol=lf
+*.cc      text eol=lf
+*.cpp     text eol=lf
+*.cxx     text eol=lf
+*.h       text eol=lf
+*.hpp     text eol=lf
+
+*.cmake   text eol=lf
+CMakeLists.txt text eol=lf
+
+*.md      text eol=lf
+*.txt     text eol=lf
+*.json    text eol=lf
+*.jsonc   text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+*.ts      text eol=lf
+*.py      text eol=lf
+
+# Windows 脚本通常保留 CRLF。
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# 明确标记常见二进制文件，绝对不要做换行转换。
+*.png     -text
+*.jpg     -text
+*.jpeg    -text
+*.gif     -text
+*.bmp     -text
+*.webp    -text
+*.ico     -text
+
+*.ogg     -text
+*.mp3     -text
+*.wav     -text
+*.flac    -text
+
+*.zip     -text
+*.7z      -text
+*.mcz     -text
+
+*.dll     -text
+*.exe     -text
+*.lib     -text
+*.pdb     -text
