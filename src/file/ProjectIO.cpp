@@ -59,8 +59,10 @@ void ProjectIO::initializeBuiltinFileTypes()
         ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Audio File", false, nullptr, 90);
     }
 
-    // 注册常见图片格式
-    QStringList imageExts = {"jpg", "jpeg", "png", "bmp", "webp", "gif"};
+    // 注册常见图片格式（含依赖 Qt Image Formats 插件的扩展格式，
+    // 供 .mcz 打包时的引用资源收集使用）
+    QStringList imageExts = {"jpg", "jpeg", "png", "bmp", "webp", "gif",
+                             "tif", "tiff", "tga"};
     for (const QString &ext : imageExts)
     {
         ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Image File", false, nullptr, 90);

@@ -39,6 +39,10 @@ protected:
     virtual void convertAudioToOggAsync(const QString &inputPath,
                                         const QString &outputPath,
                                         AudioConversionCompletion completion);
+    // User feedback hooks for background import. The default implementations
+    // show message boxes; tests override them to stay non-modal.
+    virtual void notifyBackgroundKeptOriginal(const QString &fileName);
+    virtual void showBackgroundImportError(const QString &message);
 
 private:
     enum class ApplyResult
@@ -48,8 +52,19 @@ private:
         Pending
     };
 
+    enum class BackgroundImportStatus
+    {
+        Imported,     // copied / converted into the chart directory
+        KeptOriginal, // imported as-is, user should be informed why
+        Skipped,      // source missing or not a file; reference untouched
+        Failed        // hard failure, metadata must not change
+    };
+
     void setupUi();
     QString importResourceToChartDirectory(const QString &sourcePath) const;
+    BackgroundImportStatus importBackgroundImage(const QString &sourcePath,
+                                                 QString *outRelativeName,
+                                                 QString *outError);
     MetaData collectMetaFromUi() const;
     bool isSameMeta(const MetaData &a, const MetaData &b) const;
     ApplyResult applyMetaAndPersist(bool persistToDisk);

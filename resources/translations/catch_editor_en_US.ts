@@ -3196,10 +3196,10 @@ Open the **History** tab for collapsible long update notes.</translation>
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="77"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="227"/>
-        <source>Background (jpg):</source>
-        <translation>Background (jpg):</translation>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="82"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="262"/>
+        <source>Background:</source>
+        <translation>Background:</translation>
     </message>
     <message>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="81"/>
@@ -3207,9 +3207,57 @@ Open the **History** tab for collapsible long update notes.</translation>
         <translation>Select Background</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="81"/>
-        <source>JPEG Files (*.jpg)</source>
-        <translation>JPEG Files (*.jpg)</translation>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="118"/>
+        <source>Image Files (%1);;All Files (*.*)</source>
+        <translation>Image Files (%1);;All Files (*.*)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="129"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="543"/>
+        <source>Failed to import background image.</source>
+        <translation>Failed to import background image.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="135"/>
+        <source>Background image not found: %1</source>
+        <translation>Background image not found: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="373"/>
+        <source>No chart is open, cannot import the background image.</source>
+        <translation>No chart is open, cannot import the background image.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="380"/>
+        <source>Cannot import background image: chart directory is not available.</source>
+        <translation>Cannot import background image: chart directory is not available.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="401"/>
+        <source>Failed to copy background image into the chart directory.</source>
+        <translation>Failed to copy background image into the chart directory.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="429"/>
+        <source>Failed to convert background image to PNG:
+%1</source>
+        <translation>Failed to convert background image to PNG:
+%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="442"/>
+        <source>Cannot decode background image: %1</source>
+        <translation>Cannot decode background image: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="451"/>
+        <source>Background image kept as-is</source>
+        <translation>Background image kept as-is</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="452"/>
+        <source>The image contains multiple frames (animated image) or its frame count could not be verified safely, so it was kept in its original format instead of being converted.</source>
+        <translation>The image contains multiple frames (animated image) or its frame count could not be verified safely, so it was kept in its original format instead of being converted.</translation>
     </message>
     <message>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="92"/>

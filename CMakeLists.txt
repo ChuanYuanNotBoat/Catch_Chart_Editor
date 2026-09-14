@@ -92,6 +92,7 @@ if(BUILD_TESTING)
         src/utils/DiagnosticCollector.cpp
         src/utils/CalcHash.cpp
         src/utils/FileUtils.cpp
+        src/utils/ImageConverter.cpp
         src/controller/ChartController.cpp
         src/controller/SelectionController.cpp
         src/render/RainRewardGenerator.cpp
@@ -145,6 +146,7 @@ if(BUILD_TESTING)
         src/file/ChartIO.cpp
         src/controller/ChartController.cpp
         src/audio/AudioConverter.cpp
+        src/utils/ImageConverter.cpp
         src/ui/CustomWidgets/RightPanel.cpp
         src/ui/MetaEditPanel.cpp
     )
@@ -159,6 +161,24 @@ if(BUILD_TESTING)
         Vorbis::vorbis
     )
     add_test(NAME ui_meta_edit_panel_tests COMMAND MetaEditPanelTests)
+
+    add_executable(ImageConverterTests
+        tests/image_converter_tests.cpp
+        src/utils/ImageConverter.cpp
+    )
+    target_include_directories(ImageConverterTests PRIVATE src)
+    target_link_libraries(ImageConverterTests
+        PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Widgets
+        Qt6::Test
+    )
+    add_test(NAME utils_image_converter_tests COMMAND ImageConverterTests)
+    if(WIN32)
+        set_tests_properties(utils_image_converter_tests PROPERTIES
+            ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$ENV{PATH}")
+    endif()
 
     add_executable(BpmMeasurementTests
         tests/bpm_measurement_tests.cpp

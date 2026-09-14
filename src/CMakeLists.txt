@@ -15,6 +15,7 @@ set(SOURCES
     model/ChartStatistics.cpp
     utils/MathUtils.cpp
     utils/FileUtils.cpp
+    utils/ImageConverter.cpp
     utils/Settings.cpp
     utils/NativeWindowTheme.cpp
     utils/Logger.cpp

@@ -3196,10 +3196,10 @@ Open the **History** tab for collapsible long update notes.</source>
 %1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="77"/>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="227"/>
-        <source>Background (jpg):</source>
-        <translation>背景 (jpg):</translation>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="82"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="262"/>
+        <source>Background:</source>
+        <translation>背景:</translation>
     </message>
     <message>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="81"/>
@@ -3207,9 +3207,57 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>选择背景</translation>
     </message>
     <message>
-        <location filename="../../src/ui/MetaEditPanel.cpp" line="81"/>
-        <source>JPEG Files (*.jpg)</source>
-        <translation>JPEG 文件 (*.jpg)</translation>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="118"/>
+        <source>Image Files (%1);;All Files (*.*)</source>
+        <translation>图片文件 (%1);;所有文件 (*.*)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="129"/>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="543"/>
+        <source>Failed to import background image.</source>
+        <translation>导入背景图失败。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="135"/>
+        <source>Background image not found: %1</source>
+        <translation>找不到背景图片: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="373"/>
+        <source>No chart is open, cannot import the background image.</source>
+        <translation>未打开谱面，无法导入背景图。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="380"/>
+        <source>Cannot import background image: chart directory is not available.</source>
+        <translation>无法导入背景图: 谱面目录不可用。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="401"/>
+        <source>Failed to copy background image into the chart directory.</source>
+        <translation>无法将背景图复制到谱面目录。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="429"/>
+        <source>Failed to convert background image to PNG:
+%1</source>
+        <translation>转换背景图为 PNG 失败:
+%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="442"/>
+        <source>Cannot decode background image: %1</source>
+        <translation>无法解码背景图片: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="451"/>
+        <source>Background image kept as-is</source>
+        <translation>背景图保留原格式</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="452"/>
+        <source>The image contains multiple frames (animated image) or its frame count could not be verified safely, so it was kept in its original format instead of being converted.</source>
+        <translation>该图片包含多帧（动画图片），或无法安全确认其帧数，因此保留原始格式而不进行转换。</translation>
     </message>
     <message>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="92"/>

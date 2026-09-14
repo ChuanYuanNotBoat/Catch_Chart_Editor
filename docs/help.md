@@ -179,7 +179,7 @@ Grid Settings、范围选择、镜像执行、曲线操作、复制、BPM/Meta �
 - `Difficulty`：难度名。
 - `Chart Author`：谱师。
 - `Audio (ogg)`：选择或填写音频文件路径。选择非 OGG 音频（mp3/wav/flac/m4a/aac/wma/opus/aiff 等）时会自动转换为 OGG（带进度对话框，可取消），谱面始终引用 OGG 文件。选择无法解码的文件会弹窗提示且不改动谱面。
-- `Background (jpg)`：选择或填写背景图路径。
+- `Background`：选择或填写背景图路径。PNG 与 JPG 按文件实际内容识别后原样导入；其他可解码的单帧图片（bmp/gif 等）会自动无损转换为 PNG（保留透明通道，并应用 JPEG EXIF 旋转信息）；包含多帧的动画图片（如动画 GIF）会保留原格式并弹窗提示；无法解码的文件会弹窗提示且不改动谱面。文件选择器的格式列表动态生成：核心格式（png/jpg/jpeg/bmp/gif）始终可用，其余条目跟随当前环境的 Qt 图像格式插件。
 - `Preview Time`：试听预览时间，单位毫秒。
 - `First BPM`：首个 BPM。
 - `Offset`：音频偏移，单位毫秒。
@@ -284,7 +284,7 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 内置文件类型包括：
 - `.mc`：谱面文件
 - 音频格式：`.ogg`, `.oga`, `.mp3`, `.wav`, `.flac`, `.m4a`, `.aac`, `.wma`, `.opus`, `.aif`, `.aiff`, `.mka`（非 Vorbis OGG 的格式在作为谱面音乐导入时会被自动转换为 `.ogg`；仅接受 Vorbis 编码的 Ogg 容器，Opus 等其他编码的 Ogg 文件同样会被转码）
-- 图片格式：`.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`, `.gif`
+- 图片格式：`.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`, `.gif`, `.tif`, `.tiff`, `.tga`（背景图导入支持集：`.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`，按文件内容而非扩展名识别；非 PNG/JPG 的单帧图片导入时自动无损转换为 PNG，多帧动画保留原格式并提示。`.webp`/`.tiff`/`.tga` 依赖 Qt Image Formats 插件：转换层会自动识别 Qt 当前可解码的格式，文件选择器过滤器亦随插件动态扩展，`.tif/.tiff/.tga` 已纳入 `.mcz` 资源收集列表）
 - 视频格式：`.mp4`, `.mkv`, `.avi`, `.webm`, `.mov`
 - Sidecar 文件：`.curve_tbd.json`, `.bpm_excludes.json`, `.song_bpm.json`
 

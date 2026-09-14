@@ -2,9 +2,11 @@
 #include "controller/ChartController.h"
 #include "audio/AudioConverter.h"
 #include "model/MetaData.h"
+#include "utils/ImageConverter.h"
 #include "utils/Logger.h"
 #include <QMessageBox>
 #include <QPointer>
+#include <QImageReader>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
@@ -19,7 +21,38 @@
 #include <QDir>
 #include <QTimer>
 #include <QSizePolicy>
+#include <QStringList>
+
 #include <utility>
+namespace
+{
+// "*.png *.jpg ..." patterns for the background picker. Core formats are
+// always listed; additional entries mirror the image format plugins actually
+// available in the current environment (via QImageReader), so webp/tiff/tga
+// and friends appear automatically once their Qt plugins are installed.
+QString buildBackgroundImagePatterns()
+{
+    static const char *kCoreExtensions[] = {"png", "jpg", "jpeg", "bmp", "gif"};
+    QStringList extensions;
+    for (const char *coreExtension : kCoreExtensions)
+        extensions << QLatin1String(coreExtension);
+
+    const QList<QByteArray> readableFormats = QImageReader::supportedImageFormats();
+    for (const QByteArray &format : readableFormats)
+    {
+        const QString name = QString::fromLatin1(format);
+        if (name.size() <= 5 && !extensions.contains(name))
+            extensions << name;
+    }
+
+    QStringList patterns;
+    for (const QString &extension : extensions)
+        patterns << QStringLiteral("*.") + extension;
+    return patterns.join(QLatin1Char(' '));
+}
+} // namespace
+
+
 
 MetaEditPanel::MetaEditPanel(QWidget *parent)
     : RightPanel(parent),
@@ -73,22 +106,46 @@ void MetaEditPanel::setupUi()
         if (!fileName.isEmpty()) m_audioFileEdit->setText(fileName); });
 
     m_backgroundFileEdit = new QLineEdit(this);
+    m_backgroundFileEdit->setObjectName(QStringLiteral("metaBackgroundFileEdit"));
     m_bgBrowseBtn = new QPushButton(tr("Browse..."), this);
     QHBoxLayout *bgLayout = new QHBoxLayout;
     bgLayout->addWidget(m_backgroundFileEdit);
     bgLayout->addWidget(m_bgBrowseBtn);
-    m_backgroundLabel = new QLabel(tr("Background (jpg):"), this);
+    m_backgroundLabel = new QLabel(tr("Background:"), this);
     m_formLayout->addRow(m_backgroundLabel, bgLayout);
     connect(m_bgBrowseBtn, &QPushButton::clicked, [this]()
             {
-        QString fileName = QFileDialog::getOpenFileName(this, tr("Select Background"), QString(), tr("JPEG Files (*.jpg)"));
+        // Core formats are always offered; the remaining entries follow the
+        // image plugins actually available in this environment, so formats
+        // such as webp/tiff/tga appear automatically once their Qt plugins
+        // are installed. The importer itself re-validates decodability by
+        // content, so the picker never needs hardcoding for those.
+        QString fileName = QFileDialog::getOpenFileName(this, tr("Select Background"), QString(),
+            tr("Image Files (%1);;All Files (*.*)")
+                .arg(buildBackgroundImagePatterns()));
         if (fileName.isEmpty())
             return;
 
-        const QString imported = importResourceToChartDirectory(fileName);
-        const QString finalName = imported.isEmpty() ? fileName : imported;
-        m_backgroundFileEdit->setText(finalName);
-        emit backgroundResourceChanged(finalName); });
+        QString imported;
+        QString error;
+        const BackgroundImportStatus status =
+            importBackgroundImage(fileName, &imported, &error);
+        if (status == BackgroundImportStatus::Failed)
+        {
+            showBackgroundImportError(error.isEmpty()
+                                          ? tr("Failed to import background image.")
+                                          : error);
+            return;
+        }
+        if (status == BackgroundImportStatus::Skipped)
+        {
+            showBackgroundImportError(tr("Background image not found: %1").arg(fileName));
+            return;
+        }
+        if (status == BackgroundImportStatus::KeptOriginal)
+            notifyBackgroundKeptOriginal(imported);
+        m_backgroundFileEdit->setText(imported);
+        emit backgroundResourceChanged(imported); });
 
     m_previewTimeSpin = new QSpinBox(this);
     m_previewTimeSpin->setRange(0, 999999);
@@ -238,7 +295,7 @@ void MetaEditPanel::retranslateUi()
     if (m_audioOggLabel)
         m_audioOggLabel->setText(tr("Audio (ogg):"));
     if (m_backgroundLabel)
-        m_backgroundLabel->setText(tr("Background (jpg):"));
+        m_backgroundLabel->setText(tr("Background:"));
     if (m_previewTimeLabel)
         m_previewTimeLabel->setText(tr("Preview Time:"));
     if (m_firstBpmLabel)
@@ -306,6 +363,109 @@ QString MetaEditPanel::importResourceToChartDirectory(const QString &sourcePath)
     return fileName;
 }
 
+MetaEditPanel::BackgroundImportStatus
+MetaEditPanel::importBackgroundImage(const QString &sourcePath,
+                                     QString *outRelativeName,
+                                     QString *outError)
+{
+    if (outRelativeName)
+        outRelativeName->clear();
+    if (outError)
+        outError->clear();
+
+    const QString chartPath = m_chartController ? m_chartController->chartFilePath() : QString();
+    if (chartPath.isEmpty())
+    {
+        if (outError)
+            *outError = tr("No chart is open, cannot import the background image.");
+        return BackgroundImportStatus::Failed;
+    }
+    const QDir chartDir(QFileInfo(chartPath).absolutePath());
+    if (!chartDir.exists())
+    {
+        if (outError)
+            *outError = tr("Cannot import background image: chart directory is not available.");
+        return BackgroundImportStatus::Failed;
+    }
+
+    const QFileInfo sourceInfo(sourcePath);
+    if (!sourceInfo.exists() || !sourceInfo.isFile())
+        return BackgroundImportStatus::Skipped;
+
+    const ImageConverter::ImageCategory category = ImageConverter::inspectImage(sourcePath);
+    switch (category)
+    {
+    case ImageConverter::ImageCategory::Native:
+    case ImageConverter::ImageCategory::MultiFrame:
+    case ImageConverter::ImageCategory::Unknown:
+    {
+        // PNG/JPEG payloads are copied as-is; multi-frame or unverifiable
+        // images keep their original format to avoid dropping frames.
+        const QString imported = importResourceToChartDirectory(sourcePath);
+        if (imported.isEmpty())
+        {
+            if (outError)
+                *outError = tr("Failed to copy background image into the chart directory.");
+            return BackgroundImportStatus::Failed;
+        }
+        if (outRelativeName)
+            *outRelativeName = imported;
+        return category == ImageConverter::ImageCategory::Native
+                   ? BackgroundImportStatus::Imported
+                   : BackgroundImportStatus::KeptOriginal;
+    }
+    case ImageConverter::ImageCategory::SingleFrame:
+    {
+        const QString baseName = sourceInfo.completeBaseName().isEmpty()
+                                     ? QStringLiteral("background")
+                                     : sourceInfo.completeBaseName();
+        QString fileName = baseName + QStringLiteral(".png");
+        QString targetPath = chartDir.filePath(fileName);
+        for (int i = 2; QFileInfo::exists(targetPath); ++i)
+        {
+            fileName = QStringLiteral("%1_%2.png").arg(baseName).arg(i);
+            targetPath = chartDir.filePath(fileName);
+        }
+
+        QString convertError;
+        if (!ImageConverter::convertToPng(sourceInfo.absoluteFilePath(), targetPath, &convertError))
+        {
+            Logger::warn(QString("Failed to convert background image to PNG: %1 -> %2 (%3)")
+                             .arg(sourceInfo.absoluteFilePath(), targetPath, convertError));
+            if (outError)
+                *outError = tr("Failed to convert background image to PNG:\n%1").arg(convertError);
+            return BackgroundImportStatus::Failed;
+        }
+        Logger::info(QString("Converted background image to PNG: %1 -> %2")
+                         .arg(sourceInfo.absoluteFilePath(), targetPath));
+        if (outRelativeName)
+            *outRelativeName = fileName;
+        return BackgroundImportStatus::Imported;
+    }
+    case ImageConverter::ImageCategory::Unreadable:
+    default:
+        Logger::warn(QString("Cannot decode background image: %1").arg(sourcePath));
+        if (outError)
+            *outError = tr("Cannot decode background image: %1").arg(sourcePath);
+        return BackgroundImportStatus::Failed;
+    }
+}
+
+void MetaEditPanel::notifyBackgroundKeptOriginal(const QString &fileName)
+{
+    Q_UNUSED(fileName);
+    QMessageBox::information(this,
+                             tr("Background image kept as-is"),
+                             tr("The image contains multiple frames (animated image) or its "
+                                "frame count could not be verified safely, so it was kept "
+                                "in its original format instead of being converted."));
+}
+
+void MetaEditPanel::showBackgroundImportError(const QString &message)
+{
+    QMessageBox::critical(this, tr("Error"), message);
+}
+
 MetaData MetaEditPanel::collectMetaFromUi() const
 {
     MetaData meta;
@@ -353,11 +513,19 @@ MetaEditPanel::ApplyResult MetaEditPanel::applyMetaAndPersist(bool persistToDisk
     bool bgChanged = false;
     bool audioChanged = false;
 
-    // Import background file to chart directory if absolute path.
+    // Import background file to chart directory if absolute path. Relative
+    // paths (resources already living next to the chart) are never touched,
+    // so legacy JPG/PNG references stay exactly as they are.
     if (!next.backgroundFile.trimmed().isEmpty() && QDir::isAbsolutePath(next.backgroundFile))
     {
-        const QString imported = importResourceToChartDirectory(next.backgroundFile);
-        if (!imported.isEmpty())
+        QString imported;
+        QString error;
+        const BackgroundImportStatus status =
+            importBackgroundImage(next.backgroundFile, &imported, &error);
+        switch (status)
+        {
+        case BackgroundImportStatus::Imported:
+        case BackgroundImportStatus::KeptOriginal:
         {
             next.backgroundFile = imported;
             if (m_backgroundFileEdit->text() != imported)
@@ -366,6 +534,22 @@ MetaEditPanel::ApplyResult MetaEditPanel::applyMetaAndPersist(bool persistToDisk
                 m_backgroundFileEdit->setText(imported);
                 m_isRefreshingUi = false;
             }
+            if (status == BackgroundImportStatus::KeptOriginal)
+                notifyBackgroundKeptOriginal(imported);
+            break;
+        }
+        case BackgroundImportStatus::Skipped:
+            // Source vanished or is not a regular file: keep the reference
+            // untouched (same silent behavior as before this refactor).
+            break;
+        case BackgroundImportStatus::Failed:
+        default:
+            // Transactional: on any hard failure the chart metadata stays
+            // completely untouched and nothing is persisted.
+            showBackgroundImportError(error.isEmpty()
+                                          ? tr("Failed to import background image.")
+                                          : error);
+            return ApplyResult::Failed;
         }
     }
     if (next.backgroundFile != current.backgroundFile)
