@@ -20,7 +20,8 @@
 //     never be merged. Direct bridge calls start that timeline at zero;
 //     BpmDetector translates location fields to whole-file time.
 //   - PeriodicityLayer rational values are evidence only, not subdivision or
-//     polyrhythm assertions.
+//     polyrhythm assertions. RhythmProfile roles are still candidate diagnostics
+//     and must never be projected into bpmList as tempo changes.
 //   - averageObjectiveCost is a diagnostic cost, not a calibrated probability.
 //   - Low confidence must be reported as uncertainty, not as an analysis error.
 // ---------------------------------------------------------------------------
@@ -108,9 +109,35 @@ struct AutoTiming2Layer
     double relativeRate = 1.0;
     quint32 ratioNumerator = 0;
     quint32 ratioDenominator = 0;
+    double phaseOffsetCycles = 0.0;
+    double phaseConfidence = 0.0;
     double confidence = 0.0;
     QString relation; // Harmonic | RationalApproximation | Unresolved
     QVector<qsizetype> supportingWindowIds;
+};
+
+struct AutoTiming2RhythmLayer
+{
+    double startSeconds = 0.0;
+    double endSeconds = 0.0;
+    double observedRateBpm = 0.0;
+    double referenceTempoBpm = 0.0;
+    double relativeRate = 1.0;
+    quint32 ratioNumerator = 0;
+    quint32 ratioDenominator = 0;
+    double phaseOffsetCycles = 0.0;
+    double phaseConfidence = 0.0;
+    double confidence = 0.0;
+    QString role; // subdivision_candidate | polyrhythm_candidate | texture_candidate | unresolved
+    QVector<qsizetype> supportingWindowIds;
+};
+
+struct AutoTiming2RhythmProfile
+{
+    double startSeconds = 0.0;
+    double endSeconds = 0.0;
+    double confidence = 0.0;
+    QVector<AutoTiming2RhythmLayer> layers;
 };
 
 struct AutoTiming2Region
@@ -166,6 +193,7 @@ struct AutoTiming2Summary
     QVector<AutoTiming2TrackPoint> tempoTrack;
     QVector<AutoTiming2Hypothesis> tempoHypotheses;
     QVector<AutoTiming2Layer> periodicityLayers;
+    QVector<AutoTiming2RhythmProfile> rhythmProfiles;
     QVector<AutoTiming2Region> uncertainRegions;
     QVector<AutoTiming2Anchor> anchors;
     QVector<AutoTiming2Window> windows;

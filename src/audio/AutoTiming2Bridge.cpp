@@ -11,6 +11,7 @@ namespace
     QString toStringField(autotiming::TempoPropagationReason v) { return QString::fromLatin1(autotiming::toString(v)); }
     QString toStringField(autotiming::TempoHypothesisKind v) { return QString::fromLatin1(autotiming::toString(v)); }
     QString toStringField(autotiming::PeriodicityRelationKind v) { return QString::fromLatin1(autotiming::toString(v)); }
+    QString toStringField(autotiming::RhythmLayerRole v) { return QString::fromLatin1(autotiming::toString(v)); }
     QString toStringField(autotiming::UncertaintyReason v) { return QString::fromLatin1(autotiming::toString(v)); }
 
     QString toStringField(autotiming::CandidateOrigin v)
@@ -190,11 +191,42 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             out.relativeRate = l.relativeRate;
             out.ratioNumerator = l.ratioNumerator;
             out.ratioDenominator = l.ratioDenominator;
+            out.phaseOffsetCycles = l.phaseOffsetCycles;
+            out.phaseConfidence = l.phaseConfidence;
             out.confidence = l.confidence;
             out.relation = toStringField(l.relation);
             for (std::size_t w : l.supportingWindowIds)
                 out.supportingWindowIds.append(qsizetype(w));
             outSummary.periodicityLayers.append(out);
+        }
+
+        outSummary.rhythmProfiles.reserve(result.rhythmProfiles.size());
+        for (const autotiming::RhythmProfile &profile : result.rhythmProfiles)
+        {
+            AutoTiming2RhythmProfile outProfile;
+            outProfile.startSeconds = profile.startSeconds;
+            outProfile.endSeconds = profile.endSeconds;
+            outProfile.confidence = profile.confidence;
+            outProfile.layers.reserve(profile.layers.size());
+            for (const autotiming::RhythmLayer &layer : profile.layers)
+            {
+                AutoTiming2RhythmLayer outLayer;
+                outLayer.startSeconds = layer.startSeconds;
+                outLayer.endSeconds = layer.endSeconds;
+                outLayer.observedRateBpm = layer.observedRateBpm;
+                outLayer.referenceTempoBpm = layer.referenceTempoBpm;
+                outLayer.relativeRate = layer.relativeRate;
+                outLayer.ratioNumerator = layer.ratioNumerator;
+                outLayer.ratioDenominator = layer.ratioDenominator;
+                outLayer.phaseOffsetCycles = layer.phaseOffsetCycles;
+                outLayer.phaseConfidence = layer.phaseConfidence;
+                outLayer.confidence = layer.confidence;
+                outLayer.role = toStringField(layer.role);
+                for (std::size_t w : layer.supportingWindowIds)
+                    outLayer.supportingWindowIds.append(qsizetype(w));
+                outProfile.layers.append(outLayer);
+            }
+            outSummary.rhythmProfiles.append(outProfile);
         }
 
         outSummary.uncertainRegions.reserve(result.uncertainRegions.size());
@@ -311,6 +343,16 @@ void AutoTiming2Bridge::translateTimeline(AutoTiming2Summary &summary, double of
     {
         layer.startSeconds += offsetSeconds;
         layer.endSeconds += offsetSeconds;
+    }
+    for (AutoTiming2RhythmProfile &profile : summary.rhythmProfiles)
+    {
+        profile.startSeconds += offsetSeconds;
+        profile.endSeconds += offsetSeconds;
+        for (AutoTiming2RhythmLayer &layer : profile.layers)
+        {
+            layer.startSeconds += offsetSeconds;
+            layer.endSeconds += offsetSeconds;
+        }
     }
     for (AutoTiming2Region &region : summary.uncertainRegions)
     {
