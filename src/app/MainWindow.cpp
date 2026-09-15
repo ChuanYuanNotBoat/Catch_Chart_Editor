@@ -4671,9 +4671,31 @@ void MainWindow::exportMczInternal(bool pureMode)
         Logger::info(QString("MainWindow::exportMczInternal - Exporting to: %1 (mode=%2)")
                          .arg(fileName, pureMode ? "pure" : "full"));
 
+        // Export from the session working copy, not directly from the source directory.
+        // currentChartPath is the last explicitly saved source .mc and can lag behind
+        // the in-memory editor state. Snapshot the current chart into the working copy
+        // first so metadata changes (notably offset) are included in the MCZ.
+        QString exportChartPath = d->workingChartPath;
+        if (exportChartPath.isEmpty() || !QFile::exists(exportChartPath))
+            exportChartPath = d->currentChartPath;
+
+        if (!d->chartController || !d->chartController->chart() ||
+            !ChartIO::save(exportChartPath, *d->chartController->chart()))
+        {
+            Logger::error(QString("MainWindow::exportMczInternal - Failed to snapshot current chart before export: %1")
+                              .arg(exportChartPath));
+            QMessageBox::critical(this,
+                                  tr("Error"),
+                                  tr("Failed to save the current chart state before export."));
+            return;
+        }
+
+        Logger::debug(QString("MainWindow::exportMczInternal - Packing current working state from: %1")
+                          .arg(exportChartPath));
+
         const bool ok = pureMode
-                            ? ProjectIO::exportToMczPure(fileName, d->currentChartPath)
-                            : ProjectIO::exportToMcz(fileName, d->currentChartPath);
+                            ? ProjectIO::exportToMczPure(fileName, exportChartPath)
+                            : ProjectIO::exportToMcz(fileName, exportChartPath);
         if (ok)
         {
             statusBar()->showMessage(tr("Exported: %1").arg(fileName), 3000);

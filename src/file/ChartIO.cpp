@@ -775,6 +775,8 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     // 保存 note 数组
     QJsonArray noteArray;
     int normalNoteCount = 0, rainNoteCount = 0, soundNoteCount = 0;
+    bool hasPrimaryAudioSoundNote = false;
+    const QString primaryAudioFileName = QFileInfo(chart.meta().audioFile).fileName();
 
     for (const Note &note : chart.notes())
     {
@@ -787,13 +789,31 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
 
         if (note.type == NoteType::SOUND)
         {
-            // 音效音符
+            // Keep the primary audio sound note aligned with MetaData::offset.
+            // CCE edits the chart-level offset, while Malody reads the type=1
+            // sound note offset for playback. Writing the stale Note::offset here
+            // makes an exported chart appear to lose its offset.
+            const QString soundFileName = QFileInfo(note.sound).fileName();
+            const bool isPrimaryAudioSound = !hasPrimaryAudioSoundNote &&
+                                             !primaryAudioFileName.isEmpty() &&
+                                             QString::compare(soundFileName,
+                                                              primaryAudioFileName,
+                                                              Qt::CaseInsensitive) == 0;
+
             obj["type"] = 1;
             obj["sound"] = note.sound;
             obj["vol"] = note.vol;
-            obj["offset"] = note.offset;
+            obj["offset"] = isPrimaryAudioSound ? chart.meta().offset : note.offset;
+            if (isPrimaryAudioSound)
+                hasPrimaryAudioSoundNote = true;
             soundNoteCount++;
-            Logger::debug(QString("ChartIO::save - Sound note: [%1,%2,%3], sound=%4").arg(note.beatNum).arg(note.numerator).arg(note.denominator).arg(note.sound));
+            Logger::debug(QString("ChartIO::save - Sound note: [%1,%2,%3], sound=%4, offset=%5%6")
+                              .arg(note.beatNum)
+                              .arg(note.numerator)
+                              .arg(note.denominator)
+                              .arg(note.sound)
+                              .arg(isPrimaryAudioSound ? chart.meta().offset : note.offset)
+                              .arg(isPrimaryAudioSound ? QStringLiteral(" (primary audio)") : QString()));
         }
         else if (note.type == NoteType::RAIN)
         {
@@ -821,7 +841,7 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     // Ensure a sound note referencing the audio file is always present.
     // Malody V resolves audio via note[type=1].sound, not via meta.audio.
     // This also upgrades legacy charts that only had meta.audio without a sound note.
-    if (soundNoteCount == 0 && !chart.meta().audioFile.isEmpty())
+    if (!hasPrimaryAudioSoundNote && !chart.meta().audioFile.isEmpty())
     {
         // 确保音频文件已复制到目标目录
         QString audioFileName = chart.meta().audioFile;
@@ -859,8 +879,11 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
         soundObj["vol"] = 100;
         soundObj["offset"] = chart.meta().offset;
         noteArray.insert(0, soundObj);
-        soundNoteCount = 1;
-        Logger::debug(QString("ChartIO::save - Injected sound note for audio: %1").arg(audioFileName));
+        soundNoteCount++;
+        hasPrimaryAudioSoundNote = true;
+        Logger::debug(QString("ChartIO::save - Injected primary sound note for audio: %1, offset=%2")
+                          .arg(audioFileName)
+                          .arg(chart.meta().offset));
     }
 
     root["note"] = noteArray;
