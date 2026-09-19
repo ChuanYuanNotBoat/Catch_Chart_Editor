@@ -2,6 +2,8 @@
 
 本文档定义 `advanced_color_editor` 能力的宿主约定。
 
+> 兼容 Host API v2-v3；最后核对：2026-09-10。
+
 ## 1. Capability Key
 
 插件需要在 `capabilities` 中声明：

@@ -4,6 +4,7 @@
 #include "controller/PlaybackController.h"
 #include "render/NoteRenderer.h"
 #include "render/RainRewardGenerator.h"
+#include "render/RainVisibilityIndex.h"
 #include "render/GridRenderer.h"
 #include "render/BackgroundRenderer.h"
 #include "render/HyperfruitDetector.h"
@@ -232,16 +233,34 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     painter.setClipRect(rect());
 
-    auto renderNoteAtIndex = [&](int i)
+    const bool rewardPreviewEnabled = m_noteRenderer->rainRewardPreviewEnabled();
+    if (rewardPreviewEnabled)
+        RainRewardGenerator::instance().ensureChart(
+            notes, bpmList, chart()->meta().offset, m_chartRevision);
+
+    auto renderNoteAtIndex = [&](int i, const Note *previewNote)
     {
         if (i < 0 || i >= notes.size())
             return;
-        NoteType type = m_noteTypes[i];
+        if (!previewNote &&
+            ((m_isMovingSelection && m_moveChanges.contains(i)) || m_rainTailDragIndex == i))
+            return;
+
+        const Note &displayNote = previewNote ? *previewNote : notes[i];
+        const NoteType type = displayNote.type;
         if (type == NoteType::SOUND)
             return;
 
-        double beat = m_noteBeatPositions[i];
-        double endBeatNote = m_noteEndBeatPositions[i];
+        const double beat = previewNote
+                                ? MathUtils::beatToFloat(displayNote.beatNum,
+                                                         displayNote.numerator,
+                                                         displayNote.denominator)
+                                : m_noteBeatPositions[i];
+        const double endBeatNote = previewNote && type == NoteType::RAIN
+                                       ? MathUtils::beatToFloat(displayNote.endBeatNum,
+                                                                displayNote.endNumerator,
+                                                                displayNote.endDenominator)
+                                       : m_noteEndBeatPositions[i];
 
         if (type == NoteType::NORMAL)
         {
@@ -270,11 +289,13 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             bool selected = selectedSet.contains(i);
             // rain 奖励 note 预览点（同一 paint pass 内绘制，无额外图层；关闭时零开销）。
             QVector<QPointF> rewardPoints;
-            if (m_noteRenderer->rainRewardPreviewEnabled())
+            // Reward drops belong to the committed chart-wide deterministic
+            // stream. Suppress them for transient move/tail previews instead
+            // of drawing stale drops from the original rain geometry.
+            if (rewardPreviewEnabled && !previewNote)
             {
                 auto &generator = RainRewardGenerator::instance();
-                generator.ensureChart(notes, bpmList, chart()->meta().offset);
-                const QVector<RainDrop> drops = generator.dropsFor(notes[i]);
+                const QVector<RainDrop> &drops = generator.dropsFor(notes[i]);
                 if (!drops.isEmpty())
                 {
                     rewardPoints.reserve(drops.size());
@@ -289,46 +310,31 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
                     }
                 }
             }
-            m_noteRenderer->drawRain(painter, notes[i], rainRect, selected,
+            m_noteRenderer->drawRain(painter, displayNote, rainRect, selected,
                                      rewardPoints.isEmpty() ? nullptr : &rewardPoints);
         }
         else
         {
-            double x = lmargin + m_noteXPositions[i] * availableWidth;
+            const double xRatio = previewNote
+                                      ? static_cast<double>(displayNote.x) / static_cast<double>(kLaneWidth)
+                                      : m_noteXPositions[i];
+            double x = lmargin + xRatio * availableWidth;
             QPointF pos(x, y);
             bool selected = selectedSet.contains(i);
-            m_noteRenderer->drawNote(painter, notes[i], pos, selected, i);
+            m_noteRenderer->drawNote(painter, displayNote, pos, selected, i);
         }
     };
 
-    if (!m_sortedRainNoteIndicesByBeat.isEmpty())
+    const RainVisibilityIndex::IntervalRange rainRange =
+        m_rainIntervalIndex.overlapping(startBeat, endBeat);
+    for (qsizetype position = rainRange.begin; position < rainRange.end; ++position)
     {
-        const auto rainBegin = std::lower_bound(
-            m_sortedRainNoteIndicesByBeat.begin(),
-            m_sortedRainNoteIndicesByBeat.end(),
-            startBeat,
-            [this](int idx, double beatValue) {
-                return m_noteBeatPositions[idx] < beatValue;
-            });
-
-        // Include rain notes that started earlier but may still overlap current view.
-        auto rainStartIt = rainBegin;
-        while (rainStartIt != m_sortedRainNoteIndicesByBeat.begin())
-        {
-            auto prev = rainStartIt - 1;
-            const int idx = *prev;
-            if (m_noteEndBeatPositions[idx] <= startBeat)
-                break;
-            rainStartIt = prev;
-        }
-
-        for (auto it = rainStartIt; it != m_sortedRainNoteIndicesByBeat.end(); ++it)
-        {
-            const int idx = *it;
-            if (m_noteBeatPositions[idx] >= endBeat)
-                break;
-            renderNoteAtIndex(idx);
-        }
+        const int idx = m_rainIntervalIndex.entryAt(position).index;
+        if (idx < 0 || idx >= m_noteBeatPositions.size())
+            continue;
+        if (m_noteBeatPositions[idx] >= endBeat)
+            break;
+        renderNoteAtIndex(idx, nullptr);
     }
 
     if (!m_sortedNormalNoteIndicesByBeat.isEmpty())
@@ -345,9 +351,16 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             const int idx = *it;
             if (m_noteBeatPositions[idx] > endBeat + 0.5)
                 break;
-            renderNoteAtIndex(idx);
+            renderNoteAtIndex(idx, nullptr);
         }
     }
+    if (m_isMovingSelection)
+    {
+        for (auto it = m_moveChanges.constBegin(); it != m_moveChanges.constEnd(); ++it)
+            renderNoteAtIndex(it.key(), &it.value().second);
+    }
+    if (m_rainTailDragIndex >= 0)
+        renderNoteAtIndex(m_rainTailDragIndex, &m_rainTailDragPreview);
     const qint64 notesEndNs = paintMarkNs();
 
     if (m_isPasting && !m_pasteNotes.isEmpty())
@@ -459,102 +472,19 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
         return;
 
     painter.setOpacity(0.5);
-
-    const auto &bpmList = chart()->bpmList();
-    const int offset = chart()->meta().offset;
-
-    QVector<double> fallbackOriginalTimes;
-    bool usingCachedOriginalTimes =
-        (m_pasteOriginalTimesMs.size() == m_pasteNotes.size()) &&
-        std::isfinite(m_pasteBaseOriginalTimeMs);
-    if (!usingCachedOriginalTimes)
+    rebuildPastePreviewCache();
+    const double previewStartBeat = m_scrollBeat - 0.5;
+    const double previewEndBeat = m_scrollBeat + effectiveVisibleBeatRange() + 0.5;
+    for (const Note &previewNote : m_pastePreviewNotes)
     {
-        fallbackOriginalTimes.resize(m_pasteNotes.size());
-        for (int i = 0; i < fallbackOriginalTimes.size(); ++i)
-            fallbackOriginalTimes[i] = std::numeric_limits<double>::quiet_NaN();
-
-        for (int i = 0; i < m_pasteNotes.size(); ++i)
-        {
-            const Note &note = m_pasteNotes[i];
-            if (note.type == NoteType::SOUND)
-                continue;
-            const double t = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, bpmList, offset);
-            fallbackOriginalTimes[i] = t;
-        }
-    }
-
-    const QVector<double> &sourceOriginalTimes = usingCachedOriginalTimes ? m_pasteOriginalTimesMs : fallbackOriginalTimes;
-    double baseOriginalTime = m_pasteBaseOriginalTimeMs;
-    if (!usingCachedOriginalTimes)
-    {
-        baseOriginalTime = (std::numeric_limits<double>::max)();
-        for (double t : sourceOriginalTimes)
-        {
-            if (std::isfinite(t) && t < baseOriginalTime)
-                baseOriginalTime = t;
-        }
-    }
-    if (baseOriginalTime != (std::numeric_limits<double>::max)())
-    {
-        const QVector<MathUtils::BpmCacheEntry> &previewBpmCache = bpmTimeCache();
-        auto previewBeatFromTimeMs = [&previewBpmCache, &bpmList, offset](double ms) -> double
-        {
-            if (!previewBpmCache.isEmpty())
-            {
-                int lo = 0;
-                int hi = previewBpmCache.size() - 1;
-                while (lo < hi)
-                {
-                    int mid = (lo + hi + 1) / 2;
-                    if (previewBpmCache[mid].accumulatedMs <= ms)
-                        lo = mid;
-                    else
-                        hi = mid - 1;
-                }
-                const auto &seg = previewBpmCache[lo];
-                if (seg.bpm <= 0.0)
-                    return seg.beatPos;
-                return seg.beatPos + (ms - seg.accumulatedMs) * (seg.bpm / 60000.0);
-            }
-            int b = 0, n = 0, d = 1;
-            MathUtils::msToBeat(ms, bpmList, offset, b, n, d);
-            return MathUtils::beatToFloat(b, n, d);
-        };
-        const double baseOriginalBeat = previewBeatFromTimeMs(baseOriginalTime);
-        const double referenceBeat = m_pasteAnchorBeat;
-        const double baseBeatShift = referenceBeat - baseOriginalBeat;
-        const double totalBeatShift = snapPasteTimeOffset(baseBeatShift + m_pasteTimeOffset);
-        for (int i = 0; i < m_pasteNotes.size(); ++i)
-        {
-            const Note &note = m_pasteNotes[i];
-            if (note.type == NoteType::SOUND)
-                continue;
-            if (i >= sourceOriginalTimes.size())
-                continue;
-            const double originalTime = sourceOriginalTimes[i];
-            if (!std::isfinite(originalTime))
-                continue;
-            const double originalBeatFloat = previewBeatFromTimeMs(originalTime);
-            const double requestedPreviewBeat = originalBeatFloat + totalBeatShift;
-            Note previewNote = note;
-            const bool use288Division = Settings::instance().pasteUse288Division();
-            const bool represented = use288Division
-                ? MathUtils::quantizeBeatToDivision(requestedPreviewBeat, 288,
-                                                    previewNote.beatNum, previewNote.numerator, previewNote.denominator)
-                : MathUtils::representBeatWithDivision(requestedPreviewBeat, qMax(1, note.denominator),
-                                                       previewNote.beatNum, previewNote.numerator, previewNote.denominator);
-            if (!represented)
-            {
-                MathUtils::floatToBeat(requestedPreviewBeat, previewNote.beatNum,
-                                       previewNote.numerator, previewNote.denominator);
-            }
-            const double previewBeatFloat = MathUtils::beatToFloat(
-                previewNote.beatNum, previewNote.numerator, previewNote.denominator);
-            const double y = baseY + sign * ((previewBeatFloat - m_scrollBeat) * invVisibleRange * canvasHeight);
-            const int previewShiftedX = qBound(0, note.x + qRound(m_pasteXOffset), kLaneWidth);
-            const double x = lmargin + (previewShiftedX / static_cast<double>(kLaneWidth)) * availableWidth;
-            m_noteRenderer->drawNote(painter, previewNote, QPointF(x, y), false, -1);
-        }
+        const double previewBeat = MathUtils::beatToFloat(
+            previewNote.beatNum, previewNote.numerator, previewNote.denominator);
+        if (previewBeat < previewStartBeat || previewBeat > previewEndBeat)
+            continue;
+        const double y = baseY + sign * ((previewBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+        const double x = lmargin +
+                         (previewNote.x / static_cast<double>(kLaneWidth)) * availableWidth;
+        m_noteRenderer->drawNote(painter, previewNote, QPointF(x, y), false, -1);
     }
 
     painter.setOpacity(1.0);
@@ -570,6 +500,41 @@ void ChartCanvas::drawPastePreview(QPainter &painter,
     }
 }
 
+void ChartCanvas::invalidateMirrorPreviewCache()
+{
+    m_mirrorPreviewCacheValid = false;
+    m_mirrorPreviewNotes.clear();
+}
+
+void ChartCanvas::rebuildMirrorPreviewCache()
+{
+    if (m_mirrorPreviewCacheValid)
+        return;
+
+    m_mirrorPreviewNotes.clear();
+    if (!chart() || !m_selectionController)
+    {
+        m_mirrorPreviewCacheValid = true;
+        return;
+    }
+
+    const auto &notes = chart()->notes();
+    const QSet<int> selectedSet = m_selectionController->selectedIndices();
+    m_mirrorPreviewNotes.reserve(selectedSet.size());
+    for (int index : selectedSet)
+    {
+        if (index < 0 || index >= notes.size())
+            continue;
+        const Note &note = notes[index];
+        if (note.type == NoteType::SOUND)
+            continue;
+        Note mirrored = note;
+        mirrored.x = qBound(0, m_mirrorAxisX * 2 - note.x, kLaneWidth);
+        m_mirrorPreviewNotes.append(mirrored);
+    }
+    m_mirrorPreviewCacheValid = true;
+}
+
 void ChartCanvas::drawMirrorPreview(QPainter &painter,
                                     int canvasHeight,
                                     int lmargin,
@@ -581,32 +546,42 @@ void ChartCanvas::drawMirrorPreview(QPainter &painter,
     if (!chart() || !m_selectionController)
         return;
 
-    const QSet<int> selectedSet = m_selectionController->selectedIndices();
-    if (selectedSet.isEmpty())
+    rebuildMirrorPreviewCache();
+    if (m_mirrorPreviewNotes.isEmpty())
         return;
 
     const auto &notes = chart()->notes();
+    const double previewStartBeat = m_scrollBeat;
+    const double previewEndBeat = m_scrollBeat + effectiveVisibleBeatRange();
+    const bool rewardPreviewEnabled = m_noteRenderer->rainRewardPreviewEnabled();
+    if (rewardPreviewEnabled)
+        RainRewardGenerator::instance().ensureChart(
+            notes, chart()->bpmList(), chart()->meta().offset, m_chartRevision);
     painter.save();
     painter.setOpacity(0.4);
 
-    for (int idx : selectedSet)
+    for (const Note &mirrored : m_mirrorPreviewNotes)
     {
-        if (idx < 0 || idx >= notes.size())
-            continue;
-
-        const Note &note = notes[idx];
-        if (note.type == NoteType::SOUND)
-            continue;
-
-        Note mirrored = note;
-        mirrored.x = qBound(0, m_mirrorAxisX * 2 - note.x, kLaneWidth);
         const double beat = MathUtils::beatToFloat(mirrored.beatNum, mirrored.numerator, mirrored.denominator);
+        const double rainEndBeat = mirrored.type == NoteType::RAIN
+                                       ? MathUtils::beatToFloat(mirrored.endBeatNum,
+                                                                mirrored.endNumerator,
+                                                                mirrored.endDenominator)
+                                       : beat;
+        if (mirrored.type == NoteType::RAIN)
+        {
+            if (rainEndBeat <= previewStartBeat || beat >= previewEndBeat)
+                continue;
+        }
+        else if (beat < previewStartBeat - 0.5 || beat > previewEndBeat + 0.5)
+        {
+            continue;
+        }
         const double y = baseY + sign * ((beat - m_scrollBeat) * invVisibleRange * canvasHeight);
 
         if (mirrored.type == NoteType::RAIN)
         {
-            const double endBeat = MathUtils::beatToFloat(mirrored.endBeatNum, mirrored.endNumerator, mirrored.endDenominator);
-            const double yEnd = baseY + sign * ((endBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
+            const double yEnd = baseY + sign * ((rainEndBeat - m_scrollBeat) * invVisibleRange * canvasHeight);
             const double rectTop = qMin(y, yEnd);
             const double rectHeight = qAbs(yEnd - y);
             if (rectHeight <= 0.0)
@@ -614,11 +589,10 @@ void ChartCanvas::drawMirrorPreview(QPainter &painter,
             QRectF rainRect(lmargin, rectTop, availableWidth, rectHeight);
             // 镜像预览：预览点横向沿镜像轴翻转（复用同一份缓存序列）。
             QVector<QPointF> rewardPoints;
-            if (m_noteRenderer->rainRewardPreviewEnabled())
+            if (rewardPreviewEnabled)
             {
                 auto &generator = RainRewardGenerator::instance();
-                generator.ensureChart(notes, chart()->bpmList(), chart()->meta().offset);
-                const QVector<RainDrop> drops = generator.dropsFor(mirrored);
+                const QVector<RainDrop> &drops = generator.dropsFor(mirrored);
                 if (!drops.isEmpty())
                 {
                     rewardPoints.reserve(drops.size());
@@ -1067,13 +1041,37 @@ int ChartCanvas::hitTestRainTailHandle(const QPointF &pos) const
         return m_rainTailDragIndex;
 
     const auto &notes = chart()->notes();
-    // Topmost (last drawn) rain wins; iterate in reverse draw order.
-    for (int i = notes.size() - 1; i >= 0; --i)
+    if (m_timesDirty || m_noteDataDirty)
+        const_cast<ChartCanvas *>(this)->rebuildNoteTimesCache();
+
+    // The tail grip is a point on the rain interval. Query only rains that
+    // can contain the pointer beat, then preserve the old topmost-by-index
+    // tie-break when several grips overlap.
+    const double pointerBeat = yToBeat(pos.y());
+    const RainVisibilityIndex::IntervalRange candidates =
+        m_rainIntervalIndex.containing(pointerBeat);
+    int hit = -1;
+    for (qsizetype position = candidates.begin; position < candidates.end; ++position)
     {
-        if (notes[i].type != NoteType::RAIN)
+        const int index = m_rainIntervalIndex.entryAt(position).index;
+        if (index < 0 || index >= notes.size() || notes[index].type != NoteType::RAIN)
             continue;
-        if (rainTailHandleRect(notes[i]).adjusted(-3, -3, 3, 3).contains(pos))
-            return i;
+        if (rainTailHandleRect(notes[index]).adjusted(-3, -3, 3, 3).contains(pos))
+            hit = qMax(hit, index);
+    }
+    if (hit >= 0)
+        return hit;
+
+    // Keep hit testing usable while a chart without a valid BPM cache is
+    // being edited; such charts cannot populate the time-based index.
+    if (m_rainIntervalIndex.isEmpty())
+    {
+        for (int i = notes.size() - 1; i >= 0; --i)
+        {
+            if (notes[i].type == NoteType::RAIN &&
+                rainTailHandleRect(notes[i]).adjusted(-3, -3, 3, 3).contains(pos))
+                return i;
+        }
     }
     return -1;
 }
@@ -1092,17 +1090,23 @@ void ChartCanvas::drawRainTailHandles(QPainter &painter)
                                 : theme.button;
 
     const auto &notes = chart()->notes();
-    for (int i = 0; i < notes.size(); ++i)
+    const RainVisibilityIndex::IntervalRange visibleRains =
+        m_rainIntervalIndex.overlapping(m_scrollBeat,
+                                        m_scrollBeat + effectiveVisibleBeatRange());
+    auto drawHandle = [&](int index)
     {
-        if (notes[i].type != NoteType::RAIN)
-            continue;
-        const QRectF handle = rainTailHandleRect(notes[i]);
+        if (index < 0 || index >= notes.size() || notes[index].type != NoteType::RAIN)
+            return;
+        const Note &displayNote = (m_rainTailDragIndex == index)
+                                      ? m_rainTailDragPreview
+                                      : notes[index];
+        const QRectF handle = rainTailHandleRect(displayNote);
         if (!handle.intersects(QRectF(rect())))
-            continue;
+            return;
 
         painter.save();
         painter.setRenderHint(QPainter::Antialiasing, true);
-        painter.setPen(QPen(gripBorder, m_rainTailDragIndex == i ? 2 : 1));
+        painter.setPen(QPen(gripBorder, m_rainTailDragIndex == index ? 2 : 1));
         painter.setBrush(gripFill);
         painter.drawRoundedRect(handle, 3, 3);
         painter.setPen(QPen(theme.text, 1));
@@ -1113,6 +1117,17 @@ void ChartCanvas::drawRainTailHandles(QPainter &painter)
             painter.drawLine(QPointF(nx, handle.top() + 2), QPointF(nx, handle.bottom() - 2));
         }
         painter.restore();
+    };
+
+    if (!visibleRains.isEmpty())
+    {
+        for (qsizetype position = visibleRains.begin; position < visibleRains.end; ++position)
+            drawHandle(m_rainIntervalIndex.entryAt(position).index);
+    }
+    else if (m_rainIntervalIndex.isEmpty())
+    {
+        for (int i = 0; i < notes.size(); ++i)
+            drawHandle(i);
     }
 }
 
@@ -1122,32 +1137,69 @@ int ChartCanvas::hitTestNote(const QPointF &pos) const
         return -1;
 
     const auto &notes = chart()->notes();
+    if (m_timesDirty || m_noteDataDirty)
+        const_cast<ChartCanvas *>(this)->rebuildNoteTimesCache();
+
     int noteSize = m_noteRenderer->getNoteSize();
     double minDist = noteSize * 0.6;
     int hit = -1;
 
-    for (int i = 0; i < notes.size(); ++i)
+    const RainVisibilityIndex::IntervalRange rainCandidates =
+        m_rainIntervalIndex.containing(yToBeat(pos.y()));
+    int rainHit = -1;
+    for (qsizetype position = rainCandidates.begin;
+         position < rainCandidates.end;
+         ++position)
     {
-        const Note &note = notes[i];
-        if (note.type == NoteType::SOUND)
+        const int index = m_rainIntervalIndex.entryAt(position).index;
+        if (index < 0 || index >= notes.size() || notes[index].type != NoteType::RAIN)
             continue;
+        if (getRainNoteRect(notes[index]).contains(pos))
+            rainHit = rainHit < 0 ? index : qMin(rainHit, index);
+    }
+    if (rainHit >= 0)
+        return rainHit;
 
-        if (note.type == NoteType::RAIN)
+    const double verticalPadding = m_noteRenderer->getNoteSize() * 0.6;
+    const double beatAtTop = yToBeat(pos.y() - verticalPadding);
+    const double beatAtBottom = yToBeat(pos.y() + verticalPadding);
+    const double minBeat = qMin(beatAtTop, beatAtBottom);
+    const double maxBeat = qMax(beatAtTop, beatAtBottom);
+    const auto considerNormal = [&](int index)
+    {
+        if (index < 0 || index >= notes.size() || notes[index].type == NoteType::SOUND ||
+            notes[index].type == NoteType::RAIN)
+            return;
+        const Note &note = notes[index];
+
+        QPointF notePos = noteToPos(note);
+        double dist = QLineF(notePos, pos).length();
+        if (dist < minDist)
         {
-            QRectF rainRect = getRainNoteRect(note);
-            if (rainRect.contains(pos))
-                return i;
+            minDist = dist;
+            hit = index;
         }
-        else
-        {
-            QPointF notePos = noteToPos(note);
-            double dist = QLineF(notePos, pos).length();
-            if (dist < minDist)
-            {
-                minDist = dist;
-                hit = i;
-            }
-        }
+    };
+
+    if (m_noteTypes.size() != notes.size())
+    {
+        for (int index = 0; index < notes.size(); ++index)
+            considerNormal(index);
+    }
+    else if (!m_sortedNormalNoteIndicesByBeat.isEmpty())
+    {
+        const auto normalBegin = std::lower_bound(
+            m_sortedNormalNoteIndicesByBeat.cbegin(),
+            m_sortedNormalNoteIndicesByBeat.cend(),
+            minBeat,
+            [this](int index, double beat) { return m_noteBeatPositions[index] < beat; });
+        const auto normalEnd = std::upper_bound(
+            m_sortedNormalNoteIndicesByBeat.cbegin(),
+            m_sortedNormalNoteIndicesByBeat.cend(),
+            maxBeat,
+            [this](double beat, int index) { return beat < m_noteBeatPositions[index]; });
+        for (auto iterator = normalBegin; iterator != normalEnd; ++iterator)
+            considerNormal(*iterator);
     }
     return hit;
 }

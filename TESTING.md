@@ -1,7 +1,7 @@
 # Testing Guide
 
-> 适用版本：Beta v1.11.1 发布候选
-> 最后核对：2026-09-07
+> 适用版本：Beta v1.11.2 发布候选
+> 最后核对：2026-09-19
 
 ## 测试目标
 
@@ -21,8 +21,11 @@ CTest 名称：`core_minimal_tests`
 
 - `MathUtils` beat/ms、BPM cache、吸附与边界；
 - Chart、Note、BPM、MetaData 的排序、增删改和信号；
-- `ChartController` 批量编辑、撤销/重做及细分变更信号；
+- `ChartController` 批量编辑、撤销/重做及细分变更信号；每次图表变更还携带单调 revision 和 `notes/timing/metadata/resources` 类型化变更集；统计、画布、密度、选择、预览与奖励缓存按相关 revision 失效；
+- 5,000 Note 批量增删移动后的稳定身份、数量与排序；
 - `ChartIO` / `ProjectIO` / `ChartFileSystem` 路径、扫描、资源和格式行为；
+- 恢复工作副本的根目录边界、路径穿越和相似前缀拒绝；
+- 非单调 Rain 结束拍下的可见区前缀索引与统计/Rain reward 一致性；
 - SHA256 与诊断相关工具；
 - Note Chain legacy 导入、锚点/控制柄、采样、密度、V3 元数据、CAS、损坏数据保护、事务式切谱及宿主选择同步。
 
@@ -44,6 +47,10 @@ CTest 名称：`ui_docking_layout_tests`
 - `ForceScrollArea` 和 viewport 在浮动首帧可见且尺寸有效；
 - 工具 QWidget 可在 ADS dock 与旧式单一纵向栏之间往返转移且对象身份不变；旧式右栏保留按需纵向滚动并强制关闭横向滚动；
 - 关闭浮动窗口会同步面板动作，动作可立即恢复面板，后续普通隐藏事件不会再次误关面板。
+- 主编辑区不提供关闭动作；经典与多窗口设置状态分别持久化，清除任一模式状态不会删除另一模式状态。
+- 关闭纵向栈中的任一紧凑工具块时，普通编辑面板吸收释放空间，其余紧凑工具块的外框及内部控件均保持自然高度；工具浮动后解除自然高度上限，重新停靠后恢复。
+- 主编辑区的全部 splitter 祖先不可折叠，并保留 `420x300` 的最低可用交互面；拖放到主编辑区时只允许创建左/右侧区域，不允许把它变成纵向工具栈或标签页。
+- 浮动拖拽轮廓随当前目标区域动态变化，便于在释放鼠标前确认最终停靠位置。
 
 ## 本地命令
 
@@ -80,6 +87,47 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --output-on-failure
 ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:20 --output-on-failure
 ```
 
+## Release 播放性能基准
+
+主编辑区或 MainWindow 高频路径有改动时，使用实际谱面运行内置基准。开发机的主要
+压力用例是 `Yugami - Nyanpasu- Lv.16`（4,461 notes、1 BPM）：
+
+```powershell
+$chartPath = 'C:\path\to\Yugami - Nyanpasu- Lv.16.mc'
+build\Release\CatchChartEditor.exe `
+  --benchmark-chart $chartPath `
+  --benchmark-fps 0 `
+  --benchmark-warmup-ms 3000 `
+  --benchmark-duration-ms 10000 `
+  --benchmark-output artifacts\local_playback_benchmark.json
+```
+
+验收时至少检查：`verdict.passed`、canvas/preview FPS、paint p95、
+`ui_stall_events`、`skipped_display_refreshes`、`window_update_request_p95_ms`。
+基准产物属于本机诊断文件，不提交 Git。2026-09-09 至 2026-09-10 的同机对比中，
+Chart parse 从 195 ms 降至 31-35 ms；通过样本为 59.89-59.99 FPS、canvas paint
+p95 2.786-3.288 ms、MainWindow update p95 6.002-9.670 ms，均为 0 skipped refresh、
+0 UI stall。最终交付代码复跑为 59.988 FPS / 3.191 ms / 6.638 ms，工作副本创建 89 ms、
+解析 32 ms。单次 Windows 调度毛刺
+应保留失败结果并同参数复跑确认，不得只看平均 FPS。
+
+播放启动连续性必须另做零预热回归；常规 3 秒 warm-up 会隐藏首个音频位置回调前的
+冻结或跳变：
+
+```powershell
+build\Release\CatchChartEditor.exe `
+  --benchmark-chart $chartPath `
+  --benchmark-fps 0 `
+  --benchmark-warmup-ms 0 `
+  --benchmark-duration-ms 3000 `
+  --benchmark-output artifacts\local_playback_startup.json
+```
+
+除常规判定外，检查 `playback.audio_progress_wait_ms`、
+`playback.initial_clock_error_abs_ms`、`playback.time_step_ms` 和
+`visual.scroll_step_change_pct`。音频后端首个位置样本可以延迟到达，但画面帧在等待期间
+必须继续推进，首次样本不得直接重设显示时钟。0.1×、0.25×、1×、2×、10× 至少各跑一次。
+
 ## 手工回归清单
 
 自动化测试不替代以下真实交互：
@@ -87,6 +135,7 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 - 打开、新建、切换难度、保存、另存和导出 `.mcz`；
 - 播放/暂停、变速、滚轮导航、缩放和拖动 seek；
 - Note/Rain 放置、框选、范围选择、复制粘贴、镜像和撤销重做；
+- 在压力谱面中分别拖动 1 / 100 / 4,000 个 Note 和 Rain 尾部，确认拖动期间顺滑、预览位置正确、松手只增加一个 Undo 项，撤销后谱面完全恢复；
 - 默认粘贴优先保持原分母；无法精确表达时允许自动约分；仅在手动启用时把预览和最终 Note 统一量化为 `/288`；
 - 曲线锚点/控制柄拖动、连接、段密度、整曲线/目标段提交、样式导入导出和 sidecar 重开；
 - 大谱面启用曲线工具后持续移动鼠标，确认 hover 不随 Note 数量明显卡顿，并验证主窗口级 `Delete` 可删除锚点/曲线段；
@@ -94,7 +143,9 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 - Note Input、Timing & Grid、Playback Speed、Range Select、Mirror Flip、Curve Tools 和 Plugin Tools 分别验证纵向组合、拆分、拖动、浮动、关闭恢复和默认布局重置，并确认拖回后不变为切换标签；
 - 在新旧两种布局中验证 Playback Speed 的六个快捷按钮与 `0.1×–10×` 手动输入，确认输入边界、Playback 菜单双向同步、播放中切速和重启持久化；
 - 关闭 `View -> Enable Floating Windows`，确认界面恢复为引入 ADS 前的固定 Navigation / Preview / Workspace / 右编辑栏四栏布局，Note/BPM/Meta 只在同一右栏切换，没有任何 ADS 标题、标签或工具拆分块；右栏滚轮及纵向滚动条有效且始终没有横向滚动条；
-- 在两种模式间反复切换，确认当前 Note/BPM/Meta 页、曲线控件、范围输入和 Plugin Tools GUI 状态不丢失；重启后保持所选模式，重新启用 ADS 后恢复关闭前的停靠位置；
+- 先分别设置经典模式的四栏宽度、Note/BPM/Meta 页和 Plugin Tools 开关，以及多窗口模式的停靠/浮窗/关闭状态；反复切换并重启，确认每种模式只恢复自己的最后状态，互不手动同步或覆盖；
+- 多窗口模式尝试关闭 `Chart Workspace`，确认主编辑区没有关闭入口；关闭其他面板后，分别从顶部 `Panels`、`View -> Panels` 和 `Reopen All Closed Panels` 恢复；
+- 依次关闭 Timing、Playback Speed、Range、Mirror、Curve、Plugin Tools 或 Chart Statistics，确认相邻紧凑模块不被拉高；剩余空间由普通编辑面板吸收，纯工具浮窗中则表现为空白；
 - Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、浮动、关闭、无需重启恢复和重启持久化；BPM/Meta 等完整面板另验证标签组合；
 - 关闭主窗口后确认 GUI、日志终端、外部插件子进程和主进程均结束；
 - 深色/浅色主题下主窗口与浮动窗口标题栏、文字、边框和首帧内容；

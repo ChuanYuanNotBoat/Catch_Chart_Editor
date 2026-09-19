@@ -75,7 +75,9 @@ private:
     bool emitFramePulse(qint64 nowNs);
     double predictedTimeAt(qint64 nowNs) const;
     void resetFrameAnchor(double timeMs, qint64 nowNs);
-    void applyObservedTimeToAnchor(double observedMs, qint64 nowNs);
+    void applyObservedTimeToAnchor(double observedMs,
+                                   qint64 nowNs,
+                                   bool allowHardResync = true);
 
     AudioPlayer *m_audioPlayer;
     State m_state;
@@ -98,7 +100,7 @@ private:
     double m_frameAnchorTimeMs;
     qint64 m_frameAnchorWallNs;
     double m_frameRateCorrection;
-    bool m_waitingForAudioProgress;
+    bool m_awaitingInitialAudioProgress;
     double m_audioProgressStartMs;
     qint64 m_frameSeq;
     double m_lastFrameTickMs;

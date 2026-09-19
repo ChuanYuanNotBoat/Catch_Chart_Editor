@@ -8,15 +8,21 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
+#include <QSettings>
 #include <QSizePolicy>
 #include <QSplitter>
+#include <QTemporaryDir>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <cmath>
 #include <cstdio>
 
 #include "ui/PlaybackSpeedPanel.h"
+#include "ui/DockLayoutPolicy.h"
+#include "ui/PaneContainer.h"
+#include "ui/WorkbenchLayout.h"
 #include "utils/NativeWindowTheme.h"
+#include "utils/Settings.h"
 #include <DockAreaWidget.h>
 #include <FloatingDockContainer.h>
 #include <FloatingDragPreview.h>
@@ -67,6 +73,16 @@ namespace
         const double darker = std::min(lumA, lumB);
         return (lighter + 0.05) / (darker + 0.05);
     }
+
+    QWidget *createCompactPanel(const QString &label)
+    {
+        auto *panel = new QWidget;
+        auto *layout = new QVBoxLayout(panel);
+        layout->setContentsMargins(4, 4, 4, 4);
+        layout->addWidget(new QPushButton(label, panel));
+        layout->addWidget(new QPushButton(label + QStringLiteral(" 2"), panel));
+        return panel;
+    }
 }
 
 int main(int argc, char **argv)
@@ -74,9 +90,46 @@ int main(int argc, char **argv)
 #if defined(Q_OS_LINUX)
     qputenv("QT_QPA_PLATFORM", QByteArrayLiteral("offscreen"));
 #endif
+    QTemporaryDir settingsDirectory;
+    if (!settingsDirectory.isValid())
+    {
+        std::fprintf(stderr, "FAILED: layout settings test directory must be available\n");
+        return 1;
+    }
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       settingsDirectory.path());
     QApplication app(argc, argv);
 
     bool ok = true;
+    Settings &layoutSettings = Settings::instance();
+    layoutSettings.clearDockLayoutState();
+    layoutSettings.clearClassicLayoutState();
+    const QByteArray floatingLayout("floating-layout-state");
+    const QByteArray classicLayout("classic-layout-state");
+    layoutSettings.setDockLayoutState(floatingLayout);
+    layoutSettings.setClassicLayoutState(classicLayout);
+    layoutSettings.setClassicRightPanelId(QStringLiteral("meta"));
+    layoutSettings.setClassicPluginToolsVisible(true);
+    ok &= require(layoutSettings.dockLayoutState() == floatingLayout
+                      && layoutSettings.classicLayoutState() == classicLayout,
+                  "classic and multi-window layouts must persist independently");
+    ok &= require(layoutSettings.classicRightPanelId() == QLatin1String("meta")
+                      && layoutSettings.classicPluginToolsVisible(),
+                  "classic layout must persist its active sidebar and plugin visibility");
+    layoutSettings.clearClassicLayoutState();
+    ok &= require(layoutSettings.dockLayoutState() == floatingLayout
+                      && layoutSettings.classicLayoutState().isEmpty()
+                      && layoutSettings.classicRightPanelId() == QLatin1String("note")
+                      && !layoutSettings.classicPluginToolsVisible(),
+                  "resetting classic layout must not erase the multi-window layout");
+    layoutSettings.setClassicLayoutState(classicLayout);
+    layoutSettings.setClassicRightPanelId(QStringLiteral("bpm"));
+    layoutSettings.clearDockLayoutState();
+    ok &= require(layoutSettings.dockLayoutState().isEmpty()
+                      && layoutSettings.classicLayoutState() == classicLayout
+                      && layoutSettings.classicRightPanelId() == QLatin1String("bpm"),
+                  "resetting multi-window layout must not erase the classic layout");
 
     const auto darkTheme = NativeWindowTheme::themeColorsFor(QColor(24, 26, 30));
     ok &= require(contrastRatio(darkTheme.text, darkTheme.window) >= 4.5,
@@ -120,9 +173,12 @@ int main(int argc, char **argv)
 
     ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewShowsContentPixmap, false);
-    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewHasWindowFrame, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DisableStylesheet, true);
+    ok &= require(ads::CDockManager::testConfigFlag(
+                      ads::CDockManager::DragPreviewIsDynamic),
+                  "dock target preview must track the active drop region");
 
     QMainWindow window;
     window.resize(900, 600);
@@ -132,8 +188,13 @@ int main(int argc, char **argv)
     auto *manager = new ads::CDockManager(&window);
     auto *workspaceDock = new ads::CDockWidget(manager, QStringLiteral("Workspace"));
     workspaceDock->setObjectName(QStringLiteral("test.workspace"));
-    workspaceDock->setWidget(new QWidget, ads::CDockWidget::ForceNoScrollArea);
+    workspaceDock->setFeature(ads::CDockWidget::DockWidgetClosable, false);
+    ok &= require(!workspaceDock->features().testFlag(ads::CDockWidget::DockWidgetClosable),
+                  "the primary chart workspace must not expose a close action");
+    auto *workspaceSurface = new QWidget;
+    workspaceDock->setWidget(workspaceSurface, ads::CDockWidget::ForceNoScrollArea);
     ads::CDockAreaWidget *workspaceArea = manager->setCentralWidget(workspaceDock);
+    DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(workspaceDock);
 
     auto *tallContent = new QWidget;
     tallContent->setMinimumSize(280, 2400);
@@ -155,26 +216,66 @@ int main(int argc, char **argv)
 
     auto *rangeDock = new ads::CDockWidget(manager, QStringLiteral("Range Select"));
     rangeDock->setObjectName(QStringLiteral("test.range"));
-    rangeDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
+    rangeDock->setWidget(createCompactPanel(QStringLiteral("Range")),
+                         ads::CDockWidget::ForceScrollArea);
     ads::CDockAreaWidget *rangeArea = manager->addDockWidget(
         ads::BottomDockWidgetArea, rangeDock, speedArea);
     rangeArea->setAllowedAreas(ads::OuterDockAreas);
 
     auto *mirrorDock = new ads::CDockWidget(manager, QStringLiteral("Mirror Flip"));
     mirrorDock->setObjectName(QStringLiteral("test.mirror"));
-    mirrorDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
+    mirrorDock->setWidget(createCompactPanel(QStringLiteral("Mirror")),
+                          ads::CDockWidget::ForceScrollArea);
     ads::CDockAreaWidget *mirrorArea = manager->addDockWidget(
         ads::BottomDockWidgetArea, mirrorDock, rangeArea);
     mirrorArea->setAllowedAreas(ads::OuterDockAreas);
 
     auto *pluginToolsDock = new ads::CDockWidget(manager, QStringLiteral("Plugin Tools"));
     pluginToolsDock->setObjectName(QStringLiteral("test.plugin-tools"));
-    pluginToolsDock->setWidget(new QWidget, ads::CDockWidget::ForceScrollArea);
+    pluginToolsDock->setWidget(createCompactPanel(QStringLiteral("Plugin")),
+                               ads::CDockWidget::ForceScrollArea);
     ads::CDockAreaWidget *pluginToolsArea = manager->addDockWidget(
         ads::BottomDockWidgetArea, pluginToolsDock, mirrorArea);
     pluginToolsArea->setAllowedAreas(ads::OuterDockAreas);
 
+    for (ads::CDockWidget *dock : {speedDock, rangeDock, mirrorDock, pluginToolsDock})
+        DockLayoutPolicy::applyCompactToolDockPolicy(dock);
+    DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(workspaceDock);
+    QObject::connect(manager, &ads::CDockManager::stateRestored,
+                     [manager, workspaceDock]()
+                     {
+        DockLayoutPolicy::refreshCompactToolDockPolicies(manager);
+        DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(workspaceDock);
+    });
+
     window.show();
+    app.processEvents();
+
+    const QSize requiredWorkspaceSize = DockLayoutPolicy::primaryWorkspaceMinimumSize();
+    ok &= require(workspaceSurface->minimumWidth() >= requiredWorkspaceSize.width()
+                      && workspaceSurface->minimumHeight() >= requiredWorkspaceSize.height(),
+                  "the primary editor must retain a usable interaction surface");
+    ok &= require(!workspaceDock->features().testFlag(ads::CDockWidget::DockWidgetClosable)
+                      && !workspaceDock->features().testFlag(ads::CDockWidget::DockWidgetMovable)
+                      && !workspaceDock->features().testFlag(ads::CDockWidget::DockWidgetFloatable),
+                  "the primary editor must remain a stable workbench part");
+    ok &= require(workspaceArea->allowedAreas()
+                      == (ads::LeftDockWidgetArea | ads::RightDockWidgetArea),
+                  "drops on the primary editor must create side regions only");
+    QWidget *workspaceBranch = workspaceArea;
+    while (auto *splitter = qobject_cast<QSplitter *>(workspaceBranch->parentWidget()))
+    {
+        const int index = splitter->indexOf(workspaceBranch);
+        ok &= require(index >= 0 && !splitter->isCollapsible(index),
+                      "every primary editor splitter branch must be non-collapsible");
+        workspaceBranch = splitter;
+    }
+    window.resize(640, 420);
+    app.processEvents();
+    ok &= require(workspaceSurface->width() >= requiredWorkspaceSize.width()
+                      && workspaceSurface->height() >= requiredWorkspaceSize.height(),
+                  "side panels must yield before the primary editor becomes unusable");
+    window.resize(900, 600);
     app.processEvents();
 
     auto *speedInput = speedPanel->findChild<QDoubleSpinBox *>(
@@ -236,21 +337,103 @@ int main(int argc, char **argv)
                       && mirrorArea->parentWidget() == toolSplitter
                       && pluginToolsArea->parentWidget() == toolSplitter,
                   "docked tool blocks must preserve the original vertical reading order");
+    ok &= require(speedPanel->sizePolicy().verticalPolicy() == QSizePolicy::Maximum,
+                  "compact tool content must remain content-height instead of stretching");
+    ok &= require(speedArea->maximumHeight() < QWIDGETSIZE_MAX
+                      && rangeArea->maximumHeight() < QWIDGETSIZE_MAX
+                      && mirrorArea->maximumHeight() < QWIDGETSIZE_MAX
+                      && pluginToolsArea->maximumHeight() < QWIDGETSIZE_MAX,
+                  "compact dock frames must be capped at their natural heights");
+    ok &= require(panelArea->sizePolicy().verticalStretch() == 1
+                      && speedArea->sizePolicy().verticalStretch() == 0
+                      && rangeArea->sizePolicy().verticalStretch() == 0
+                      && mirrorArea->sizePolicy().verticalStretch() == 0
+                      && pluginToolsArea->sizePolicy().verticalStretch() == 0,
+                  "normal panels must absorb free vertical space before compact tools");
     ok &= require(!speedArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
                       && !rangeArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
                       && !mirrorArea->allowedAreas().testFlag(ads::CenterDockWidgetArea)
                       && !pluginToolsArea->allowedAreas().testFlag(ads::CenterDockWidgetArea),
                   "tool blocks must reject switching-tab merges");
 
+    if (toolSplitter)
+        toolSplitter->setSizes({100, 260, 60, 60, 60});
+    app.processEvents();
+    ok &= require(speedArea->height() <= speedArea->maximumHeight(),
+                  "a compact dock frame must reject excess splitter space");
+    const int panelHeightBeforeClose = panelArea->height();
+    const int speedHeightBeforeClose = speedArea->height();
+    const int mirrorHeightBeforeClose = mirrorArea->height();
+    const int pluginHeightBeforeClose = pluginToolsArea->height();
+    rangeDock->toggleView(false);
+    app.processEvents();
+    ok &= require(panelArea->height() > panelHeightBeforeClose
+                      && speedArea->height() <= speedHeightBeforeClose + 2
+                      && mirrorArea->height() <= mirrorHeightBeforeClose + 2
+                      && pluginToolsArea->height() <= pluginHeightBeforeClose + 2,
+                  "closing one tool block must not stretch the remaining compact modules");
+    ok &= require(manager->restoreState(initialState, 1),
+                  "compact stack must restore after the close/reflow regression check");
+    app.processEvents();
+    ok &= require(panelDock->dockAreaWidget()
+                      && speedDock->dockAreaWidget()
+                      && panelDock->dockAreaWidget()->sizePolicy().verticalStretch() == 1
+                      && speedDock->dockAreaWidget()->sizePolicy().verticalStretch() == 0,
+                  "restoring a saved layout must reapply compact stack stretch policy");
+
+    panelDock->toggleView(false);
+    app.processEvents();
+    const int speedContentHeightBeforeClose = speedPanel->height();
+    rangeDock->toggleView(false);
+    app.processEvents();
+    ok &= require(speedPanel->height() <= speedContentHeightBeforeClose + 2
+                      && speedArea->height() <= speedArea->maximumHeight()
+                      && mirrorArea->height() <= mirrorArea->maximumHeight()
+                      && pluginToolsArea->height() <= pluginToolsArea->maximumHeight(),
+                  "an all-tool stack may gain blank space but must not stretch tool content");
+    ok &= require(manager->restoreState(initialState, 1),
+                  "tool-only content sizing check must leave the saved layout recoverable");
+    app.processEvents();
+
+    const int dockedRangeMaximumHeight = rangeDock->maximumHeight();
     rangeDock->setFloating();
     app.processEvents();
     ok &= require(rangeDock->isFloating(),
                   "an individual tool block must detach from its merged group");
+    auto *floatingRoot = qobject_cast<QSplitter *>(
+        rangeDock->dockAreaWidget() ? rangeDock->dockAreaWidget()->parentWidget() : nullptr);
+    auto *rangeFloatingWindow = qobject_cast<ads::CFloatingDockContainer *>(rangeDock->window());
+    if (rangeFloatingWindow && floatingRoot)
+    {
+        rangeFloatingWindow->resize(320, 360);
+        app.processEvents();
+    }
+    DockLayoutPolicy::refreshCompactToolDockPolicies(manager);
+    app.processEvents();
+    ok &= require(rangeFloatingWindow && floatingRoot,
+                  "a detached tool must expose its floating container hierarchy");
+    ok &= require(floatingRoot && floatingRoot->maximumHeight() == QWIDGETSIZE_MAX,
+                  "a floating tool must release compact limits from its container root");
+    if (rangeFloatingWindow && floatingRoot)
+    {
+        QWidget *floatingContent = floatingRoot->parentWidget();
+        ok &= require(floatingContent
+                          && floatingRoot->y() <= 1
+                          && floatingRoot->height() >= floatingContent->height() - 2,
+                      "a resized floating tool must fill its window without top and bottom gaps");
+    }
+    ok &= require(dockedRangeMaximumHeight < QWIDGETSIZE_MAX
+                      && rangeDock->maximumHeight() == QWIDGETSIZE_MAX
+                      && rangeDock->widget()->maximumHeight() == QWIDGETSIZE_MAX
+                      && rangeDock->dockAreaWidget()->maximumHeight() == QWIDGETSIZE_MAX,
+                  "a floating tool must regain unconstrained window sizing");
     ok &= require(manager->restoreState(initialState, 1),
                   "the stacked tool layout must restore after detaching a block");
     app.processEvents();
+    DockLayoutPolicy::refreshCompactToolDockPolicies(manager);
     ok &= require(!rangeDock->isFloating()
-                      && rangeDock->dockAreaWidget() != mirrorDock->dockAreaWidget(),
+                      && rangeDock->dockAreaWidget() != mirrorDock->dockAreaWidget()
+                      && rangeDock->maximumHeight() < QWIDGETSIZE_MAX,
                   "restoring the layout must return the block without creating a tab group");
 
     // Floating tools can be disabled without replacing their widgets. Move
@@ -435,6 +618,146 @@ int main(int argc, char **argv)
     app.processEvents();
     ok &= require(!panelDock->isFloating() && !panelDock->isClosed(),
                   "restoring the layout must redock and reopen the panel");
+
+    // Stable workbench parts keep pane identity and local state independent
+    // from the ADS leaf layout. Unknown panes can be added later without
+    // invalidating a saved state for the existing panes.
+    PaneContainer detachedPaneContainer(QStringLiteral("detachedPaneTest"));
+    QPointer<QWidget> detachedPane = new QWidget;
+    ok &= require(detachedPaneContainer.addPane(QStringLiteral("preview"), detachedPane,
+                                                true, false),
+                  "non-scrollable panes must be accepted without a wrapper");
+    QWidget *takenPane = detachedPaneContainer.takePane(QStringLiteral("preview"));
+    ok &= require(detachedPane && takenPane == detachedPane.data()
+                      && takenPane->parentWidget() == nullptr,
+                  "taking a non-scrollable pane must preserve its content widget");
+    if (detachedPane)
+        delete detachedPane.data();
+
+    WorkbenchLayout collapsingWorkbench;
+    collapsingWorkbench.resize(900, 640);
+    collapsingWorkbench.setEditorWidget(new QWidget);
+    collapsingWorkbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                                QStringLiteral("onlyPane"), new QWidget, true, false);
+    collapsingWorkbench.show();
+    app.processEvents();
+    ok &= require(collapsingWorkbench.horizontalSplitter()->sizes().at(0) > 0
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(1) == 0
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(3) == 0
+                      && collapsingWorkbench.verticalSplitter()->sizes().at(1) == 0,
+                  "empty top-level workbench parts must not reserve layout space");
+    const int visiblePrimarySize = collapsingWorkbench.horizontalSplitter()->sizes().at(0);
+    ok &= require(collapsingWorkbench.setPaneVisible(QStringLiteral("onlyPane"), false)
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(0) == 0,
+                  "hiding the last visible pane must collapse its top-level part");
+    ok &= require(collapsingWorkbench.setPaneVisible(QStringLiteral("onlyPane"), true)
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(0) > 0,
+                  "showing a pane in an empty part must reveal that part");
+    ok &= require(std::abs(collapsingWorkbench.horizontalSplitter()->sizes().at(0)
+                           - visiblePrimarySize) <= 2,
+                  "revealed workbench parts must restore their cached size");
+    ok &= require(collapsingWorkbench.movePane(QStringLiteral("onlyPane"),
+                                               WorkbenchLayout::Part::BottomPanel)
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(0) == 0
+                      && collapsingWorkbench.verticalSplitter()->sizes().at(1) > 0,
+                  "moving the last pane must collapse its source and reveal its target part");
+    collapsingWorkbench.resetState();
+    app.processEvents();
+    ok &= require(collapsingWorkbench.primarySidebar()->containsPane(QStringLiteral("onlyPane"))
+                      && collapsingWorkbench.horizontalSplitter()->sizes().at(0) > 0
+                      && collapsingWorkbench.verticalSplitter()->sizes().at(1) == 0,
+                  "resetting a workbench without bottom panes must not create a blank bottom area");
+    collapsingWorkbench.close();
+
+    WorkbenchLayout workbench;
+    workbench.resize(900, 640);
+    ok &= require(workbench.setEditorWidget(new QWidget),
+                  "workbench must accept one stable editor part");
+    QPointer<QWidget> navigationPane = new QWidget;
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                                    QStringLiteral("navigation"), navigationPane,
+                                    true, false),
+                  "primary sidebar must register panes by stable id");
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                                    QStringLiteral("statistics"), new QWidget,
+                                    true, false),
+                  "primary sidebar must retain a second pane");
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::PreviewArea,
+                                    QStringLiteral("preview"), new QWidget,
+                                    true, false),
+                  "realtime preview must use its own top-level workbench part");
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::AuxiliarySidebar,
+                                    QStringLiteral("note"), new QWidget,
+                                    true, true),
+                  "auxiliary sidebar must register scrollable panes");
+    ok &= require(workbench.addPane(WorkbenchLayout::Part::BottomPanel,
+                                    QStringLiteral("diagnostics"), new QWidget,
+                                    true, false),
+                  "bottom panel must be a stable top-level part");
+    workbench.show();
+    app.processEvents();
+
+    PaneContainer *primarySidebar = workbench.primarySidebar();
+    WorkbenchLayout::Part previewPart = WorkbenchLayout::Part::Editor;
+    ok &= require(workbench.panePart(QStringLiteral("preview"), &previewPart)
+                      && previewPart == WorkbenchLayout::Part::PreviewArea
+                      && !primarySidebar->containsPane(QStringLiteral("preview"))
+                      && workbench.previewArea()->containsPane(QStringLiteral("preview")),
+                  "realtime preview must not be stacked into the primary sidebar");
+    ok &= require(workbench.movePane(QStringLiteral("navigation"),
+                                     WorkbenchLayout::Part::BottomPanel)
+                      && navigationPane
+                      && workbench.bottomPanel()->containsPane(QStringLiteral("navigation"))
+                      && workbench.resetPaneLocation(QStringLiteral("navigation"))
+                      && navigationPane
+                      && primarySidebar->containsPane(QStringLiteral("navigation")),
+                  "moving a non-scrollable pane must preserve the content widget");
+    ok &= require(primarySidebar->setPaneSize(QStringLiteral("navigation"), 145)
+                      && primarySidebar->movePane(QStringLiteral("statistics"), 0)
+                      && primarySidebar->setPaneExpanded(QStringLiteral("navigation"), false),
+                  "pane containers must cache size, order, and expansion state");
+    ok &= require(workbench.movePane(QStringLiteral("note"),
+                                     WorkbenchLayout::Part::BottomPanel),
+                  "workbench must move a view between stable top-level parts");
+    ok &= require(!workbench.auxiliarySidebar()->containsPane(QStringLiteral("note"))
+                      && workbench.bottomPanel()->containsPane(QStringLiteral("note"))
+                      && workbench.bottomPanel()->scrollAreaForPane(QStringLiteral("note"))
+                      && workbench.setPaneVisible(QStringLiteral("note"), false),
+                  "moved panes must retain their scroll host and visibility state");
+    const QByteArray workbenchState = workbench.saveState();
+
+    WorkbenchLayout restoredWorkbench;
+    restoredWorkbench.setEditorWidget(new QWidget);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                              QStringLiteral("navigation"), new QWidget, true, false);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::PrimarySidebar,
+                              QStringLiteral("statistics"), new QWidget, true, false);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::PreviewArea,
+                              QStringLiteral("preview"), new QWidget, true, false);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::AuxiliarySidebar,
+                              QStringLiteral("note"), new QWidget, true, true);
+    restoredWorkbench.addPane(WorkbenchLayout::Part::BottomPanel,
+                              QStringLiteral("diagnostics"), new QWidget, true, false);
+    ok &= require(restoredWorkbench.restoreState(workbenchState),
+                  "workbench state must restore across fresh pane containers");
+    ok &= require(restoredWorkbench.primarySidebar()->paneOrder()
+                      == QStringList({QStringLiteral("statistics"), QStringLiteral("navigation")})
+                      && !restoredWorkbench.primarySidebar()->paneExpanded(QStringLiteral("navigation"))
+                      && restoredWorkbench.previewArea()->containsPane(QStringLiteral("preview"))
+                      && !restoredWorkbench.auxiliarySidebar()->containsPane(QStringLiteral("note"))
+                      && restoredWorkbench.bottomPanel()->containsPane(QStringLiteral("note"))
+                      && !restoredWorkbench.bottomPanel()->paneVisible(QStringLiteral("note")),
+                  "stable pane ids must restore order, location, expansion, and visibility");
+    ok &= require(restoredWorkbench.primarySidebar()->paneSize(QStringLiteral("navigation")) >= 100,
+                  "hidden or collapsed panes must retain a usable cached size");
+    ok &= require(restoredWorkbench.bottomPanel()->scrollAreaForPane(QStringLiteral("note")),
+                  "scrollable pane state must retain its scroll host");
+    ok &= require(restoredWorkbench.resetPaneLocation(QStringLiteral("note"))
+                      && restoredWorkbench.auxiliarySidebar()->containsPane(QStringLiteral("note")),
+                  "reset view location must return a pane to its default part");
+    workbench.close();
+    restoredWorkbench.close();
+    app.processEvents();
 
     window.close();
     app.processEvents();

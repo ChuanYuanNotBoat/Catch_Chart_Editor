@@ -33,10 +33,8 @@ private:
     void setupUi();
     double currentChartTimeMs() const;
     QString currentAudioFilePath() const;
-    bool measureBpmFromAudio(int durationSeconds,
-                             int mode,
-                             BpmDetector::DetectionResult &outResult,
-                             QString *outError) const;
+    QString buildMeasurementDetails(const BpmDetector::DetectionResult &result,
+                                    bool fromStart) const;
 
     ChartController *m_chartController;
     PlaybackController *m_playbackController;

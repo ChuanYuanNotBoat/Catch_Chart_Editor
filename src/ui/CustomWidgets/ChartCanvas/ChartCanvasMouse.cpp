@@ -385,17 +385,16 @@ void ChartCanvas::updateMoveSelection(const QPointF &currentPos)
     }
     const double appliedDeltaX = m_moveDeltaXRaw;
 
-    QVector<Note> *notes = mutableNotes();
-    if (!notes)
+    if (!chart())
         return;
     QList<int> selectedList = m_originalSelectedIndices.values();
 
     for (int idx : selectedList)
     {
-        if (idx < 0 || idx >= notes->size())
+        if (idx < 0 || idx >= chart()->notes().size())
             continue;
-        auto it = m_moveChanges.constFind(idx);
-        if (it == m_moveChanges.constEnd())
+        auto it = m_moveChanges.find(idx);
+        if (it == m_moveChanges.end())
             continue;
 
         const Note &original = it->first;
@@ -419,12 +418,8 @@ void ChartCanvas::updateMoveSelection(const QPointF &currentPos)
         }
 
         applyCurveSnapToMovedNote(&newNote, newBeat);
-        (*notes)[idx] = newNote;
+        it.value().second = newNote;
     }
-
-    m_noteDataDirty = true;
-    m_timesDirty = true;
-    m_hyperCacheValid = false;
 
     update();
 }
@@ -442,126 +437,18 @@ void ChartCanvas::endMoveSelection()
         m_wasGridSnapEnabled = false;
     }
 
-    double finalAppliedDeltaBeat = m_moveDeltaBeatRaw;
-    if (m_timeDivision > 0 && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
-    {
-        const Note &refOriginal = m_moveChanges[m_dragReferenceIndex].first;
-        const double refOriginalBeat = MathUtils::beatToFloat(refOriginal.beatNum, refOriginal.numerator, refOriginal.denominator);
-        const double refNewBeat = refOriginalBeat + m_moveDeltaBeatRaw;
-
-        Note refSnapped = refOriginal;
-        MathUtils::floatToBeat(refNewBeat, refSnapped.beatNum, refSnapped.numerator, refSnapped.denominator);
-        refSnapped = MathUtils::snapNoteToTimeWithBoundary(refSnapped, m_timeDivision);
-        const double refSnappedBeat = MathUtils::beatToFloat(refSnapped.beatNum, refSnapped.numerator, refSnapped.denominator);
-        finalAppliedDeltaBeat = refSnappedBeat - refOriginalBeat;
-    }
-    const double finalAppliedDeltaX = m_moveDeltaXRaw;
-
-    QVector<Note> *notes = mutableNotes();
-    if (!notes)
-        return;
-
     QList<QPair<Note, Note>> finalChanges;
-    const auto &notesNow = chart()->notes();
-    QHash<QString, int> indexById;
-    indexById.reserve(notesNow.size());
-    for (int i = 0; i < notesNow.size(); ++i)
-    {
-        if (!notesNow[i].id.isEmpty() && !indexById.contains(notesNow[i].id))
-            indexById.insert(notesNow[i].id, i);
-    }
-
-    QSet<int> consumedFallbackIndices;
-    auto findIdentityIndex = [&notesNow, &indexById, &consumedFallbackIndices](const Note &originalNote,
-                                                                                const Note &expectedMovedNote,
-                                                                                int sourceIndex) -> int
-    {
-        if (!originalNote.id.isEmpty())
-            return indexById.value(originalNote.id, -1);
-
-        for (int i = 0; i < notesNow.size(); ++i)
-        {
-            if (consumedFallbackIndices.contains(i))
-                continue;
-            if (notesNow[i] == expectedMovedNote)
-            {
-                consumedFallbackIndices.insert(i);
-                return i;
-            }
-        }
-
-        for (int i = 0; i < notesNow.size(); ++i)
-        {
-            if (consumedFallbackIndices.contains(i))
-                continue;
-            if (notesNow[i] == originalNote)
-            {
-                consumedFallbackIndices.insert(i);
-                return i;
-            }
-        }
-
-        if (sourceIndex >= 0 &&
-            sourceIndex < notesNow.size() &&
-            !consumedFallbackIndices.contains(sourceIndex) &&
-            (notesNow[sourceIndex] == expectedMovedNote || notesNow[sourceIndex] == originalNote))
-        {
-            consumedFallbackIndices.insert(sourceIndex);
-            return sourceIndex;
-        }
-        return -1;
-    };
-
-    const auto buildFinalMovedNote = [this, finalAppliedDeltaBeat, finalAppliedDeltaX](const Note &original) -> Note
-    {
-        Note moved = original;
-        double newBeat = MathUtils::beatToFloat(original.beatNum, original.numerator, original.denominator) + finalAppliedDeltaBeat;
-        if (newBeat < 0.0)
-            newBeat = 0.0;
-        MathUtils::floatToBeat(newBeat, moved.beatNum, moved.numerator, moved.denominator);
-
-        moved.x = qBound(0, qRound(original.x + finalAppliedDeltaX), kLaneWidth);
-
-        if (original.type == NoteType::RAIN)
-        {
-            double newEndBeat = MathUtils::beatToFloat(original.endBeatNum, original.endNumerator, original.endDenominator) + finalAppliedDeltaBeat;
-            if (newEndBeat < newBeat)
-                newEndBeat = newBeat;
-            MathUtils::floatToBeat(newEndBeat, moved.endBeatNum, moved.endNumerator, moved.endDenominator);
-        }
-
-        applyCurveSnapToMovedNote(&moved, newBeat);
-        return moved;
-    };
-
-    QList<QPair<int, Note>> rollbackPairs;
-    rollbackPairs.reserve(m_moveChanges.size());
     for (auto it = m_moveChanges.constBegin(); it != m_moveChanges.constEnd(); ++it)
     {
-        const int sourceIndex = it.key();
         const Note &originalNote = it.value().first;
-        const Note movedNote = buildFinalMovedNote(originalNote);
+        const Note &movedNote = it.value().second;
         if (originalNote == movedNote)
             continue;
-
-        const int identityIndex = findIdentityIndex(originalNote, movedNote, sourceIndex);
-        if (identityIndex < 0 || identityIndex >= notesNow.size())
-            continue;
-
         finalChanges.append(qMakePair(originalNote, movedNote));
-        rollbackPairs.append(qMakePair(identityIndex, originalNote));
     }
 
     if (!finalChanges.isEmpty())
-    {
-        for (const auto &rollback : rollbackPairs)
-        {
-            const int idx = rollback.first;
-            if (idx >= 0 && idx < notes->size())
-                (*notes)[idx] = rollback.second;
-        }
         m_chartController->moveNotes(finalChanges);
-    }
 
     m_originalSelectedIndices.clear();
     m_dragReferenceIndex = -1;
@@ -571,8 +458,6 @@ void ChartCanvas::endMoveSelection()
     m_moveChanges.clear();
     m_moveStartPos = QPointF();
 
-    m_noteDataDirty = true;
-    m_timesDirty = true;
     update();
 }
 
@@ -1012,6 +897,7 @@ void ChartCanvas::showStandardContextMenu(QMouseEvent *event)
             [this](bool enabled)
             {
                 Settings::instance().setPasteUse288Division(enabled);
+                invalidatePastePreviewCache();
                 emit statusMessage(enabled ? tr("Paste timing: quantize to 1/288")
                                            : tr("Paste timing: preserve normal timing"));
                 update();
@@ -1153,6 +1039,7 @@ void ChartCanvas::beginRainTailDrag(int noteIndex)
 
     m_rainTailDragIndex = noteIndex;
     m_rainTailDragOriginal = note;
+    m_rainTailDragPreview = note;
     setCursor(Qt::SizeVerCursor);
     update();
 }
@@ -1162,8 +1049,7 @@ void ChartCanvas::updateRainTailDrag(const QPointF &pos)
     if (m_rainTailDragIndex < 0 || !chart())
         return;
 
-    QVector<Note> *notes = mutableNotes();
-    if (!notes || m_rainTailDragIndex >= notes->size())
+    if (m_rainTailDragIndex >= chart()->notes().size())
         return;
 
     const Note &original = m_rainTailDragOriginal;
@@ -1182,13 +1068,9 @@ void ChartCanvas::updateRainTailDrag(const QPointF &pos)
     Note newNote = original;
     MathUtils::floatToBeat(snapped, newNote.endBeatNum, newNote.endNumerator, newNote.endDenominator);
 
-    if ((*notes)[m_rainTailDragIndex] == newNote)
+    if (m_rainTailDragPreview == newNote)
         return;
-    (*notes)[m_rainTailDragIndex] = newNote;
-
-    m_noteDataDirty = true;
-    m_timesDirty = true;
-    m_hyperCacheValid = false;
+    m_rainTailDragPreview = newNote;
     update();
 }
 
@@ -1201,11 +1083,10 @@ bool ChartCanvas::endRainTailDrag()
     m_rainTailDragIndex = -1;
     setCursor(Qt::ArrowCursor);
 
-    QVector<Note> *notes = mutableNotes();
-    if (!notes || idx >= notes->size())
+    if (idx >= chart()->notes().size())
         return true;
 
-    const Note newNote = (*notes)[idx];
+    const Note newNote = m_rainTailDragPreview;
     const Note original = m_rainTailDragOriginal;
     if (newNote == original)
     {
@@ -1213,12 +1094,8 @@ bool ChartCanvas::endRainTailDrag()
         return true;
     }
 
-    // Roll back the in-place preview, then commit through the undo stack so
-    // the change is a single undoable command (same flow as move selection).
-    (*notes)[idx] = original;
-    m_noteDataDirty = true;
-    m_timesDirty = true;
-    m_hyperCacheValid = false;
+    // The chart was not touched during preview; release submits one undoable
+    // mutation and lets the typed controller signal invalidate caches once.
     m_chartController->moveNotes(QList<QPair<Note, Note>>{qMakePair(original, newNote)});
     update();
     return true;
@@ -1457,24 +1334,27 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
     }
 
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-    if (nowMs - m_lastPluginMouseMoveDispatchMs < kPluginMouseMoveMinIntervalMs)
-        return;
-    m_lastPluginMouseMoveDispatchMs = nowMs;
-
-    PluginInterface::CanvasInputEvent pluginEvent;
-    pluginEvent.type = "mouse_move";
-    pluginEvent.x = event->position().x();
-    pluginEvent.y = event->position().y();
-    pluginEvent.button = static_cast<int>(Qt::NoButton);
-    pluginEvent.buttons = static_cast<int>(event->buttons());
-    fillPluginEventModifiers(&pluginEvent, event->modifiers());
-
-    pluginEvent.timestampMs = nowMs;
-    bool consumed = false;
-    if (dispatchPluginCanvasInput(pluginEvent, &consumed) && consumed)
+    const bool dispatchPluginMove = m_pluginToolModeActive &&
+        nowMs - m_lastPluginMouseMoveDispatchMs >= kPluginMouseMoveMinIntervalMs;
+    if (dispatchPluginMove)
     {
-        event->accept();
-        return;
+        m_lastPluginMouseMoveDispatchMs = nowMs;
+
+        PluginInterface::CanvasInputEvent pluginEvent;
+        pluginEvent.type = "mouse_move";
+        pluginEvent.x = event->position().x();
+        pluginEvent.y = event->position().y();
+        pluginEvent.button = static_cast<int>(Qt::NoButton);
+        pluginEvent.buttons = static_cast<int>(event->buttons());
+        fillPluginEventModifiers(&pluginEvent, event->modifiers());
+        pluginEvent.timestampMs = nowMs;
+
+        bool consumed = false;
+        if (dispatchPluginCanvasInput(pluginEvent, &consumed) && consumed)
+        {
+            event->accept();
+            return;
+        }
     }
 
     if (m_isDraggingMirrorGuide)
@@ -1518,9 +1398,36 @@ bool ChartCanvas::handleSelectionRelease()
 
     const QRect dirty = QRectF(m_selectionStart, m_selectionEnd).normalized().toAlignedRect().adjusted(-2, -2, 2, 2);
     QRectF rect = QRectF(m_selectionStart, m_selectionEnd).normalized();
-    m_selectionController->selectInRect(rect, chart()->notes(),
-                                        [this](const Note &note)
-                                        { return noteToPos(note); });
+    const QVector<Note> &notes = chart()->notes();
+    if (m_timesDirty || m_noteDataDirty)
+        rebuildNoteTimesCache();
+
+    if (!m_sortedSelectionNoteIndicesByBeat.isEmpty())
+    {
+        const double beatAtTop = yToBeat(rect.top());
+        const double beatAtBottom = yToBeat(rect.bottom());
+        const double minBeat = qMin(beatAtTop, beatAtBottom);
+        const double maxBeat = qMax(beatAtTop, beatAtBottom);
+        const auto first = std::lower_bound(
+            m_sortedSelectionNoteIndicesByBeat.cbegin(),
+            m_sortedSelectionNoteIndicesByBeat.cend(),
+            minBeat,
+            [&notes](int index, double beat) { return notes[index].getStartBeat() < beat; });
+        const auto last = std::upper_bound(
+            m_sortedSelectionNoteIndicesByBeat.cbegin(),
+            m_sortedSelectionNoteIndicesByBeat.cend(),
+            maxBeat,
+            [&notes](double beat, int index) { return beat < notes[index].getStartBeat(); });
+        const QVector<int> candidates(first, last);
+        m_selectionController->selectInRect(
+            rect, notes, candidates,
+            [this](const Note &note) { return noteToPos(note); });
+    }
+    else
+    {
+        m_selectionController->selectInRect(
+            rect, notes, [this](const Note &note) { return noteToPos(note); });
+    }
     m_isSelecting = false;
     update(dirty);
     return true;

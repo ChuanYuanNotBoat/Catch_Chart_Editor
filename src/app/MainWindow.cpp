@@ -2,10 +2,12 @@
 #include "MainWindow.h"
 #include "MainWindowPrivate.h"
 #include "app/Application.h"
+#include "app/SessionPathUtils.h"
 #include "plugin/PluginManager.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "ui/CustomWidgets/RealtimePreviewWidget.h"
 #include "ui/DensityCurve.h"
+#include "ui/DockLayoutPolicy.h"
 #include "ui/NoteEditPanel.h"
 #include "ui/BPMTimePanel.h"
 #include "ui/LongRangeSelector.h"
@@ -32,9 +34,13 @@
 #include "file/ChartFileSystem.h"
 #include "model/Skin.h"
 #include "render/RainRewardGenerator.h"
+#include "utils/FileUtils.h"
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
 #include "utils/NativeWindowTheme.h"
+#include "utils/PlaybackStutterProbe.h"
+#include "ui/PaneContainer.h"
+#include "ui/WorkbenchLayout.h"
 #include <DockManager.h>
 #include <DockWidget.h>
 #include <DockAreaWidget.h>
@@ -42,6 +48,7 @@
 #include <FloatingDockContainer.h>
 #include <QMenuBar>
 #include <QToolBar>
+#include <QToolButton>
 #include <QStatusBar>
 #include <QStyle>
 #include <QFileDialog>
@@ -75,11 +82,18 @@
 #include <QRadioButton>
 #include <QCheckBox>
 #include <QLineEdit>
+#include <QAbstractSpinBox>
+#include <QTextEdit>
+#include <QPlainTextEdit>
 #include <QDesktopServices>
+#include <QEventLoop>
+#include <QElapsedTimer>
+#include <QEvent>
 #include <QUrl>
 #include <QSysInfo>
 #include <QGroupBox>
 #include <QFile>
+#include <QSaveFile>
 #include <QTextStream>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -88,6 +102,7 @@
 #include <QListWidget>
 #include <QComboBox>
 #include <QPushButton>
+#include <QMetaObject>
 #include <QProgressDialog>
 #include <QThread>
 #include <QTreeWidget>
@@ -110,10 +125,14 @@
 #include <QScopedValueRollback>
 #include <QUuid>
 #include <QDirIterator>
+#include <QtConcurrentRun>
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <functional>
 #include <limits>
+#include <memory>
+#include <utility>
 
 namespace
 {
@@ -217,9 +236,12 @@ namespace
         root.insert(QStringLiteral("undo_count"), stats.undoCount);
         root.insert(QStringLiteral("redo_count"), stats.redoCount);
         root.insert(QStringLiteral("operations"), operations);
-        QFile file(path);
-        if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-            file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        QSaveFile file(path);
+        if (!file.open(QIODevice::WriteOnly))
+            return;
+        const QByteArray data = QJsonDocument(root).toJson(QJsonDocument::Indented);
+        if (file.write(data) != data.size() || !file.commit())
+            Logger::warn(QString("Failed to atomically save editor statistics: %1").arg(path));
     }
 
     QString lightweightDockStyle(const NativeWindowTheme::ThemeColors &theme)
@@ -237,7 +259,8 @@ namespace
                    "ads--CDockSplitter[compactToolStack=\"true\"]::handle { background: transparent; }"
                    "ads--CDockAreaTitleBar { background: %1; border-bottom: 1px solid %7; }"
                    "ads--CDockAreaTitleBar[compactToolHandle=\"true\"] { border: none; background: transparent; }"
-                   "QLabel#compactToolDockGrip { color: %6; background: transparent; border: none; padding: 0 7px 0 0; font-size: 10px; }"
+                   "QLabel#compactToolDockTitle { color: %2; background: transparent; border: none; padding: 0 4px 0 7px; font-size: 11px; font-weight: 600; }"
+                   "QLabel#compactToolDockGrip { color: %6; background: transparent; border: none; padding: 0 7px 0 4px; font-size: 10px; }"
                    "ads--CDockWidgetTab { background: %1; border-right: 1px solid %7; padding: 0; }"
                    "ads--CDockWidgetTab[activeTab=\"true\"] { background: %8; }"
                    "ads--CDockWidgetTab QLabel, #autoHideTitleLabel { color: %2; }"
@@ -264,20 +287,6 @@ namespace
     bool isModifierKey(int key)
     {
         return key == Qt::Key_Control || key == Qt::Key_Shift || key == Qt::Key_Alt || key == Qt::Key_Meta;
-    }
-
-    int modifierCount(Qt::KeyboardModifiers mods)
-    {
-        int count = 0;
-        if (mods.testFlag(Qt::ControlModifier))
-            ++count;
-        if (mods.testFlag(Qt::AltModifier))
-            ++count;
-        if (mods.testFlag(Qt::ShiftModifier))
-            ++count;
-        if (mods.testFlag(Qt::MetaModifier))
-            ++count;
-        return count;
     }
 
     QString modifiersPreviewText(Qt::KeyboardModifiers mods)
@@ -546,7 +555,7 @@ namespace
             int k3 = seq.count() > 2 ? seq[2] : 0;
             int k4 = seq.count() > 3 ? seq[3] : 0;
             m_sequence = QKeySequence(k1, k2, k3, k4);
-            m_blockedChordAttempt = false;
+            m_replaceOnNextKey = true;
             refreshText();
         }
 
@@ -555,13 +564,10 @@ namespace
         {
             if (!event || event->isAutoRepeat())
                 return;
-            if (m_blockedChordAttempt)
-                return;
-
             const int key = event->key();
             const Qt::KeyboardModifiers mods = event->modifiers();
 
-            if ((key == Qt::Key_Backspace || key == Qt::Key_Delete) && mods == Qt::NoModifier)
+            if (key == Qt::Key_Backspace && mods == Qt::NoModifier)
             {
                 setKeySequence(QKeySequence());
                 return;
@@ -578,13 +584,8 @@ namespace
                 return;
             }
 
-            const int comboKeyCount = modifierCount(mods) + 1;
-            if (comboKeyCount > 2)
-            {
-                m_blockedChordAttempt = true;
-                return;
-            }
-
+            // Qt supports Ctrl+Shift+O and Alt+Up; modifier count must not
+            // reject combinations that the application itself uses by default.
             appendChord(key | mods);
             m_hasModifierPreview = false;
         }
@@ -601,17 +602,17 @@ namespace
             if (!event || event->isAutoRepeat())
                 return;
 
-            if (m_blockedChordAttempt && QApplication::keyboardModifiers() == Qt::NoModifier)
-            {
-                m_blockedChordAttempt = false;
-                refreshText();
-            }
-
             if (m_hasModifierPreview && QApplication::keyboardModifiers() == Qt::NoModifier)
             {
                 refreshText();
                 m_hasModifierPreview = false;
             }
+        }
+
+        void focusInEvent(QFocusEvent *event) override
+        {
+            QLineEdit::focusInEvent(event);
+            m_replaceOnNextKey = true;
         }
 
         void focusOutEvent(QFocusEvent *event) override
@@ -629,6 +630,14 @@ namespace
         {
             if (chord == 0)
                 return;
+
+            if (m_replaceOnNextKey)
+            {
+                m_sequence = QKeySequence(chord);
+                m_replaceOnNextKey = false;
+                refreshText();
+                return;
+            }
 
             int keys[4] = {0, 0, 0, 0};
             const int count = qMin(m_sequence.count(), 4);
@@ -651,7 +660,7 @@ namespace
 
         QKeySequence m_sequence;
         bool m_hasModifierPreview = false;
-        bool m_blockedChordAttempt = false;
+        bool m_replaceOnNextKey = true;
     };
 
     QString sessionWorkingCopyRootDir()
@@ -682,11 +691,12 @@ namespace
             {"working_path", state.workingPath},
             {"modified", state.modified},
             {"updated_at_utc", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
-        QFile file(recoveryManifestPath());
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+        QSaveFile file(recoveryManifestPath());
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
             return false;
         const QJsonDocument doc(obj);
-        return file.write(doc.toJson(QJsonDocument::Indented)) > 0;
+        const QByteArray data = doc.toJson(QJsonDocument::Indented);
+        return file.write(data) == data.size() && file.commit();
     }
 
     bool readRecoveryState(RecoverySessionState *state)
@@ -718,19 +728,8 @@ namespace
 
     QString workingSessionDirFromWorkingPath(const QString &workingPath)
     {
-        if (workingPath.isEmpty())
-            return QString();
-
-        const QString baseRoot = QDir(sessionWorkingCopyRootDir()).absolutePath();
-        const QString workingDir = QFileInfo(workingPath).absoluteDir().absolutePath();
-        const QString rel = QDir(baseRoot).relativeFilePath(workingDir);
-        if (rel.isEmpty() || rel.startsWith(".."))
-            return workingDir;
-
-        const QString firstSegment = rel.section('/', 0, 0);
-        if (firstSegment.isEmpty() || firstSegment == ".")
-            return workingDir;
-        return QDir(baseRoot).filePath(firstSegment);
+        return SessionPathUtils::sessionDirectoryForWorkingPath(
+            sessionWorkingCopyRootDir(), workingPath);
     }
 
     void removePathRecursively(const QString &path)
@@ -738,17 +737,33 @@ namespace
         if (path.isEmpty())
             return;
 
-        const QFileInfo fi(path);
+        // Every recursive removal in this file targets one direct child of
+        // the dedicated session root. Re-derive that child through the same
+        // canonical containment guard even for generated/cleanup paths, so a
+        // corrupt manifest or a junction cannot broaden the delete scope.
+        const QString absoluteTarget = QFileInfo(path).absoluteFilePath();
+        const QString guardWorkingPath = QDir(absoluteTarget).filePath(
+            QStringLiteral(".session-delete-guard.mc"));
+        const QString validatedTarget = workingSessionDirFromWorkingPath(guardWorkingPath);
+        if (validatedTarget.isEmpty() ||
+            QDir::cleanPath(validatedTarget) != QDir::cleanPath(absoluteTarget))
+        {
+            Logger::warn(QString("Refusing recursive removal outside a direct session child: %1")
+                             .arg(path));
+            return;
+        }
+
+        const QFileInfo fi(absoluteTarget);
         if (!fi.exists() && !fi.isSymLink())
             return;
 
         if (fi.isDir() && !fi.isSymLink())
         {
-            QDir(path).removeRecursively();
+            QDir(absoluteTarget).removeRecursively();
             return;
         }
 
-        QFile::remove(path);
+        QFile::remove(absoluteTarget);
     }
 
     struct CopyProgressState
@@ -759,6 +774,7 @@ namespace
         std::atomic<qint64> copiedBytes{0};
         std::atomic<qint64> maxSingleFileMs{0};
         std::atomic<bool> cancelRequested{false};
+        std::function<void()> progressChanged;
     };
 
     bool copyDirectoryRecursively(const QString &sourceDirPath,
@@ -811,6 +827,8 @@ namespace
             progress->copiedFiles.store(0);
             progress->copiedBytes.store(0);
             progress->maxSingleFileMs.store(0);
+            if (progress->progressChanged)
+                progress->progressChanged();
         }
 
         for (const QFileInfo &entry : directories)
@@ -852,11 +870,11 @@ namespace
 
             QElapsedTimer fileTimer;
             fileTimer.start();
-            QFile::remove(targetPath);
-            if (!QFile::copy(entry.absoluteFilePath(), targetPath))
+            QString copyError;
+            if (!FileUtils::copyFileSafely(entry.absoluteFilePath(), targetPath, &copyError))
             {
                 if (errorOut)
-                    *errorOut = QObject::tr("Failed to copy required file:\n%1").arg(entry.absoluteFilePath());
+                    *errorOut = copyError;
                 return false;
             }
 
@@ -869,6 +887,8 @@ namespace
                 while (fileMs > expected && !progress->maxSingleFileMs.compare_exchange_weak(expected, fileMs))
                 {
                 }
+                if (progress->progressChanged)
+                    progress->progressChanged();
             }
         }
 
@@ -940,14 +960,6 @@ namespace
         return resources;
     }
 
-    bool isPathInsideRoot(const QString &rootPath, const QString &targetPath)
-    {
-        const QString root = QDir::cleanPath(rootPath);
-        const QString target = QDir::cleanPath(targetPath);
-        const QString prefix = root.endsWith('/') ? root : (root + '/');
-        return target == root || target.startsWith(prefix, Qt::CaseInsensitive);
-    }
-
     // 将 meta/note 中引用的资源值解析为绝对路径；用于变化检测时统一比较口径。
     QString resolvedChartResourcePath(const QString &chartPath, const QString &resourceFile)
     {
@@ -1006,7 +1018,7 @@ namespace
             }
 
             const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(targetRelative));
-            if (!isPathInsideRoot(sessionRoot, targetAbs))
+            if (!SessionPathUtils::isPathInsideRoot(sessionRoot, targetAbs))
             {
                 Logger::warn(QString("Skip copying referenced resource outside working session root: %1").arg(resource));
                 continue;
@@ -1030,11 +1042,12 @@ namespace
                 if (targetFi.lastModified() == sourceFi.lastModified()
                     && targetFi.size() == sourceFi.size())
                     continue;
-                QFile::remove(targetAbs);
             }
-            if (!QFile::copy(sourceAbs, targetAbs))
+            QString copyError;
+            if (!FileUtils::copyFileSafely(sourceAbs, targetAbs, &copyError))
             {
-                Logger::warn(QString("Failed to copy referenced resource file: %1").arg(resource));
+                Logger::warn(QString("Failed to copy referenced resource file: %1 (%2)")
+                                 .arg(resource, copyError));
             }
         }
     }
@@ -1108,14 +1121,15 @@ namespace
 
             if (QFile::exists(sourceFile))
             {
-                QFile::remove(targetFile);
-                if (QFile::copy(sourceFile, targetFile))
+                QString copyError;
+                if (FileUtils::copyFileSafely(sourceFile, targetFile, &copyError))
                 {
                     Logger::debug(QString("syncAllKnownSidecars - Copied sidecar: %1").arg(ext));
                 }
                 else
                 {
-                    Logger::warn(QString("syncAllKnownSidecars - Failed to copy sidecar: %1").arg(ext));
+                    Logger::warn(QString("syncAllKnownSidecars - Failed to copy sidecar: %1 (%2)")
+                                     .arg(ext, copyError));
                 }
             }
         }
@@ -1225,232 +1239,254 @@ namespace
         return true;
     }
 
-    bool createWorkingCopyFromSourceWithProgress(QWidget *parent,
-                                                 const QString &sourcePath,
-                                                 QString *workingPathOut,
-                                                 QString *errorOut)
+    using WorkingCopyCompletion = std::function<void(bool,
+                                                     const QString &,
+                                                     const QString &)>;
+
+    void createWorkingCopyFromSourceAsync(QWidget *parent,
+                                          const QString &sourcePath,
+                                          WorkingCopyCompletion completion)
     {
-        if (workingPathOut)
-            workingPathOut->clear();
-        if (errorOut)
-            errorOut->clear();
+        if (!completion)
+            return;
 
         if (sourcePath.isEmpty())
         {
-            if (errorOut)
-                *errorOut = QObject::tr("Source chart path is empty.");
-            return false;
+            completion(false, QString(), QObject::tr("Source chart path is empty."));
+            return;
         }
 
         const QString rootDir = sessionWorkingCopyRootDir();
         if (!QDir().mkpath(rootDir))
         {
-            if (errorOut)
-                *errorOut = QObject::tr("Failed to create working copy directory:\n%1").arg(rootDir);
-            return false;
+            completion(false,
+                       QString(),
+                       QObject::tr("Failed to create working copy directory:\n%1").arg(rootDir));
+            return;
         }
 
         const QFileInfo sourceInfo(sourcePath);
         if (!sourceInfo.exists() || !sourceInfo.isFile())
         {
-            if (errorOut)
-                *errorOut = QObject::tr("Source chart does not exist:\n%1").arg(sourcePath);
-            return false;
+            completion(false,
+                       QString(),
+                       QObject::tr("Source chart does not exist:\n%1").arg(sourcePath));
+            return;
         }
 
         QString workingSessionDir;
         const QString workingPath = buildWorkingCopyPath(sourcePath, &workingSessionDir);
         removePathRecursively(workingSessionDir);
 
-        CopyProgressState progress;
-        std::atomic<bool> finished{false};
-        std::atomic<bool> success{false};
-        QString asyncError;
+        struct CopyJobState
+        {
+            CopyProgressState progress;
+            bool success = false;
+            QString error;
+            qint64 startedMs = 0;
+        };
+        const auto state = std::make_shared<CopyJobState>();
+        state->startedMs = QDateTime::currentMSecsSinceEpoch();
 
-        QElapsedTimer timer;
-        timer.start();
-        QThread *worker = QThread::create([&]()
+        auto *progressDialog = new QProgressDialog(QObject::tr("Preparing working copy..."),
+                                                    QObject::tr("Cancel"),
+                                                    0,
+                                                    100,
+                                                    parent);
+        progressDialog->setWindowModality(Qt::ApplicationModal);
+        progressDialog->setAutoClose(false);
+        progressDialog->setAutoReset(false);
+        progressDialog->show();
+
+        const QPointer<QProgressDialog> dialogGuard(progressDialog);
+        const QPointer<QObject> contextGuard(parent);
+        const std::weak_ptr<CopyJobState> weakState(state);
+        state->progress.progressChanged = [weakState, dialogGuard, contextGuard]()
+        {
+            if (!contextGuard)
+                return;
+            const auto state = weakState.lock();
+            if (!state)
+                return;
+            QMetaObject::invokeMethod(
+                contextGuard,
+                [state, dialogGuard]()
+                {
+                    if (!dialogGuard)
+                        return;
+                    const qint64 totalFiles = qMax<qint64>(1, state->progress.totalFiles.load());
+                    const qint64 copiedFiles = qBound<qint64>(0,
+                                                               state->progress.copiedFiles.load(),
+                                                               totalFiles);
+                    const qint64 copiedBytes = qMax<qint64>(0, state->progress.copiedBytes.load());
+                    const qint64 totalBytes = qMax<qint64>(0, state->progress.totalBytes.load());
+                    dialogGuard->setValue(static_cast<int>((copiedFiles * 100) / totalFiles));
+                    dialogGuard->setLabelText(
+                        QObject::tr("Preparing working copy...\n%1/%2 files, %3/%4 MB")
+                            .arg(copiedFiles)
+                            .arg(totalFiles)
+                            .arg(QString::number(copiedBytes / 1024.0 / 1024.0, 'f', 1))
+                            .arg(QString::number(totalBytes / 1024.0 / 1024.0, 'f', 1)));
+                },
+                Qt::QueuedConnection);
+        };
+
+        QObject::connect(progressDialog,
+                         &QProgressDialog::canceled,
+                         parent,
+                         [state]() { state->progress.cancelRequested.store(true); });
+
+        QThread *worker = QThread::create([state, sourceInfo, sourcePath, workingPath, workingSessionDir]()
                                           {
-        QString localError;
-        const bool copied = copyDirectoryRecursively(sourceInfo.absolutePath(),
-                                                     QFileInfo(workingPath).absoluteDir().absolutePath(),
-                                                     &localError,
-                                                     &progress);
-        if (copied)
-        {
-            copyReferencedExternalResources(sourcePath, workingPath);
-            syncSidecarDirectoryForChart(sourcePath, workingPath);
-            if (!QFile::exists(workingPath))
-                localError = QObject::tr("Working copy chart file is missing:\n%1").arg(workingPath);
-        }
+            QString localError;
+            const bool copied = copyDirectoryRecursively(
+                sourceInfo.absolutePath(),
+                QFileInfo(workingPath).absoluteDir().absolutePath(),
+                &localError,
+                &state->progress);
+            if (copied)
+            {
+                copyReferencedExternalResources(sourcePath, workingPath);
+                syncSidecarDirectoryForChart(sourcePath, workingPath);
+                if (!QFile::exists(workingPath))
+                    localError = QObject::tr("Working copy chart file is missing:\n%1").arg(workingPath);
+            }
 
-        if (!localError.isEmpty())
-            asyncError = localError;
-        success.store(localError.isEmpty() && copied);
-        finished.store(true); });
+            if (state->progress.cancelRequested.load() && localError.isEmpty())
+                localError = QObject::tr("Copy cancelled by user.");
+            state->error = localError;
+            state->success = copied && localError.isEmpty();
+            if (!state->success)
+                removePathRecursively(workingSessionDir);
+        });
+
+        QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+        QObject::connect(worker,
+                         &QThread::finished,
+                         parent,
+                         [state,
+                          dialogGuard,
+                          sourcePath,
+                          workingPath,
+                          workingSessionDir,
+                          completion = std::move(completion)]() mutable
+                         {
+            if (dialogGuard)
+            {
+                dialogGuard->setValue(100);
+                dialogGuard->close();
+                dialogGuard->deleteLater();
+            }
+
+            Logger::logStructured(Logger::INFO,
+                                  QString("Working copy completed in %1 ms")
+                                      .arg(QDateTime::currentMSecsSinceEpoch() - state->startedMs),
+                                  "WorkingCopy",
+                                  QMap<QString, QString>{
+                                      {"source_path", sourcePath},
+                                      {"working_path", workingPath},
+                                      {"elapsed_ms", QString::number(QDateTime::currentMSecsSinceEpoch() - state->startedMs)},
+                                      {"files_total", QString::number(state->progress.totalFiles.load())},
+                                      {"files_copied", QString::number(state->progress.copiedFiles.load())},
+                                      {"bytes_total", QString::number(state->progress.totalBytes.load())},
+                                      {"bytes_copied", QString::number(state->progress.copiedBytes.load())},
+                                      {"max_file_ms", QString::number(state->progress.maxSingleFileMs.load())},
+                                      {"success", state->success ? "true" : "false"},
+                                  });
+
+            if (!state->success)
+                removePathRecursively(workingSessionDir);
+            completion(state->success,
+                       state->success ? workingPath : QString(),
+                       state->error.isEmpty()
+                           ? QObject::tr("Failed to create working copy.")
+                           : state->error);
+        });
         worker->start();
-
-        QProgressDialog progressDialog(QObject::tr("Preparing working copy..."),
-                                       QObject::tr("Cancel"),
-                                       0,
-                                       100,
-                                       parent);
-        progressDialog.setWindowModality(Qt::ApplicationModal);
-        progressDialog.setAutoClose(false);
-        progressDialog.setAutoReset(false);
-        progressDialog.show();
-
-        while (!finished.load())
-        {
-            const qint64 totalFiles = qMax<qint64>(1, progress.totalFiles.load());
-            const qint64 copiedFiles = qBound<qint64>(0, progress.copiedFiles.load(), totalFiles);
-            const qint64 copiedBytes = qMax<qint64>(0, progress.copiedBytes.load());
-            const qint64 totalBytes = qMax<qint64>(0, progress.totalBytes.load());
-            const int percent = static_cast<int>((copiedFiles * 100) / totalFiles);
-            progressDialog.setValue(qBound(0, percent, 100));
-            progressDialog.setLabelText(QObject::tr("Preparing working copy...\n%1/%2 files, %3/%4 MB")
-                                            .arg(copiedFiles)
-                                            .arg(totalFiles)
-                                            .arg(QString::number(copiedBytes / 1024.0 / 1024.0, 'f', 1))
-                                            .arg(QString::number(totalBytes / 1024.0 / 1024.0, 'f', 1)));
-
-            if (progressDialog.wasCanceled())
-                progress.cancelRequested.store(true);
-
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-            QThread::msleep(15);
-        }
-
-        worker->wait();
-        delete worker;
-        progressDialog.setValue(100);
-
-        const qint64 elapsedMs = timer.elapsed();
-        Logger::logStructured(Logger::INFO,
-                              QString("Working copy completed in %1 ms").arg(elapsedMs),
-                              "WorkingCopy",
-                              QMap<QString, QString>{
-                                  {"source_path", sourcePath},
-                                  {"working_path", workingPath},
-                                  {"elapsed_ms", QString::number(elapsedMs)},
-                                  {"files_total", QString::number(progress.totalFiles.load())},
-                                  {"files_copied", QString::number(progress.copiedFiles.load())},
-                                  {"bytes_total", QString::number(progress.totalBytes.load())},
-                                  {"bytes_copied", QString::number(progress.copiedBytes.load())},
-                                  {"max_file_ms", QString::number(progress.maxSingleFileMs.load())},
-                                  {"success", success.load() ? "true" : "false"},
-                              });
-
-        if (progress.cancelRequested.load())
-        {
-            removePathRecursively(workingSessionDir);
-            if (errorOut)
-                *errorOut = QObject::tr("Copy cancelled by user.");
-            return false;
-        }
-
-        if (!success.load())
-        {
-            removePathRecursively(workingSessionDir);
-            if (errorOut)
-                *errorOut = asyncError.isEmpty()
-                                ? QObject::tr("Failed to create working copy.")
-                                : asyncError;
-            return false;
-        }
-
-        if (workingPathOut)
-            *workingPathOut = workingPath;
-        return true;
     }
 
-    bool loadWorkingChartWithProgress(QWidget *parent,
-                                      ChartController *chartController,
-                                      const QString &workingChartPath,
-                                      QString *errorOut)
+    using LoadedChartCompletion = std::function<void(bool, Chart, const QString &)>;
+
+    void loadWorkingChartAsync(QWidget *parent,
+                               ChartController *chartController,
+                               const QString &workingChartPath,
+                               LoadedChartCompletion completion)
     {
-        if (errorOut)
-            errorOut->clear();
+        if (!completion)
+            return;
         if (!chartController)
         {
-            if (errorOut)
-                *errorOut = QObject::tr("Chart controller is not available.");
-            return false;
+            completion(false, Chart(), QObject::tr("Chart controller is not available."));
+            return;
         }
 
-        std::atomic<bool> finished{false};
-        std::atomic<bool> success{false};
-        QString asyncError;
-        Chart loadedChart;
+        struct LoadJobState
+        {
+            bool success = false;
+            QString error;
+            Chart loadedChart;
+            qint64 startedMs = 0;
+        };
+        const auto state = std::make_shared<LoadJobState>();
+        state->startedMs = QDateTime::currentMSecsSinceEpoch();
 
-        QElapsedTimer timer;
-        timer.start();
-        QThread *worker = QThread::create([&]()
+        auto *progressDialog = new QProgressDialog(QObject::tr("Loading chart data..."),
+                                                    QString(),
+                                                    0,
+                                                    0,
+                                                    parent);
+        progressDialog->setWindowModality(Qt::ApplicationModal);
+        progressDialog->setCancelButton(nullptr);
+        progressDialog->setMinimumDuration(0);
+        progressDialog->show();
+        const QPointer<QProgressDialog> dialogGuard(progressDialog);
+
+        QThread *worker = QThread::create([state, workingChartPath]()
                                           {
-        QString localError;
-        Chart parsedChart;
-        const bool loaded = ChartIO::load(workingChartPath, parsedChart, false);
-        if (!loaded)
-        {
-            localError = QObject::tr("Failed to parse chart data:\n%1").arg(workingChartPath);
-        }
-        else
-        {
-            loadedChart = std::move(parsedChart);
-        }
+            Chart parsedChart;
+            const bool loaded = ChartIO::load(workingChartPath, parsedChart, false);
+            if (!loaded)
+            {
+                state->error = QObject::tr("Failed to parse chart data:\n%1").arg(workingChartPath);
+                return;
+            }
+            state->loadedChart = std::move(parsedChart);
+            state->success = true;
+        });
 
-        if (!localError.isEmpty())
-            asyncError = localError;
-        success.store(localError.isEmpty() && loaded);
-        finished.store(true); });
+        QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+        QObject::connect(worker,
+                         &QThread::finished,
+                         parent,
+                         [state,
+                          dialogGuard,
+                          workingChartPath,
+                          completion = std::move(completion)]() mutable
+                         {
+            if (dialogGuard)
+            {
+                dialogGuard->close();
+                dialogGuard->deleteLater();
+            }
+
+            Logger::logStructured(Logger::INFO,
+                                  QString("Working chart parsed in %1 ms")
+                                      .arg(QDateTime::currentMSecsSinceEpoch() - state->startedMs),
+                                  "WorkingCopy",
+                                  QMap<QString, QString>{
+                                      {"working_path", workingChartPath},
+                                      {"elapsed_ms", QString::number(QDateTime::currentMSecsSinceEpoch() - state->startedMs)},
+                                      {"notes", state->success ? QString::number(state->loadedChart.notes().size()) : QString("0")},
+                                      {"success", state->success ? "true" : "false"},
+                                  });
+
+            completion(state->success,
+                       std::move(state->loadedChart),
+                       state->error.isEmpty()
+                           ? QObject::tr("Failed to parse chart data.")
+                           : state->error);
+        });
         worker->start();
-
-        QProgressDialog progressDialog(QObject::tr("Loading chart data..."),
-                                       QString(),
-                                       0,
-                                       0,
-                                       parent);
-        progressDialog.setWindowModality(Qt::ApplicationModal);
-        progressDialog.setCancelButton(nullptr);
-        progressDialog.setMinimumDuration(0);
-        progressDialog.show();
-
-        while (!finished.load())
-        {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-            QThread::msleep(15);
-        }
-
-        worker->wait();
-        delete worker;
-
-        const qint64 elapsedMs = timer.elapsed();
-        Logger::logStructured(Logger::INFO,
-                              QString("Working chart parsed in %1 ms").arg(elapsedMs),
-                              "WorkingCopy",
-                              QMap<QString, QString>{
-                                  {"working_path", workingChartPath},
-                                  {"elapsed_ms", QString::number(elapsedMs)},
-                                  {"notes", success.load() ? QString::number(loadedChart.notes().size()) : QString("0")},
-                                  {"success", success.load() ? "true" : "false"},
-                              });
-
-        if (!success.load())
-        {
-            if (errorOut)
-                *errorOut = asyncError.isEmpty()
-                                ? QObject::tr("Failed to parse chart data.")
-                                : asyncError;
-            return false;
-        }
-
-        if (!chartController->loadChartFromData(workingChartPath, std::move(loadedChart)))
-        {
-            if (errorOut)
-                *errorOut = QObject::tr("Failed to apply loaded chart.");
-            return false;
-        }
-        return true;
     }
 }
 
@@ -1464,6 +1500,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     Logger::info("MainWindow constructor called");
 
     d->chartController = chartCtrl;
+    d->statsSourceRevision = chartCtrl ? chartCtrl->revision() : 0;
     d->selectionController = selCtrl;
     d->playbackController = playCtrl;
     d->skin = skin;
@@ -1533,19 +1570,60 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     createCentralArea();
     createMenus();
     setupAutoSaveTimer();
+    d->recoverySnapshotTimer = new QTimer(this);
+    d->recoverySnapshotTimer->setSingleShot(true);
+    d->recoverySnapshotTimer->setInterval(750);
+    connect(d->recoverySnapshotTimer, &QTimer::timeout,
+            this, &MainWindow::flushRecoverySnapshot);
     d->statsRefreshTimer = new QTimer(this);
     d->statsRefreshTimer->setSingleShot(true);
     d->statsRefreshTimer->setInterval(120);
     connect(d->statsRefreshTimer, &QTimer::timeout, this, [this]()
             {
         refreshChartStatistics();
-        saveEditorStats(d->editStatisticsPath, d->editStatistics);
+        saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+    });
+    d->statsWatcher = new QFutureWatcher<ChartStatistics>(this);
+    connect(d->statsWatcher, &QFutureWatcher<ChartStatistics>::finished, this, [this]()
+            {
+        const bool resultIsCurrent = d->chartController &&
+                                     d->statsFutureRevision == d->statsSourceRevision;
+        if (resultIsCurrent && d->statsPanel)
+        {
+            ChartStatistics displayStats = d->statsWatcher->result();
+            displayStats.editTimeMs = d->editStatistics.editTimeMs;
+            displayStats.editCount = d->editStatistics.editCount;
+            displayStats.undoCount = d->editStatistics.undoCount;
+            displayStats.redoCount = d->editStatistics.redoCount;
+            displayStats.operationCounts = d->editStatistics.operationCounts;
+            d->statsPanel->setStatistics(displayStats);
+            if (d->detailedStatsDialog)
+                d->detailedStatsDialog->setStatistics(displayStats);
+        }
+
+        const bool rerun = d->statsRefreshPending || !resultIsCurrent;
+        d->statsRefreshPending = false;
+        if (rerun)
+        {
+            // Re-enter through the debounce timer so a long analysis cannot
+            // create a continuous stale-result/restart loop while the user is
+            // still editing.
+            if (d->statsRefreshTimer)
+                d->statsRefreshTimer->start();
+            else
+                QTimer::singleShot(0, this, &MainWindow::refreshChartStatistics);
+        }
     });
 
     connect(d->chartController, &ChartController::chartChanged, this, [this]()
             {
-        // 谱面数据变化：使奖励 drop 缓存失效（下次渲染时按新谱面重建）。
-        RainRewardGenerator::instance().invalidate();
+        if (d->pendingPluginRequestId != 0)
+        {
+            if (PluginManager *pm = activePluginManager())
+                pm->cancelAsyncRequest(d->pendingPluginRequestId);
+            d->pendingPluginRequestId = 0;
+            ++d->pluginActionGeneration;
+        }
         const bool userEdit = !d->isLoadingChart;
         if (userEdit)
         {
@@ -1557,24 +1635,46 @@ MainWindow::MainWindow(ChartController *chartCtrl,
             if (!action.isEmpty())
                 ++d->editStatistics.operationCounts[action];
         }
-        if (d->statsRefreshTimer)
-            d->statsRefreshTimer->start();
-        d->canvas->update();
         if (userEdit)
         {
             persistRecoveryState();
+            scheduleRecoverySnapshot();
             if (d->undoAction)
                 d->undoAction->setEnabled(true);
             if (d->redoAction)
                 d->redoAction->setEnabled(true);
+            }
+    });
+    connect(d->chartController, &ChartController::chartChangeCommitted,
+            this,
+            [this](const ChartChange &change)
+            {
+        const bool notesChanged = change.affects(ChartChangeType::Notes);
+        const bool timingChanged = change.affects(ChartChangeType::Timing);
+        if (notesChanged || timingChanged)
+        {
+            d->statsSourceRevision = change.revision;
+            RainRewardGenerator::instance().invalidate();
         }
-        if (d->selectionController) {
-            d->selectionController->setNotes(&(d->chartController->chart()->notes()));
-            d->selectionController->updateSelectionFromNotes();
+        if (notesChanged && d->selectionController && d->chartController &&
+            d->chartController->chart())
+        {
+            d->selectionController->setNotes(&(d->chartController->chart()->notes()),
+                                             change.revision);
+            d->selectionController->updateSelectionFromNotes(change.revision);
         }
-
-        // Detect resource file changes (e.g. undo/redo on meta) and reload.
-        if (userEdit && d->chartController && d->chartController->chart() &&
+        if (!d->isLoadingChart && d->statsRefreshTimer && (notesChanged || timingChanged))
+            d->statsRefreshTimer->start();
+    });
+    connect(d->chartController, &ChartController::chartChangeCommitted,
+            this,
+            [this](const ChartChange &change)
+            {
+        if (!change.affects(ChartChangeType::Resources))
+            return;
+        // Resource reload is metadata-specific; note and BPM edits no longer
+        // pay for path resolution or filesystem checks.
+        if (!d->isLoadingChart && d->chartController && d->chartController->chart() &&
             d->playbackController && d->playbackController->audioPlayer())
         {
             const MetaData &meta = d->chartController->chart()->meta();
@@ -1593,7 +1693,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
                     {
                         d->playbackController->audioPlayer()->load(audioPath);
                         updatePlaybackAvailability(d->playbackController->audioPlayer()->canPlay());
-                        Logger::info(QString("chartChanged - Reloaded audio after meta change: %1").arg(audioPath));
+                        Logger::info(QString("metaDataChanged - Reloaded audio: %1").arg(audioPath));
                     }
                 }
             }
@@ -1682,9 +1782,21 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
 MainWindow::~MainWindow()
 {
+    if (d->pendingPluginRequestId != 0)
+    {
+        if (PluginManager *pm = activePluginManager())
+            pm->cancelAsyncRequest(d->pendingPluginRequestId);
+        d->pendingPluginRequestId = 0;
+    }
+    // Private is deleted before QObject tears down child objects. Destroy the
+    // watcher explicitly so a background completion cannot deliver a lambda
+    // that reads Private during that gap. The worker owns only its Chart
+    // snapshot and may finish independently.
+    delete d->statsWatcher;
+    d->statsWatcher = nullptr;
     if (d->editSessionTimer.isValid())
         d->editStatistics.editTimeMs += d->editSessionTimer.elapsed();
-    saveEditorStats(d->editStatisticsPath, d->editStatistics);
+    saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
     saveDockLayout();
     clearWorkingCopySession(true);
     closePluginPanels();
@@ -1817,6 +1929,42 @@ void MainWindow::createEditMenu()
             Logger::debug("Deleted selected notes via menu");
          } });
 
+    // Cycling the Note editor's five modes must use the radio buttons' existing
+    // signal path, including native curve/anchor mode transitions. Application
+    // scope also reaches detached ADS panels; suppress it in dialogs and inputs.
+    editMenu->addSeparator();
+    const auto cycleEditorMode = [this, editMenu](int direction)
+    {
+        if (!d->notePanel || QApplication::activeModalWidget())
+            return;
+        QWidget *popup = QApplication::activePopupWidget();
+        const bool fromEditMenu = popup == editMenu;
+        if (popup && !fromEditMenu)
+            return;
+        QWidget *activeWindow = QApplication::activeWindow();
+        if (!fromEditMenu && activeWindow != this
+            && !qobject_cast<ads::CFloatingDockContainer *>(activeWindow))
+            return;
+        QWidget *focus = QApplication::focusWidget();
+        if (!fromEditMenu && (qobject_cast<QLineEdit *>(focus)
+            || qobject_cast<QTextEdit *>(focus)
+            || qobject_cast<QPlainTextEdit *>(focus)
+            || qobject_cast<QAbstractSpinBox *>(focus)
+            || qobject_cast<QComboBox *>(focus)))
+            return;
+        d->notePanel->cycleMode(direction);
+    };
+    QAction *previousModeAction = editMenu->addAction(tr("Previous Edit Mode"), this,
+        [cycleEditorMode]() { cycleEditorMode(-1); });
+    previousModeAction->setShortcutContext(Qt::ApplicationShortcut);
+    previousModeAction->setAutoRepeat(false);
+    registerShortcutAction(previousModeAction, "edit.previous_mode", QKeySequence(Qt::ALT | Qt::Key_Up));
+    QAction *nextModeAction = editMenu->addAction(tr("Next Edit Mode"), this,
+        [cycleEditorMode]() { cycleEditorMode(1); });
+    nextModeAction->setShortcutContext(Qt::ApplicationShortcut);
+    nextModeAction->setAutoRepeat(false);
+    registerShortcutAction(nextModeAction, "edit.next_mode", QKeySequence(Qt::ALT | Qt::Key_Down));
+
     // Explicit paste timing mode. The same action is visible in the Edit menu
     // and the main toolbar so the active quantization cannot be missed.
     editMenu->addSeparator();
@@ -1858,6 +2006,33 @@ void MainWindow::createViewMenu()
         }
         viewMenu->addAction(d->floatingToolWindowsAction);
         d->panelsMenu = viewMenu->addMenu(tr("Panels"));
+        d->panelsMenu->setObjectName(QStringLiteral("menu.panels"));
+        QAction *showWorkspaceAction = d->panelsMenu->addAction(
+            tr("Show Main Editor"), this, [this]()
+            {
+                ensureWorkspaceDockVisible();
+                showDockPanel(d->workspaceDock);
+            });
+        showWorkspaceAction->setObjectName(QStringLiteral("action.show_main_editor"));
+        QAction *reopenPanelsAction = d->panelsMenu->addAction(
+            tr("Reopen All Closed Panels"), this, [this]()
+            {
+                ensureWorkspaceDockVisible();
+                const QList<ads::CDockWidget *> docks = {
+                    d->leftPanelDock, d->previewDock, d->notePanelDock,
+                    d->timingToolsDock, d->playbackSpeedToolsDock,
+                    d->rangeToolsDock, d->mirrorToolsDock,
+                    d->curveToolsDock, d->pluginToolsDock,
+                    d->bpmPanelDock, d->metaPanelDock, d->statsToolsDock};
+                for (ads::CDockWidget *dock : docks)
+                {
+                    if (dock && dock->isClosed())
+                        dock->toggleView(true);
+                }
+                statusBar()->showMessage(tr("Closed panels reopened."), 2000);
+            });
+        reopenPanelsAction->setObjectName(QStringLiteral("action.reopen_closed_panels"));
+        d->panelsMenu->addSeparator();
         const QList<ads::CDockWidget *> docks = {
             d->leftPanelDock, d->previewDock, d->notePanelDock,
             d->timingToolsDock, d->playbackSpeedToolsDock,
@@ -1870,7 +2045,44 @@ void MainWindow::createViewMenu()
                 d->panelsMenu->addAction(dock->toggleViewAction());
         }
         d->panelsMenu->addSeparator();
-        d->panelsMenu->addAction(tr("Reset Panel Layout"), this, &MainWindow::resetDockLayout);
+        QAction *resetPanelsAction = d->panelsMenu->addAction(
+            tr("Reset Panel Layout"), this, &MainWindow::resetDockLayout);
+        resetPanelsAction->setObjectName(QStringLiteral("action.reset_panel_layout"));
+
+        if (!d->panelsToolbarAction)
+        {
+            d->panelsToolbarAction = new QAction(this);
+            d->panelsToolbarAction->setObjectName(QStringLiteral("action.panels"));
+        }
+        d->panelsToolbarAction->setText(tr("Panels"));
+        d->panelsToolbarAction->setToolTip(
+            tr("Open or restore panels and the main editor"));
+        d->panelsToolbarAction->setMenu(d->panelsMenu);
+        if (d->mainToolBar
+            && !d->mainToolBar->actions().contains(d->panelsToolbarAction))
+        {
+            d->mainToolBar->addAction(d->panelsToolbarAction);
+        }
+        updateToolDockActionVisibility();
+        viewMenu->addSeparator();
+        if (!d->moveViewAction)
+        {
+            d->moveViewAction = new QAction(this);
+            d->moveViewAction->setObjectName(QStringLiteral("action.move_view"));
+            connect(d->moveViewAction, &QAction::triggered, this, &MainWindow::moveView);
+        }
+        d->moveViewAction->setText(tr("Move View..."));
+        if (!d->resetViewLocationAction)
+        {
+            d->resetViewLocationAction = new QAction(this);
+            d->resetViewLocationAction->setObjectName(
+                QStringLiteral("action.reset_view_location"));
+            connect(d->resetViewLocationAction, &QAction::triggered,
+                    this, &MainWindow::resetViewLocation);
+        }
+        d->resetViewLocationAction->setText(tr("Reset View Location"));
+        viewMenu->addAction(d->moveViewAction);
+        viewMenu->addAction(d->resetViewLocationAction);
         updateToolDockActionVisibility();
         viewMenu->addSeparator();
     }
@@ -2181,8 +2393,9 @@ void MainWindow::registerShortcutAction(QAction *action, const QString &actionId
     if (!d->shortcutActionOrder.contains(actionId))
         d->shortcutActionOrder.append(actionId);
 
-    const QKeySequence saved = Settings::instance().shortcut(actionId);
-    action->setShortcut(saved.isEmpty() ? defaultShortcut : saved);
+    // An explicitly saved empty sequence means disabled, not "use default".
+    const Settings &settings = Settings::instance();
+    action->setShortcut(settings.hasShortcut(actionId) ? settings.shortcut(actionId) : defaultShortcut);
 }
 
 void MainWindow::configureShortcuts()
@@ -2200,7 +2413,7 @@ void MainWindow::configureShortcuts()
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
     layout->addWidget(new QLabel(tr("Rebind shortcuts. Clear a field to disable a shortcut."), &dialog));
-    QLabel *limitHint = new QLabel(tr("Note: currently only 2-key combos using Shift/Ctrl are reliably supported. More complex combos and multi-main-key single-step bindings are not supported yet."), &dialog);
+    QLabel *limitHint = new QLabel(tr("Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Canvas-specific keys are not yet configurable here."), &dialog);
     limitHint->setWordWrap(true);
     layout->addWidget(limitHint);
 
@@ -2241,34 +2454,37 @@ void MainWindow::configureShortcuts()
             {
         for (auto it = editors.constBegin(); it != editors.constEnd(); ++it)
             it.value()->setKeySequence(d->shortcutDefaults.value(it.key())); });
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, [&dialog]()
-            { dialog.accept(); });
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, [this, &dialog, &editors]()
+            {
+        // Validate while the dialog is still open: rejected duplicates should
+        // not discard all the user's edits.
+        QHash<QString, QString> usedByShortcut;
+        for (const QString &actionId : d->shortcutActionOrder)
+        {
+            ShortcutCaptureEdit *edit = editors.value(actionId, nullptr);
+            if (!edit)
+                continue;
+            const QString portable = edit->keySequence().toString(QKeySequence::PortableText);
+            if (portable.isEmpty())
+                continue;
+            if (usedByShortcut.contains(portable))
+            {
+                QMessageBox::warning(&dialog, tr("Keyboard Shortcuts"),
+                    tr("Shortcut conflict: %1 is assigned to both %2 and %3.")
+                        .arg(portable,
+                             d->shortcutActions.value(usedByShortcut.value(portable))->text(),
+                             d->shortcutActions.value(actionId)->text()));
+                edit->setFocus();
+                return;
+            }
+            usedByShortcut.insert(portable, actionId);
+        }
+        dialog.accept(); });
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
 
     if (dialog.exec() != QDialog::Accepted)
         return;
-
-    QHash<QString, QString> usedByShortcut;
-    for (const QString &actionId : d->shortcutActionOrder)
-    {
-        ShortcutCaptureEdit *edit = editors.value(actionId, nullptr);
-        if (!edit)
-            continue;
-
-        const QString portable = edit->keySequence().toString(QKeySequence::PortableText);
-        if (portable.isEmpty())
-            continue;
-        if (usedByShortcut.contains(portable) && usedByShortcut.value(portable) != actionId)
-        {
-            QMessageBox::warning(
-                this,
-                tr("Keyboard Shortcuts"),
-                tr("Shortcut conflict detected. Please assign unique shortcuts."));
-            return;
-        }
-        usedByShortcut.insert(portable, actionId);
-    }
 
     for (const QString &actionId : d->shortcutActionOrder)
     {
@@ -2294,7 +2510,7 @@ void MainWindow::createCentralArea()
     ads::CDockManager::setConfigFlag(ads::CDockManager::DockAreaDynamicTabsMenuButtonVisibility, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::MiddleMouseButtonClosesTab, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewShowsContentPixmap, false);
-    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewIsDynamic, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DragPreviewHasWindowFrame, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::DisableStylesheet, true);
     d->dockManager = new ads::CDockManager(this);
@@ -2654,8 +2870,10 @@ void MainWindow::createCentralArea()
 
     d->workspaceDock = new ads::CDockWidget(d->dockManager, tr("Chart Workspace"));
     d->workspaceDock->setObjectName(QStringLiteral("dock.workspace"));
+    d->workspaceDock->setFeature(ads::CDockWidget::DockWidgetClosable, false);
     d->workspaceDock->setWidget(d->workspaceContainer, ads::CDockWidget::ForceNoScrollArea);
     ads::CDockAreaWidget *workspaceArea = d->dockManager->setCentralWidget(d->workspaceDock);
+    DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(d->workspaceDock);
 
     d->leftPanelDock = new ads::CDockWidget(d->dockManager, tr("Navigation"));
     d->leftPanelDock->setObjectName(QStringLiteral("dock.navigation"));
@@ -2773,6 +2991,8 @@ void MainWindow::createCentralArea()
                     d->curveToolsDock, d->pluginToolsDock, d->statsToolsDock};
                 for (ads::CDockWidget *dock : toolDocks)
                     configureCompactToolDock(dock);
+                DockLayoutPolicy::refreshCompactToolDockPolicies(d->dockManager);
+                DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy(d->workspaceDock);
             });
 
     d->defaultDockLayoutState = d->dockManager->saveState(kDockLayoutVersion);
@@ -2787,6 +3007,15 @@ void MainWindow::createCentralArea()
     ensureStatsDockAssigned();
 
     d->mainToolBar = addToolBar(tr("Tools"));
+    if (d->panelsToolbarAction)
+    {
+        d->mainToolBar->addAction(d->panelsToolbarAction);
+        if (auto *panelsButton = qobject_cast<QToolButton *>(
+                d->mainToolBar->widgetForAction(d->panelsToolbarAction)))
+        {
+            panelsButton->setPopupMode(QToolButton::InstantPopup);
+        }
+    }
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
                                                    { showEditorPanel(d->notePanel); });
     d->bpmPanelAction = d->mainToolBar->addAction(tr("BPM"), [this]()
@@ -2830,20 +3059,25 @@ void MainWindow::createCentralArea()
 
 void MainWindow::refreshChartStatistics()
 {
-    if (!d->statsPanel || !d->chartController)
+    if (!d->statsPanel || !d->chartController || !d->statsWatcher)
         return;
     const Chart *chart = d->chartController->chart();
-    const int offset = chart ? chart->meta().offset : 0;
-    const ChartStatistics stats = ChartStatsCalculator::compute(chart, offset);
-    ChartStatistics displayStats = stats;
-    displayStats.editTimeMs = d->editStatistics.editTimeMs;
-    displayStats.editCount = d->editStatistics.editCount;
-    displayStats.undoCount = d->editStatistics.undoCount;
-    displayStats.redoCount = d->editStatistics.redoCount;
-    displayStats.operationCounts = d->editStatistics.operationCounts;
-    d->statsPanel->setStatistics(displayStats);
-    if (d->detailedStatsDialog)
-        d->detailedStatsDialog->setStatistics(displayStats);
+    if (!chart)
+        return;
+    if (d->statsWatcher->isRunning())
+    {
+        d->statsRefreshPending = true;
+        return;
+    }
+
+    Chart snapshot = *chart;
+    const int offset = snapshot.meta().offset;
+    d->statsFutureRevision = d->statsSourceRevision;
+    d->statsWatcher->setFuture(QtConcurrent::run(
+        [snapshot = std::move(snapshot), offset]()
+        {
+            return ChartStatsCalculator::compute(&snapshot, offset);
+        }));
 }
 
 void MainWindow::openDetailedStatsDialog()
@@ -2872,10 +3106,159 @@ QString MainWindow::beatmapRootPath() const
     return Settings::instance().defaultBeatmapPath();
 }
 
+void MainWindow::enqueueDocumentTransaction(DocumentTransaction transaction)
+{
+    if (!transaction)
+        return;
+
+    d->documentTransactions.enqueue(std::move(transaction));
+    if (d->documentTransactionRunning)
+        return;
+
+    d->documentTransactionRunning = true;
+    DocumentTransaction next = d->documentTransactions.dequeue();
+    next();
+}
+
+void MainWindow::finishDocumentTransaction()
+{
+    if (!d)
+        return;
+
+    d->documentTransactionRunning = false;
+    if (d->documentTransactions.isEmpty())
+        return;
+
+    d->documentTransactionRunning = true;
+    DocumentTransaction next = d->documentTransactions.dequeue();
+    next();
+}
+
+void MainWindow::saveDocumentAsync(const QString &path,
+                                   const QString &workingPath,
+                                   bool syncResources,
+                                   bool showProgress,
+                                   DocumentSaveCompletion completion)
+{
+    if (!d->chartController || path.trimmed().isEmpty())
+    {
+        if (completion)
+            completion(false, workingPath, tr("Chart save path is empty."));
+        return;
+    }
+
+    Chart snapshot = *d->chartController->chart();
+    const QString targetPath = path;
+    const QString sessionWorkingPath = workingPath;
+    enqueueDocumentTransaction(
+        [this,
+         snapshot = std::move(snapshot),
+         targetPath,
+         sessionWorkingPath,
+         syncResources,
+         showProgress,
+         completion = std::move(completion)]() mutable
+        {
+            struct SaveJobState
+            {
+                bool success = false;
+                QString workingPath;
+                QString error;
+            };
+            const auto state = std::make_shared<SaveJobState>();
+
+            QPointer<QProgressDialog> progressGuard;
+            if (showProgress)
+            {
+                auto *progressDialog = new QProgressDialog(
+                    tr("Saving chart..."), QString(), 0, 0, this);
+                progressDialog->setWindowTitle(tr("Save Chart"));
+                progressDialog->setWindowModality(Qt::ApplicationModal);
+                progressDialog->setCancelButton(nullptr);
+                progressDialog->setMinimumDuration(0);
+                progressDialog->show();
+                progressGuard = progressDialog;
+            }
+
+            QThread *worker = QThread::create(
+                [state,
+                 snapshot = std::move(snapshot),
+                 targetPath,
+                 sessionWorkingPath,
+                 syncResources]() mutable
+                {
+                    QString error;
+                    bool success = ChartIO::save(targetPath, snapshot);
+                    QString resolvedWorkingPath = sessionWorkingPath;
+                    if (!success)
+                    {
+                        error = QObject::tr("Failed to save chart: %1").arg(targetPath);
+                    }
+                    else if (!sessionWorkingPath.isEmpty() &&
+                             QDir::cleanPath(sessionWorkingPath) != QDir::cleanPath(targetPath))
+                    {
+                        if (!ChartIO::save(sessionWorkingPath, snapshot))
+                        {
+                            success = false;
+                            error = QObject::tr("Failed to update working copy: %1")
+                                        .arg(sessionWorkingPath);
+                        }
+                        else if (syncResources)
+                        {
+                            copyReferencedExternalResources(sessionWorkingPath, targetPath);
+                            syncSidecarDirectoryForChart(sessionWorkingPath, targetPath);
+                        }
+                    }
+                    else if (success && sessionWorkingPath.isEmpty())
+                    {
+                        if (!createWorkingCopyFromSource(targetPath,
+                                                          &resolvedWorkingPath,
+                                                          &error))
+                        {
+                            success = false;
+                            if (error.isEmpty())
+                                error = QObject::tr("Failed to create working copy.");
+                        }
+                    }
+
+                    state->success = success;
+                    state->workingPath = resolvedWorkingPath;
+                    state->error = error;
+                });
+
+            QObject::connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+            QObject::connect(worker,
+                             &QThread::finished,
+                             this,
+                             [this,
+                              state,
+                              progressGuard,
+                              completion = std::move(completion)]() mutable
+                             {
+                if (progressGuard)
+                {
+                    progressGuard->close();
+                    progressGuard->deleteLater();
+                }
+                if (completion)
+                    completion(state->success, state->workingPath, state->error);
+                finishDocumentTransaction();
+            });
+            worker->start();
+        });
+}
+
 void MainWindow::persistRecoveryState()
 {
     if (d->workingChartPath.isEmpty() || !d->isModified)
     {
+        removeRecoveryState();
+        return;
+    }
+    if (workingSessionDirFromWorkingPath(d->workingChartPath).isEmpty())
+    {
+        Logger::warn(QString("Refusing to persist a recovery manifest for an out-of-root working path: %1")
+                         .arg(d->workingChartPath));
         removeRecoveryState();
         return;
     }
@@ -2887,8 +3270,54 @@ void MainWindow::persistRecoveryState()
     writeRecoveryState(state);
 }
 
+void MainWindow::scheduleRecoverySnapshot()
+{
+    if (!d->isModified || d->workingChartPath.isEmpty() || !d->chartController)
+        return;
+    if (d->recoverySnapshotTimer)
+        d->recoverySnapshotTimer->start();
+}
+
+void MainWindow::flushRecoverySnapshot()
+{
+    if (!d->isModified || d->workingChartPath.isEmpty() || !d->chartController)
+        return;
+    if (workingSessionDirFromWorkingPath(d->workingChartPath).isEmpty())
+    {
+        Logger::warn(QString("Refusing to write a recovery snapshot outside the session root: %1")
+                         .arg(d->workingChartPath));
+        removeRecoveryState();
+        return;
+    }
+
+    const QString workingPath = d->workingChartPath;
+    const quint64 documentGeneration = d->documentGeneration;
+    saveDocumentAsync(
+        workingPath,
+        workingPath,
+        false,
+        false,
+        [this, workingPath, documentGeneration](bool success,
+                                                const QString &,
+                                                const QString &error)
+        {
+            if (d->documentGeneration != documentGeneration)
+                return;
+            if (!success)
+            {
+                Logger::warn(QString("Failed to persist recovery snapshot: %1 (%2)")
+                                 .arg(workingPath, error));
+                return;
+            }
+            persistRecoveryState();
+        });
+}
+
 void MainWindow::clearWorkingCopySession(bool removeWorkingFile)
 {
+    ++d->documentGeneration;
+    if (d->recoverySnapshotTimer)
+        d->recoverySnapshotTimer->stop();
     if (removeWorkingFile && !d->workingChartPath.isEmpty())
         removePathRecursively(workingSessionDirFromWorkingPath(d->workingChartPath));
     d->workingChartPath.clear();
@@ -2928,25 +3357,36 @@ void MainWindow::performAutoSaveTick()
     if (sourcePath.isEmpty())
         return;
 
-    if (!d->chartController->saveChart(sourcePath))
-    {
-        Logger::warn(QString("Auto-save failed: %1").arg(sourcePath));
-        return;
-    }
+    const quint64 saveRevision = d->chartController->revision();
+    const quint64 documentGeneration = d->documentGeneration;
+    saveDocumentAsync(
+        sourcePath,
+        d->workingChartPath,
+        true,
+        false,
+        [this, sourcePath, saveRevision, documentGeneration](bool success,
+                                                             const QString &workingPath,
+                                                             const QString &error)
+        {
+            if (d->documentGeneration != documentGeneration)
+                return;
+            if (!success)
+            {
+                Logger::warn(QString("Auto-save failed: %1 (%2)").arg(sourcePath, error));
+                return;
+            }
 
-    d->sourceChartPath = sourcePath;
-    d->currentChartPath = sourcePath;
-    if (d->canvas)
-        d->canvas->setSourceChartPath(sourcePath);
-    d->isModified = false;
-    if (!d->workingChartPath.isEmpty())
-        d->chartController->saveChart(d->workingChartPath);
-    syncReferencedResourcesForSavedChart(d->workingChartPath, sourcePath);
-    syncSidecarDirectoryForChart(d->workingChartPath, sourcePath);
-    if (!d->workingChartPath.isEmpty())
-        d->chartController->saveChart(d->workingChartPath);
-    persistRecoveryState();
-    statusBar()->showMessage(tr("Auto-saved: %1").arg(sourcePath), 1200);
+            d->sourceChartPath = sourcePath;
+            d->currentChartPath = sourcePath;
+            d->workingChartPath = workingPath;
+            if (d->canvas)
+                d->canvas->setSourceChartPath(sourcePath);
+            if (d->chartController->revision() == saveRevision)
+                d->isModified = false;
+            persistRecoveryState();
+            if (!d->isModified)
+                statusBar()->showMessage(tr("Auto-saved: %1").arg(sourcePath), 1200);
+        });
 }
 
 void MainWindow::tryRecoverPreviousSession()
@@ -2954,6 +3394,14 @@ void MainWindow::tryRecoverPreviousSession()
     RecoverySessionState state;
     if (!readRecoveryState(&state))
     {
+        cleanupSessionWorkingCopies(QString());
+        return;
+    }
+    if (workingSessionDirFromWorkingPath(state.workingPath).isEmpty())
+    {
+        Logger::warn(QString("Ignoring recovery manifest with an out-of-root working path: %1")
+                         .arg(state.workingPath));
+        removeRecoveryState();
         cleanupSessionWorkingCopies(QString());
         return;
     }
@@ -2986,7 +3434,12 @@ void MainWindow::tryRecoverPreviousSession()
         return;
     }
 
-    if (!d->chartController->loadChart(state.workingPath))
+    bool recovered = false;
+    {
+        QScopedValueRollback<bool> loadingGuard(d->isLoadingChart, true);
+        recovered = d->chartController->loadChart(state.workingPath);
+    }
+    if (!recovered)
     {
         QMessageBox::warning(this, tr("Recovery Failed"), tr("Failed to load the recovery working copy."));
         removePathRecursively(workingSessionDirFromWorkingPath(state.workingPath));
@@ -2995,10 +3448,11 @@ void MainWindow::tryRecoverPreviousSession()
         return;
     }
 
+    ++d->documentGeneration;
     d->sourceChartPath = state.sourcePath;
     d->workingChartPath = state.workingPath;
     d->currentChartPath = state.sourcePath;
-    d->editStatisticsPath = editorStatsPath(state.sourcePath);
+    d->editStatisticsChartPath = state.sourcePath;
     d->editStatistics = loadEditorStats(state.sourcePath);
     d->editSessionTimer.restart();
     refreshChartStatistics();
@@ -3026,7 +3480,8 @@ void MainWindow::tryRecoverPreviousSession()
             }
         }
         d->lastLoadedAudioFile = recoveryMeta.audioFile;
-        d->lastLoadedBackgroundFile = recoveryMeta.backgroundFile;
+        d->lastLoadedBackgroundFile = resolvedChartResourcePath(
+            state.workingPath, recoveryMeta.backgroundFile);
     }
 
     d->isModified = true;
@@ -3137,30 +3592,66 @@ bool MainWindow::confirmSaveIfModified(const QString &reasonText)
             return false;
     }
 
-    if (!d->chartController->saveChart(savePath))
+    bool completed = false;
+    bool saved = false;
+    QString saveError;
+    QEventLoop loop;
+    const quint64 documentGeneration = d->documentGeneration;
+    saveDocumentAsync(
+        savePath,
+        d->workingChartPath,
+        true,
+        true,
+        [this,
+         savePath,
+         documentGeneration,
+         &completed,
+         &saved,
+         &saveError,
+         &loop](bool success,
+                const QString &workingPath,
+                const QString &error)
+        {
+            completed = true;
+            if (d->documentGeneration != documentGeneration)
+            {
+                saved = false;
+                saveError = tr("The active chart changed before saving completed.");
+                loop.quit();
+                return;
+            }
+            saved = success;
+            saveError = error;
+            if (success)
+            {
+                if (d->editStatisticsChartPath != savePath)
+                {
+                    saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+                    d->editStatisticsChartPath = savePath;
+                }
+                d->sourceChartPath = savePath;
+                d->currentChartPath = savePath;
+                d->workingChartPath = workingPath;
+                if (d->canvas)
+                    d->canvas->setSourceChartPath(savePath);
+                Settings::instance().setLastOpenPath(QFileInfo(savePath).absolutePath());
+                d->isModified = false;
+                persistRecoveryState();
+                statusBar()->showMessage(tr("Saved: %1").arg(savePath), 2000);
+                if (PluginManager *pm = activePluginManager())
+                    pm->notifyChartSaved(savePath);
+            }
+            loop.quit();
+        });
+    if (!completed)
+        loop.exec();
+    if (!saved)
     {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to save chart."));
+        QMessageBox::critical(this,
+                              tr("Error"),
+                              saveError.isEmpty() ? tr("Failed to save chart.") : saveError);
         return false;
     }
-
-    d->sourceChartPath = savePath;
-    d->currentChartPath = savePath;
-    if (d->canvas)
-        d->canvas->setSourceChartPath(savePath);
-    Settings::instance().setLastOpenPath(QFileInfo(savePath).absolutePath());
-    d->isModified = false;
-    if (!d->workingChartPath.isEmpty())
-        d->chartController->saveChart(d->workingChartPath);
-    syncReferencedResourcesForSavedChart(d->workingChartPath, savePath);
-    syncSidecarDirectoryForChart(d->workingChartPath, savePath);
-    if (!d->workingChartPath.isEmpty())
-        d->chartController->saveChart(d->workingChartPath);
-    else
-        createWorkingCopyFromSource(savePath, &d->workingChartPath, nullptr);
-    persistRecoveryState();
-    statusBar()->showMessage(tr("Saved: %1").arg(savePath), 2000);
-    if (PluginManager *pm = activePluginManager())
-        pm->notifyChartSaved(savePath);
     return true;
 }
 
@@ -3227,6 +3718,92 @@ void MainWindow::newChart()
         }
     }
 
+    const auto finishNewChart = [this,
+                                 timestamp,
+                                 audioStem](const QString &resolvedSongDir,
+                                             const QString &resolvedTargetAudioName,
+                                             const QString &resolvedTargetAudioPath)
+    {
+        // Step 5: Build default MetaData (title = original audio stem).
+        MetaData meta;
+        meta.title = audioStem;
+        meta.artist.clear();
+        meta.chartAuthor.clear();
+        meta.difficulty = QStringLiteral("-New");
+        meta.audioFile = resolvedTargetAudioName;
+        meta.speed = 5;
+        meta.firstBpm = 120.0;
+
+        // Step 6: Create default chart and save to time-stamped .mc.
+        Chart chart = ChartIO::createDefaultChart(meta);
+        const QString mcPath = QDir(resolvedSongDir).filePath(QString::number(timestamp) + ".mc");
+        if (!ChartIO::save(mcPath, chart))
+        {
+            QMessageBox::critical(this,
+                                  tr("Error"),
+                                  tr("Failed to create chart file:\n%1").arg(mcPath));
+            return;
+        }
+
+        // Step 7: Auto-detect BPM and offset from the audio with progress dialog.
+        auto *bpmProgress = new QProgressDialog(
+            tr("Measuring BPM, please wait..."), QString(), 0, 0, this);
+        bpmProgress->setWindowTitle(tr("Auto Timing"));
+        bpmProgress->setWindowModality(Qt::WindowModal);
+        bpmProgress->setCancelButton(nullptr);
+        bpmProgress->setMinimumDuration(0);
+        bpmProgress->show();
+        const QPointer<QProgressDialog> progressGuard(bpmProgress);
+
+        BpmDetector::detectFromFileDetailedAsync(
+            this,
+            resolvedTargetAudioPath,
+            0.0,
+            120000.0,
+            [this,
+             progressGuard,
+             chart = std::move(chart),
+             meta,
+             mcPath](bool detected,
+                     BpmDetector::DetectionResult detResult,
+                     const QString &) mutable
+            {
+                if (progressGuard)
+                {
+                    progressGuard->close();
+                    progressGuard->deleteLater();
+                }
+
+                if (detected && detResult.bpm > 0.0)
+                {
+                    chart.meta().firstBpm = detResult.bpm;
+                    chart.meta().offset = static_cast<int>(qRound(detResult.estimatedOffsetMs));
+                    chart.bpmList().clear();
+                    chart.addBpm(BpmEntry(0, 0, 1, detResult.bpm));
+                    ChartIO::save(mcPath, chart);
+
+                    statusBar()->showMessage(
+                        tr("BPM detected: %1, offset: %2 ms")
+                            .arg(QString::number(detResult.bpm, 'f', 1))
+                            .arg(chart.meta().offset),
+                        5000);
+                }
+                else
+                {
+                    statusBar()->showMessage(
+                        tr("Auto-timing skipped (detection failed). Default BPM=120."), 5000);
+                }
+
+                Logger::info(QString("New chart created: %1 (title=%2, bpm=%3)")
+                                 .arg(mcPath, meta.title, QString::number(chart.meta().firstBpm, 'f', 1)));
+
+                // Step 8: Open the chart in editor.
+                // The replacement was confirmed before the potentially long copy/
+                // conversion/detection flow. Do not ask a second time when opening it.
+                loadChartFile(mcPath, false);
+            });
+    };
+
     if (!reusedExisting)
     {
         // Step 3: Create new song subdirectory — truncate stem to keep total path under MAX_PATH.
@@ -3258,91 +3835,29 @@ void MainWindow::newChart()
         }
         else
         {
-            QString convertError;
-            if (AudioConverter::convertToOggWithProgress(this, audioPath, targetAudioPath,
-                                                         &convertError)
-                    .isEmpty())
-            {
-                QMessageBox::critical(this, tr("Error"),
-                                      tr("Failed to convert audio to OGG:\n%1").arg(convertError));
-                return;
-            }
+            AudioConverter::convertToOggWithProgressAsync(
+                this,
+                audioPath,
+                targetAudioPath,
+                [this, finishNewChart, songDir, targetAudioName, targetAudioPath](
+                    bool success,
+                    const QString &convertError)
+                {
+                    if (!success)
+                    {
+                        QMessageBox::critical(
+                            this,
+                            tr("Error"),
+                            tr("Failed to convert audio to OGG:\n%1").arg(convertError));
+                        return;
+                    }
+                    finishNewChart(songDir, targetAudioName, targetAudioPath);
+                });
+            return;
         }
     }
 
-    // Step 5: Build default MetaData (title = original audio stem).
-    MetaData meta;
-    meta.title = audioStem;
-    meta.artist.clear();
-    meta.chartAuthor.clear();
-    meta.difficulty = QStringLiteral("-New");
-    meta.audioFile = targetAudioName;
-    meta.speed = 5;
-    meta.firstBpm = 120.0;
-
-    // Step 6: Create default chart and save to time-stamped .mc.
-    Chart chart = ChartIO::createDefaultChart(meta);
-
-    const QString mcPath = QDir(songDir).filePath(QString::number(timestamp) + ".mc");
-
-    if (!ChartIO::save(mcPath, chart))
-    {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to create chart file:\n%1").arg(mcPath));
-        return;
-    }
-
-    // Step 7: Auto-detect BPM and offset from the audio with progress dialog.
-    QProgressDialog bpmProgress(tr("Measuring BPM, please wait..."), QString(), 0, 0, this);
-    bpmProgress.setWindowTitle(tr("Auto Timing"));
-    bpmProgress.setWindowModality(Qt::WindowModal);
-    bpmProgress.setCancelButton(nullptr);
-    bpmProgress.setMinimumDuration(0);
-    bpmProgress.show();
-
-    BpmDetector::DetectionResult detResult;
-    bool bpmOk = false;
-    std::atomic<bool> bpmDone{false};
-    QThread *bpmThread = QThread::create([&bpmDone, &bpmOk, &targetAudioPath, &detResult]()
-    {
-        bpmOk = BpmDetector::detectFromFileDetailed(targetAudioPath, 0.0, 120000.0, detResult, nullptr)
-                && detResult.bpm > 0.0;
-        bpmDone.store(true);
-    });
-    bpmThread->start();
-
-    while (!bpmDone.load())
-    {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-        QThread::msleep(20);
-    }
-    bpmThread->wait();
-    delete bpmThread;
-    bpmProgress.close();
-
-    if (bpmOk)
-    {
-        chart.meta().firstBpm = detResult.bpm;
-        chart.meta().offset = static_cast<int>(qRound(detResult.estimatedOffsetMs));
-        chart.bpmList().clear();
-        chart.addBpm(BpmEntry(0, 0, 1, detResult.bpm));
-        ChartIO::save(mcPath, chart);
-
-        statusBar()->showMessage(
-            tr("BPM detected: %1, offset: %2 ms")
-                .arg(QString::number(detResult.bpm, 'f', 1))
-                .arg(chart.meta().offset),
-            5000);
-    }
-    else
-    {
-        statusBar()->showMessage(tr("Auto-timing skipped (detection failed). Default BPM=120."), 5000);
-    }
-
-    Logger::info(QString("New chart created: %1 (title=%2, bpm=%3)")
-                     .arg(mcPath, meta.title, QString::number(chart.meta().firstBpm, 'f', 1)));
-
-    // Step 8: Open the chart in editor.
-    loadChartFile(mcPath);
+    finishNewChart(songDir, targetAudioName, targetAudioPath);
 }
 
 // ==================== Open chart file (.mc/.mcz) ====================
@@ -3431,7 +3946,28 @@ bool MainWindow::loadChartForAutomation(const QString &filePath, QString *errorM
         return false;
     }
 
-    loadChartFile(requestedInfo.absoluteFilePath());
+    bool completed = false;
+    bool loaded = false;
+    QString loadError;
+    QEventLoop loop;
+    loadChartFile(requestedInfo.absoluteFilePath(),
+                  false,
+                  [&completed, &loaded, &loadError, &loop](bool success, const QString &error)
+                  {
+        completed = true;
+        loaded = success;
+        loadError = error;
+        loop.quit();
+    });
+    if (!completed)
+        loop.exec();
+    if (!loaded)
+    {
+        if (errorMessage)
+            *errorMessage = loadError.isEmpty() ? tr("The automated test chart could not be loaded.")
+                                                : loadError;
+        return false;
+    }
     const QString loadedPath = QFileInfo(d->currentChartPath).absoluteFilePath();
     if (QDir::cleanPath(loadedPath).compare(QDir::cleanPath(requestedInfo.absoluteFilePath()),
                                             Qt::CaseInsensitive) != 0)
@@ -3456,17 +3992,34 @@ void MainWindow::reloadChart()
     if (!confirmSaveIfModified(tr("Reloading the chart will discard unsaved changes.")))
         return;
 
+    statusBar()->showMessage(tr("Reloading: %1").arg(QFileInfo(path).fileName()), 3000);
     loadChartFile(path, false);
-    statusBar()->showMessage(tr("Chart reloaded: %1").arg(QFileInfo(path).fileName()), 3000);
 }
 
-void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
+void MainWindow::loadChartFile(const QString &filePath,
+                               bool confirmUnsaved,
+                               ChartLoadCompletion completion)
 {
     Logger::info(QString("Loading chart file: %1").arg(filePath));
     if (confirmUnsaved
         && !confirmSaveIfModified(tr("Opening another chart will replace the current one in editor.")))
+    {
+        if (completion)
+            completion(false, tr("Chart loading was cancelled."));
         return;
-    clearWorkingCopySession(true);
+    }
+    if (d->statsRefreshTimer)
+        d->statsRefreshTimer->stop();
+    if (!d->editStatisticsChartPath.isEmpty())
+    {
+        if (d->editSessionTimer.isValid())
+            d->editStatistics.editTimeMs += d->editSessionTimer.restart();
+        saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+    }
+    // Keep the current session and recovery manifest alive until the
+    // replacement working copy has parsed and applied successfully. Every
+    // early-return path below therefore leaves the open document recoverable.
+    const QString previousWorkingChartPath = d->workingChartPath;
 
     QString actualChartPath = filePath;
     QFileInfo fi(filePath);
@@ -3543,108 +4096,166 @@ void MainWindow::loadChartFile(const QString &filePath, bool confirmUnsaved)
 
     closePluginPanels(tr("Plugin panels were closed after chart switch."));
 
-    QString workingChartPath;
-    QString workingCopyError;
-    if (!createWorkingCopyFromSourceWithProgress(this, actualChartPath, &workingChartPath, &workingCopyError))
-    {
-        QMessageBox::critical(this, tr("Error"), workingCopyError);
-        return;
-    }
-
-    QString loadChartError;
-    bool chartLoaded = false;
-    {
-        QScopedValueRollback<bool> loadingGuard(d->isLoadingChart, true);
-        chartLoaded = loadWorkingChartWithProgress(
-            this, d->chartController, workingChartPath, &loadChartError);
-    }
-    if (!chartLoaded)
-    {
-        removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
-        // 加载失败也重推统计：统计面板/详细统计窗口必须与当前实际加载的谱面一致。
-        refreshChartStatistics();
-        QMessageBox::critical(this,
-                              tr("Error"),
-                              loadChartError.isEmpty() ? tr("Failed to load chart.") : loadChartError);
-        return;
-    }
-
-    d->sourceChartPath = actualChartPath;
-    d->workingChartPath = workingChartPath;
-    d->currentChartPath = actualChartPath;
-    d->editStatisticsPath = editorStatsPath(actualChartPath);
-    d->editStatistics = loadEditorStats(actualChartPath);
-    d->editSessionTimer.restart();
-    refreshChartStatistics();
-    if (d->reloadChartAction)
-        d->reloadChartAction->setEnabled(true);
-    if (d->canvas)
-        d->canvas->setSourceChartPath(actualChartPath);
-    Settings::instance().setLastOpenPath(QFileInfo(actualChartPath).absolutePath());
-
-    if (QFileInfo(filePath).suffix().toLower() != "mcz")
-    {
-        Settings::instance().setLastProjectPath(QFileInfo(actualChartPath).absolutePath());
-    }
-
-    QString chartDir = QFileInfo(actualChartPath).absolutePath();
-    const MetaData &loadedMeta = d->chartController->chart()->meta();
-    QString audioFile = loadedMeta.audioFile;
-    updatePlaybackAvailability(false);
-    if (!audioFile.isEmpty())
-    {
-        // 优先使用 Chart 对象记录的音频源完整路径（已在加载时解析并重命名）
-        QString audioPath = d->chartController->chart()->audioSourceFullPath();
-        if (audioPath.isEmpty() || !QFile::exists(audioPath))
+    createWorkingCopyFromSourceAsync(
+        this,
+        actualChartPath,
+        [this,
+         filePath,
+         actualChartPath,
+         previousWorkingChartPath,
+         completion = std::move(completion)](bool copied,
+                                              const QString &workingChartPath,
+                                              const QString &copyError) mutable
         {
-            // 回退到基于原始谱面目录的路径
-            audioPath = QDir(chartDir).filePath(audioFile);
-        }
+            if (!copied)
+            {
+                if (completion)
+                    completion(false,
+                               copyError.isEmpty() ? tr("Failed to create working copy.")
+                                                   : copyError);
+                QMessageBox::critical(this,
+                                      tr("Error"),
+                                      copyError.isEmpty() ? tr("Failed to create working copy.")
+                                                          : copyError);
+                return;
+            }
 
-        if (QFile::exists(audioPath))
-        {
-            d->playbackController->audioPlayer()->load(audioPath);
-            Logger::info(QString("MainWindow::loadChartFile - Loaded audio from: %1").arg(audioPath));
-        }
-        else
-        {
-            const QString msg = tr("Audio file not found: %1").arg(audioPath);
-            statusBar()->showMessage(msg, 5000);
-            QMessageBox::warning(this, tr("Audio Load Error"), msg);
-        }
-    }
+            loadWorkingChartAsync(
+                this,
+                d->chartController,
+                workingChartPath,
+                [this,
+                 filePath,
+                 actualChartPath,
+                 previousWorkingChartPath,
+                 workingChartPath,
+                 completion = std::move(completion)](bool parsed,
+                                                     Chart loadedChart,
+                                                     const QString &loadChartError) mutable
+                {
+                    if (!parsed)
+                    {
+                        if (completion)
+                            completion(false,
+                                       loadChartError.isEmpty() ? tr("Failed to load chart.")
+                                                                : loadChartError);
+                        removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
+                        // 加载失败也重推统计：统计面板/详细统计窗口必须与当前实际加载的谱面一致。
+                        refreshChartStatistics();
+                        QMessageBox::critical(
+                            this,
+                            tr("Error"),
+                            loadChartError.isEmpty() ? tr("Failed to load chart.") : loadChartError);
+                        return;
+                    }
 
-    // Initialize resource cache for change detection（背景存解析后的绝对路径）。
-    d->lastLoadedAudioFile = loadedMeta.audioFile;
-    d->lastLoadedBackgroundFile = resolvedChartResourcePath(d->workingChartPath, loadedMeta.backgroundFile);
+                    bool chartLoaded = false;
+                    {
+                        QScopedValueRollback<bool> loadingGuard(d->isLoadingChart, true);
+                        chartLoaded = d->chartController->loadChartFromData(
+                            workingChartPath, std::move(loadedChart));
+                    }
+                    if (!chartLoaded)
+                    {
+                        if (completion)
+                            completion(false, tr("Failed to apply loaded chart."));
+                        removePathRecursively(workingSessionDirFromWorkingPath(workingChartPath));
+                        refreshChartStatistics();
+                        QMessageBox::critical(this, tr("Error"), tr("Failed to apply loaded chart."));
+                        return;
+                    }
 
-    // Force background refresh: during chart loading, isLoadingChart is true
-    // so the chartChanged handler's userEdit block (which normally refreshes
-    // the background) is skipped. The canvas' chartLoaded handler already
-    // invalidates its background cache unconditionally; this repaint keeps
-    // the frame in sync right away.
-    if (d->canvas)
-        d->canvas->refreshBackground();
+                    ++d->documentGeneration;
+                    if (d->recoverySnapshotTimer)
+                        d->recoverySnapshotTimer->stop();
+                    if (!previousWorkingChartPath.isEmpty() &&
+                        QDir::cleanPath(previousWorkingChartPath) != QDir::cleanPath(workingChartPath))
+                    {
+                        removePathRecursively(workingSessionDirFromWorkingPath(previousWorkingChartPath));
+                    }
+                    removeRecoveryState();
+                    cleanupSessionWorkingCopies(workingChartPath);
 
-    // 防御：切换谱面后强制重推统计快照，确保统计面板与详细统计窗口
-    // 始终反映当前谱面，不残留上一个谱面的数据。
-    refreshChartStatistics();
+                    d->sourceChartPath = actualChartPath;
+                    d->workingChartPath = workingChartPath;
+                    d->currentChartPath = actualChartPath;
+                    d->editStatisticsChartPath = actualChartPath;
+                    d->editStatistics = loadEditorStats(actualChartPath);
+                    d->editSessionTimer.restart();
+                    refreshChartStatistics();
+                    if (d->reloadChartAction)
+                        d->reloadChartAction->setEnabled(true);
+                    if (d->canvas)
+                        d->canvas->setSourceChartPath(actualChartPath);
+                    Settings::instance().setLastOpenPath(QFileInfo(actualChartPath).absolutePath());
 
-    // Reset playback state and position when switching charts
-    d->playbackController->stop();
-    d->playbackController->audioPlayer()->setAdjustedPosition(0);
+                    if (QFileInfo(filePath).suffix().toLower() != "mcz")
+                    {
+                        Settings::instance().setLastProjectPath(QFileInfo(actualChartPath).absolutePath());
+                    }
 
-    d->canvas->update();
-    if (d->pluginActionPanel)
-    {
-        d->pluginActionPanel->setViewportRange(
-            d->canvas->timeDivision(), d->canvas->scrollBeat(),
-            d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
-    }
-    d->isModified = false;
+                    const QString chartDir = QFileInfo(actualChartPath).absolutePath();
+                    const MetaData &loadedMeta = d->chartController->chart()->meta();
+                    const QString audioFile = loadedMeta.audioFile;
+                    updatePlaybackAvailability(false);
+                    if (!audioFile.isEmpty())
+                    {
+                        // 优先使用 Chart 对象记录的音频源完整路径（已在加载时解析并重命名）
+                        QString audioPath = d->chartController->chart()->audioSourceFullPath();
+                        if (audioPath.isEmpty() || !QFile::exists(audioPath))
+                        {
+                            // 回退到基于原始谱面目录的路径
+                            audioPath = QDir(chartDir).filePath(audioFile);
+                        }
 
-    persistRecoveryState();
-    statusBar()->showMessage(tr("Loaded: %1").arg(QFileInfo(actualChartPath).fileName()), 3000);
+                        if (QFile::exists(audioPath))
+                        {
+                            d->playbackController->audioPlayer()->load(audioPath);
+                            Logger::info(QString("MainWindow::loadChartFile - Loaded audio from: %1")
+                                             .arg(audioPath));
+                        }
+                        else
+                        {
+                            const QString msg = tr("Audio file not found: %1").arg(audioPath);
+                            statusBar()->showMessage(msg, 5000);
+                            QMessageBox::warning(this, tr("Audio Load Error"), msg);
+                        }
+                    }
+
+                    // Initialize resource cache for change detection（背景存解析后的绝对路径）。
+                    d->lastLoadedAudioFile = loadedMeta.audioFile;
+                    d->lastLoadedBackgroundFile =
+                        resolvedChartResourcePath(d->workingChartPath, loadedMeta.backgroundFile);
+
+                    // Force background refresh: during chart loading, isLoadingChart is true
+                    // so the chartChanged handler's userEdit block (which normally refreshes
+                    // the background) is skipped. The canvas' chartLoaded handler already
+                    // invalidates its background cache unconditionally; this repaint keeps
+                    // the frame in sync right away.
+                    if (d->canvas)
+                        d->canvas->refreshBackground();
+
+                    // Reset playback state and position when switching charts
+                    d->playbackController->stop();
+                    d->playbackController->audioPlayer()->setAdjustedPosition(0);
+
+                    d->canvas->update();
+                    if (d->pluginActionPanel)
+                    {
+                        d->pluginActionPanel->setViewportRange(
+                            d->canvas->timeDivision(),
+                            d->canvas->scrollBeat(),
+                            d->canvas->scrollBeat() + d->canvas->visibleBeatRange());
+                    }
+                    d->isModified = false;
+
+                    persistRecoveryState();
+                    statusBar()->showMessage(
+                        tr("Loaded: %1").arg(QFileInfo(actualChartPath).fileName()), 3000);
+                    if (completion)
+                        completion(true, QString());
+                });
+        });
 }
 QString MainWindow::selectChartFromList(const QList<QPair<QString, QString>> &charts, const QString &title)
 {
@@ -3935,33 +4546,48 @@ void MainWindow::saveChart()
         }
     }
 
-    if (d->chartController->saveChart(currentPath))
-    {
-        d->sourceChartPath = currentPath;
-        d->currentChartPath = currentPath;
-        if (d->canvas)
-            d->canvas->setSourceChartPath(currentPath);
-        Settings::instance().setLastOpenPath(QFileInfo(currentPath).absolutePath());
-        d->isModified = false;
-        if (!d->workingChartPath.isEmpty())
-            d->chartController->saveChart(d->workingChartPath);
-        syncReferencedResourcesForSavedChart(d->workingChartPath, currentPath);
-        syncSidecarDirectoryForChart(d->workingChartPath, currentPath);
-        if (!d->workingChartPath.isEmpty())
-            d->chartController->saveChart(d->workingChartPath);
-        else
-            createWorkingCopyFromSource(currentPath, &d->workingChartPath, nullptr);
-        persistRecoveryState();
-        statusBar()->showMessage(tr("Saved: %1").arg(currentPath), 2000);
-        Logger::info("Chart saved: " + currentPath);
-        if (PluginManager *pm = activePluginManager())
-            pm->notifyChartSaved(currentPath);
-    }
-    else
-    {
-        Logger::error("Failed to save chart: " + currentPath);
-        QMessageBox::critical(this, tr("Error"), tr("Failed to save chart."));
-    }
+    const quint64 saveRevision = d->chartController->revision();
+    const quint64 documentGeneration = d->documentGeneration;
+    saveDocumentAsync(
+        currentPath,
+        d->workingChartPath,
+        true,
+        true,
+        [this, currentPath, saveRevision, documentGeneration](bool success,
+                                                              const QString &workingPath,
+                                                              const QString &error)
+        {
+            if (d->documentGeneration != documentGeneration)
+                return;
+            if (!success)
+            {
+                Logger::error("Failed to save chart: " + currentPath + " (" + error + ")");
+                QMessageBox::critical(
+                    this,
+                    tr("Error"),
+                    error.isEmpty() ? tr("Failed to save chart.") : error);
+                return;
+            }
+
+            if (d->editStatisticsChartPath != currentPath)
+            {
+                saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+                d->editStatisticsChartPath = currentPath;
+            }
+            d->sourceChartPath = currentPath;
+            d->currentChartPath = currentPath;
+            d->workingChartPath = workingPath;
+            if (d->canvas)
+                d->canvas->setSourceChartPath(currentPath);
+            Settings::instance().setLastOpenPath(QFileInfo(currentPath).absolutePath());
+            if (d->chartController->revision() == saveRevision)
+                d->isModified = false;
+            persistRecoveryState();
+            statusBar()->showMessage(tr("Saved: %1").arg(currentPath), 2000);
+            Logger::info("Chart saved: " + currentPath);
+            if (PluginManager *pm = activePluginManager())
+                pm->notifyChartSaved(currentPath);
+        });
 }
 
 void MainWindow::saveChartAs()
@@ -3974,32 +4600,47 @@ void MainWindow::saveChartAs()
         Logger::debug("Save as cancelled");
         return;
     }
-    if (d->chartController->saveChart(fileName))
-    {
-        d->sourceChartPath = fileName;
-        d->currentChartPath = fileName;
-        if (d->canvas)
-            d->canvas->setSourceChartPath(fileName);
-        d->isModified = false;
-        if (!d->workingChartPath.isEmpty())
-            d->chartController->saveChart(d->workingChartPath);
-        syncReferencedResourcesForSavedChart(d->workingChartPath, fileName);
-        syncSidecarDirectoryForChart(d->workingChartPath, fileName);
-        if (!d->workingChartPath.isEmpty())
-            d->chartController->saveChart(d->workingChartPath);
-        else
-            createWorkingCopyFromSource(fileName, &d->workingChartPath, nullptr);
-        persistRecoveryState();
-        statusBar()->showMessage(tr("Saved: %1").arg(fileName), 2000);
-        Logger::info("Chart saved as: " + fileName);
-        if (PluginManager *pm = activePluginManager())
-            pm->notifyChartSaved(fileName);
-    }
-    else
-    {
-        Logger::error("Failed to save chart as: " + fileName);
-        QMessageBox::critical(this, tr("Error"), tr("Failed to save chart."));
-    }
+    const quint64 saveRevision = d->chartController->revision();
+    const quint64 documentGeneration = d->documentGeneration;
+    saveDocumentAsync(
+        fileName,
+        d->workingChartPath,
+        true,
+        true,
+        [this, fileName, saveRevision, documentGeneration](bool success,
+                                                           const QString &workingPath,
+                                                           const QString &error)
+        {
+            if (d->documentGeneration != documentGeneration)
+                return;
+            if (!success)
+            {
+                Logger::error("Failed to save chart as: " + fileName + " (" + error + ")");
+                QMessageBox::critical(
+                    this,
+                    tr("Error"),
+                    error.isEmpty() ? tr("Failed to save chart.") : error);
+                return;
+            }
+
+            if (d->editStatisticsChartPath != fileName)
+            {
+                saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
+                d->editStatisticsChartPath = fileName;
+            }
+            d->sourceChartPath = fileName;
+            d->currentChartPath = fileName;
+            d->workingChartPath = workingPath;
+            if (d->canvas)
+                d->canvas->setSourceChartPath(fileName);
+            if (d->chartController->revision() == saveRevision)
+                d->isModified = false;
+            persistRecoveryState();
+            statusBar()->showMessage(tr("Saved: %1").arg(fileName), 2000);
+            Logger::info("Chart saved as: " + fileName);
+            if (PluginManager *pm = activePluginManager())
+                pm->notifyChartSaved(fileName);
+        });
 }
 
 void MainWindow::exportMcz()
@@ -4059,9 +4700,31 @@ void MainWindow::exportMczInternal(bool pureMode)
         Logger::info(QString("MainWindow::exportMczInternal - Exporting to: %1 (mode=%2)")
                          .arg(fileName, pureMode ? "pure" : "full"));
 
+        // Export from the session working copy, not directly from the source directory.
+        // currentChartPath is the last explicitly saved source .mc and can lag behind
+        // the in-memory editor state. Snapshot the current chart into the working copy
+        // first so metadata changes (notably offset) are included in the MCZ.
+        QString exportChartPath = d->workingChartPath;
+        if (exportChartPath.isEmpty() || !QFile::exists(exportChartPath))
+            exportChartPath = d->currentChartPath;
+
+        if (!d->chartController || !d->chartController->chart() ||
+            !ChartIO::save(exportChartPath, *d->chartController->chart()))
+        {
+            Logger::error(QString("MainWindow::exportMczInternal - Failed to snapshot current chart before export: %1")
+                              .arg(exportChartPath));
+            QMessageBox::critical(this,
+                                  tr("Error"),
+                                  tr("Failed to save the current chart state before export."));
+            return;
+        }
+
+        Logger::debug(QString("MainWindow::exportMczInternal - Packing current working state from: %1")
+                          .arg(exportChartPath));
+
         const bool ok = pureMode
-                            ? ProjectIO::exportToMczPure(fileName, d->currentChartPath)
-                            : ProjectIO::exportToMcz(fileName, d->currentChartPath);
+                            ? ProjectIO::exportToMczPure(fileName, exportChartPath)
+                            : ProjectIO::exportToMcz(fileName, exportChartPath);
         if (ok)
         {
             statusBar()->showMessage(tr("Exported: %1").arg(fileName), 3000);
@@ -4354,6 +5017,34 @@ void MainWindow::togglePlayback()
     }
 }
 
+bool MainWindow::event(QEvent *event)
+{
+    const bool profileBackingStoreUpdate =
+        event && event->type() == QEvent::UpdateRequest &&
+        d && d->playbackController &&
+        d->playbackController->state() == PlaybackController::Playing &&
+        PlaybackStutterProbe::sessionActive();
+    QElapsedTimer timer;
+    if (profileBackingStoreUpdate)
+        timer.start();
+
+    const bool handled = QMainWindow::event(event);
+
+    if (profileBackingStoreUpdate)
+    {
+        const double elapsedMs =
+            static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
+        const double frameBudgetMs =
+            1000.0 / qMax(1.0, d->playbackController->effectiveFrameRate());
+        PlaybackStutterProbe::recordDuration(
+            QStringLiteral("ui.backing_store.MainWindow.UpdateRequest"),
+            elapsedMs,
+            frameBudgetMs,
+            true);
+    }
+    return handled;
+}
+
 void MainWindow::changeEvent(QEvent *event)
 {
     if (event->type() == QEvent::LanguageChange)
@@ -4402,23 +5093,191 @@ void MainWindow::retranslateUi()
     Logger::debug("UI retranslated");
 }
 
+void MainWindow::moveView()
+{
+    if (!d->workbenchLayout)
+    {
+        statusBar()->showMessage(tr("View movement is available in the classic workbench."),
+                                 2500);
+        return;
+    }
+
+    const QList<QPair<QString, QString>> views = {
+        {QStringLiteral("navigation"), tr("Navigation")},
+        {QStringLiteral("preview"), tr("Realtime Preview")},
+        {QStringLiteral("note"), tr("Note Editor")},
+        {QStringLiteral("bpm"), tr("BPM & Timing")},
+        {QStringLiteral("meta"), tr("Metadata")}};
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Move View"));
+    QFormLayout form(&dialog);
+    auto *viewCombo = new QComboBox(&dialog);
+    for (const auto &view : views)
+    {
+        if (d->workbenchLayout->panePart(view.first))
+            viewCombo->addItem(view.second, view.first);
+    }
+    if (viewCombo->count() == 0)
+        return;
+
+    auto *locationCombo = new QComboBox(&dialog);
+    locationCombo->addItem(tr("Primary Sidebar"),
+                           static_cast<int>(WorkbenchLayout::Part::PrimarySidebar));
+    locationCombo->addItem(tr("Realtime Preview"),
+                           static_cast<int>(WorkbenchLayout::Part::PreviewArea));
+    locationCombo->addItem(tr("Auxiliary Sidebar"),
+                           static_cast<int>(WorkbenchLayout::Part::AuxiliarySidebar));
+    locationCombo->addItem(tr("Bottom Panel"),
+                           static_cast<int>(WorkbenchLayout::Part::BottomPanel));
+    form.addRow(tr("View:"), viewCombo);
+    form.addRow(tr("Location:"), locationCombo);
+
+    auto syncLocation = [this, viewCombo, locationCombo]()
+    {
+        WorkbenchLayout::Part part = WorkbenchLayout::Part::Editor;
+        if (!d->workbenchLayout->panePart(viewCombo->currentData().toString(), &part))
+            return;
+        const int index = locationCombo->findData(static_cast<int>(part));
+        if (index >= 0)
+            locationCombo->setCurrentIndex(index);
+    };
+    connect(viewCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            &dialog, [syncLocation](int) { syncLocation(); });
+
+    QString currentViewId = QStringLiteral("note");
+    if (d->currentRightPanel == d->bpmPanel)
+        currentViewId = QStringLiteral("bpm");
+    else if (d->currentRightPanel == d->metaPanel)
+        currentViewId = QStringLiteral("meta");
+    const int currentIndex = viewCombo->findData(currentViewId);
+    if (currentIndex >= 0)
+        viewCombo->setCurrentIndex(currentIndex);
+    syncLocation();
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                                         &dialog);
+    form.addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const QString paneId = viewCombo->currentData().toString();
+    const auto targetPart = static_cast<WorkbenchLayout::Part>(
+        locationCombo->currentData().toInt());
+    if (!d->workbenchLayout->movePane(paneId, targetPart))
+    {
+        QMessageBox::warning(this, tr("Move View"),
+                             tr("The selected view could not be moved."));
+        return;
+    }
+
+    saveClassicLayoutState();
+    configureNotePanelScrollArea();
+    applySidebarTheme();
+    statusBar()->showMessage(tr("View moved."), 2000);
+}
+
+void MainWindow::resetViewLocation()
+{
+    if (!d->workbenchLayout)
+    {
+        statusBar()->showMessage(tr("View locations are available in the classic workbench."),
+                                 2500);
+        return;
+    }
+
+    const QList<QPair<QString, QString>> views = {
+        {QStringLiteral("navigation"), tr("Navigation")},
+        {QStringLiteral("preview"), tr("Realtime Preview")},
+        {QStringLiteral("note"), tr("Note Editor")},
+        {QStringLiteral("bpm"), tr("BPM & Timing")},
+        {QStringLiteral("meta"), tr("Metadata")}};
+    QStringList ids;
+    QStringList labels;
+    for (const auto &view : views)
+    {
+        if (d->workbenchLayout->panePart(view.first))
+        {
+            ids.append(view.first);
+            labels.append(view.second);
+        }
+    }
+    if (ids.isEmpty())
+        return;
+
+    QString currentViewId = QStringLiteral("note");
+    if (d->currentRightPanel == d->bpmPanel)
+        currentViewId = QStringLiteral("bpm");
+    else if (d->currentRightPanel == d->metaPanel)
+        currentViewId = QStringLiteral("meta");
+    const int currentIndex = qMax(0, ids.indexOf(currentViewId));
+    bool accepted = false;
+    const QString label = QInputDialog::getItem(
+        this, tr("Reset View Location"), tr("View:"), labels, currentIndex, false, &accepted);
+    if (!accepted)
+        return;
+
+    const int index = labels.indexOf(label);
+    if (index < 0 || !d->workbenchLayout->resetPaneLocation(ids.at(index)))
+    {
+        QMessageBox::warning(this, tr("Reset View Location"),
+                             tr("The selected view location could not be reset."));
+        return;
+    }
+
+    saveClassicLayoutState();
+    configureNotePanelScrollArea();
+    applySidebarTheme();
+    statusBar()->showMessage(tr("View location reset."), 2000);
+}
+
 void MainWindow::showEditorPanel(QWidget *panel)
 {
     if (!panel)
         return;
 
-    if (panel == d->notePanel || panel == d->bpmPanel || panel == d->metaPanel)
-        d->currentRightPanel = panel;
-
     if (!d->floatingToolWindowsEnabled)
     {
+        if (panel == d->notePanel || panel == d->bpmPanel || panel == d->metaPanel)
+        {
+            d->currentRightPanel = panel;
+            QString panelId = QStringLiteral("note");
+            if (panel == d->bpmPanel)
+                panelId = QStringLiteral("bpm");
+            else if (panel == d->metaPanel)
+                panelId = QStringLiteral("meta");
+            Settings::instance().setClassicRightPanelId(panelId);
+        }
         if (d->notePanel)
-            d->notePanel->setVisible(panel == d->notePanel);
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->setPaneVisible(QStringLiteral("note"),
+                                                    panel == d->notePanel);
+            else
+                d->notePanel->setVisible(panel == d->notePanel);
+        }
         if (d->bpmPanel)
-            d->bpmPanel->setVisible(panel == d->bpmPanel);
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->setPaneVisible(QStringLiteral("bpm"),
+                                                    panel == d->bpmPanel);
+            else
+                d->bpmPanel->setVisible(panel == d->bpmPanel);
+        }
         if (d->metaPanel)
-            d->metaPanel->setVisible(panel == d->metaPanel);
-        if (d->legacyRightScrollArea)
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->setPaneVisible(QStringLiteral("meta"),
+                                                    panel == d->metaPanel);
+            else
+                d->metaPanel->setVisible(panel == d->metaPanel);
+        }
+        // PaneContainer::setPaneVisible() owns visibility in the stable classic
+        // workbench. Re-showing Note's scroll host here would undo hiding it
+        // whenever BPM or Meta is selected. Only the old legacy fallback
+        // layout uses one shared scroll area that must be shown explicitly.
+        if (!d->workbenchLayout && d->legacyRightScrollArea)
             d->legacyRightScrollArea->show();
         return;
     }
@@ -4451,15 +5310,24 @@ void MainWindow::showDockPanel(ads::CDockWidget *dock)
     {
         if (dock == d->pluginToolsDock)
         {
-            d->pluginToolsWereVisible = true;
+            Settings::instance().setClassicPluginToolsVisible(true);
             if (d->notePanel)
                 d->notePanel->setEmbeddedPluginToolsVisible(true);
         }
 
         showEditorPanel(d->notePanel);
-        if (dock == d->pluginToolsDock && d->legacyRightScrollArea)
+        QScrollArea *scrollArea = d->legacyRightScrollArea;
+        if (d->workbenchLayout)
         {
-            d->legacyRightScrollArea->ensureWidgetVisible(d->pluginActionPanel);
+            if (PaneContainer *container = d->workbenchLayout->paneContainerForPane(
+                    QStringLiteral("note")))
+            {
+                scrollArea = container->scrollAreaForPane(QStringLiteral("note"));
+            }
+        }
+        if (dock == d->pluginToolsDock && scrollArea)
+        {
+            scrollArea->ensureWidgetVisible(d->pluginActionPanel);
         }
         return;
     }
@@ -4476,18 +5344,22 @@ void MainWindow::configureCompactToolDock(ads::CDockWidget *dock)
         return;
 
     dock->setFeature(ads::CDockWidget::NoTab, true);
+    DockLayoutPolicy::applyCompactToolDockPolicy(dock);
     if (!dock->property("compactToolDockConfigured").toBool())
     {
         dock->setProperty("compactToolDockConfigured", true);
         const QPointer<ads::CDockWidget> guardedDock(dock);
+        const auto scheduleRefresh = [this, guardedDock]()
+        {
+            QTimer::singleShot(0, this, [this, guardedDock]()
+                               {
+                if (guardedDock)
+                    updateCompactToolDockHandle(guardedDock); });
+        };
         connect(dock, &ads::CDockWidget::topLevelChanged, this,
-                [this, guardedDock](bool)
-                {
-                    QTimer::singleShot(0, this, [this, guardedDock]()
-                                       {
-                        if (guardedDock)
-                            updateCompactToolDockHandle(guardedDock); });
-                });
+                [scheduleRefresh](bool) { scheduleRefresh(); });
+        connect(dock, &ads::CDockWidget::viewToggled, this,
+                [scheduleRefresh](bool) { scheduleRefresh(); });
     }
 
     updateCompactToolDockHandle(dock);
@@ -4495,6 +5367,7 @@ void MainWindow::configureCompactToolDock(ads::CDockWidget *dock)
 
 void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
 {
+    DockLayoutPolicy::applyCompactToolDockPolicy(dock);
     if (!dock || !dock->dockAreaWidget())
         return;
 
@@ -4502,18 +5375,19 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
     if (!titleBar)
         return;
 
-    // A floating container already has a native window caption. Keep the ADS
-    // title bar only while docked, where it becomes a compact drag handle.
+    // A floating container already has a native window caption. Its content
+    // must be freely resizable, so remove the dock-only natural-height policy.
     if (dock->isFloating())
     {
         titleBar->hide();
+        DockLayoutPolicy::refreshCompactToolDockPolicies(d->dockManager);
         return;
     }
 
     titleBar->setProperty("compactToolHandle", true);
     titleBar->setCursor(Qt::SizeAllCursor);
     titleBar->setToolTip(titleBar->titleBarButtonToolTip(ads::TitleBarButtonUndock));
-    titleBar->setFixedHeight(14);
+    titleBar->setFixedHeight(22);
     titleBar->style()->unpolish(titleBar);
     titleBar->style()->polish(titleBar);
     const ads::TitleBarButton hiddenButtons[] = {
@@ -4528,25 +5402,36 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
             button->setShowInTitleBar(false);
     }
 
+    QLabel *title = titleBar->findChild<QLabel *>(
+        QStringLiteral("compactToolDockTitle"), Qt::FindDirectChildrenOnly);
     QLabel *grip = titleBar->findChild<QLabel *>(
         QStringLiteral("compactToolDockGrip"), Qt::FindDirectChildrenOnly);
-    if (!grip)
+    if (!title || !grip)
     {
         // Hide the normal tab text and window buttons. The transparent label
-        // only paints the grip; mouse events continue to reach ADS' title bar.
+        // pair only paints the pane header; mouse events continue to reach the
+        // full ADS title bar, giving the user a much larger drag target.
         const QList<QWidget *> titleItems = titleBar->findChildren<QWidget *>(
             QString(), Qt::FindDirectChildrenOnly);
         for (QWidget *item : titleItems)
             item->hide();
 
+        title = new QLabel(titleBar);
+        title->setObjectName(QStringLiteral("compactToolDockTitle"));
+        title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        title->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        title->setFixedHeight(22);
+
         grip = new QLabel(QStringLiteral("⠿"), titleBar);
         grip->setObjectName(QStringLiteral("compactToolDockGrip"));
         grip->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         grip->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-        grip->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        grip->setFixedHeight(14);
+        grip->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+        grip->setFixedHeight(22);
         grip->setToolTip(titleBar->titleBarButtonToolTip(ads::TitleBarButtonUndock));
         titleBar->insertWidget(0, grip);
+        titleBar->insertWidget(0, title);
     }
 
     if (auto *splitter = qobject_cast<QSplitter *>(dock->dockAreaWidget()->parentWidget()))
@@ -4557,8 +5442,12 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
         splitter->style()->polish(splitter);
     }
 
+    title->setText(dock->windowTitle());
+    title->setToolTip(dock->windowTitle());
+    title->show();
     grip->show();
     titleBar->show();
+    DockLayoutPolicy::refreshCompactToolDockPolicies(d->dockManager);
 }
 
 void MainWindow::saveDockLayout()
@@ -4566,22 +5455,27 @@ void MainWindow::saveDockLayout()
     Settings::instance().setMainWindowGeometry(saveGeometry());
     if (d->dockManager && d->floatingToolWindowsEnabled)
         Settings::instance().setDockLayoutState(d->dockManager->saveState(kDockLayoutVersion));
+    else if (!d->floatingToolWindowsEnabled)
+        saveClassicLayoutState();
 }
 
-void MainWindow::restoreDockLayout()
+bool MainWindow::restoreDockLayout()
 {
     if (!d->dockManager)
-        return;
+        return false;
 
     // Defensive guard: the legacy (non-floating) layout does not use the ADS
     // state at all, so restoring it here would only create transient floating
     // containers that get torn down again right away.
     if (d->floatingToolWindowsInitialized && !d->floatingToolWindowsEnabled)
-        return;
+        return false;
 
     const QByteArray state = Settings::instance().dockLayoutState();
     if (state.isEmpty())
-        return;
+    {
+        ensureWorkspaceDockVisible();
+        return false;
+    }
 
     if (!d->dockManager->restoreState(state, kDockLayoutVersion))
     {
@@ -4589,14 +5483,54 @@ void MainWindow::restoreDockLayout()
         Settings::instance().clearDockLayoutState();
         if (!d->defaultDockLayoutState.isEmpty())
             d->dockManager->restoreState(d->defaultDockLayoutState, kDockLayoutVersion);
+        ensureWorkspaceDockVisible();
+        return false;
     }
+    ensureWorkspaceDockVisible();
+    return true;
 }
 
 void MainWindow::resetDockLayout()
 {
-    if (!d->dockManager || d->defaultDockLayoutState.isEmpty())
+    if (!d->dockManager)
         return;
 
+    if (!d->floatingToolWindowsEnabled)
+    {
+        Settings::instance().clearClassicLayoutState();
+        d->currentRightPanel = d->notePanel;
+        if (d->workbenchLayout)
+            d->workbenchLayout->resetState();
+        if (d->notePanel)
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->setPaneVisible(QStringLiteral("note"), true);
+            else
+                d->notePanel->setVisible(true);
+            d->notePanel->setEmbeddedPluginToolsVisible(false);
+        }
+        if (d->bpmPanel)
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->setPaneVisible(QStringLiteral("bpm"), false);
+            else
+                d->bpmPanel->setVisible(false);
+        }
+        if (d->metaPanel)
+        {
+            if (d->workbenchLayout)
+                d->workbenchLayout->setPaneVisible(QStringLiteral("meta"), false);
+            else
+                d->metaPanel->setVisible(false);
+        }
+        if (d->legacySplitter && !d->workbenchLayout)
+            d->legacySplitter->setSizes({150, 200, 700, 300});
+        statusBar()->showMessage(tr("Classic panel layout reset."), 2000);
+        return;
+    }
+
+    if (d->defaultDockLayoutState.isEmpty())
+        return;
     if (!d->dockManager->restoreState(d->defaultDockLayoutState, kDockLayoutVersion))
     {
         statusBar()->showMessage(tr("Failed to reset panel layout."), 3000);
@@ -4604,23 +5538,9 @@ void MainWindow::resetDockLayout()
     }
 
     Settings::instance().clearDockLayoutState();
-    if (!d->floatingToolWindowsEnabled)
-    {
-        for (ads::CDockWidget *dock : {d->timingToolsDock, d->playbackSpeedToolsDock,
-                                       d->rangeToolsDock, d->mirrorToolsDock,
-                                       d->curveToolsDock,
-                                       d->pluginToolsDock})
-        {
-            if (dock)
-                dock->toggleView(false);
-        }
-        d->timingToolsWereVisible = true;
-        d->playbackSpeedToolsWereVisible = true;
-        d->rangeToolsWereVisible = true;
-        d->mirrorToolsWereVisible = true;
-        d->pluginToolsWereVisible = false;
-    }
-    d->notePanelDock->setAsCurrentTab();
+    ensureWorkspaceDockVisible();
+    if (d->notePanelDock)
+        d->notePanelDock->setAsCurrentTab();
     if (d->timingToolsDock)
         d->timingToolsDock->setAsCurrentTab();
     statusBar()->showMessage(tr("Panel layout reset."), 2000);
@@ -4655,6 +5575,16 @@ void MainWindow::updateDockTitles()
         d->metaPanelDock->setWindowTitle(tr("Metadata"));
     if (d->statsToolsDock)
         d->statsToolsDock->setWindowTitle(tr("Chart Statistics"));
+
+    if (d->floatingToolWindowsEnabled)
+    {
+        const QList<ads::CDockWidget *> toolDocks = {
+            d->timingToolsDock, d->playbackSpeedToolsDock,
+            d->rangeToolsDock, d->mirrorToolsDock,
+            d->curveToolsDock, d->pluginToolsDock, d->statsToolsDock};
+        for (ads::CDockWidget *dock : toolDocks)
+            updateCompactToolDockHandle(dock);
+    }
 }
 
 // ==================== Paste 288 division option slot ====================
@@ -5109,12 +6039,29 @@ void MainWindow::applySidebarTheme()
     {
         // Match the pre-ADS stylesheet boundary: the whole switchable right
         // sidebar is one styled surface, rather than several panel windows.
-        if (d->notePanel)
-            d->notePanel->setStyleSheet(QString());
-        if (d->bpmPanel)
-            d->bpmPanel->setStyleSheet(QString());
-        if (d->metaPanel)
-            d->metaPanel->setStyleSheet(QString());
+        const auto applyClassicPaneStyle = [this, &applyPanelStyle](
+                                               const QString &paneId,
+                                               QWidget *panel,
+                                               const QString &rootName)
+        {
+            if (!panel)
+                return;
+            if (!d->workbenchLayout)
+            {
+                panel->setStyleSheet(QString());
+                return;
+            }
+            WorkbenchLayout::Part part = WorkbenchLayout::Part::Editor;
+            const bool inAuxiliarySidebar = d->workbenchLayout->panePart(paneId, &part)
+                                             && part == WorkbenchLayout::Part::AuxiliarySidebar;
+            if (inAuxiliarySidebar)
+                panel->setStyleSheet(QString());
+            else
+                applyPanelStyle(panel, rootName);
+        };
+        applyClassicPaneStyle(QStringLiteral("note"), d->notePanel, "notePanelRoot");
+        applyClassicPaneStyle(QStringLiteral("bpm"), d->bpmPanel, "bpmPanelRoot");
+        applyClassicPaneStyle(QStringLiteral("meta"), d->metaPanel, "metaPanelRoot");
         if (d->pluginActionPanel)
             d->pluginActionPanel->setStyleSheet(QString());
         applyPanelStyle(d->legacyRightPanelContainer, "rightPanelRoot");

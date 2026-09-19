@@ -36,6 +36,7 @@ private:
     void syncDuration();
     void syncCurrentTime(double timeMs);
     void refreshFromChart();
+    void scheduleRefreshFromChart();
     void updateFromCanvasBeat(double beat);
     void updateFromPointer(const QPoint &pos, bool commitSeek);
     void computeDensity();
@@ -44,6 +45,8 @@ private:
     static constexpr int kRefMaxCount = 20;
 
     ChartController *m_chartController;
+    quint64 m_chartRevision = 0;
+    quint64 m_densityRevision = 0;
     PlaybackController *m_playbackController;
     ChartCanvas *m_canvas;
     const Chart *m_chart;
@@ -53,4 +56,5 @@ private:
     double m_tipTimeMs;
     bool m_dragging;
     bool m_showTip;
+    bool m_refreshScheduled = false;
 };

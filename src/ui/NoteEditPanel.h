@@ -49,6 +49,7 @@ public:
     void retranslateUi();
     void setMirrorAxisValue(int axisX);
     void setModeFromHost(int mode);
+    void cycleMode(int direction); // -1: previous (up), +1: next (down).
     int currentMode() const { return m_currentMode; }
     void setNoteChainControlsVisible(bool visible);
     void syncNoteChainControlsFromEditor(bool anchorPlace, bool curveVisible, bool polyline,
@@ -71,6 +72,7 @@ public:
                                   QWidget *pluginTools,
                                   bool showPluginTools);
     void setEmbeddedPluginToolsVisible(bool visible);
+    bool embeddedPluginToolsVisible() const;
 
 
     LongRangeSelector *longRangeSelector() const { return m_longRangeSelector; }

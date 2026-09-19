@@ -5,11 +5,12 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 ## Version status / 版本状态
 
-- Current release / 当前版本：**Beta v1.11.1（2026-09-07）**
+- Current release / 当前版本：**Beta v1.11.2（2026-09-19）**
+- Repository state / 仓库状态：**Release candidate（2026-09-19）**
 - Git tag / 标签：待发布
 - Download / 下载：[GitHub Releases](https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor/releases/latest)
 
-`docs/history.md` 中已经发布的版本段落视为冻结记录。Beta v1.11.1 的发布记录位于文件顶部，不回填已发布版本。
+`docs/history.md` 中已经发布的版本段落视为冻结记录；当前未发布维护内容记录在文件顶部的 `Unreleased` 段。
 
 ## Documentation / 文档
 
@@ -18,21 +19,21 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - [版本状态与升级说明](docs/version.md)
 - [完整更新历史](docs/history.md)
 - [开发者项目指南](docs/AI_PROJECT_GUIDE.md)
+- [工程优化与重构 TODO](docs/ENGINEERING_TODO.md)
+- [未来产品与架构规划](docs/FUTURE_ROADMAP.md)
 - [测试指南](TESTING.md)
 - [插件 SDK](src/plugin/README.md)
 
-## Beta v1.11.0 focus / 本版本重点
+## Current focus / 当前重点
 
-- Native C++ Note Chain editor with direct canvas interaction, curve sampling, note snapping, unified undo/redo, and V3 sidecar compatibility.
-  原生 C++ 曲线编辑器：画布直操、曲线采样、音符吸附、统一撤销/重做和 V3 sidecar 兼容。
-- Composable ADS workspace: panels can dock, split, tab, float, persist, and restore like modern creative tools.
-  ADS 可组合工作区：面板支持停靠、拆分、标签组合、浮动及布局持久化。
-- Smooth native floating windows with themed Windows title bars and non-blocking first-frame layout.
-  浮动窗口原生标题栏跟随主题，并使用非阻塞首帧布局以减少吸附和创建卡顿。
-- Updated architecture, format, AutoTiming, Note Chain, testing, and plugin documentation.
-  更新架构、格式、AutoTiming、曲线编辑器、测试及插件文档。
+- Beta v1.11.2 fixes shortcut capture, persistence, and conflict handling, adds Alt+Up/Down note-mode cycling, and adds `View -> Move View...` for relocating panels; it also carries the AutoTiming 2 based BPM measurement, explicit tempo-map application, and expanded background image import from the same maintenance line.
+  Beta v1.11.2 修复快捷键录入、持久化与冲突处理，新增 Alt+↑/↓ 音符模式循环与 `View -> Move View...` 面板位置迁移；同维护线还包含 AutoTiming 2 BPM 测量、显式 tempo map 应用与背景图导入格式扩展。
+- Export now flushes the working copy before packaging `.mcz`, restores `meta.offset` through the main audio Sound Note, and keeps OGG conversion and background import atomic.
+  导出 `.mcz` 前先落盘工作副本，通过主音频 Sound Note 补回 `meta.offset`，OGG 转换与背景导入保持原子提交。
+- Unified shortcut routing across canvas, Note Chain, and plugin tools remains a tracked TODO in [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md); the settings dialog currently covers registered menu actions only.
+  画布、Note Chain 与插件工具的快捷键统一路由仍是 [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md) 中的 TODO；快捷键设置当前只覆盖已注册的菜单动作。
 
-完整变更见 [docs/history.md](docs/history.md) 顶部的 Beta v1.11.0 段落。
+完整变更见 [docs/history.md](docs/history.md) 顶部，近期维护见 [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md)，长期方向见 [docs/FUTURE_ROADMAP.md](docs/FUTURE_ROADMAP.md)。
 
 ## Features / 功能
 
@@ -43,18 +44,26 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - Native curve-to-note workflow with per-segment density and curve/polyline shapes.
 - V3 curve sidecar under `.mcce-plugin/*.curve_tbd.json`, with CAS revision checks and legacy data import.
 - Native and JSON-lines process plugins, tool actions, floating panels, canvas overlays, and host batch edits.
-- Configurable ADS workspace with persistent dock/floating layout.
+- Configurable ADS workspace with a protected main editor, discoverable panel recovery, stable compact-tool sizing, and independent classic/multi-window layouts.
 - Chinese, English, and Japanese UI translations.
 
 ## Build
 
 ### Requirements
 
-- CMake 3.16+
+- CMake 3.20+
 - C++17 compiler
-- Qt 6 components: Core, Widgets, Multimedia, LinguistTools, Test
+- Qt 6 components: Core, Widgets, Multimedia, Concurrent, LinguistTools, Test
 
-Qt Advanced Docking System 5.1.1 is vendored in `third_party/QtAdvancedDockingSystem`; building does not download it from the network.
+Qt Advanced Docking System 5.1.1 is vendored in `third_party/QtAdvancedDockingSystem`.
+AutoTimingCore is pinned as a Git submodule in `third_party/AutoTimingCore`.
+Neither dependency is downloaded by CMake.
+
+After cloning, initialize submodules once:
+
+```powershell
+git submodule update --init --recursive
+```
 
 ### Windows / multi-config
 
@@ -79,7 +88,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Build output also receives the default skin, runtime plugins, documentation, note sounds when present, and ADS license files.
+Build output also receives the default skin, runtime plugins, documentation, note sounds when present, third-party license files, and the AutoTimingCore attribution notice.
 
 ## Quick start / 快速上手
 
@@ -87,7 +96,7 @@ Build output also receives the default skin, runtime plugins, documentation, not
 2. Use the `Note Editor` panel to choose Note, Rain, Delete, Select, or Curve mode.
 3. Use the mouse wheel to navigate; `Ctrl + wheel` changes the timeline scale.
 4. Press `Space` to play/pause and use `Time Division` plus `Grid Snap` for precise placement.
-5. Drag panel tabs to dock, split, combine, or float them; reset from `View -> Panels -> Reset Panel Layout`.
+5. Drag a panel header to dock or float it; the live outline shows the target region, while the chart workspace remains a protected central area. Reopen closed panels from the toolbar `Panels` menu. Classic and multi-window layouts are saved independently.
 6. Save as `.mc` or export a Malody-compatible `.mcz` package.
 
 Detailed controls are documented in [docs/help.md](docs/help.md).
@@ -107,7 +116,7 @@ src/audio/               playback, note sounds, BPM and AutoTiming
 tests/                   core and docking regression tests
 docs/                    user and developer documentation
 plugins/                 runtime plugins and SDK samples
-third_party/             vendored dependencies and their licenses
+third_party/             vendored dependencies and pinned submodules
 ```
 
 ## File compatibility / 文件兼容
@@ -123,5 +132,10 @@ See [docs/ARCHITECTURE_FORMAT_REFERENCE.md](docs/ARCHITECTURE_FORMAT_REFERENCE.m
 The project is licensed under GPL-3.0; see [LICENSE](LICENSE).
 
 Qt Advanced Docking System 5.1.1 is licensed under LGPL-2.1. Its source and license files are included in [third_party/QtAdvancedDockingSystem](third_party/QtAdvancedDockingSystem).
+
+AutoTimingCore is pinned at `90f7a9529e1bcdb15475bfa9db5d873b0a38f1e2`.
+Its Malody legacy source license is not confirmed; see
+[docs/AUTOTIMING_VENDORING.md](docs/AUTOTIMING_VENDORING.md) and the submodule's
+`ATTRIBUTION.md` before redistribution.
 
 Special thanks to **myhome** for the included skin: [skin page](https://m.mugzone.net/store/skin/detail/5982).

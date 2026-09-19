@@ -3,7 +3,7 @@
 #include <QString>
 #include <functional>
 
-class QWidget;
+class QObject;
 
 namespace AudioConverter
 {
@@ -21,7 +21,7 @@ bool isOggFile(const QString &path);
 // linearly resampled to the closest supported rate).
 //
 // This function blocks until the whole file is processed and therefore
-// must be called from a worker thread (see convertToOggWithProgress for
+// must be called from a worker thread (see convertToOggWithProgressAsync for
 // the UI-thread friendly wrapper).
 //
 // progress: optional callback receiving 0.0..1.0; return false to cancel.
@@ -31,10 +31,10 @@ bool convertToOgg(const QString &inputPath,
                   const std::function<bool(float)> &progress = {});
 
 // Runs convertToOgg on a worker thread while showing a modal progress
-// dialog (same UX pattern as the BPM auto-detection). Returns the output
-// path on success, or an empty string on failure / user cancellation.
-QString convertToOggWithProgress(QWidget *parent,
-                                 const QString &inputPath,
-                                 const QString &outputPath,
-                                 QString *outError = nullptr);
+// dialog. Completion is delivered on the context object's thread.
+using AsyncCompletion = std::function<void(bool success, const QString &error)>;
+void convertToOggWithProgressAsync(QObject *context,
+                                   const QString &inputPath,
+                                   const QString &outputPath,
+                                   AsyncCompletion completion);
 } // namespace AudioConverter

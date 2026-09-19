@@ -2,6 +2,7 @@
 
 #include "CustomWidgets/RightPanel.h"
 #include "model/MetaData.h"
+#include <functional>
 
 class QLineEdit;
 class QSpinBox;
@@ -33,17 +34,47 @@ private slots:
     void onMetaFieldChanged();
     void flushPendingMetaSave();
 
+protected:
+    using AudioConversionCompletion = std::function<void(bool, const QString &)>;
+    virtual void convertAudioToOggAsync(const QString &inputPath,
+                                        const QString &outputPath,
+                                        AudioConversionCompletion completion);
+    // User feedback hooks for background import. The default implementations
+    // show message boxes; tests override them to stay non-modal.
+    virtual void notifyBackgroundKeptOriginal(const QString &fileName);
+    virtual void showBackgroundImportError(const QString &message);
+
 private:
+    enum class ApplyResult
+    {
+        Failed,
+        Applied,
+        Pending
+    };
+
+    enum class BackgroundImportStatus
+    {
+        Imported,     // copied / converted into the chart directory
+        KeptOriginal, // imported as-is, user should be informed why
+        Skipped,      // source missing or not a file; reference untouched
+        Failed        // hard failure, metadata must not change
+    };
+
     void setupUi();
     QString importResourceToChartDirectory(const QString &sourcePath) const;
+    BackgroundImportStatus importBackgroundImage(const QString &sourcePath,
+                                                 QString *outRelativeName,
+                                                 QString *outError);
     MetaData collectMetaFromUi() const;
     bool isSameMeta(const MetaData &a, const MetaData &b) const;
-    bool applyMetaAndPersist(bool persistToDisk);
+    ApplyResult applyMetaAndPersist(bool persistToDisk);
 
     ChartController *m_chartController;
     QTimer *m_autoSaveTimer;
     bool m_isRefreshingUi;
     bool m_hasPendingMetaSave;
+    bool m_audioConversionInProgress = false;
+    bool m_saveAfterAudioConversion = false;
     QFormLayout *m_formLayout;
     QLabel *m_titleLabel;
     QLabel *m_titleOrgLabel;

@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QString>
 #include <QVector>
+#include <QtGlobal>
 
 #include <cstdint>
 
@@ -23,6 +24,10 @@ class RainRewardGenerator
 public:
     static RainRewardGenerator &instance();
 
+    // Independent instances are used by background analysis so the UI render
+    // cache remains confined to the main thread.
+    RainRewardGenerator() = default;
+
     RainRewardGenerator(const RainRewardGenerator &) = delete;
     RainRewardGenerator &operator=(const RainRewardGenerator &) = delete;
 
@@ -32,9 +37,10 @@ public:
 
     void ensureChart(const QVector<Note> &notes,
                      const QVector<BpmEntry> &bpmList,
-                     int offsetMs = 0);
+                     int offsetMs = 0,
+                     quint64 chartRevision = 0);
 
-    QVector<RainDrop> dropsFor(const Note &rain) const;
+    const QVector<RainDrop> &dropsFor(const Note &rain) const;
 
     // These helpers expose the small integer core of 00469F40/004C33F6 for
     // regression tests. All arithmetic is deliberately modulo 2^32.
@@ -45,8 +51,6 @@ public:
     static std::uint32_t rawXFromState(const std::uint32_t state[4]);
 
 private:
-    RainRewardGenerator() = default;
-
     void rebuild(const QVector<Note> &notes);
     QString cacheKey(const Note &rain) const;
     void fillDrops(const Note &rain, QVector<RainDrop> &out);
@@ -60,6 +64,7 @@ private:
     qsizetype m_lastBpmSize = -1;
     std::uint64_t m_lastNotesFingerprint = 0;
     std::uint64_t m_lastBpmFingerprint = 0;
+    quint64 m_lastChartRevision = 0;
     int m_lastOffsetMs = 0;
     QVector<BpmEntry> m_bpmList;
     int m_offsetMs = 0;

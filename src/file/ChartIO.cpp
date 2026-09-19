@@ -6,6 +6,7 @@
 #include "utils/CalcHash.h"
 #include <QDir>
 #include <QFile>
+#include <QSaveFile>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -18,6 +19,7 @@
 #include <QPushButton>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace
 {
@@ -228,6 +230,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
     // 读取 note 数组
     int normalNoteCount = 0, rainNoteCount = 0, soundNoteCount = 0, skippedNoteCount = 0;
     int totalNoteCount = 0; // 用于统计成功率
+    QVector<Note> loadedNotes;
 
     if (root.contains("note") && root["note"].isArray())
     {
@@ -237,6 +240,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
         Logger::info(QStringLiteral("ChartIO::load - SHA256: %1").arg(noteHashHex));
 
         totalNoteCount = noteArray.size();
+        loadedNotes.reserve(totalNoteCount);
         Logger::debug(QString("ChartIO::load - Found 'note' array with %1 entries").arg(totalNoteCount));
 
         for (int i = 0; i < noteArray.size(); i++)
@@ -273,7 +277,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
                 QString sound = obj["sound"].toString();
                 int vol = obj.value("vol").toInt(100);
                 int offset = obj.value("offset").toInt(0);
-                outChart.addNote(Note(beatNum, num, den, sound, vol, offset));
+                loadedNotes.append(Note(beatNum, num, den, sound, vol, offset));
                 soundNoteCount++;
                 if (Logger::isVerbose())
                 {
@@ -298,7 +302,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
                         continue;
                     }
                     x = std::clamp(x, 0, 512);
-                    outChart.addNote(Note(beatNum, num, den, endBeatNum, endNum, endDen, x));
+                    loadedNotes.append(Note(beatNum, num, den, endBeatNum, endNum, endDen, x));
                     rainNoteCount++;
                     if (Logger::isVerbose())
                     {
@@ -325,7 +329,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
             else if (obj.contains("x"))
             {
                 int x = std::clamp(obj["x"].toInt(), 0, 512);
-                outChart.addNote(Note(beatNum, num, den, x));
+                loadedNotes.append(Note(beatNum, num, den, x));
                 normalNoteCount++;
                 if (Logger::isVerbose())
                 {
@@ -579,7 +583,7 @@ bool ChartIO::load(const QString &filePath, Chart &outChart, bool verbose)
         Logger::info("ChartIO::load - No 'meta' object found in file");
     }
 
-    outChart.sortNotes();
+    outChart.setNotes(std::move(loadedNotes));
     Logger::info(QString("ChartIO::load - Chart loaded successfully from: %1").arg(filePath));
     Logger::setVerbose(previousVerbose); // 恢复原来的设置
     return true;
@@ -771,6 +775,8 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     // 保存 note 数组
     QJsonArray noteArray;
     int normalNoteCount = 0, rainNoteCount = 0, soundNoteCount = 0;
+    bool hasPrimaryAudioSoundNote = false;
+    const QString primaryAudioFileName = QFileInfo(chart.meta().audioFile).fileName();
 
     for (const Note &note : chart.notes())
     {
@@ -783,13 +789,31 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
 
         if (note.type == NoteType::SOUND)
         {
-            // 音效音符
+            // Keep the primary audio sound note aligned with MetaData::offset.
+            // CCE edits the chart-level offset, while Malody reads the type=1
+            // sound note offset for playback. Writing the stale Note::offset here
+            // makes an exported chart appear to lose its offset.
+            const QString soundFileName = QFileInfo(note.sound).fileName();
+            const bool isPrimaryAudioSound = !hasPrimaryAudioSoundNote &&
+                                             !primaryAudioFileName.isEmpty() &&
+                                             QString::compare(soundFileName,
+                                                              primaryAudioFileName,
+                                                              Qt::CaseInsensitive) == 0;
+
             obj["type"] = 1;
             obj["sound"] = note.sound;
             obj["vol"] = note.vol;
-            obj["offset"] = note.offset;
+            obj["offset"] = isPrimaryAudioSound ? chart.meta().offset : note.offset;
+            if (isPrimaryAudioSound)
+                hasPrimaryAudioSoundNote = true;
             soundNoteCount++;
-            Logger::debug(QString("ChartIO::save - Sound note: [%1,%2,%3], sound=%4").arg(note.beatNum).arg(note.numerator).arg(note.denominator).arg(note.sound));
+            Logger::debug(QString("ChartIO::save - Sound note: [%1,%2,%3], sound=%4, offset=%5%6")
+                              .arg(note.beatNum)
+                              .arg(note.numerator)
+                              .arg(note.denominator)
+                              .arg(note.sound)
+                              .arg(isPrimaryAudioSound ? chart.meta().offset : note.offset)
+                              .arg(isPrimaryAudioSound ? QStringLiteral(" (primary audio)") : QString()));
         }
         else if (note.type == NoteType::RAIN)
         {
@@ -817,7 +841,7 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     // Ensure a sound note referencing the audio file is always present.
     // Malody V resolves audio via note[type=1].sound, not via meta.audio.
     // This also upgrades legacy charts that only had meta.audio without a sound note.
-    if (soundNoteCount == 0 && !chart.meta().audioFile.isEmpty())
+    if (!hasPrimaryAudioSoundNote && !chart.meta().audioFile.isEmpty())
     {
         // 确保音频文件已复制到目标目录
         QString audioFileName = chart.meta().audioFile;
@@ -855,8 +879,11 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
         soundObj["vol"] = 100;
         soundObj["offset"] = chart.meta().offset;
         noteArray.insert(0, soundObj);
-        soundNoteCount = 1;
-        Logger::debug(QString("ChartIO::save - Injected sound note for audio: %1").arg(audioFileName));
+        soundNoteCount++;
+        hasPrimaryAudioSoundNote = true;
+        Logger::debug(QString("ChartIO::save - Injected primary sound note for audio: %1, offset=%2")
+                          .arg(audioFileName)
+                          .arg(chart.meta().offset));
     }
 
     root["note"] = noteArray;
@@ -875,7 +902,7 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     Logger::debug("ChartIO::save - Extra (test config) saved");
 
     QJsonDocument doc(root);
-    QFile file(filePath);
+    QSaveFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
     {
         Logger::error(QString("ChartIO::save - Cannot open file for writing: %1").arg(filePath));
@@ -883,8 +910,17 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
     }
 
     QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
-    file.write(jsonData);
-    file.close();
+    if (file.write(jsonData) != jsonData.size())
+    {
+        Logger::error(QString("ChartIO::save - Failed while writing temporary file for: %1").arg(filePath));
+        file.cancelWriting();
+        return false;
+    }
+    if (!file.commit())
+    {
+        Logger::error(QString("ChartIO::save - Failed to atomically replace file: %1").arg(filePath));
+        return false;
+    }
 
     Logger::info(QString("ChartIO::save - Chart saved successfully (%1 bytes) to: %2").arg(jsonData.size()).arg(filePath));
 

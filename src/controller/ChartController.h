@@ -5,18 +5,24 @@
 #include <QUndoStack>
 #include <QVector>
 #include "model/Chart.h"
+#include "controller/ChartChange.h"
 
 /**
  * @brief 谱面编辑控制器，负责所有修改操作，并管理撤销/重做栈。
  *
  * 线程安全：所有方法必须在主线程调用。
- * 修改信号：任何数据变化都会发送 chartChanged() 信号。
+ * 修改信号：任何数据变化都会发送 chartChangeCommitted()（带单调 revision
+ * 和类型化变更集）以及兼容性的 chartChanged() 信号。
  *
  */
 class ChartController : public QObject
 {
     Q_OBJECT
 public:
+    // Opaque external mutations retain a full-chart fallback only below this
+    // bound; validated note deltas do not consume a second chart snapshot.
+    static constexpr int kMaxOpaqueSnapshotNotes = 100000;
+
     explicit ChartController(QObject *parent = nullptr);
     ~ChartController();
 
@@ -26,6 +32,7 @@ public:
 
     // 获取当前谱面文件路径
     QString chartFilePath() const { return m_currentChartPath; }
+    quint64 revision() const { return m_revision; }
 
     // 编辑操作（都会自动压入撤销栈）
     void addNote(const Note &note);
@@ -61,6 +68,7 @@ public:
                         const QList<QPair<Note, Note>> &notesToMove);
 
 signals:
+    void chartChangeCommitted(const ChartChange &change);
     void chartChanged(); // 任何数据变化
     void chartLoaded();  // 加载新谱面
     void notesChanged();   // 音符增删改
@@ -75,6 +83,7 @@ private:
     class RemoveNotesCommand;
     class MoveNoteCommand;
     class MoveNotesCommand;
+    class BatchEditCommand;
     class AddBpmCommand;
     class RemoveBpmCommand;
     class UpdateBpmCommand;
@@ -82,7 +91,10 @@ private:
     class ExternalMutationCommand;
     class UndoMarkerCommand;
 
+    void publishChange(ChartChangeSet changes);
+
     Chart m_chart;
     QUndoStack *m_undoStack;
     QString m_currentChartPath; // 当前加载的谱面文件路径
+    quint64 m_revision = 0;
 };

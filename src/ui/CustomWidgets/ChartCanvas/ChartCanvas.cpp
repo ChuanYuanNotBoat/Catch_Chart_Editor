@@ -7,6 +7,8 @@
 #include "render/GridRenderer.h"
 #include "render/BackgroundRenderer.h"
 #include "render/HyperfruitDetector.h"
+#include "render/RainRewardGenerator.h"
+#include "render/RainVisibilityIndex.h"
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
@@ -196,6 +198,7 @@ bool ChartCanvas::eventFilter(QObject *watched, QEvent *event)
         const int key = ke->key();
         if ((key == Qt::Key_Left || key == Qt::Key_Right ||
              key == Qt::Key_Up   || key == Qt::Key_Down) &&
+            !ke->modifiers().testFlag(Qt::AltModifier) &&
             !ke->isAutoRepeat())
         {
             // Only redirect when focus is on a non-input GUI widget
@@ -301,8 +304,11 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteXPositions.clear();
         m_noteTimesMs.clear();
         m_noteTypes.clear();
+        m_sortedSelectionNoteIndicesByBeat.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
+        m_rainIntervalIndex.clear();
+        m_playableNoteIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
         m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
@@ -310,6 +316,22 @@ void ChartCanvas::rebuildNoteTimesCache()
         return;
     }
     const auto &notes = chart()->notes();
+    m_sortedSelectionNoteIndicesByBeat.clear();
+    m_sortedSelectionNoteIndicesByBeat.reserve(notes.size());
+    for (int i = 0; i < notes.size(); ++i)
+        m_sortedSelectionNoteIndicesByBeat.append(i);
+    std::sort(m_sortedSelectionNoteIndicesByBeat.begin(),
+              m_sortedSelectionNoteIndicesByBeat.end(),
+              [&notes](int a, int b)
+              {
+                  const double aBeat = notes[a].getStartBeat();
+                  const double bBeat = notes[b].getStartBeat();
+                  if (aBeat != bBeat)
+                      return aBeat < bBeat;
+                  if (notes[a].x != notes[b].x)
+                      return notes[a].x < notes[b].x;
+                  return a < b;
+              });
     const auto &bpmList = chart()->bpmList();
 
     if (bpmList.isEmpty())
@@ -322,6 +344,8 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteTypes.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
+        m_rainIntervalIndex.clear();
+        m_playableNoteIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
         m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
@@ -339,6 +363,8 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_noteTypes.clear();
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
+        m_rainIntervalIndex.clear();
+        m_playableNoteIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
         m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
@@ -356,6 +382,8 @@ void ChartCanvas::rebuildNoteTimesCache()
     m_sortedRainNoteIndicesByBeat.clear();
     m_sortedNormalNoteIndicesByBeat.reserve(N);
     m_sortedRainNoteIndicesByBeat.reserve(N);
+    QVector<int> playableNoteIndices;
+    playableNoteIndices.reserve(N);
     m_playableNoteTimesMs.clear();
     m_playableNoteTimesMs.reserve(N);
 
@@ -374,6 +402,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         double beat = MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator);
         m_noteBeatPositions[i] = beat;
         m_noteTimesMs[i] = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, bpmCache);
+        playableNoteIndices.append(i);
         m_playableNoteTimesMs.append(m_noteTimesMs[i]);
         if (note.type == NoteType::RAIN)
         {
@@ -401,6 +430,10 @@ void ChartCanvas::rebuildNoteTimesCache()
               {
                   return m_noteBeatPositions[a] < m_noteBeatPositions[b];
               });
+    m_rainIntervalIndex.build(
+        m_sortedRainNoteIndicesByBeat, m_noteBeatPositions, m_noteEndBeatPositions);
+    m_playableNoteIntervalIndex.build(
+        playableNoteIndices, m_noteTimesMs, m_noteTimesMs);
 
     std::sort(m_playableNoteTimesMs.begin(), m_playableNoteTimesMs.end());
     m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
@@ -420,58 +453,36 @@ void ChartCanvas::setChartController(ChartController *controller)
 
     if (m_chartController)
     {
-        disconnect(m_chartController, &ChartController::chartChanged, this, nullptr);
-        disconnect(m_chartController, &ChartController::notesChanged, this, nullptr);
-        disconnect(m_chartController, &ChartController::metaDataChanged, this, nullptr);
+        disconnect(m_chartController, &ChartController::chartChangeCommitted, this, nullptr);
+        disconnect(m_chartController, &ChartController::chartLoaded, this, nullptr);
     }
     m_chartController = controller;
+    m_chartRevision = controller ? controller->revision() : 0;
     if (m_noteChainEditor)
         m_noteChainEditor->setChartController(controller);
     if (controller)
     {
-        connect(controller, &ChartController::chartChanged, this, [this]()
+        connect(controller,
+                &ChartController::chartChangeCommitted,
+                this,
+            [this](const ChartChange &change)
                 {
-            // Only dirty background cache when the resolved background path actually changed.
-            // Note/BPM edits should not trigger expensive background regeneration.
-            // 比较解析后的绝对路径（chart 目录 + 文件名），避免跨目录同名背景误判为未变化。
-            bool bgChanged = false;
-            if (m_chartController && m_chartController->chart()) {
-                const QString currentBg = currentBackgroundPath();
-                if (currentBg != m_lastKnownBackgroundFile) {
-                    bgChanged = true;
-                    m_lastKnownBackgroundFile = currentBg;
-                }
+            invalidateChartCaches(change);
+            if (change.affects(ChartChangeType::Notes) ||
+                change.affects(ChartChangeType::Timing))
+            {
+                RainRewardGenerator::instance().invalidate();
             }
-            invalidateChartCaches(bgChanged);
-            update(); });
-        // Note changes: invalidate caches but skip background check (handled separately via metaDataChanged)
-        connect(controller, &ChartController::notesChanged, this, [this]() {
-            invalidateChartCaches(false);
+            if (change.affects(ChartChangeType::Resources))
+                m_lastKnownBackgroundFile = currentBackgroundPath();
             update();
         });
 
-        // Meta changes: check for background file changes only
-        connect(controller, &ChartController::metaDataChanged, this, [this]() {
-            bool bgChanged = false;
-            if (m_chartController && m_chartController->chart()) {
-                const QString currentBg = currentBackgroundPath();
-                if (currentBg != m_lastKnownBackgroundFile) {
-                    bgChanged = true;
-                    m_lastKnownBackgroundFile = currentBg;
-                }
-            }
-            if (bgChanged)
-                invalidateChartCaches(true);
-            update();
-        });
-
-        // 加载新谱面时无条件重建背景缓存：即使新旧谱面的背景文件名相同但目录不同，
-        // 也必须重新解析并加载（覆盖所有切换路径，包括恢复会话与插件加载）。
+        // Keep the path tracker synchronized for consumers that inspect it;
+        // the typed load change already invalidates the background cache.
         connect(controller, &ChartController::chartLoaded, this, [this]() {
             if (m_chartController && m_chartController->chart())
                 m_lastKnownBackgroundFile = currentBackgroundPath();
-            invalidateChartCaches(true);
-            update();
         });
         m_hyperfruitDetector->setCS(3.2);
         m_noteRenderer->setHyperfruitDetector(m_hyperfruitDetector);
@@ -567,8 +578,15 @@ void ChartCanvas::setSelectionController(SelectionController *controller)
     m_selectionController = controller;
     if (m_selectionController)
     {
-        connect(m_selectionController, &SelectionController::selectionChanged, this, QOverload<>::of(&ChartCanvas::update));
+        connect(m_selectionController,
+                &SelectionController::selectionChanged,
+                this,
+                [this](const QSet<int> &) {
+                    invalidateMirrorPreviewCache();
+                    update();
+                });
     }
+    invalidateMirrorPreviewCache();
     update();
 }
 
@@ -630,6 +648,7 @@ void ChartCanvas::setTimeDivision(int division)
     {
         m_timeDivision = division;
         invalidateGridCache();
+        invalidatePastePreviewCache();
         snapPlayheadToGrid();
         update();
     }
@@ -765,10 +784,41 @@ void ChartCanvas::invalidateChartCaches(bool includeBackground)
     m_noteDataDirty = true;
     m_timesDirty = true;
     m_bpmCacheDirty = true;
+    invalidatePastePreviewCache();
+    invalidateMirrorPreviewCache();
     invalidateGridCache();
     if (includeBackground)
         m_backgroundCacheDirty = true;
     resetOverlayQueryState();
+}
+
+void ChartCanvas::invalidateChartCaches(const ChartChange &change)
+{
+    m_chartRevision = change.revision;
+
+    const bool notesChanged = change.affects(ChartChangeType::Notes);
+    const bool timingChanged = change.affects(ChartChangeType::Timing);
+    if (notesChanged)
+    {
+        m_noteDataDirty = true;
+        m_timesDirty = true;
+        m_hyperCacheValid = false;
+        resetOverlayQueryState();
+        invalidatePastePreviewCache();
+        invalidateMirrorPreviewCache();
+    }
+    if (timingChanged)
+    {
+        m_timesDirty = true;
+        m_bpmCacheDirty = true;
+        m_hyperCacheValid = false;
+        invalidateGridCache();
+        resetOverlayQueryState();
+        invalidatePastePreviewCache();
+        invalidateMirrorPreviewCache();
+    }
+    if (change.affects(ChartChangeType::Resources))
+        m_backgroundCacheDirty = true;
 }
 
 void ChartCanvas::resetOverlayQueryState()

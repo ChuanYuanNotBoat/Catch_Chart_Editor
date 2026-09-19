@@ -1,0 +1,78 @@
+#pragma once
+
+#include <QByteArray>
+#include <QHash>
+#include <QStringList>
+#include <QWidget>
+
+class PaneContainer;
+class QSplitter;
+
+class WorkbenchLayout : public QWidget
+{
+    Q_OBJECT
+public:
+    enum class Part
+    {
+        Editor,
+        PrimarySidebar,
+        PreviewArea,
+        AuxiliarySidebar,
+        BottomPanel
+    };
+
+    explicit WorkbenchLayout(QWidget *parent = nullptr);
+
+    QWidget *editorWidget() const { return m_editorWidget; }
+    PaneContainer *primarySidebar() const { return m_primarySidebar; }
+    PaneContainer *previewArea() const { return m_previewArea; }
+    PaneContainer *auxiliarySidebar() const { return m_auxiliarySidebar; }
+    PaneContainer *bottomPanel() const { return m_bottomPanel; }
+    PaneContainer *paneContainer(Part part) const;
+    PaneContainer *paneContainerForPane(const QString &paneId,
+                                        Part *part = nullptr) const;
+
+    bool setEditorWidget(QWidget *widget);
+    QWidget *takeEditorWidget();
+    bool addPane(Part part,
+                 const QString &paneId,
+                 QWidget *content,
+                 bool visible = true,
+                 bool scrollable = true);
+    QWidget *takePane(Part part, const QString &paneId);
+    bool movePane(const QString &paneId, Part targetPart, int targetIndex = -1);
+    bool resetPaneLocation(const QString &paneId);
+    bool setPaneVisible(const QString &paneId, bool visible);
+    void setExclusivePaneGroup(const QStringList &paneIds);
+    bool panePart(const QString &paneId, Part *part = nullptr) const;
+
+    QByteArray saveState() const;
+    bool restoreState(const QByteArray &state);
+    void resetState();
+
+    QSplitter *horizontalSplitter() const { return m_horizontalSplitter; }
+    QSplitter *verticalSplitter() const { return m_verticalSplitter; }
+
+private:
+    void capturePartSizes() const;
+    void updatePartVisibility();
+
+    QWidget *m_editorHost = nullptr;
+    QWidget *m_editorWidget = nullptr;
+    PaneContainer *m_primarySidebar = nullptr;
+    PaneContainer *m_previewArea = nullptr;
+    PaneContainer *m_auxiliarySidebar = nullptr;
+    PaneContainer *m_bottomPanel = nullptr;
+    QSplitter *m_horizontalSplitter = nullptr;
+    QSplitter *m_verticalSplitter = nullptr;
+    QHash<QString, Part> m_defaultPaneParts;
+    QHash<QString, QStringList> m_exclusivePaneGroups;
+    mutable int m_primarySidebarSize = 150;
+    mutable int m_previewAreaSize = 200;
+    mutable int m_auxiliarySidebarSize = 300;
+    mutable int m_bottomPanelSize = 160;
+    bool m_primaryPartVisible = true;
+    bool m_previewPartVisible = true;
+    bool m_auxiliaryPartVisible = true;
+    bool m_bottomPartVisible = true;
+};

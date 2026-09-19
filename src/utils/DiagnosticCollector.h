@@ -5,6 +5,7 @@
 #include <QMap>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QMutex>
 
 /**
  * @brief 诊断数据收集器
@@ -24,6 +25,12 @@ public:
      * @brief 获取单例实例
      */
     static DiagnosticCollector &instance();
+
+    enum class ReportFormat
+    {
+        Json,
+        Text,
+    };
 
     // Note跳过记录
 
@@ -146,6 +153,10 @@ public:
      */
     QJsonDocument toJsonDocument() const;
 
+    bool exportReport(const QString &filePath,
+                      ReportFormat format,
+                      QString *errorMessage = nullptr) const;
+
 private:
     // 私有构造函数（单例）
     DiagnosticCollector() = default;
@@ -176,4 +187,5 @@ private:
         int notesRenderedCount;
     };
     QVector<RenderMetricsData> m_renderMetrics;
+    mutable QMutex m_mutex;
 };

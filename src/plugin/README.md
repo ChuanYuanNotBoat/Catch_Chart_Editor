@@ -2,6 +2,10 @@
 
 This folder is the source-side plugin SDK and host integration code.
 
+Current host API: **v3**; accepted plugin API range: **v2-v3**.
+
+Last verified: **2026-09-10**.
+
 ## Structure
 
 - `PluginInterface.h`: host plugin interface contract
@@ -34,7 +38,6 @@ return as simultaneously visible split sections instead of switching tabs.
 - [Plugin docs index](docs/README.md)
 - [Process plugin protocol](docs/PROCESS_PLUGIN_PROTOCOL.md)
 - [Canvas interaction protocol](docs/CANVAS_INTERACTION_PROTOCOL.md)
-- [Minimal process example](docs/PROCESS_PLUGIN_MINIMAL_EXAMPLE.md)
 - [Advanced color editor capability](docs/ADVANCED_COLOR_EDITOR_PLUGIN.md)
 - [Native plugin template](docs/PLUGIN_TEMPLATE.md)
 - [Runtime samples](../../plugins/samples/README.md)
@@ -42,3 +45,11 @@ return as simultaneously visible split sections instead of switching tabs.
 The former `builtin.note_chain_assist` process plugin is not an active SDK
 example. It is skipped by the host because the authoritative implementation is
 the native module under `src/editor/NoteChain`.
+
+Tool actions and host batch-edit requests use an isolated worker process, so
+slow plugin work does not block the editor event loop. Each request has a
+method-specific timeout, can be cancelled by the host, and is rejected when
+the serialized request exceeds 1 MiB or the response exceeds 4 MiB. At most two
+worker requests are in flight per process plugin. Canvas overlay/input calls
+remain bounded synchronous calls because they are latency-sensitive; keep
+those callbacks small and move heavy work behind explicit actions.

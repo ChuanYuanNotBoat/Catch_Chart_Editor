@@ -1,9 +1,10 @@
 # Malody Catch Editor 开发者项目指南
 
 > 面向新开发者和代码代理的当前仓库速查。
-> 当前版本：**Beta v1.11.1（2026-09-07）**
+> 当前版本：**Beta v1.11.2（2026-09-19）**
+> 仓库状态：**Release candidate（2026-09-19）**
 > Git 标签：待发布
-> 最后核对：2026-09-07
+> 最后核对：2026-09-19
 
 ## 1. 项目边界
 
@@ -15,7 +16,9 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 - `.mc` JSON 必须保持 Malody 兼容，编辑器扩展数据只能写入 sidecar。
 - 当前曲线编辑器是内部 C++ 模块，不是 Python 插件。
 - 面板系统使用 vendored Qt Advanced Docking System 5.1.1。
+- BPM/AutoTiming 使用固定提交的 `third_party/AutoTimingCore` Git submodule；构建前必须初始化。
 - 用户已有工作区可能包含未提交修改；修改前必须检查 Git 状态并保留无关变更。
+- 未来架构以 [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) 为准：先在 CCE 仓库内成熟文档/图层边界，再考虑核心拆仓；父目录中的旧 core/mobile 尝试当前不是本仓库依赖或行为事实来源。
 
 ## 2. 技术栈与目标
 
@@ -24,10 +27,11 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 | 语言 | C++17 |
 | UI | Qt 6 Widgets |
 | 音频 | Qt 6 Multimedia |
-| 构建 | CMake 3.16+ |
+| 后台任务 | Qt 6 Concurrent（当前用于全谱统计快照） |
+| 构建 | CMake 3.20+ |
 | 面板 | Qt Advanced Docking System 5.1.1（静态 vendored） |
 | 翻译 | Qt Linguist，`resources/translations/*.ts` |
-| 测试 | CTest + 两个独立测试可执行程序 |
+| 测试 | CTest；CCE 五项测试 + AutoTimingCore 四项上游回归 |
 | 桌面平台 | Windows 为主要验证平台；代码保留 macOS/Linux 支持 |
 
 主目标：
@@ -41,6 +45,7 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 Windows 多配置构建：
 
 ```powershell
+git submodule update --init --recursive
 cmake -S . -B build -DBUILD_TESTING=ON
 cmake --build build --config Debug --parallel
 ctest --test-dir build -C Debug --output-on-failure
@@ -64,13 +69,13 @@ cmake --build build --config Debug --target CatchChartEditor --parallel
 | 路径 | 责任 |
 |------|------|
 | `src/main.cpp` | Qt 应用入口与运行时版本字符串 |
-| `src/app/` | Application、MainWindow、菜单、对话框、主题和工作区装配 |
+| `src/app/` | Application、MainWindow、会话路径安全、菜单、对话框、主题和工作区装配 |
 | `src/model/` | Note、BPM、MetaData、Chart、Skin 数据模型 |
 | `src/controller/` | Chart、Selection、Playback 的业务编排与信号 |
 | `src/ui/` | 编辑面板、对话框、时间线、预览和 ChartCanvas |
 | `src/ui/CustomWidgets/ChartCanvas/` | 画布输入、播放、粘贴、渲染和 Note Chain 接线 |
 | `src/editor/NoteChain/` | 原生曲线状态、采样、交互与 V3 sidecar |
-| `src/render/` | Note、网格、背景、分度颜色和 Hyperfruit 渲染 |
+| `src/render/` | Note、Rain 可见区/奖励点、网格、背景、分度颜色和 Hyperfruit 渲染 |
 | `src/file/` | `.mc` / `.mcz`、工作副本、皮肤、插件加载和文件注册表 |
 | `src/audio/` | 音频、音效、BPM 测量和 AutoTiming |
 | `src/plugin/` | 插件接口、管理器和外部进程适配器 |
@@ -79,6 +84,7 @@ cmake --build build --config Debug --target CatchChartEditor --parallel
 | `plugins/` | 运行时插件、同步脚本和样例 |
 | `tests/` | 核心与 ADS UI 回归测试 |
 | `third_party/QtAdvancedDockingSystem/` | vendored ADS 源码及 LGPL 文件 |
+| `third_party/AutoTimingCore/` | 固定提交的 AutoTimingCore submodule；提供 legacy 与 V2 CMake targets |
 
 ## 5. 运行时数据流
 
@@ -90,15 +96,21 @@ MainWindow
   ├─ ChartCanvas ── render/*
   │    └─ NoteChainEditor ── NoteChainState / Persistence
   ├─ CDockManager ── Navigation / Preview / Note / BPM / Meta / plugin panels
+  ├─ QFutureWatcher ── Chart snapshot statistics
   └─ PluginManager ── native plugins / ExternalProcessPlugin
 ```
 
 约束：
 
 - 数据修改优先经 Controller 完成，避免 UI 直接产生无法撤销的模型变更。
-- `ChartController` 已把粗粒度 `chartChanged` 拆分为 notes/BPM/meta 信号；新增监听时选最小范围。
+- `ChartController` 保留粗粒度 `chartChanged` 兼容信号，并通过 `chartChangeCommitted` 提供单调 revision 与 `notes/timing/metadata/resources` 类型化变更集；新增缓存监听时选最小范围。
+- 统计 stale-result 直接比较 `ChartController::revision()`；画布、预览、密度、选择和 Rain Reward 只在其依赖的 typed change 到达时失效，不要重新连接粗粒度信号。
+- 大批量 Note 修改使用 `Chart::addNotes/removeNotes/replaceNotes/applyNoteBatch`，只在变更边界排序一次。
+- Note/Rain 拖动期间只维护绘制预览，松手后经 Controller 提交一次；不要恢复每个 pointer event 修改模型的做法。
 - 播放态视觉刷新由 `PlaybackController` 帧信号驱动，不要再增加独立高频定时器。
-- 工作副本和源文件同步由 `MainWindow`、`ProjectIO`、`ChartFileSystem` 协作；不要绕过该链路直接保存 sidecar。
+- 全谱统计复制 Chart 快照后通过 Qt Concurrent 执行，并以 `chartRevision` 拒绝切谱/继续编辑后返回的旧结果。
+- 工作副本和源文件同步由 `MainWindow`、`ProjectIO`、`ChartFileSystem` 协作；编辑后 750 ms 防抖刷新恢复副本，不要绕过该链路直接保存 sidecar。
+- `.mc`、恢复清单、编辑统计、已有资源/sidecar 覆盖和 `.mcz` 最终发布使用原子提交；新工作副本走快速复制；会话清理目标必须先通过 `SessionPathUtils` 边界检查。
 
 ## 6. 可组合工作区
 
@@ -108,7 +120,11 @@ MainWindow
 - `Navigation` 默认位于左侧；
 - `Realtime Preview`、`Note Editor`、`BPM & Timing`、`Metadata` 可停靠、拆分、标签组合和浮动；
 - 长编辑面板使用 `ForceScrollArea`，不得让内容最小高度传到主窗口；
-- 布局通过 `Settings::dockLayoutState` 保存，`View -> Panels -> Reset Panel Layout` 恢复默认值；
+- `Chart Workspace` 是稳定的 workbench part，必须保持不可关闭、不可移动、不可浮动，并由 `DockLayoutPolicy::applyPrimaryWorkspaceDockPolicy()` 保留最低交互尺寸和非折叠 splitter 分支；恢复旧布局后由 `ensureWorkspaceDockVisible()` 重申这些约束；
+- 多窗口布局通过 `Settings::dockLayoutState` 保存；经典布局通过独立的 splitter/right-panel/plugin 状态保存，切换和重置不得让两套状态互相覆盖；
+- 顶部 `Panels` 动作与 `View -> Panels` 是普通面板关闭后的明确恢复入口；经典模式仍保留其独立重置入口；
+- 紧凑工具 Dock 必须经 `DockLayoutPolicy::applyCompactToolDockPolicy()` 配置：停靠在主窗口时内容和 Dock 外框限制为自然高度，纵向栈的剩余空间优先交给普通编辑面板；进入浮动容器时必须恢复无上限尺寸，不能把停靠态约束带进独立窗口；
+- 主编辑区的目标 overlay 只接受左/右侧拆分，且浮动拖拽轮廓必须动态反映当前落点。长期布局按 VS Code 的层次演进：稳定的顶层 Workbench Parts，侧栏内部再由 PaneContainer 管理分段、折叠、排序和尺寸缓存；
 - 插件 panel 也必须进入 ADS，不应另建固定右侧堆叠布局。
 
 性能注意：
@@ -170,13 +186,13 @@ Host API 当前为 v3，扩展点包括 tool actions、floating panels、canvas 
 - `builtin.note_color_formatter` 是当前内置进程插件；
 - `builtin.note_chain_assist` 源码仅保留 legacy 兼容参考，宿主明确跳过；
 - 新插件从 [../src/plugin/README.md](../src/plugin/README.md) 和 `plugins/samples/` 开始。
+- `runToolAction` / `buildBatchEdit` 由宿主通过隔离 worker 异步执行，并带取消、超时和有界 payload；高频画布工具仍保持短超时同步路径。
 
 ## 10. 文档与版本规则
 
-- 当前版本是 Beta v1.11.0，上一版本是 Beta v1.10.5。
-- v1.11.0 的变更记录位于 `history.md` 顶部。
-- 已发布版本段落冻结，不把后续工作追加到 v1.10.5。
-- 临时审计、分支状态和迁移 TODO 不作为长期文档提交。
+- 当前发布版本是 Beta v1.11.2；开发中的维护内容写入 `history.md` 顶部 `Unreleased`。
+- 已发布版本段落冻结，不把后续工作回填到 Beta v1.11.2。
+- 可验证的长期优化/重构事项维护在 [ENGINEERING_TODO.md](ENGINEERING_TODO.md)；临时审计快照和重复迁移草稿不提交。
 - 新增或删除文档时同步 [README.md](README.md) 总索引。
 
 ## 11. 修改后的最小验证
@@ -186,5 +202,6 @@ Host API 当前为 v3，扩展点包括 tool actions、floating panels、canvas 
 | 模型、I/O、Controller、Note Chain | `core_minimal_tests` |
 | ADS、面板、原生窗口主题 | `ui_docking_layout_tests` |
 | CMake、依赖、资源部署 | Debug + Release 主程序构建 |
+| MainWindow、画布、缓存、统计 | Release 极限曲基准 + 对应交互回归 |
 | 用户交互、音频、拖放、主题 | 对应手工回归 + 自动化测试 |
 | 翻译可见字符串 | 更新 `.ts` 并至少检查 zh_CN/en_US/ja_JP |

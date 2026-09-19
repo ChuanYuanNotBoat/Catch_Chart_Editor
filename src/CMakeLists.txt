@@ -1,6 +1,7 @@
 set(SOURCES
     main.cpp
     app/Application.cpp
+    app/SessionPathUtils.cpp
     app/PlaybackBenchmarkRunner.cpp
     app/MainWindow.cpp
     app/MainWindowLayout.cpp
@@ -14,6 +15,7 @@ set(SOURCES
     model/ChartStatistics.cpp
     utils/MathUtils.cpp
     utils/FileUtils.cpp
+    utils/ImageConverter.cpp
     utils/Settings.cpp
     utils/NativeWindowTheme.cpp
     utils/Logger.cpp
@@ -30,11 +32,8 @@ set(SOURCES
     audio/AudioPlayer.cpp
     audio/NoteSoundPlayer.cpp
     audio/BpmDetector.cpp
+    audio/AutoTiming2Bridge.cpp
     audio/AudioConverter.cpp
-    audio/autotiming/AutoTiming.cpp
-    audio/autotiming/dsp.cpp
-    audio/autotiming/fft.cpp
-    audio/autotiming/util.cpp
     controller/ChartController.cpp
     controller/SelectionController.cpp
     controller/DisplayFrameScheduler.cpp
@@ -51,9 +50,13 @@ set(SOURCES
     ui/CustomWidgets/RealtimePreviewWidget.cpp
     ui/LongRangeSelector.cpp
     ui/PlaybackSpeedPanel.cpp
+    ui/DockLayoutPolicy.cpp
+    ui/PaneContainer.cpp
+    ui/WorkbenchLayout.cpp
     ui/ChartStatsPanel.cpp
     ui/PluginActionPanel.cpp
     ui/NoteEditPanel.cpp
+    ui/BpmMeasureUtils.cpp
     ui/BPMTimePanel.cpp
     ui/MetaEditPanel.cpp
     ui/SpeedPopup.cpp
@@ -77,6 +80,17 @@ set(SOURCES
     editor/NoteChain/NoteChainPersistence.cpp
 )
 
+# These two translation units contain user-facing Chinese error literals; they
+# are written as UTF-8 and must be compiled with /utf-8 so the literals do not
+# depend on the system code page. /utf-8 is safe for the remaining (ASCII)
+# content of both files. AutoTimingBridgeTests compiles the same files and
+# applies /utf-8 at target level (root CMakeLists.txt) to stay identical.
+set_source_files_properties(
+    audio/BpmDetector.cpp
+    audio/AutoTiming2Bridge.cpp
+    PROPERTIES COMPILE_OPTIONS "/utf-8"
+)
+
 qt_add_executable(CatchChartEditor
     MANUAL_FINALIZATION
     ${SOURCES}
@@ -87,8 +101,11 @@ target_link_libraries(CatchChartEditor
     Qt6::Core
     Qt6::Widgets
     Qt6::Multimedia
+    Qt6::Concurrent
     ads::qtadvanceddocking-qt6
     Vorbis::vorbis
+    AutoTimingCore::core
+    AutoTimingCore::legacy
 )
 
 if(WIN32)
@@ -163,6 +180,11 @@ add_custom_command(TARGET CatchChartEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/third_party/libvorbis/COPYING
         $<TARGET_FILE_DIR:CatchChartEditor>/licenses/libvorbis
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        $<TARGET_FILE_DIR:CatchChartEditor>/notices/AutoTimingCore
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/third_party/AutoTimingCore/ATTRIBUTION.md
+        $<TARGET_FILE_DIR:CatchChartEditor>/notices/AutoTimingCore
 )
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/resources/note_sounds")
@@ -183,6 +205,11 @@ endif()
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/docs")
     add_custom_command(TARGET CatchChartEditor POST_BUILD
+        # Prune the destination first: copy_directory does not delete files that
+        # no longer exist in the source tree, which used to leak removed docs
+        # (e.g. NOTE_CHAIN_ASSIST_*.md, PLUGIN_BUG_TRACKER.md) into packaged builds.
+        COMMAND ${CMAKE_COMMAND} -E remove_directory
+            $<TARGET_FILE_DIR:CatchChartEditor>/docs
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/docs
             $<TARGET_FILE_DIR:CatchChartEditor>/docs

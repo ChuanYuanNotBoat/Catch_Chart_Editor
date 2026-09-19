@@ -2,9 +2,11 @@
 
 > **目的**：完整描述当前编辑器的数据模型、文件格式、插件体系、坐标系统、外置 sidecar 文件格式等，为重构格式与导出到标准 mcz/mc 提供精确的结构定义。
 >
-> **版本**：Beta v1.11.0 | **最后更新**：2026-08-27
+> **版本**：Beta v1.11.2 + Unreleased maintenance | **最后更新**：2026-09-19
 >
 > ⚠️ **核心约束**：`.mc` 文件的 JSON 结构**永远不能更改**，必须保持与 Malody 官方格式完全兼容。所有扩展数据必须存放在 `.mcce-plugin/` 或独立辅助文件中。如果需要更改，则需要保证有可以导出为规范.mc/mcz的能力。
+>
+> 本文只描述当前已实现架构。未来的多难度工程、可复用图层、评论、版本、移动兼容与通用核心方向见 [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md)；规划中的工程格式不会改变标准 `.mc` 导出边界。
 
 ---
 
@@ -131,6 +133,11 @@ class Chart {
     MetaData m_meta;               // 元数据
 };
 ```
+
+高频与批量路径不得逐项调用“插入后全量排序”。当前模型提供
+`addNotes`、`removeNotes`、`replaceNotes`、`applyNoteBatch` 和 `setNotes`：
+加载、插件批处理、批量移动及其 Undo/Redo 都应在单一变更边界内完成并至多排序一次。
+单条 `addNote` 使用有序插入，因此调用方必须维持 Chart 的排序不变量。
 
 **排序规则**：
 
@@ -282,6 +289,7 @@ class Chart {
 2. **资源路径清理**：`meta.background` / `meta.audio` / `sound` 只保存纯文件名
 3. **extra 自动生成**：始终写入 `extra.test` 块
 4. **拍号数组固定三元组**：`beat` 和 `endbeat` 始终为 `[整数拍, 分子, 分母]`
+5. **原子替换**：序列化写入临时文件后由 `QSaveFile::commit()` 替换目标，短写或提交失败返回 `false`，不得留下截断的 `.mc`
 
 ### 2.4 加载时的兼容补丁
 
@@ -428,6 +436,7 @@ ChartParser.CreateFromFilePath(filePath)
 - `exportToMcz`：**目录全量打包**——把目录下所有文件（排除输出 .mcz 自身）全部打入 ZIP，不做类型过滤
 - `exportToMczPure`：**白名单打包**——仅打包 `.mc` + 每个 .mc 引用的音频/背景/sound + 注册表中 `isRequired` sidecar，通过 `ChartFileSystem::isAllowedFile()` 过滤
 - Sidecar 在 ZIP 中保持 `.mcce-plugin/{chartName}.{ext}` 的相对路径
+- 临时 ZIP 完整生成后由 `FileUtils::copyFileAtomically()` 发布为最终 `.mcz`；覆盖失败时旧包保持不变，新目标也不会暴露半写入内容
 
 ### 3.3 内部 ZIP 结构
 
@@ -450,7 +459,7 @@ output.mcz
 
 位置：`src/utils/MathUtils.h`
 
-> ⚠️ **历史变更**：`CoordinateMapper` / `BeatLinearMapper` / `TimeLinearMapper` 及 `CoordinateMode` 切换已在 Beta v1.10.x 通过分支 `revert/remove-bpm-excludes` 回滚（见 `plans/实施计划_v2.md:130-133`）。当前只保留 **Beat-Linear 单一模式**，所有坐标转换直接通过 `MathUtils`。
+> **当前约束**：`CoordinateMapper` / `BeatLinearMapper` / `TimeLinearMapper` 及 `CoordinateMode` 切换已在 Beta v1.10.x 回滚。当前只保留 **Beat-Linear 单一模式**，所有坐标转换直接通过 `MathUtils`；不再依赖仓库外的历史计划草稿解释现行行为。
 
 ### 4.1 坐标系（当前唯一：Beat-Linear）
 
@@ -696,6 +705,13 @@ struct BatchEdit {
 | 导出 MCZ | 根据 `isRequired` + 是否存在决定是否打包 |
 | 工作副本 | sidecar 在源谱面与工作副本间双向同步 |
 
+### 7.5 编辑会话恢复
+
+- 每次打开谱面创建独立的 `session_working_copies/<session>/...` 工作副本；编辑后以 750 ms 防抖原子刷新 `.mc`，恢复清单记录源路径、工作路径和 modified 状态。
+- 切谱先准备并解析新工作副本；只有 `ChartController::loadChartFromData()` 成功后才删除旧 session。取消、复制失败或解析失败必须保留原工作副本与恢复清单。
+- 清理前必须通过 `SessionPathUtils::sessionDirectoryForWorkingPath()`；它只返回会话根目录内的直接 session 子目录，并拒绝空路径、根目录本身、`..`、相似前缀以及已有 junction/symlink 指向的根外目录。
+- 保存源谱面、同步资源/sidecar 与更新恢复状态属于同一 MainWindow 会话流程。Controller/插件命令不得自行同步覆写工作副本。
+
 
 ## 8. NoteChain 曲线编辑子系统
 
@@ -880,6 +896,12 @@ static QString sidecarPathForChart(const QString &chartFilePath);
 | `openAdvancedColorEditor` |  10000  | 复杂 UI  |
 | `getPanelWorkspaceConfig` |   3000   | 配置查询 |
 
+这些超时是兼容上限，不是 UI 帧预算。无状态插件的 `runToolAction` 和 `buildBatchEdit`
+由宿主通过隔离 worker 异步执行；声明交互状态能力的插件则在原持久会话上通过串行事件队列
+异步执行，避免丢失内存状态。两条路径均支持取消和有界 request/response payload；
+`handleCanvasInput`、`listCanvasOverlays` 等高频回调仍是短超时同步路径，插件不得在其中执行
+全谱 I/O 或长计算。
+
 ### 9.4 CanvasInputEvent
 
 ```cpp
@@ -962,6 +984,10 @@ class ChartFileSystemRegistry {
 ```
 
 src/
+├── app/
+│   ├── MainWindow*.cpp / .h                     # 会话、窗口与工作区编排
+│   ├── SessionPathUtils.h / .cpp                # 恢复目录边界校验
+│   └── PlaybackBenchmarkRunner.h / .cpp         # 可重复播放性能基准
 ├── model/
 │   ├── Note.h / Note.cpp                      # 音符模型 (Normal/Sound/Rain)
 │   ├── BpmEntry.h / BpmEntry.cpp              # BPM 变化点
@@ -985,9 +1011,12 @@ src/
 │   ├── NoteChainPersistence.h / .cpp          # V3 JSON、CAS 与原子保存
 │   └── NoteChainEditor.h / .cpp               # 输入、绘制、命令与宿主协作
 ├── controller/
+│   ├── ChartChange.h                            # revision 与类型化变更集
 │   └── ChartController.h / .cpp               # 编辑控制器 + Undo/Redo
 ├── render/
 │   ├── NoteRenderer.h                          # 音符渲染
+│   ├── RainRewardGenerator.h / .cpp             # Catch Rain 奖励点确定性缓存
+│   ├── RainVisibilityIndex.h                    # 非单调 Rain 区间查询索引
 │   ├── GridRenderer.h                          # 网格渲染
 │   ├── BackgroundRenderer.h                    # 背景渲染
 │   └── BeatDivisionColor.h                     # 分度颜色
@@ -995,6 +1024,17 @@ src/
     └── MathUtils.h / MathUtils.cpp             # beat↔ms 转换 / 吸附 / 像素映射
 
 ```
+
+### 11.1a MainWindow 与主编辑区性能边界
+
+- `Chart Workspace` Dock 是稳定的顶层 workbench part：禁止关闭、移动和浮动，使用 `420x300` 最低内容尺寸，全部 splitter 祖先不可折叠，目标区域只接受左/右侧拆分。恢复 ADS 状态后会重新应用约束并修复旧布局中的关闭状态。普通面板可从顶部 `Panels` 或 `View -> Panels` 单独/批量恢复。
+- ADS 多窗口状态与经典四栏状态使用独立 Settings 键；经典状态包含 splitter 尺寸、Note/BPM/Meta 当前页和嵌入式插件区可见性，切换与重置不交叉覆盖。
+- `DockLayoutPolicy` 将 Timing、Playback Speed、Range、Mirror、Curve、Plugin Tools 和 Chart Statistics 标记为纵向紧凑内容；该限制只在主窗口停靠态生效，进入任意浮动容器后恢复原始 size policy/maximum height。普通编辑区吸收纵向空闲空间，因此关闭工具块不会把其余工具块或内部控件拉高。
+- `ChartController::chartChangeCommitted` 为每次成功加载或内容变更分配单调 revision，并携带 `notes/timing/metadata/resources` 类型化变更集；统计 stale-result 直接比较该 revision，画布、预览、密度、选择和 Rain Reward 按依赖域失效；无 revision 感知的旧消费者仍可使用 `chartChanged` 与 notes/BPM/meta 细分信号。
+- ChartCanvas 拖动以临时 Note 快照绘制，指针移动不修改 Chart；release 时经 `ChartController::moveNotes` 提交一个 Undo 命令。
+- Rain 绘制按开始拍有序索引查询，并用结束拍前缀最大值向前定位仍可能覆盖 viewport 的长 Rain。
+- `ChartStatsCalculator` 在 Qt Concurrent 工作线程上读取独立 Chart 快照和独立 `RainRewardGenerator`；`chartRevision` 不匹配的结果不会写回 UI。
+- `RainRewardGenerator::instance()` 只属于 UI 渲染缓存。后台分析必须使用独立实例，禁止跨线程共享 singleton。
 
 ### 11.1b Malody 引擎源码（格式相关）
 

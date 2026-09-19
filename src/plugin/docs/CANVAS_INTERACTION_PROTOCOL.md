@@ -2,6 +2,8 @@
 
 This document defines an extension for direct plugin interaction on the main chart canvas.
 
+> Status: current; last verified: 2026-09-10.
+
 ## 1. Purpose
 
 Current `canvas_overlay` is draw-only.  

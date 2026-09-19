@@ -16,6 +16,7 @@
 #include "file/ChartIO.h"
 #include "utils/Settings.h"
 #include "utils/Logger.h"
+#include "utils/FileUtils.h"
 #include "utils/DiagnosticCollector.h"
 #include "utils/NativeWindowTheme.h"
 #include "model/Skin.h"
@@ -36,6 +37,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QDesktopServices>
+#include <QEventLoop>
 #include <QUrl>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -172,8 +174,9 @@ namespace
             return;
 
         QDir().mkpath(QFileInfo(workingCurve).absolutePath());
-        QFile::remove(workingCurve);
-        QFile::copy(sourceCurve, workingCurve);
+        QString copyError;
+        if (!FileUtils::copyFileSafely(sourceCurve, workingCurve, &copyError))
+            Logger::warn(QString("Failed to seed curve sidecar: %1").arg(copyError));
     }
 
     void enrichContextWithSidecarPaths(QVariantMap *context, const QString &chartPath, const QString &sourceChartPath = QString())
@@ -358,7 +361,7 @@ void MainWindow::refreshPluginUiExtensions()
         panelAction.meta = meta;
         panelActions.append(panelAction);
 
-        const QString placement = entry.action.placement.toLower();
+        const QString placement = entry.action.placement.trimmed().toLower();
         if (placement == QString(PluginInterface::kPlacementTopToolbar) && d->pluginToolBar)
         {
             QAction *act = d->pluginToolBar->addAction(title);
@@ -418,7 +421,11 @@ void MainWindow::refreshPluginUiExtensions()
     if (d->notePanel)
         d->notePanel->setPluginPlacementActions(notePanelActions);
     if (d->pluginActionPanel)
+    {
         d->pluginActionPanel->setActions(panelActions);
+        if (d->floatingToolWindowsEnabled)
+            configureCompactToolDock(d->pluginToolsDock);
+    }
 
     const QString interactionPluginId = firstCanvasInteractionPluginId(app->pluginManager());
     const bool hasInteractionPlugin = !interactionPluginId.isEmpty();
@@ -688,9 +695,33 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
     QVariantMap context;
     if (!d->workingChartPath.isEmpty())
     {
-        if (!d->chartController->saveChart(d->workingChartPath))
+        bool completed = false;
+        bool synced = false;
+        QString syncError;
+        QEventLoop syncLoop;
+        saveDocumentAsync(
+            d->workingChartPath,
+            d->workingChartPath,
+            false,
+            true,
+            [&completed, &synced, &syncError, &syncLoop](bool success,
+                                                         const QString &,
+                                                         const QString &error)
+            {
+                completed = true;
+                synced = success;
+                syncError = error;
+                syncLoop.quit();
+            });
+        if (!completed)
+            syncLoop.exec();
+        if (!synced)
         {
-            QMessageBox::warning(this, tr("Plugin Action"), tr("Failed to sync working copy before plugin action."));
+            QMessageBox::warning(
+                this,
+                tr("Plugin Action"),
+                syncError.isEmpty() ? tr("Failed to sync working copy before plugin action.")
+                                    : syncError);
             return false;
         }
     }
@@ -714,61 +745,136 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
                      .arg(actionId)
                      .arg(chartPath));
 
-    const QString actionKey = pluginId + "::" + actionId;
-    PluginInterface::BatchEdit batchEdit;
-    const bool batchEditAvailable =
-        app->pluginManager()->supportsHostBatchEdit(pluginId) &&
-        !d->batchEditDisabledActions.contains(actionKey);
-    if (batchEditAvailable &&
-        app->pluginManager()->buildToolActionBatchEdit(pluginId, actionId, context, &batchEdit))
+    if (d->pendingPluginRequestId != 0)
     {
-        const bool ok = d->chartController->applyBatchEdit(
-            tr("Plugin Action: %1").arg(actionTitle),
-            batchEdit.notesToAdd,
-            batchEdit.notesToRemove,
-            batchEdit.notesToMove);
+        app->pluginManager()->cancelAsyncRequest(d->pendingPluginRequestId);
+        d->pendingPluginRequestId = 0;
+    }
+    const quint64 actionGeneration = ++d->pluginActionGeneration;
+
+    const auto finishToolAction = [this,
+                                   pluginId,
+                                   actionId,
+                                   actionTitle,
+                                   chartPath,
+                                   requiresUndo,
+                                   actionGeneration,
+                                   applyPostActionPluginModeSync](bool ok) {
+        if (d->pluginActionGeneration != actionGeneration)
+            return;
+        d->pendingPluginRequestId = 0;
         if (!ok)
         {
-            QMessageBox::warning(this, tr("Plugin Action"), tr("Plugin batch edit is empty or invalid: %1").arg(actionTitle));
-            return false;
+            Logger::warn(QString("Plugin action returned false: plugin=%1 action=%2 path=%3")
+                             .arg(pluginId)
+                             .arg(actionId)
+                             .arg(chartPath));
+            QMessageBox::warning(this, tr("Plugin Action"), tr("Plugin action failed: %1").arg(actionTitle));
+            return;
         }
+
+        Chart mutated;
+        if (!ChartIO::load(chartPath, mutated, false))
+        {
+            QMessageBox::warning(this,
+                                 tr("Plugin Action"),
+                                 tr("Plugin action finished, but failed to reload chart."));
+            return;
+        }
+
+        if (requiresUndo)
+        {
+            if (!d->chartController->applyExternalChartMutation(
+                    tr("Plugin Action: %1").arg(actionTitle), mutated))
+            {
+                QMessageBox::warning(
+                    this,
+                    tr("Plugin Action"),
+                    tr("Plugin action result is too large to keep as an undo snapshot: %1")
+                        .arg(actionTitle));
+                return;
+            }
+        }
+        else
+        {
+            d->chartController->loadChart(chartPath);
+        }
+
         statusBar()->showMessage(tr("Plugin action completed: %1").arg(actionTitle), 2500);
         refreshPluginUiExtensions();
         applyPostActionPluginModeSync();
+    };
+
+    const QString actionKey = pluginId + "::" + actionId;
+    const bool batchEditAvailable =
+        app->pluginManager()->supportsHostBatchEdit(pluginId)
+        && !d->batchEditDisabledActions.contains(actionKey);
+
+    const auto startRunToolAction = [this,
+                                     app,
+                                     pluginId,
+                                     actionId,
+                                     context,
+                                     actionGeneration,
+                                     finishToolAction]() {
+        if (d->pluginActionGeneration != actionGeneration)
+            return;
+        d->pendingPluginRequestId = app->pluginManager()->runToolActionAsync(
+            pluginId,
+            actionId,
+            context,
+            this,
+            finishToolAction);
+    };
+
+    if (batchEditAvailable)
+    {
+        d->pendingPluginRequestId = app->pluginManager()->buildToolActionBatchEditAsync(
+            pluginId,
+            actionId,
+            context,
+            this,
+            [this,
+             actionKey,
+             actionTitle,
+             actionGeneration,
+             startRunToolAction,
+             applyPostActionPluginModeSync](bool ok, PluginInterface::BatchEdit batchEdit) {
+                if (d->pluginActionGeneration != actionGeneration)
+                    return;
+                d->pendingPluginRequestId = 0;
+                if (ok)
+                {
+                    const bool applied = d->chartController->applyBatchEdit(
+                        tr("Plugin Action: %1").arg(actionTitle),
+                        batchEdit.notesToAdd,
+                        batchEdit.notesToRemove,
+                        batchEdit.notesToMove);
+                    if (!applied)
+                    {
+                        QMessageBox::warning(
+                            this,
+                            tr("Plugin Action"),
+                            tr("Plugin batch edit is empty or invalid: %1").arg(actionTitle));
+                        return;
+                    }
+                    statusBar()->showMessage(tr("Plugin action completed: %1").arg(actionTitle), 2500);
+                    refreshPluginUiExtensions();
+                    applyPostActionPluginModeSync();
+                    return;
+                }
+
+                d->batchEditDisabledActions.insert(actionKey);
+                Logger::warn(QString("Plugin action batch-edit disabled for this session after failure: %1")
+                                 .arg(actionKey));
+                startRunToolAction();
+            });
+        statusBar()->showMessage(tr("Plugin action running: %1").arg(actionTitle), 1500);
         return true;
     }
-    else if (batchEditAvailable)
-    {
-        d->batchEditDisabledActions.insert(actionKey);
-        Logger::warn(QString("Plugin action batch-edit disabled for this session after failure: %1")
-                         .arg(actionKey));
-    }
 
-    if (!app->pluginManager()->runToolAction(pluginId, actionId, context))
-    {
-        Logger::warn(QString("Plugin action returned false: plugin=%1 action=%2 path=%3")
-                         .arg(pluginId)
-                         .arg(actionId)
-                         .arg(chartPath));
-        QMessageBox::warning(this, tr("Plugin Action"), tr("Plugin action failed: %1").arg(actionTitle));
-        return false;
-    }
-
-    Chart mutated;
-    if (!ChartIO::load(chartPath, mutated, false))
-    {
-        QMessageBox::warning(this, tr("Plugin Action"), tr("Plugin action finished, but failed to reload chart."));
-        return false;
-    }
-
-    if (requiresUndo)
-        d->chartController->applyExternalChartMutation(tr("Plugin Action: %1").arg(actionTitle), mutated);
-    else
-        d->chartController->loadChart(chartPath);
-
-    statusBar()->showMessage(tr("Plugin action completed: %1").arg(actionTitle), 2500);
-    refreshPluginUiExtensions();
-    applyPostActionPluginModeSync();
+    startRunToolAction();
+    statusBar()->showMessage(tr("Plugin action running: %1").arg(actionTitle), 1500);
     return true;
 }
 
@@ -1204,43 +1310,25 @@ void MainWindow::exportDiagnosticsReport()
     try
     {
         DiagnosticCollector &collector = DiagnosticCollector::instance();
-        DiagnosticCollector::DiagnosticReport report = collector.generateReport();
-
-        if (fileName.endsWith(".json"))
+        const DiagnosticCollector::ReportFormat format =
+            fileName.endsWith(".json", Qt::CaseInsensitive)
+                ? DiagnosticCollector::ReportFormat::Json
+                : DiagnosticCollector::ReportFormat::Text;
+        QString error;
+        if (collector.exportReport(fileName, format, &error))
         {
-            QJsonDocument doc = collector.toJsonDocument();
-            QFile file(fileName);
-            if (file.open(QIODevice::WriteOnly))
-            {
-                file.write(doc.toJson());
-                file.close();
-                Logger::info("Diagnostics report exported to JSON: " + fileName);
-                QMessageBox::information(this, tr("Export Successful"),
-                                         tr("Diagnostics report exported to:\n%1").arg(fileName));
-            }
-            else
-            {
-                Logger::error("Failed to open file for writing: " + fileName);
-                QMessageBox::warning(this, tr("Export Failed"), tr("Failed to open file for writing."));
-            }
+            Logger::info(QString("Diagnostics report exported to %1: %2")
+                             .arg(format == DiagnosticCollector::ReportFormat::Json ? "JSON" : "text",
+                                  fileName));
+            QMessageBox::information(this, tr("Export Successful"),
+                                     tr("Diagnostics report exported to:\n%1").arg(fileName));
         }
         else
         {
-            QFile file(fileName);
-            if (file.open(QIODevice::WriteOnly | QIODevice::Text))
-            {
-                QTextStream stream(&file);
-                stream << report.toFormattedString();
-                file.close();
-                Logger::info("Diagnostics report exported to text: " + fileName);
-                QMessageBox::information(this, tr("Export Successful"),
-                                         tr("Diagnostics report exported to:\n%1").arg(fileName));
-            }
-            else
-            {
-                Logger::error("Failed to open file for writing: " + fileName);
-                QMessageBox::warning(this, tr("Export Failed"), tr("Failed to open file for writing."));
-            }
+            Logger::error("Failed to export diagnostics report: " + fileName + " (" + error + ")");
+            QMessageBox::warning(this,
+                                 tr("Export Failed"),
+                                 error.isEmpty() ? tr("Failed to write diagnostics report.") : error);
         }
     }
     catch (const std::exception &e)

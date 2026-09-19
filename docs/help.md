@@ -1,6 +1,7 @@
 # Malody Catch Editor 帮助文档
 
-> 适用版本：Beta v1.11.1
+> 适用版本：Beta v1.11.2
+> 仓库维护状态：Release candidate（最后核对 2026-09-19）
 > 其他文档：[文档总索引](README.md)
 
 本文按界面中的功能位置说明用途、使用方法和默认快捷键。第一次使用时，建议按“快速上手”走一遍，再按菜单查找具体功能。
@@ -19,7 +20,7 @@
 ### 主界面区域
 
 - 顶部菜单栏：包含文件、编辑、视图、设置、播放、工具、插件和帮助入口。
-- 顶部工具栏：`Note` / `BPM` / `Meta` 打开并聚焦对应编辑面板；`Curve` 启动或关闭原生曲线编辑工具；`Quantize Paste to 1/288` 显示并切换粘贴颜色模式；`Plugins` 打开插件管理器。
+- 顶部工具栏：`Note` / `BPM` / `Meta` 打开并聚焦对应编辑面板；`Curve` 启动或关闭原生曲线编辑工具；`Panels`（多窗口模式）恢复被关闭的面板；`Quantize Paste to 1/288` 显示并切换粘贴颜色模式；`Plugins` 打开插件管理器。
 - `Navigation` 面板：显示谱面密度曲线、播放按钮、纵向缩放，以及外部插件提供的快捷按钮。
 - `Realtime Preview` 面板：实时预览当前谱面效果。
 - `Chart Workspace`：不可关闭的中央谱面画布与时间密度导航条。
@@ -32,15 +33,18 @@
 - 关闭浮动窗口后，界面恢复为引入 ADS 前的固定四栏布局：Navigation、Realtime Preview、Chart Workspace 和最右侧单一编辑栏；顶部 `Note` / `BPM` / `Meta` 仍按旧方式切换右栏内容，不显示停靠标题、标签、拆分手柄或浮动入口。
 - 固定布局下 `Chart Statistics` 面板位于左侧 Navigation 栏底部，可点击标题栏箭头折叠/展开。
 - 固定布局的右侧编辑栏只提供按需显示的纵向滚动条，可直接用滚轮上下浏览；横向滚动条始终禁用。Timing、Playback Speed、Range、Mirror、Curve 和 Plugin Tools 回到 Note 栏的原顺序，格式化颜色快捷按钮会在同一栏内展开插件 GUI。
-- 重新启用浮动窗口后，会恢复关闭前保存的 ADS 停靠位置和面板开关状态；固定布局期间不会覆盖该布局快照。
+- 经典四栏与多窗口 ADS 分别保存自己的布局。切换时会恢复目标模式上次的状态：多窗口保留停靠位置、标签、浮窗和面板开关；经典模式保留四栏宽度、Note/BPM/Meta 右栏页和嵌入式插件区开关，二者不会互相覆盖。
+- 经典工作台可通过 `View -> Move View...` 将 Navigation、Realtime Preview、Note、BPM 或 Metadata 移到 Primary Sidebar、Auxiliary Sidebar 或 Bottom Panel；`Reset View Location` 将所选视图送回默认区域，位置会随经典布局保存。
 - 拖动普通面板标题或标签可以改变停靠位置；BPM、Meta 等完整面板仍可组合成标签页。
 - 将面板拖离主窗口即可变成独立浮动窗口；浮动面板仍可拖回主窗口或与其他浮动面板组合。
 - Note 输入、时间网格、播放速度、范围、镜像、曲线和插件工具停靠时按原右侧栏顺序纵向展开，同时可见且不使用切换标签；只有拖离停靠区后才成为独立窗口。
 - 将工具块拖回其他工具块的边缘会恢复 splitter 组合，不会变成只能显示其中一个的切换标签。Curve Tools 和 Plugin Tools 默认关闭，分别由 Curve 开关和插件快捷按钮打开。
-- 工具块停靠在右侧栏时不显示完整窗口标题栏，只在右上角保留 `⠿` 小手柄；拖动手柄可将该工具块移出为带原生标题栏的浮动窗口。各块之间不绘制额外分隔线和外框，仍使用原侧栏的连续背景与 GroupBox 层级。
-- 面板关闭后可立即从 `View -> Panels` 或顶部 `Note` / `BPM` / `Meta` 按钮重新打开，无需重启程序。
-- `View -> Panels -> Reset Panel Layout`：恢复默认工作区、导航、预览和编辑器布局。
-- 主窗口大小、面板停靠关系、标签组合和浮动位置会在正常退出时保存，并在下次启动时恢复。
+- 工具块停靠在侧栏时显示紧凑的 22px 分段标题，整条标题均可拖动，右侧 `⠿` 用于提示拖拽；拖出后使用独立窗口标题栏并恢复自由缩放，重新停靠后回到紧凑高度。拖动过程中轮廓会随当前落点变化，可在松开前确认停靠范围。
+- `Chart Workspace` 主编辑区不可关闭、移动或浮动，并保留最低可用编辑尺寸；即使旧版保存了关闭状态，恢复布局时也会自动重新打开。拖到编辑区上的面板只能落在其左侧或右侧，不会把编辑区切成上下小块或与其合并为标签。
+- 普通面板关闭后可从顶部 `Panels`、`View -> Panels` 或 `Note` / `BPM` / `Meta` 按钮立即重新打开；`Reopen All Closed Panels` 可一次恢复全部关闭面板。
+- 关闭紧凑工具块后，其他已停靠工具块的模块外框和内部控件都会保持自然高度；释放空间由 Note/BPM/Meta 等普通编辑面板吸收。独立浮动窗口不受此高度限制，可自由缩放并在内容过长时滚动。
+- `View -> Panels -> Reset Panel Layout`：只重置当前模式的布局，不会删除另一模式已经保存的状态。
+- 主窗口大小以及当前模式的布局会在正常退出时保存，并在下次启动时恢复。
 - 长面板内容会在面板内部滚动，不再强制增大主窗口的最小高度。
 
 ### File 文件菜单
@@ -50,9 +54,16 @@
 - `File -> Open Imported Charts...`：打开本地已导入谱面库。快捷键：`Ctrl+Shift+O`。
 - `File -> Save`：保存当前谱面到原始 `.mc` 文件。快捷键：`Ctrl+S`。
 - `File -> Save As...`：另存为新的 `.mc` 文件。
+- `File -> Refresh Chart`：从源文件重新加载当前谱面。快捷键：`F5`；存在未保存修改时会先询问是否保存。
 - `File -> Export .mcz...`：导出 Malody 可导入的 `.mcz` 谱面包，会打包谱面、音频、背景等必要资源。
 - `File -> Switch Difficulty...`：在同一目录或已导入歌曲中切换其他难度谱面。
 - `File -> Exit`：退出程序。快捷键：`Ctrl+Q`。关闭主窗口同样会结束整个程序，包括隐藏的浮动面板和日志终端进程。
+
+保存 `.mc`、覆盖已有资源/sidecar 及发布最终 `.mcz` 使用原子替换，写入或提交失败时不会
+主动截断旧文件。编辑期间程序会以短防抖
+间隔更新独立工作副本；上次异常退出且存在未保存修改时，下次启动会询问是否恢复。恢复副本
+只用于会话安全，不会在未确认保存时覆盖源谱面。打开或切换新谱面失败/取消时，当前会话
+和恢复副本会继续保留。
 
 ### Edit 编辑菜单
 
@@ -66,7 +77,7 @@
 ### View 视图菜单
 
 - `View -> Enable Floating Windows`：启用 ADS 停靠、拆分和浮动；关闭时使用引入 ADS 前的固定四栏布局和单一可纵向滚动的右栏。
-- `View -> Panels`：仅在启用浮动窗口时显示；可显示或隐藏导航、预览、Note 输入、时间网格、范围、镜像、曲线、插件、BPM 和 Meta 面板，也可恢复默认面板布局。
+- `View -> Panels`：多窗口模式下可显示/隐藏各面板、执行 `Show Main Editor`、`Reopen All Closed Panels` 或重置布局；经典模式下仍保留当前经典布局的重置入口。
 - `View -> Color Notes`：按音符拍型/分度给音符上色，便于检查节奏密度。
 - `View -> Color Timeline Divisions`：按时间轴分度给网格线着色。
 - `View -> Timeline Division Color Advanced Settings...`：设置分度线颜色规则。可选择 `Classic`、`All` 或自定义常见分度/额外分度。
@@ -84,7 +95,7 @@
 - `Settings -> Session Settings...`：设置编辑会话选项，包括自动保存间隔和音频校正测试开关。
 - `Settings -> Skin`：选择可用皮肤。皮肤来自程序目录的 `skins` 或内置默认皮肤资源。
 - `Settings -> Note Sound`：选择编辑音符时播放的按键音；选择 `None` 可关闭音效。
-- `Settings -> Keyboard Shortcuts...`：自定义可配置快捷键。清空输入框可禁用对应快捷键，`Reset` 恢复单项默认值，`Reset All` 恢复全部默认值。当前更稳定支持 `Ctrl` / `Shift` 参与的双键组合。
+- `Settings -> Keyboard Shortcuts...`：自定义可配置快捷键。清空输入框可禁用对应快捷键，`Reset` 恢复单项默认值，`Reset All` 恢复全部默认值。录入新组合键会替换旧快捷键；连续录入可构成最多四段序列，支持 `Ctrl+Shift+O` 和 `Alt+↑` 等组合；画布专属按键暂未纳入统一自定义管理。
 - `Settings -> Language`：切换界面语言。
 
 ### Playback 播放菜单
@@ -147,9 +158,9 @@ Grid Settings、范围选择、镜像执行、曲线操作、复制、BPM/Meta �
 - 奖励音符：按官方 Rain 奖励算法生成的奖励 note 总数（与画布上的 Rain 奖励预览点完全一致）。
 - 最大连击（Max Combo）：常规音符 + 奖励音符。rain 本体不计入连击，因为 rain 在游玩时由其奖励 note 构成。
 
-点击面板底部 `详细统计...` 可打开非模态详细统计窗口；该窗口不阻塞主窗口操作，会随谱面编辑实时刷新。详细统计的内容为后续版本预留扩展接口。
+点击面板底部 `详细统计...` 可打开非模态详细统计窗口；该窗口不阻塞主窗口操作，会随谱面编辑刷新。
 
-统计在音符增删改、雨滴拖动、撤销/重做等编辑后自动刷新。
+统计在音符增删改、Rain 尾部拖动、撤销/重做等编辑后自动刷新。大谱面分析在后台基于谱面快照执行，因此连续编辑时结果可能短暂延后；旧快照结果不会覆盖新谱面。
 
 ### BPM & Timing 面板
 
@@ -168,7 +179,7 @@ Grid Settings、范围选择、镜像执行、曲线操作、复制、BPM/Meta �
 - `Difficulty`：难度名。
 - `Chart Author`：谱师。
 - `Audio (ogg)`：选择或填写音频文件路径。选择非 OGG 音频（mp3/wav/flac/m4a/aac/wma/opus/aiff 等）时会自动转换为 OGG（带进度对话框，可取消），谱面始终引用 OGG 文件。选择无法解码的文件会弹窗提示且不改动谱面。
-- `Background (jpg)`：选择或填写背景图路径。
+- `Background`：选择或填写背景图路径。PNG 与 JPG 按文件实际内容识别后原样导入；其他可解码的单帧图片（bmp/gif 等）会自动无损转换为 PNG（保留透明通道，并应用 JPEG EXIF 旋转信息）；包含多帧的动画图片（如动画 GIF）会保留原格式并弹窗提示；无法解码的文件会弹窗提示且不改动谱面。文件选择器的格式列表动态生成：核心格式（png/jpg/jpeg/bmp/gif）始终可用，其余条目跟随当前环境的 Qt 图像格式插件。
 - `Preview Time`：试听预览时间，单位毫秒。
 - `First BPM`：首个 BPM。
 - `Offset`：音频偏移，单位毫秒。
@@ -273,7 +284,7 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 内置文件类型包括：
 - `.mc`：谱面文件
 - 音频格式：`.ogg`, `.oga`, `.mp3`, `.wav`, `.flac`, `.m4a`, `.aac`, `.wma`, `.opus`, `.aif`, `.aiff`, `.mka`（非 Vorbis OGG 的格式在作为谱面音乐导入时会被自动转换为 `.ogg`；仅接受 Vorbis 编码的 Ogg 容器，Opus 等其他编码的 Ogg 文件同样会被转码）
-- 图片格式：`.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`, `.gif`
+- 图片格式：`.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`, `.gif`, `.tif`, `.tiff`, `.tga`（背景图导入支持集：`.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`，按文件内容而非扩展名识别；非 PNG/JPG 的单帧图片导入时自动无损转换为 PNG，多帧动画保留原格式并提示。`.webp`/`.tiff`/`.tga` 依赖 Qt Image Formats 插件：转换层会自动识别 Qt 当前可解码的格式，文件选择器过滤器亦随插件动态扩展，`.tif/.tiff/.tga` 已纳入 `.mcz` 资源收集列表）
 - 视频格式：`.mp4`, `.mkv`, `.avi`, `.webm`, `.mov`
 - Sidecar 文件：`.curve_tbd.json`, `.bpm_excludes.json`, `.song_bpm.json`
 

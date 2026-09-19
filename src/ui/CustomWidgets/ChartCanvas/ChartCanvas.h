@@ -14,8 +14,10 @@
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
 #include "editor/NoteChain/NoteChainEditor.h"
+#include "render/RainVisibilityIndex.h"
 
 class ChartController;
+struct ChartChange;
 class SelectionController;
 class NoteRenderer;
 class GridRenderer;
@@ -181,6 +183,8 @@ private:
                            double invVisibleRange,
                            double baseY,
                            double sign);
+    void invalidateMirrorPreviewCache();
+    void rebuildMirrorPreviewCache();
     void drawMirrorGuide(QPainter &painter, int canvasHeight, int lmargin, int availableWidth);
     void drawPluginOverlays(QPainter &painter, int lmargin, int rmargin);
     QPointF noteToPos(const Note &note) const;
@@ -270,6 +274,8 @@ private:
     // Paste preview helpers
     double calculatePasteReferenceTime() const;
     double yToTime(double y) const;
+    void invalidatePastePreviewCache();
+    void rebuildPastePreviewCache();
     // Interval copy selection state.
     enum IntervalState
     {
@@ -299,6 +305,8 @@ private:
     double m_pasteRefBeat;
     int m_pasteDragReferenceIndex;
     bool m_pasteSnapReferenceActive = false;
+    QVector<Note> m_pastePreviewNotes;
+    bool m_pastePreviewCacheValid = false;
     void cancelPaste();
     void beginDragPaste(const QPointF &startPos);
     void updateDragPaste(const QPointF &currentPos);
@@ -312,14 +320,18 @@ private:
     QVector<double> m_noteXPositions;
     QVector<double> m_noteTimesMs;
     QVector<NoteType> m_noteTypes;
+    QVector<int> m_sortedSelectionNoteIndicesByBeat;
     QVector<int> m_sortedNormalNoteIndicesByBeat;
     QVector<int> m_sortedRainNoteIndicesByBeat;
+    RainVisibilityIndex::IntervalIndex m_rainIntervalIndex;
+    RainVisibilityIndex::IntervalIndex m_playableNoteIntervalIndex;
     bool m_noteDataDirty;
     bool m_timesDirty;
     mutable QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
     mutable bool m_bpmCacheDirty;
 
     ChartController *m_chartController;
+    quint64 m_chartRevision = 0;
     SelectionController *m_selectionController;
     PlaybackController *m_playbackController;
     NoteRenderer *m_noteRenderer;
@@ -352,6 +364,8 @@ private:
     int m_mirrorAxisX;
     bool m_mirrorGuideVisible;
     bool m_mirrorPreviewVisible;
+    QVector<Note> m_mirrorPreviewNotes;
+    bool m_mirrorPreviewCacheValid = false;
     bool m_isDraggingMirrorGuide;
 
     bool m_isPasting;
@@ -390,7 +404,8 @@ private:
     bool m_rainFirst;
     Note m_rainStartNote; // rain anchor converted to beat at click time (scroll-safe)
     int m_rainTailDragIndex = -1; // rain note currently being tail-dragged
-    Note m_rainTailDragOriginal;  // snapshot of the dragged rain for rollback/commit
+    Note m_rainTailDragOriginal;  // committed snapshot for the undo command
+    Note m_rainTailDragPreview;   // render-only snapshot during pointer movement
 
     bool m_snapToGrid;
     int m_snapTimerId;
@@ -442,6 +457,7 @@ private:
     int leftMargin() const;
     int rightMargin() const;
     void invalidateChartCaches(bool includeBackground);
+    void invalidateChartCaches(const ChartChange &change);
     void resetOverlayQueryState();
     void advanceNoteSoundClock(double playbackTimeMs);
     void advancePlaybackVisual(bool scheduleRepaint, bool recordProbe = true);

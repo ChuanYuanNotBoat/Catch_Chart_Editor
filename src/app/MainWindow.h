@@ -2,6 +2,7 @@
 
 #include <QMainWindow>
 #include <QVariantMap>
+#include <functional>
 
 class ChartController;
 class SelectionController;
@@ -43,6 +44,7 @@ public:
     bool loadChartForAutomation(const QString &filePath, QString *errorMessage = nullptr);
 
 protected:
+    bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -90,6 +92,8 @@ private slots:
     void showAboutPage();
     void showVersionPage();
     void showLogsPage();
+    void moveView();
+    void resetViewLocation();
 
 private:
     void setupUi();
@@ -111,9 +115,25 @@ private:
     bool runPluginActionWithMeta(const QVariantMap &meta);
     void closePluginPanels(const QString &reasonText = QString());
     bool confirmSaveIfModified(const QString &reasonText);
-    void loadChartFile(const QString &filePath, bool confirmUnsaved = true);
+    using DocumentTransaction = std::function<void()>;
+    using DocumentSaveCompletion = std::function<void(bool success,
+                                                      const QString &workingPath,
+                                                      const QString &error)>;
+    void enqueueDocumentTransaction(DocumentTransaction transaction);
+    void finishDocumentTransaction();
+    void saveDocumentAsync(const QString &path,
+                           const QString &workingPath,
+                           bool syncResources,
+                           bool showProgress,
+                           DocumentSaveCompletion completion);
+    using ChartLoadCompletion = std::function<void(bool success, const QString &error)>;
+    void loadChartFile(const QString &filePath,
+                       bool confirmUnsaved = true,
+                       ChartLoadCompletion completion = {});
     void reloadChart();
     void persistRecoveryState();
+    void scheduleRecoverySnapshot();
+    void flushRecoverySnapshot();
     void tryRecoverPreviousSession();
     void clearWorkingCopySession(bool removeWorkingFile);
     void setupAutoSaveTimer();
@@ -138,8 +158,11 @@ private:
     void updateCompactToolDockHandle(ads::CDockWidget *dock);
     void ensurePlaybackSpeedDockAssigned();
     void ensureStatsDockAssigned();
+    void ensureWorkspaceDockVisible();
+    void saveClassicLayoutState();
+    void restoreClassicLayoutState();
     void saveDockLayout();
-    void restoreDockLayout();
+    bool restoreDockLayout();
     void resetDockLayout();
     void updateDockTitles();
     void refreshChartStatistics();

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QVector>
+#include <QList>
+#include <QPair>
 #include "Note.h"
 #include "BpmEntry.h"
 #include "MetaData.h"
@@ -11,8 +13,15 @@ public:
     Chart();
 
     void addNote(const Note &note);
+    void addNotes(const QVector<Note> &notes);
     void removeNote(int index);
     void removeNote(const Note &note);
+    void removeNotes(const QVector<Note> &notes);
+    void replaceNotes(const QList<QPair<Note, Note>> &changes);
+    void applyNoteBatch(const QVector<Note> &notesToAdd,
+                        const QVector<Note> &notesToRemove,
+                        const QList<QPair<Note, Note>> &notesToMove);
+    void setNotes(QVector<Note> notes);
     void clearNotes();
     const QVector<Note> &notes() const;
     QVector<Note> &notes();

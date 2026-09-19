@@ -67,6 +67,7 @@ public:
     int beatNumberFontSize() const;
     void setBeatNumberFontSize(int size);
 
+    bool hasShortcut(const QString &action) const;
     QKeySequence shortcut(const QString &action) const;
     void setShortcut(const QString &action, const QKeySequence &seq);
 
@@ -109,6 +110,13 @@ public:
     QByteArray dockLayoutState() const;
     void setDockLayoutState(const QByteArray &state);
     void clearDockLayoutState();
+    QByteArray classicLayoutState() const;
+    void setClassicLayoutState(const QByteArray &state);
+    void clearClassicLayoutState();
+    QString classicRightPanelId() const;
+    void setClassicRightPanelId(const QString &panelId);
+    bool classicPluginToolsVisible() const;
+    void setClassicPluginToolsVisible(bool visible);
     bool floatingToolWindowsEnabled() const;
     void setFloatingToolWindowsEnabled(bool enabled);
 

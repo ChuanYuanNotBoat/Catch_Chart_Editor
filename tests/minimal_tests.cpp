@@ -1,11 +1,15 @@
 ﻿#include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <QTextStream>
+#include <QThread>
+#include <QTimer>
 #include <QtGlobal>
 #include <QSignalSpy>
 #include <algorithm>
@@ -18,6 +22,7 @@
 #include "file/ChartFileSystem.h"
 #include "audio/PlaybackTiming.h"
 #include "audio/AudioConverter.h"
+#include "app/SessionPathUtils.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
 #include "editor/NoteChain/NoteChainCurveSampler.h"
@@ -26,11 +31,281 @@
 #include "model/Chart.h"
 #include "model/ChartStatistics.h"
 #include "render/RainRewardGenerator.h"
+#include "render/RainVisibilityIndex.h"
+#include "utils/FileUtils.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackSpeed.h"
+#include "plugin/ExternalProcessPlugin.h"
 
 namespace
 {
+    int runExternalProcessPluginTestHelper()
+    {
+        QTextStream input(stdin);
+        QTextStream output(stdout);
+        QString loadedChartPath;
+        while (!input.atEnd())
+        {
+            const QJsonDocument document = QJsonDocument::fromJson(input.readLine().toUtf8());
+            if (!document.isObject())
+                continue;
+            const QJsonObject request = document.object();
+            const QString messageType = request.value(QStringLiteral("type")).toString();
+            if (messageType == QLatin1String("notify"))
+            {
+                if (request.value(QStringLiteral("event")).toString()
+                    == QLatin1String("onChartLoaded"))
+                {
+                    loadedChartPath = request.value(QStringLiteral("payload"))
+                                          .toObject()
+                                          .value(QStringLiteral("chart_path"))
+                                          .toString();
+                }
+                continue;
+            }
+            if (messageType != QLatin1String("request"))
+                continue;
+
+            const QString method = request.value(QStringLiteral("method")).toString();
+            const QString requestId = request.value(QStringLiteral("id")).toString();
+            const QJsonObject payload = request.value(QStringLiteral("payload")).toObject();
+            QJsonValue result = false;
+            if (method == QLatin1String("runToolAction"))
+            {
+                const QString actionId = payload.value(QStringLiteral("action_id")).toString();
+                if (actionId == QLatin1String("slow"))
+                    QThread::msleep(5000);
+                if (actionId == QLatin1String("stateful_slow"))
+                {
+                    QThread::msleep(200);
+                    result = loadedChartPath == QLatin1String("stateful.mc");
+                }
+                else
+                {
+                    result = true;
+                }
+            }
+            else if (method == QLatin1String("listToolActions"))
+            {
+                result = QJsonArray{QJsonObject{
+                    {QStringLiteral("action_id"), QStringLiteral("ready")},
+                    {QStringLiteral("title"), QStringLiteral("Ready")},
+                }};
+            }
+            else if (method == QLatin1String("buildBatchEdit"))
+            {
+                const QString actionId = payload.value(QStringLiteral("action_id")).toString();
+                result = actionId != QLatin1String("stateful_batch")
+                        || loadedChartPath == QLatin1String("stateful.mc")
+                    ? QJsonValue(QJsonObject{{
+                          QStringLiteral("add"),
+                          QJsonArray{QJsonObject{
+                              {QStringLiteral("beat"), QJsonArray{1, 0, 1}},
+                              {QStringLiteral("type"), 0},
+                              {QStringLiteral("x"), 256},
+                              {QStringLiteral("id"), QStringLiteral("stateful-note")},
+                          }},
+                      }})
+                    : QJsonValue(false);
+            }
+
+            const QJsonObject response{
+                {QStringLiteral("type"), QStringLiteral("response")},
+                {QStringLiteral("id"), requestId},
+                {QStringLiteral("result"), result},
+            };
+            output << QJsonDocument(response).toJson(QJsonDocument::Compact) << '\n';
+            output.flush();
+        }
+        return 0;
+    }
+
+    bool testExternalProcessPluginAsyncGuards()
+    {
+        ExternalProcessPlugin::Manifest manifest;
+        manifest.pluginId = QStringLiteral("test.process");
+        manifest.displayName = QStringLiteral("Test Process");
+        manifest.version = QStringLiteral("1");
+        manifest.description = QStringLiteral("test");
+        manifest.author = QStringLiteral("test");
+        manifest.apiVersion = PluginInterface::kHostApiVersion;
+        manifest.executable = QCoreApplication::applicationFilePath();
+        manifest.args = {QStringLiteral("--process-plugin-test-helper")};
+        manifest.capabilities = {QStringLiteral("tool_actions")};
+        manifest.manifestPath = QCoreApplication::applicationFilePath();
+
+        ExternalProcessPlugin plugin(manifest);
+        QEventLoop loop;
+        QTimer timeout;
+        timeout.setSingleShot(true);
+        bool callbackCalled = false;
+        bool callbackResult = false;
+        timeout.setInterval(3000);
+        QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+        const auto successId = plugin.runToolActionAsync(
+            QStringLiteral("ok"),
+            {},
+            &loop,
+            [&](bool ok) {
+                callbackCalled = true;
+                callbackResult = ok;
+                loop.quit();
+            });
+        if (successId == 0)
+            return false;
+        timeout.start();
+        loop.exec();
+        if (!callbackCalled || !callbackResult)
+            return false;
+
+        callbackCalled = false;
+        callbackResult = true;
+        const auto cancelId = plugin.runToolActionAsync(
+            QStringLiteral("slow"),
+            {},
+            &loop,
+            [&](bool ok) {
+                callbackCalled = true;
+                callbackResult = ok;
+                loop.quit();
+            });
+        if (cancelId == 0)
+            return false;
+        QTimer::singleShot(100, &loop, [&plugin, cancelId]() { plugin.cancelAsyncRequest(cancelId); });
+        timeout.start();
+        loop.exec();
+        if (!callbackCalled || callbackResult)
+            return false;
+
+        const QVariantMap oversized{{QStringLiteral("blob"), QString(2 * 1024 * 1024, QLatin1Char('x'))}};
+        const auto rejectedId = plugin.runToolActionAsync(
+            QStringLiteral("ok"), oversized, &loop, [](bool) {});
+        return rejectedId == 0;
+    }
+
+    bool testExternalProcessPluginActionsAfterStartupCooldown()
+    {
+        ExternalProcessPlugin::Manifest manifest;
+        manifest.pluginId = QStringLiteral("test.process.cooldown");
+        manifest.displayName = QStringLiteral("Test Process Cooldown");
+        manifest.version = QStringLiteral("1");
+        manifest.description = QStringLiteral("test");
+        manifest.author = QStringLiteral("test");
+        manifest.apiVersion = PluginInterface::kHostApiVersion;
+        manifest.executable = QCoreApplication::applicationFilePath();
+        manifest.args = {QStringLiteral("--process-plugin-test-helper")};
+        manifest.capabilities = {QStringLiteral("tool_actions")};
+        manifest.manifestPath = QCoreApplication::applicationFilePath();
+
+        ExternalProcessPlugin plugin(manifest);
+        if (!plugin.initialize(nullptr))
+            return false;
+
+        QEventLoop loop;
+        QTimer::singleShot(ExternalProcessPlugin::kPostStartRefreshDelayMs,
+                           Qt::PreciseTimer,
+                           &loop,
+                           &QEventLoop::quit);
+        loop.exec();
+
+        const QList<PluginInterface::ToolAction> actions = plugin.toolActions();
+        return actions.size() == 1
+            && actions.first().actionId == QStringLiteral("ready")
+            && actions.first().title == QStringLiteral("Ready");
+    }
+
+    bool testExternalProcessPluginStatefulAsyncUsesSession()
+    {
+        ExternalProcessPlugin::Manifest manifest;
+        manifest.pluginId = QStringLiteral("test.process.stateful");
+        manifest.displayName = QStringLiteral("Test Stateful Process");
+        manifest.version = QStringLiteral("1");
+        manifest.description = QStringLiteral("test");
+        manifest.author = QStringLiteral("test");
+        manifest.apiVersion = PluginInterface::kHostApiVersion;
+        manifest.executable = QCoreApplication::applicationFilePath();
+        manifest.args = {QStringLiteral("--process-plugin-test-helper")};
+        manifest.capabilities = {
+            QStringLiteral("tool_actions"),
+            QStringLiteral("host_batch_edit"),
+            QStringLiteral("contextual_tool_actions"),
+        };
+        manifest.manifestPath = QCoreApplication::applicationFilePath();
+
+        ExternalProcessPlugin plugin(manifest);
+        if (!plugin.initialize(nullptr))
+            return false;
+        plugin.onChartLoaded(QStringLiteral("stateful.mc"));
+
+        QEventLoop loop;
+        QTimer timeout;
+        timeout.setSingleShot(true);
+        timeout.setInterval(3000);
+        QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+
+        bool callbackCalled = false;
+        bool callbackResult = false;
+        bool eventLoopAdvanced = false;
+        QTimer::singleShot(20, &loop, [&plugin, &eventLoopAdvanced]() {
+            eventLoopAdvanced = true;
+            // A latency-sensitive synchronous query must not consume the
+            // response belonging to the queued stateful action.
+            plugin.canvasOverlays({});
+        });
+        const auto actionRequestId = plugin.runToolActionAsync(
+            QStringLiteral("stateful_slow"),
+            {},
+            &loop,
+            [&](bool ok) {
+                callbackCalled = true;
+                callbackResult = ok;
+                loop.quit();
+            });
+        if (actionRequestId == 0)
+            return false;
+        timeout.start();
+        loop.exec();
+        timeout.stop();
+        if (!callbackCalled || !callbackResult || !eventLoopAdvanced)
+        {
+            std::fprintf(stderr,
+                         "Stateful async action details: callback=%d result=%d event_loop=%d\n",
+                         callbackCalled,
+                         callbackResult,
+                         eventLoopAdvanced);
+            return false;
+        }
+
+        callbackCalled = false;
+        callbackResult = false;
+        bool batchHasExpectedNote = false;
+        const auto batchRequestId = plugin.buildToolActionBatchEditAsync(
+            QStringLiteral("stateful_batch"),
+            {},
+            &loop,
+            [&](bool ok, PluginInterface::BatchEdit edit) {
+                callbackCalled = true;
+                callbackResult = ok;
+                batchHasExpectedNote = edit.notesToAdd.size() == 1
+                    && edit.notesToAdd.first().id == QStringLiteral("stateful-note");
+                loop.quit();
+            });
+        if (batchRequestId == 0)
+            return false;
+        timeout.start();
+        loop.exec();
+        timeout.stop();
+        if (!callbackCalled || !callbackResult || !batchHasExpectedNote)
+        {
+            std::fprintf(stderr,
+                         "Stateful async batch details: callback=%d result=%d payload=%d\n",
+                         callbackCalled,
+                         callbackResult,
+                         batchHasExpectedNote);
+        }
+        return callbackCalled && callbackResult && batchHasExpectedNote;
+    }
+
     bool nearlyEqual(double a, double b, double eps = 1e-6)
     {
         return qAbs(a - b) <= eps;
@@ -229,6 +504,233 @@ namespace
 
         selection.removeFromSelection(1);
         return selection.selectedIndices() == QSet<int>({2});
+    }
+
+    bool testSelectionControllerMaintainsBeatIndex()
+    {
+        Note rain(2, 0, 1, 4, 0, 1, 96);
+        rain.id = QStringLiteral("selection-index-rain");
+        QVector<Note> notes = {
+            makeNormalNote(1, 0, 1, 64, "selection-index-normal-a"),
+            rain,
+            makeNormalNote(5, 0, 1, 192, "selection-index-normal-b"),
+        };
+
+        SelectionController selection;
+        selection.setNotes(&notes, 1);
+        const QVector<int> candidates = selection.noteIndicesInBeatRange(1.5, 3.5);
+        if (candidates != QVector<int>({1}))
+            return false;
+
+        selection.selectInBeatRange(1.0, 4.0);
+        return selection.selectedIndices() == QSet<int>({0, 1});
+    }
+
+    bool testSelectionControllerRevisionSkipsDuplicateRefresh()
+    {
+        QVector<Note> notes = {
+            makeNormalNote(0, 0, 1, 64, "selection-revision-a"),
+            makeNormalNote(1, 0, 1, 128, "selection-revision-b"),
+        };
+
+        SelectionController selection;
+        selection.setNotes(&notes, 1);
+        selection.select(0);
+
+        QSignalSpy selectionSpy(&selection, &SelectionController::selectionChanged);
+        selection.updateSelectionFromNotes(1);
+        if (selectionSpy.count() != 0)
+            return false;
+
+        std::swap(notes[0], notes[1]);
+        selection.setNotes(&notes, 2);
+        selection.updateSelectionFromNotes(2);
+        return selectionSpy.count() == 1 &&
+               selection.selectedIndices() == QSet<int>({1});
+    }
+
+    bool testSelectionControllerClipboardSetter()
+    {
+        SelectionController selection;
+        const QVector<Note> copied = {
+            makeNormalNote(1, 0, 1, 64, "clipboard-a"),
+            makeNormalNote(2, 0, 1, 192, "clipboard-b")};
+        selection.setClipboard(copied);
+        const QVector<Note> stored = selection.getClipboard();
+        return stored.size() == 2 &&
+               stored[0].id == "clipboard-a" &&
+               stored[1].id == "clipboard-b";
+    }
+
+    bool testSessionWorkingPathContainment()
+    {
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+            return false;
+
+        const QString root = QDir(tempDir.path()).filePath("sessions");
+        const QString session = QDir(root).filePath("session-a");
+        const QString chartDir = QDir(session).filePath("song");
+        const QString outsideDir = QDir(tempDir.path()).filePath("sessions-other/session-b/song");
+        if (!QDir().mkpath(chartDir) || !QDir().mkpath(outsideDir))
+            return false;
+
+        const QString validWorking = QDir(chartDir).filePath("chart.mc");
+        const QString outsideWorking = QDir(outsideDir).filePath("chart.mc");
+        const QString directRootWorking = QDir(root).filePath("chart.mc");
+        const QString traversalWorking = QDir(root).filePath("../outside/chart.mc");
+
+        const QString resolved = SessionPathUtils::sessionDirectoryForWorkingPath(root, validWorking);
+        return QDir::cleanPath(resolved) == QDir::cleanPath(session) &&
+               SessionPathUtils::sessionDirectoryForWorkingPath(root, outsideWorking).isEmpty() &&
+               SessionPathUtils::sessionDirectoryForWorkingPath(root, directRootWorking).isEmpty() &&
+               SessionPathUtils::sessionDirectoryForWorkingPath(root, traversalWorking).isEmpty() &&
+               SessionPathUtils::isPathInsideRoot(root, chartDir) &&
+               !SessionPathUtils::isPathInsideRoot(root, outsideDir);
+    }
+
+    bool testSafeFileCopyPreservesExistingTargetOnFailure()
+    {
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+            return false;
+
+        const auto writeBytes = [](const QString &path, const QByteArray &data)
+        {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+                   file.write(data) == data.size();
+        };
+        const auto readBytes = [](const QString &path)
+        {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+
+        const QString source = QDir(tempDir.path()).filePath("source.bin");
+        const QString existingTarget = QDir(tempDir.path()).filePath("existing.bin");
+        const QString newTarget = QDir(tempDir.path()).filePath("new.bin");
+        const QString atomicTarget = QDir(tempDir.path()).filePath("atomic.bin");
+        if (!writeBytes(source, "replacement") || !writeBytes(existingTarget, "original"))
+            return false;
+
+        QString error;
+        if (!FileUtils::copyFileSafely(source, existingTarget, &error) ||
+            readBytes(existingTarget) != QByteArray("replacement"))
+        {
+            return false;
+        }
+        if (!FileUtils::copyFileSafely(source, newTarget, &error) ||
+            readBytes(newTarget) != QByteArray("replacement"))
+        {
+            return false;
+        }
+        if (!FileUtils::copyFileAtomically(source, atomicTarget, &error) ||
+            readBytes(atomicTarget) != QByteArray("replacement"))
+        {
+            return false;
+        }
+
+        const QString missingSource = QDir(tempDir.path()).filePath("missing.bin");
+        if (FileUtils::copyFileSafely(missingSource, existingTarget, &error))
+            return false;
+        return !error.isEmpty() && readBytes(existingTarget) == QByteArray("replacement");
+    }
+
+    bool testRainVisibilityPrefixHandlesNonMonotonicEnds()
+    {
+        const QVector<int> sortedIndices = {0, 1, 2, 3};
+        const QVector<double> endBeats = {100.0, 3.0, 4.0, 12.0};
+        const QVector<double> prefix =
+            RainVisibilityIndex::buildPrefixMaxEndBeats(sortedIndices, endBeats);
+        if (prefix != QVector<double>({100.0, 100.0, 100.0, 100.0}))
+            return false;
+
+        // The lower bound for a view starting at beat 10 is position 3. A
+        // backwards walk would stop at the short rain at position 2 and miss
+        // the rain ending at beat 100; the prefix lookup must return 0.
+        if (RainVisibilityIndex::firstPotentiallyVisible(prefix, 3, 10.0) != 0)
+            return false;
+
+        const QVector<double> nonOverlapping = {1.0, 2.0, 3.0};
+        return RainVisibilityIndex::firstPotentiallyVisible(nonOverlapping, 3, 10.0) == 3;
+    }
+
+    bool testRainIntervalIndexQueriesOverlapAndContainment()
+    {
+        const QVector<int> indices = {0, 1, 2, 3};
+        const QVector<double> starts = {1.0, 4.0, 7.0, 12.0};
+        const QVector<double> ends = {3.0, 100.0, 9.0, 12.0};
+
+        RainVisibilityIndex::IntervalIndex index;
+        index.build(indices, starts, ends);
+        if (index.size() != 4)
+            return false;
+
+        const auto overlapping = index.overlapping(8.0, 8.5);
+        if (overlapping.begin != 1 || overlapping.end != 3 ||
+            index.entryAt(overlapping.begin).index != 1 ||
+            index.entryAt(overlapping.begin + 1).index != 2)
+        {
+            return false;
+        }
+
+        const auto containing = index.containing(2.0);
+        if (containing.begin != 0 || containing.end != 1 ||
+            index.entryAt(containing.begin).index != 0)
+        {
+            return false;
+        }
+
+        // The range is a candidate span: the prefix maximum can include a
+        // short interval after an earlier long interval. Consumers validate
+        // each candidate's actual end before drawing or hit-testing it.
+        const auto candidates = index.overlapping(10.0, 11.0);
+        return candidates.begin == 1 && candidates.end == 3 &&
+               index.entryAt(candidates.begin).index == 1 &&
+               index.entryAt(candidates.begin + 1).index == 2;
+    }
+
+    bool testChartBulkMutationKeepsIdentityAndSortOrder()
+    {
+        Chart chart;
+        chart.clearNotes();
+        QVector<Note> initial;
+        initial.reserve(5000);
+        for (int i = 4999; i >= 0; --i)
+            initial.append(makeNormalNote(i, 0, 1, i % 513, QString("bulk-%1").arg(i)));
+        chart.addNotes(initial);
+        if (chart.notes().size() != 5000 || chart.notes().front().beatNum != 0 ||
+            chart.notes().back().beatNum != 4999)
+            return false;
+
+        QVector<Note> removed;
+        removed.reserve(2500);
+        for (int i = 0; i < chart.notes().size(); i += 2)
+            removed.append(chart.notes()[i]);
+        chart.removeNotes(removed);
+        if (chart.notes().size() != 2500)
+            return false;
+
+        QList<QPair<Note, Note>> moved;
+        moved.reserve(1000);
+        for (int i = 0; i < 1000; ++i)
+        {
+            Note target = chart.notes()[i];
+            target.beatNum += 6000;
+            moved.append(qMakePair(chart.notes()[i], target));
+        }
+        chart.replaceNotes(moved);
+        if (chart.notes().size() != 2500)
+            return false;
+        for (int i = 1; i < chart.notes().size(); ++i)
+        {
+            if (chart.notes()[i - 1].getStartBeat() > chart.notes()[i].getStartBeat())
+                return false;
+        }
+        return std::any_of(chart.notes().cbegin(), chart.notes().cend(),
+                           [](const Note &note)
+                           { return note.id == "bulk-1" && note.beatNum == 6001; });
     }
 
     bool writeTextFile(const QString &path, const QByteArray &content)
@@ -537,6 +1039,73 @@ namespace
                && nearlyEqual(PlaybackTiming::wallDurationToMediaMs(12.0, 0.0), 12.0);
     }
 
+    bool testPlaybackStartupContinuity()
+    {
+        constexpr double frameWallMs = 1000.0 / 60.0;
+        for (double rate : {0.1, 1.0, 10.0})
+        {
+            const double startMs = 1200.0;
+            const double backendWaitWallMs = 50.0;
+            const double predictedAtFirstSample =
+                startMs + PlaybackTiming::wallDurationToMediaMs(backendWaitWallMs, rate);
+            const double coarseObservedMs =
+                startMs + PlaybackTiming::wallDurationToMediaMs(71.0, rate);
+
+            // The presentation clock must continue at normal speed while the
+            // audio backend has not emitted its first position callback.
+            const double expectedFrameStep =
+                PlaybackTiming::wallDurationToMediaMs(frameWallMs, rate);
+            double previous = startMs;
+            for (double elapsedWallMs = frameWallMs;
+                 elapsedWallMs <= backendWaitWallMs;
+                 elapsedWallMs += frameWallMs)
+            {
+                const double visual = startMs +
+                                      PlaybackTiming::wallDurationToMediaMs(elapsedWallMs, rate);
+                if (!nearlyEqual(visual - previous, expectedFrameStep, 1e-6))
+                    return false;
+                previous = visual;
+            }
+
+            const PlaybackTiming::ClockAdjustment initialAdjustment =
+                PlaybackTiming::adjustClockTowardObservation(
+                    predictedAtFirstSample,
+                    coarseObservedMs,
+                    rate,
+                    0.0,
+                    false);
+            if (initialAdjustment.hardResync ||
+                !nearlyEqual(initialAdjustment.anchorTimeMs, predictedAtFirstSample, 1e-6) ||
+                std::abs(initialAdjustment.rateCorrection) > rate * 0.005 + 1e-9)
+            {
+                return false;
+            }
+
+            // Acquiring the first backend sample may alter speed by at most
+            // the normal 0.5% slew limit; it must not add a catch-up step.
+            const double nextVisual = initialAdjustment.anchorTimeMs +
+                                      frameWallMs * (rate + initialAdjustment.rateCorrection);
+            if (nextVisual < initialAdjustment.anchorTimeMs ||
+                nextVisual - initialAdjustment.anchorTimeMs > expectedFrameStep * 1.0051)
+            {
+                return false;
+            }
+        }
+
+        const PlaybackTiming::ClockAdjustment startupLargeError =
+            PlaybackTiming::adjustClockTowardObservation(1000.0, 2000.0, 1.0, 0.0, false);
+        const PlaybackTiming::ClockAdjustment establishedLargeError =
+            PlaybackTiming::adjustClockTowardObservation(1000.0, 2000.0, 1.0, 0.0, true);
+        if (startupLargeError.hardResync ||
+            !nearlyEqual(startupLargeError.anchorTimeMs, 1000.0) ||
+            !establishedLargeError.hardResync ||
+            !nearlyEqual(establishedLargeError.anchorTimeMs, 2000.0))
+        {
+            return false;
+        }
+        return true;
+    }
+
     bool testMathUtilsQuantizeBeatTo288Division()
     {
         int beatNum = 0;
@@ -723,7 +1292,7 @@ namespace
         if (!ChartIO::load(path, loaded, false))
             return false;
 
-        if (loaded.notes().size() != 3)
+        if (loaded.notes().size() != 4)
             return false;
         if (loaded.bpmList().size() != 1 || !hasBpmEntry(loaded.bpmList(), 0, 0, 1, 150.0))
             return false;
@@ -739,7 +1308,7 @@ namespace
 
         bool hasNormal = false;
         bool hasRain = false;
-        bool hasSound = false;
+        bool hasSound = false, hasPrimaryAudio = false;
         for (const Note &note : loaded.notes())
         {
             if (note.type == NoteType::NORMAL && note.beatNum == 1 && note.x == 64)
@@ -748,8 +1317,10 @@ namespace
                 hasRain = true;
             if (note.type == NoteType::SOUND && note.beatNum == 4 && note.sound == "hit.wav" && note.vol == 88 && note.offset == 12)
                 hasSound = true;
+            if (note.type == NoteType::SOUND && note.sound == "roundtrip.ogg" && note.offset == 222 && note.vol == 100)
+                hasPrimaryAudio = true;
         }
-        return hasNormal && hasRain && hasSound;
+        return hasNormal && hasRain && hasSound && hasPrimaryAudio;
     }
 
     bool testChartIoLoadFlatMetaFields()
@@ -1141,6 +1712,60 @@ namespace
         return afterRedo.size() == 2 &&
                hasNoteById(afterRedo, "seed-a", 2, 128) &&
                hasNoteById(afterRedo, "seed-b", 3, 256);
+    }
+
+    bool testChartControllerOpaqueBatchFallbackUndoRedo()
+    {
+        ChartController controller;
+        Chart seed;
+        seed.clearNotes();
+        seed.addNote(makeNormalNote(1, 0, 1, 64, "seed-a"));
+        if (!controller.loadChartFromData(QString(), seed))
+            return false;
+
+        Note legacyAdd = makeNormalNote(2, 0, 1, 128, QString());
+        legacyAdd.id.clear();
+        if (!controller.applyBatchEdit(QStringLiteral("opaque batch"),
+                                       QVector<Note>{legacyAdd},
+                                       QVector<Note>{},
+                                       QList<QPair<Note, Note>>{}))
+        {
+            return false;
+        }
+        if (controller.chart()->notes().size() != 2)
+            return false;
+
+        controller.undo();
+        if (controller.chart()->notes().size() != 1 || !hasNoteById(controller.chart()->notes(), "seed-a", 1, 64))
+            return false;
+        controller.redo();
+        for (const Note &note : controller.chart()->notes())
+        {
+            if (note.id.isEmpty() && note.beatNum == 2 && note.x == 128)
+                return controller.chart()->notes().size() == 2;
+        }
+        return false;
+    }
+
+    bool testChartControllerOpaqueSnapshotBound()
+    {
+        ChartController controller;
+        Chart large;
+        QVector<Note> notes;
+        notes.reserve(ChartController::kMaxOpaqueSnapshotNotes + 1);
+        for (int i = 0; i <= ChartController::kMaxOpaqueSnapshotNotes; ++i)
+            notes.append(makeNormalNote(i, 0, 1, i % 513, QString("large-%1").arg(i)));
+        large.setNotes(std::move(notes));
+        if (!controller.loadChartFromData(QString(), large))
+            return false;
+
+        Chart mutated = *controller.chart();
+        mutated.addNote(makeNormalNote(ChartController::kMaxOpaqueSnapshotNotes + 1,
+                                       0,
+                                       1,
+                                       256,
+                                       QStringLiteral("large-tail")));
+        return !controller.applyExternalChartMutation(QStringLiteral("oversized opaque"), mutated);
     }
 
     bool testChartControllerMoveNotesAcceptsValidPayload()
@@ -1874,6 +2499,121 @@ namespace
                bpmSpy.count() == 0;
     }
 
+    bool testChartControllerRevisionAndTypedChanges()
+    {
+        ChartController controller;
+        if (controller.revision() != 0)
+            return false;
+
+        QSignalSpy changeSpy(&controller, &ChartController::chartChangeCommitted);
+        Chart seed;
+        seed.clearNotes();
+        seed.addNote(makeNormalNote(1, 0, 1, 64, "typed-seed"));
+
+        if (!controller.loadChartFromData(QStringLiteral("typed.mc"), seed) ||
+            controller.revision() != 1 || changeSpy.count() != 1)
+        {
+            return false;
+        }
+
+        const ChartChange loaded = qvariant_cast<ChartChange>(changeSpy.at(0).at(0));
+        ChartChangeSet allChanges;
+        allChanges |= ChartChangeType::Notes;
+        allChanges |= ChartChangeType::Timing;
+        allChanges |= ChartChangeType::Metadata;
+        allChanges |= ChartChangeType::Resources;
+        if (loaded.revision != 1 || loaded.types != allChanges)
+            return false;
+
+        auto takeSingleChange = [&changeSpy](ChartChangeSet expected, quint64 revision)
+        {
+            if (changeSpy.count() != 1)
+                return false;
+            const ChartChange change = qvariant_cast<ChartChange>(changeSpy.at(0).at(0));
+            return change.revision == revision && change.types == expected;
+        };
+
+        changeSpy.clear();
+        controller.addNote(makeNormalNote(2, 0, 1, 128, "typed-note"));
+        if (controller.revision() != 2 ||
+            !takeSingleChange(ChartChangeType::Notes, 2))
+        {
+            return false;
+        }
+
+        changeSpy.clear();
+        controller.addBpm(BpmEntry(4, 0, 1, 180.0));
+        if (controller.revision() != 3 ||
+            !takeSingleChange(ChartChangeType::Timing, 3))
+        {
+            return false;
+        }
+
+        MetaData metadata = controller.chart()->meta();
+        metadata.title = QStringLiteral("Typed Metadata");
+        changeSpy.clear();
+        controller.setMetaData(metadata);
+        if (controller.revision() != 4 ||
+            !takeSingleChange(ChartChangeType::Metadata, 4))
+        {
+            return false;
+        }
+
+        metadata.offset += 12;
+        changeSpy.clear();
+        controller.setMetaData(metadata);
+        ChartChangeSet timingAndMetadata;
+        timingAndMetadata |= ChartChangeType::Timing;
+        timingAndMetadata |= ChartChangeType::Metadata;
+        if (controller.revision() != 5 ||
+            !takeSingleChange(timingAndMetadata, 5))
+        {
+            return false;
+        }
+
+        metadata.audioFile = QStringLiteral("typed.ogg");
+        changeSpy.clear();
+        controller.setMetaData(metadata);
+        ChartChangeSet resourceAndMetadata;
+        resourceAndMetadata |= ChartChangeType::Resources;
+        resourceAndMetadata |= ChartChangeType::Metadata;
+        if (controller.revision() != 6 ||
+            !takeSingleChange(resourceAndMetadata, 6))
+        {
+            return false;
+        }
+
+        Chart mutated = *controller.chart();
+        mutated.addNote(makeNormalNote(3, 0, 1, 256, "typed-external"));
+        changeSpy.clear();
+        if (!controller.applyExternalChartMutation(QStringLiteral("typed external"), mutated) ||
+            controller.revision() != 7 ||
+            !takeSingleChange(ChartChangeType::Notes, 7))
+        {
+            return false;
+        }
+
+        changeSpy.clear();
+        controller.undo();
+        if (controller.revision() != 8 ||
+            !takeSingleChange(ChartChangeType::Notes, 8))
+        {
+            return false;
+        }
+
+        changeSpy.clear();
+        controller.redo();
+        if (controller.revision() != 9 ||
+            !takeSingleChange(ChartChangeType::Notes, 9))
+        {
+            return false;
+        }
+
+        changeSpy.clear();
+        controller.pushUndoMarker(QStringLiteral("typed marker"));
+        return controller.revision() == 9 && changeSpy.count() == 0;
+    }
+
     bool testNoteIsXValidForSoundIgnoresRange()
     {
         Note sound(1, 0, 1, "hit.wav", 50, 0);
@@ -2541,6 +3281,176 @@ namespace
         return rain;
     }
 
+    Chart makeInteractionBenchmarkChart(int noteCount)
+    {
+        Chart chart;
+        chart.clearNotes();
+
+        QVector<Note> notes;
+        notes.reserve(noteCount);
+        for (int i = 0; i < noteCount; ++i)
+        {
+            if (i == 0)
+            {
+                Note rain = makeRainNote(0, 0, 1, 2, 0, 1);
+                rain.id = QStringLiteral("interaction-rain");
+                notes.append(rain);
+                continue;
+            }
+
+            notes.append(makeNormalNote(i * 2,
+                                        0,
+                                        1,
+                                        (i * 37) % 513,
+                                        QStringLiteral("interaction-%1").arg(i)));
+        }
+        chart.setNotes(std::move(notes));
+        return chart;
+    }
+
+    QList<QPair<Note, Note>> interactionMoveChanges(const Chart &chart,
+                                                    int noteCount)
+    {
+        QList<QPair<Note, Note>> changes;
+        changes.reserve(noteCount);
+        const QVector<Note> &notes = chart.notes();
+        for (int i = 0; i < noteCount && i < notes.size(); ++i)
+        {
+            const Note &original = notes[i];
+            Note moved = original;
+            moved.beatNum += 1;
+            if (moved.type == NoteType::RAIN)
+                moved.endBeatNum += 1;
+            moved.x = qMin(512, moved.x + 1);
+            changes.append(qMakePair(original, moved));
+        }
+        return changes;
+    }
+
+    qint64 benchmarkInteractionMove(int noteCount, bool rainTail)
+    {
+        Chart chart = makeInteractionBenchmarkChart(noteCount);
+        ChartController controller;
+        if (!controller.loadChartFromData(QString(), chart))
+            return -1;
+
+        QList<QPair<Note, Note>> changes;
+        if (rainTail)
+        {
+            const Note original = controller.chart()->notes().first();
+            Note resized = original;
+            resized.endBeatNum += 1;
+            changes.append(qMakePair(original, resized));
+        }
+        else
+        {
+            changes = interactionMoveChanges(*controller.chart(), noteCount);
+        }
+
+        qint64 bestNs = std::numeric_limits<qint64>::max();
+        constexpr int kSamples = 5;
+        for (int sample = 0; sample < kSamples; ++sample)
+        {
+            QElapsedTimer timer;
+            timer.start();
+            controller.moveNotes(changes);
+            const qint64 elapsedNs = timer.nsecsElapsed();
+            if (!controller.canUndo())
+                return -1;
+            bestNs = qMin(bestNs, elapsedNs);
+            controller.undo();
+        }
+        return bestNs;
+    }
+
+    bool testInteractionBenchmarks()
+    {
+        const int noteCounts[] = {1, 100, 4000};
+        for (const int noteCount : noteCounts)
+        {
+            const qint64 moveNs = benchmarkInteractionMove(noteCount, false);
+            const qint64 tailNs = benchmarkInteractionMove(noteCount, true);
+            if (moveNs < 0 || tailNs < 0)
+                return false;
+
+            std::fprintf(stdout,
+                         "INTERACTION_BENCHMARK notes=%d move_ms=%.3f rain_tail_ms=%.3f\n",
+                         noteCount,
+                         moveNs / 1000000.0,
+                         tailNs / 1000000.0);
+        }
+        return true;
+    }
+
+    Chart makeChartIoBenchmarkChart(int noteCount)
+    {
+        Chart chart;
+        chart.clearNotes();
+
+        QVector<Note> notes;
+        notes.reserve(noteCount);
+        for (int i = 0; i < noteCount; ++i)
+        {
+            Note note = makeNormalNote(i * 2,
+                                       0,
+                                       1,
+                                       (i * 37) % 513);
+            note.id.clear();
+            notes.append(std::move(note));
+        }
+        chart.setNotes(std::move(notes));
+        return chart;
+    }
+
+    bool testChartIoLoadSaveBenchmarks()
+    {
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+            return false;
+
+        const int noteCounts[] = {5000, 20000, 100000};
+        for (const int noteCount : noteCounts)
+        {
+            const QString path = tempDir.filePath(QStringLiteral("benchmark_%1.mc").arg(noteCount));
+
+            qint64 saveMs = 0;
+            {
+                const Chart source = makeChartIoBenchmarkChart(noteCount);
+                QElapsedTimer saveTimer;
+                saveTimer.start();
+                if (!ChartIO::save(path, source))
+                    return false;
+                saveMs = saveTimer.elapsed();
+            }
+
+            Chart loaded;
+            QElapsedTimer loadTimer;
+            loadTimer.start();
+            if (!ChartIO::load(path, loaded, false))
+                return false;
+            const qint64 loadMs = loadTimer.elapsed();
+            if (loaded.notes().size() != noteCount)
+                return false;
+
+            std::fprintf(stdout,
+                         "LOAD_SAVE_BENCHMARK notes=%d save_ms=%lld load_ms=%lld\n",
+                         noteCount,
+                         static_cast<long long>(saveMs),
+                         static_cast<long long>(loadMs));
+
+            const qint64 maxMs = noteCount <= 20000 ? 5000 : 15000;
+            if (saveMs > maxMs || loadMs > maxMs)
+            {
+                std::fprintf(stderr,
+                             "FAILED: load/save benchmark exceeded %lld ms for %d notes\n",
+                             static_cast<long long>(maxMs),
+                             noteCount);
+                return false;
+            }
+        }
+        return true;
+    }
+
     bool testRainRewardStateCore()
     {
         if (RainRewardGenerator::seedForNoteCount(3) != 0xCA7FBEA4u)
@@ -2892,6 +3802,9 @@ int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
 
+    if (app.arguments().contains(QStringLiteral("--process-plugin-test-helper")))
+        return runExternalProcessPluginTestHelper();
+
     struct Case
     {
         const char *name;
@@ -2899,8 +3812,13 @@ int main(int argc, char **argv)
     };
 
     const Case cases[] = {
+        {"ChartIO load/save benchmarks", &testChartIoLoadSaveBenchmarks},
+        {"External process plugin async guards", &testExternalProcessPluginAsyncGuards},
+        {"External process plugin actions after startup cooldown", &testExternalProcessPluginActionsAfterStartupCooldown},
+        {"External process plugin stateful async session", &testExternalProcessPluginStatefulAsyncUsesSession},
         {"Playback speed 0.1x-10x bounds", &testPlaybackSpeedBounds},
         {"Playback wall time scales with rate", &testPlaybackWallTimeConversion},
+        {"Playback startup remains continuous at all rates", &testPlaybackStartupContinuity},
         {"MathUtils round-trip", &testMathUtilsRoundTrip},
         {"MathUtils cache consistency", &testMathUtilsCacheConsistency},
         {"MathUtils empty BPM boundary", &testMathUtilsEmptyBpmBoundary},
@@ -2910,6 +3828,14 @@ int main(int argc, char **argv)
         {"Chart removeNote by id", &testChartRemoveById},
         {"Chart BPM sorting", &testChartBpmSort},
         {"SelectionController cached indices refresh", &testSelectionControllerRefreshesCachedIndices},
+        {"SelectionController maintained beat index", &testSelectionControllerMaintainsBeatIndex},
+        {"SelectionController revision skips duplicate refresh", &testSelectionControllerRevisionSkipsDuplicateRefresh},
+        {"SelectionController clipboard setter", &testSelectionControllerClipboardSetter},
+        {"Recovery working path containment", &testSessionWorkingPathContainment},
+        {"Safe file copy preserves target", &testSafeFileCopyPreservesExistingTargetOnFailure},
+        {"Rain visibility non-monotonic end prefix", &testRainVisibilityPrefixHandlesNonMonotonicEnds},
+        {"Rain interval index overlap + containment", &testRainIntervalIndexQueriesOverlapAndContainment},
+        {"Chart bulk mutation identity + sorting", &testChartBulkMutationKeepsIdentityAndSortOrder},
         {"ProjectIO scan + difficulty", &testProjectIoReadDifficultyAndScan},
         {"ProjectIO invalid difficulty json", &testProjectIoGetDifficultyInvalidJsonReturnsEmpty},
         {"ProjectIO find charts missing dir", &testProjectIoFindChartsMissingDirReturnsEmpty},
@@ -2954,6 +3880,7 @@ int main(int argc, char **argv)
         {"ChartController applyBatchEdit empty action default text", &testChartControllerApplyBatchEditEmptyActionUsesDefaultUndoText},
         {"ChartController applyBatchEdit limit boundary accepted", &testChartControllerApplyBatchEditLimitBoundaryAccepted},
         {"ChartController applyBatchEdit undo redo", &testChartControllerApplyBatchEditUndoRedo},
+        {"ChartController opaque batch fallback undo redo", &testChartControllerOpaqueBatchFallbackUndoRedo},
         {"ChartController moveNotes valid payload", &testChartControllerMoveNotesAcceptsValidPayload},
         {"ChartController moveNotes invalid payload no mutation", &testChartControllerMoveNotesRejectsInvalidPayloadNoMutation},
         {"ChartController moveNotes empty no-op", &testChartControllerMoveNotesEmptyNoOp},
@@ -2968,6 +3895,7 @@ int main(int argc, char **argv)
         {"ChartController undo/redo action text lifecycle", &testChartControllerUndoRedoActionTextLifecycle},
         {"ChartController loadChartFromData clears undo stack", &testChartControllerLoadChartFromDataClearsUndoStack},
         {"ChartController applyExternalMutation undo redo", &testChartControllerApplyExternalMutationUndoRedo},
+        {"ChartController opaque snapshot bound", &testChartControllerOpaqueSnapshotBound},
         {"ChartController applyExternalMutation empty action default text", &testChartControllerApplyExternalMutationEmptyActionUsesDefaultUndoText},
         {"ChartController loadChartFromData sets path", &testChartControllerLoadChartFromDataSetsPath},
         {"ChartController loadChart missing file keeps state", &testChartControllerLoadChartMissingFileKeepsState},
@@ -2985,11 +3913,13 @@ int main(int argc, char **argv)
         {"ChartController signal addNotes batch emits once", &testChartControllerSignalAddNotesEmitsOnce},
         {"ChartController signal removeNotes batch emits once", &testChartControllerSignalRemoveNotesEmitsOnce},
         {"ChartController signal no-op does not emit", &testChartControllerSignalNoOpDoesNotEmit},
+        {"ChartController revision and typed changes", &testChartControllerRevisionAndTypedChanges},
         {"ChartController invalid BPM index no-op", &testChartControllerInvalidBpmIndexNoOp},
         {"Chart remove by content when id missing", &testChartRemoveByContentWhenIdMissing},
         {"Chart sort notes keeps sound after normal on same beat", &testChartSortNotesSoundAfterNormalAtSameBeat},
         {"Note validation boundaries", &testNoteValidationBoundaries},
         {"Note isXValid for sound ignores range", &testNoteIsXValidForSoundIgnoresRange},
+        {"Interaction move and rain-tail benchmarks", &testInteractionBenchmarks},
         {"KEDAMONO render baseline", &testKedamonoRenderBaseline},
         {"ChartFileSystem registerFileType", &testChartFileSystemRegisterFileType},
         {"ChartFileSystem isAllowedFile", &testChartFileSystemIsAllowedFile},

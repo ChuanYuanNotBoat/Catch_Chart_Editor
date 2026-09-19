@@ -6,11 +6,14 @@
 #include <QList>
 #include <QPointer>
 #include <QKeySequence>
+#include <QQueue>
 #include <QSet>
 #include <QString>
 #include <QByteArray>
 #include <QElapsedTimer>
 #include <QVariantMap>
+#include <QFutureWatcher>
+#include <functional>
 #include <limits>
 
 class ChartController;
@@ -37,6 +40,7 @@ class RealtimePreviewWidget;
 class PluginActionPanel;
 class ChartStatsPanel;
 class DetailedStatsDialog;
+class WorkbenchLayout;
 
 namespace ads
 {
@@ -69,6 +73,7 @@ public:
     ads::CDockWidget *metaPanelDock = nullptr;
     ads::CDockWidget *statsToolsDock = nullptr;
     QWidget *workspaceContainer = nullptr;
+    WorkbenchLayout *workbenchLayout = nullptr;
     QSplitter *legacySplitter = nullptr;
     QScrollArea *legacyRightScrollArea = nullptr;
     QWidget *legacyRightPanelContainer = nullptr;
@@ -112,7 +117,10 @@ public:
     QAction *bpmPanelAction = nullptr;
     QAction *metaPanelAction = nullptr;
     QAction *curvePanelAction = nullptr;
+    QAction *panelsToolbarAction = nullptr;
     QAction *floatingToolWindowsAction = nullptr;
+    QAction *moveViewAction = nullptr;
+    QAction *resetViewLocationAction = nullptr;
     QAction *checkUpdatesAction = nullptr;
     QAction *helpDocAction = nullptr;
     QAction *aboutAction = nullptr;
@@ -122,6 +130,8 @@ public:
     QToolBar *pluginToolBar = nullptr;
     QTimer *autoSaveTimer = nullptr;
     QTimer *statsRefreshTimer = nullptr;
+    QFutureWatcher<ChartStatistics> *statsWatcher = nullptr;
+    QTimer *recoverySnapshotTimer = nullptr;
     QAction *reloadChartAction = nullptr;
     bool compactUiMode = false;
     bool floatingToolWindowsEnabled = true;
@@ -148,16 +158,24 @@ public:
     QHash<QString, QAction *> shortcutActions;
     QHash<QString, QKeySequence> shortcutDefaults;
     QList<QString> shortcutActionOrder;
+    quint64 pendingPluginRequestId = 0;
+    quint64 pluginActionGeneration = 0;
 
     QString currentChartPath;
     QString sourceChartPath;
     QString workingChartPath;
+    quint64 documentGeneration = 1;
     bool isModified = false;
     bool isLoadingChart = false;
     bool audioPlaybackReady = false;
     ChartStatistics editStatistics;
-    QString editStatisticsPath;
+    QString editStatisticsChartPath;
     QElapsedTimer editSessionTimer;
+    quint64 statsFutureRevision = 0;
+    quint64 statsSourceRevision = 0;
+    bool statsRefreshPending = false;
+    QQueue<std::function<void()>> documentTransactions;
+    bool documentTransactionRunning = false;
 
     // Cached resource paths for detecting changes after undo/redo/plugin edits.
     QString lastLoadedAudioFile;

@@ -1,0 +1,105 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+# 基础
+IndentWidth: 4
+ContinuationIndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# 不允许 formatter 生成离谱超长行。
+# CCE 目前代码比较适合 120，既不会过度换行，也不会把测试条件全塞一行。
+ColumnLimit: 120
+
+# CCE 当前整体接近 Allman：
+#
+# void foo()
+# {
+# }
+#
+# if (...)
+# {
+# }
+#
+# 但 lambda 特意保留：
+#
+# connect(..., [&]() {
+#     ...
+# });
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+
+  BeforeCatch: true
+  BeforeElse: true
+
+  # 非常重要：不要把 lambda 格式化成
+  # [&]()
+  # {
+  # }
+  BeforeLambdaBody: false
+
+  BeforeWhile: false
+  IndentBraces: false
+
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+# 不要把短代码块重新压回一行。
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# 只允许真正的空 lambda 一行。
+# 防止：
+#     loop.quit(); });
+AllowShortLambdasOnASingleLine: Empty
+
+# 长逻辑表达式换行时，把 && / || 放到下一行开头。
+#
+# return a
+#     && b
+#     && c;
+BreakBeforeBinaryOperators: NonAssignment
+
+# 保持 continuation 比较规整。
+AlignOperands: Align
+
+# 不让格式化器顺便洗 include 顺序。
+# 项目目前已经有自己的 include 排列习惯。
+SortIncludes: false
+
+# 不重新排序 using。
+SortUsingDeclarations: false
+
+# 指针/引用贴类型。
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+
+# case 比 switch 缩进一级，可读性比较好。
+IndentCaseLabels: true
+
+# access specifier:
+# class Foo
+# {
+# public:
+#     ...
+# };
+AccessModifierOffset: -4
+
+# C++11 initializer 按正常 C++ 风格。
+Cpp11BracedListStyle: true
+
+# 不自动插入/删除额外空行。
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false

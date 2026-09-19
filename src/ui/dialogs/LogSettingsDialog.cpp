@@ -193,40 +193,23 @@ void LogSettingsDialog::onExportDiagnosticsClicked()
     }
 
     auto &diagnostic = DiagnosticCollector::instance();
-    auto report = diagnostic.generateReport();
-
-    if (fileName.endsWith(".json"))
+    const DiagnosticCollector::ReportFormat format =
+        fileName.endsWith(".json", Qt::CaseInsensitive)
+            ? DiagnosticCollector::ReportFormat::Json
+            : DiagnosticCollector::ReportFormat::Text;
+    QString error;
+    if (diagnostic.exportReport(fileName, format, &error))
     {
-        auto jsonDoc = diagnostic.toJsonDocument();
-        QFile file(fileName);
-        if (file.open(QIODevice::WriteOnly | QIODevice::Text))
-        {
-            file.write(jsonDoc.toJson());
-            file.close();
-            QMessageBox::information(this, tr("成功"),
-                                     tr("诊断报告已导出到：%1").arg(fileName));
-        }
-        else
-        {
-            QMessageBox::warning(this, tr("错误"), tr("无法保存文件"));
-        }
+        if (format == DiagnosticCollector::ReportFormat::Text)
+            PerformanceTimer::logAllStatistics();
+        QMessageBox::information(this, tr("成功"),
+                                 tr("诊断报告已导出到：%1").arg(fileName));
     }
     else
     {
-        QFile file(fileName);
-        if (file.open(QIODevice::WriteOnly | QIODevice::Text))
-        {
-            file.write(report.toFormattedString().toUtf8());
-            file.write("\n\n");
-            PerformanceTimer::logAllStatistics();
-            file.close();
-            QMessageBox::information(this, tr("成功"),
-                                     tr("诊断报告已导出到：%1").arg(fileName));
-        }
-        else
-        {
-            QMessageBox::warning(this, tr("错误"), tr("无法保存文件"));
-        }
+        QMessageBox::warning(this,
+                             tr("错误"),
+                             error.isEmpty() ? tr("无法保存文件") : error);
     }
 }
 

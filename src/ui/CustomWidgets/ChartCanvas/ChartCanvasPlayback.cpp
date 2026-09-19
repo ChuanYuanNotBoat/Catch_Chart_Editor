@@ -107,19 +107,29 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
     }
 
     double lastTriggeredTimeMs = -std::numeric_limits<double>::infinity();
-    while (m_nextPlayableNoteIndex < m_playableNoteTimesMs.size() &&
-           m_playableNoteTimesMs[m_nextPlayableNoteIndex] <=
-               schedulingTimeMs + kComparisonEpsilonMs)
+    if (schedulingTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs)
     {
-        const double noteTimeMs = m_playableNoteTimesMs[m_nextPlayableNoteIndex];
-        if (noteTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs &&
-            noteTimeMs > lastTriggeredTimeMs + kComparisonEpsilonMs)
+        const RainVisibilityIndex::IntervalRange dueNotes =
+            m_playableNoteIntervalIndex.overlapping(
+                m_lastNoteSoundTimeMs + kComparisonEpsilonMs,
+                schedulingTimeMs + kComparisonEpsilonMs);
+        for (qsizetype position = dueNotes.begin; position < dueNotes.end; ++position)
         {
-            m_noteSoundPlayer->playHitSound();
-            lastTriggeredTimeMs = noteTimeMs;
+            const double noteTimeMs = m_playableNoteIntervalIndex.entryAt(position).start;
+            if (noteTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs &&
+                noteTimeMs > lastTriggeredTimeMs + kComparisonEpsilonMs)
+            {
+                m_noteSoundPlayer->playHitSound();
+                lastTriggeredTimeMs = noteTimeMs;
+            }
         }
-        ++m_nextPlayableNoteIndex;
     }
+
+    m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
+                                                   m_playableNoteTimesMs.begin(),
+                                                   m_playableNoteTimesMs.end(),
+                                                   schedulingTimeMs) -
+                                               m_playableNoteTimesMs.begin());
 
     m_lastNoteSoundTimeMs = schedulingTimeMs;
 }
@@ -320,7 +330,9 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
 
     // ↑ / ↓ : scroll by one time division (snapped)
     // Shift + ↑ / ↓ : scroll by one beat (snapped)
-    if (event->key() == Qt::Key_Up || event->key() == Qt::Key_Down)
+    if ((event->key() == Qt::Key_Up || event->key() == Qt::Key_Down)
+        && (event->modifiers() == Qt::NoModifier
+            || event->modifiers() == Qt::ShiftModifier))
     {
         const bool shiftHeld = event->modifiers().testFlag(Qt::ShiftModifier);
         double step = shiftHeld ? 1.0 : (m_timeDivision > 0 ? 1.0 / m_timeDivision : 1.0);
@@ -367,6 +379,8 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
             event->accept();
             return;
         }
+        if (m_timesDirty || m_noteDataDirty)
+            rebuildNoteTimesCache();
 
         const bool shiftHeld = event->modifiers().testFlag(Qt::ShiftModifier);
         const QSet<int> currentSelection = m_selectionController->selectedIndices();
@@ -382,19 +396,83 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
             int closestIndex = -1;
             double closestDist = std::numeric_limits<double>::max();
             int closestX = kLaneWidth + 1;
-
-            for (int i = 0; i < notes.size(); ++i)
+            const auto noteBeat = [&notes](int index) {
+                return notes[index].getStartBeat();
+            };
+            if (m_sortedSelectionNoteIndicesByBeat.isEmpty())
             {
-                const double noteBeat = MathUtils::beatToFloat(
-                    notes[i].beatNum, notes[i].numerator, notes[i].denominator);
-                const double dist = qAbs(noteBeat - refBeat);
-
-                if (dist < closestDist - 1e-9
-                    || (qAbs(dist - closestDist) < 1e-9 && notes[i].x < closestX))
+                for (int index = 0; index < notes.size(); ++index)
                 {
-                    closestDist = dist;
-                    closestIndex = i;
-                    closestX = notes[i].x;
+                    const double dist = qAbs(noteBeat(index) - refBeat);
+                    if (dist < closestDist - 1e-9 ||
+                        (qAbs(dist - closestDist) < 1e-9 &&
+                         (notes[index].x < closestX ||
+                          (notes[index].x == closestX && index < closestIndex))))
+                    {
+                        closestDist = dist;
+                        closestIndex = index;
+                        closestX = notes[index].x;
+                    }
+                }
+            }
+            else
+            {
+                const auto lower = std::lower_bound(
+                    m_sortedSelectionNoteIndicesByBeat.cbegin(),
+                    m_sortedSelectionNoteIndicesByBeat.cend(),
+                    refBeat,
+                    [&noteBeat](int index, double beat) { return noteBeat(index) < beat; });
+
+                qsizetype left = std::distance(
+                    m_sortedSelectionNoteIndicesByBeat.cbegin(), lower) - 1;
+                qsizetype right = left + 1;
+                while (left >= 0 || right < m_sortedSelectionNoteIndicesByBeat.size())
+                {
+                    const bool haveLeft = left >= 0;
+                    const bool haveRight = right < m_sortedSelectionNoteIndicesByBeat.size();
+                    const double leftDistance = haveLeft
+                                                    ? qAbs(noteBeat(m_sortedSelectionNoteIndicesByBeat[left]) - refBeat)
+                                                    : std::numeric_limits<double>::max();
+                    const double rightDistance = haveRight
+                                                     ? qAbs(noteBeat(m_sortedSelectionNoteIndicesByBeat[right]) - refBeat)
+                                                     : std::numeric_limits<double>::max();
+                    const bool useLeft = leftDistance <= rightDistance;
+                    const double nextDistance = useLeft ? leftDistance : rightDistance;
+                    if (nextDistance > closestDist + 1e-9)
+                        break;
+
+                    qsizetype groupStart = useLeft ? left : right;
+                    qsizetype groupEnd = groupStart + 1;
+                    const double groupBeat = noteBeat(
+                        m_sortedSelectionNoteIndicesByBeat[groupStart]);
+                    while (groupStart > 0 &&
+                           qFuzzyCompare(noteBeat(m_sortedSelectionNoteIndicesByBeat[groupStart - 1]),
+                                         groupBeat))
+                        --groupStart;
+                    while (groupEnd < m_sortedSelectionNoteIndicesByBeat.size() &&
+                           qFuzzyCompare(noteBeat(m_sortedSelectionNoteIndicesByBeat[groupEnd]),
+                                         groupBeat))
+                        ++groupEnd;
+
+                    for (qsizetype position = groupStart; position < groupEnd; ++position)
+                    {
+                        const int index = m_sortedSelectionNoteIndicesByBeat[position];
+                        const double dist = qAbs(noteBeat(index) - refBeat);
+                        if (dist < closestDist - 1e-9 ||
+                            (qAbs(dist - closestDist) < 1e-9 &&
+                             (notes[index].x < closestX ||
+                              (notes[index].x == closestX && index < closestIndex))))
+                        {
+                            closestDist = dist;
+                            closestIndex = index;
+                            closestX = notes[index].x;
+                        }
+                    }
+
+                    if (useLeft)
+                        left = groupStart - 1;
+                    else
+                        right = groupEnd;
                 }
             }
 
@@ -471,11 +549,6 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
                 m_selectionController->select(newSelection);
                 autoScrollToNote(notes[newExtent]);
 
-                // Play note sound for the newly added end
-                if (m_noteSoundPlayer && m_noteSoundPlayer->isEnabled())
-                {
-                    m_noteSoundPlayer->playHitSound();
-                }
             }
             // else: already at edge, no-op
         }
@@ -686,6 +759,7 @@ void ChartCanvas::cancelPaste()
     {
         m_isPasting = false;
         m_pasteNotes.clear();
+        invalidatePastePreviewCache();
         m_pasteOriginalTimesMs.clear();
         m_pasteBaseOriginalTimeMs = std::numeric_limits<double>::max();
         m_pasteTimeOffsetRaw = 0.0;

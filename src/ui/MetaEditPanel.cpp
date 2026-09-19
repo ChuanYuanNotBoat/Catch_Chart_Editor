@@ -2,8 +2,11 @@
 #include "controller/ChartController.h"
 #include "audio/AudioConverter.h"
 #include "model/MetaData.h"
+#include "utils/ImageConverter.h"
 #include "utils/Logger.h"
 #include <QMessageBox>
+#include <QPointer>
+#include <QImageReader>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
@@ -18,6 +21,38 @@
 #include <QDir>
 #include <QTimer>
 #include <QSizePolicy>
+#include <QStringList>
+
+#include <utility>
+namespace
+{
+// "*.png *.jpg ..." patterns for the background picker. Core formats are
+// always listed; additional entries mirror the image format plugins actually
+// available in the current environment (via QImageReader), so webp/tiff/tga
+// and friends appear automatically once their Qt plugins are installed.
+QString buildBackgroundImagePatterns()
+{
+    static const char *kCoreExtensions[] = {"png", "jpg", "jpeg", "bmp", "gif"};
+    QStringList extensions;
+    for (const char *coreExtension : kCoreExtensions)
+        extensions << QLatin1String(coreExtension);
+
+    const QList<QByteArray> readableFormats = QImageReader::supportedImageFormats();
+    for (const QByteArray &format : readableFormats)
+    {
+        const QString name = QString::fromLatin1(format);
+        if (name.size() <= 5 && !extensions.contains(name))
+            extensions << name;
+    }
+
+    QStringList patterns;
+    for (const QString &extension : extensions)
+        patterns << QStringLiteral("*.") + extension;
+    return patterns.join(QLatin1Char(' '));
+}
+} // namespace
+
+
 
 MetaEditPanel::MetaEditPanel(QWidget *parent)
     : RightPanel(parent),
@@ -56,6 +91,7 @@ void MetaEditPanel::setupUi()
     m_chartAuthorLabel = new QLabel(tr("Chart Author:"), this);
     m_formLayout->addRow(m_chartAuthorLabel, m_chartAuthorEdit);
     m_audioFileEdit = new QLineEdit(this);
+    m_audioFileEdit->setObjectName(QStringLiteral("metaAudioFileEdit"));
     m_audioBrowseBtn = new QPushButton(tr("Browse..."), this);
     QHBoxLayout *audioLayout = new QHBoxLayout;
     audioLayout->addWidget(m_audioFileEdit);
@@ -70,22 +106,46 @@ void MetaEditPanel::setupUi()
         if (!fileName.isEmpty()) m_audioFileEdit->setText(fileName); });
 
     m_backgroundFileEdit = new QLineEdit(this);
+    m_backgroundFileEdit->setObjectName(QStringLiteral("metaBackgroundFileEdit"));
     m_bgBrowseBtn = new QPushButton(tr("Browse..."), this);
     QHBoxLayout *bgLayout = new QHBoxLayout;
     bgLayout->addWidget(m_backgroundFileEdit);
     bgLayout->addWidget(m_bgBrowseBtn);
-    m_backgroundLabel = new QLabel(tr("Background (jpg):"), this);
+    m_backgroundLabel = new QLabel(tr("Background:"), this);
     m_formLayout->addRow(m_backgroundLabel, bgLayout);
     connect(m_bgBrowseBtn, &QPushButton::clicked, [this]()
             {
-        QString fileName = QFileDialog::getOpenFileName(this, tr("Select Background"), QString(), tr("JPEG Files (*.jpg)"));
+        // Core formats are always offered; the remaining entries follow the
+        // image plugins actually available in this environment, so formats
+        // such as webp/tiff/tga appear automatically once their Qt plugins
+        // are installed. The importer itself re-validates decodability by
+        // content, so the picker never needs hardcoding for those.
+        QString fileName = QFileDialog::getOpenFileName(this, tr("Select Background"), QString(),
+            tr("Image Files (%1);;All Files (*.*)")
+                .arg(buildBackgroundImagePatterns()));
         if (fileName.isEmpty())
             return;
 
-        const QString imported = importResourceToChartDirectory(fileName);
-        const QString finalName = imported.isEmpty() ? fileName : imported;
-        m_backgroundFileEdit->setText(finalName);
-        emit backgroundResourceChanged(finalName); });
+        QString imported;
+        QString error;
+        const BackgroundImportStatus status =
+            importBackgroundImage(fileName, &imported, &error);
+        if (status == BackgroundImportStatus::Failed)
+        {
+            showBackgroundImportError(error.isEmpty()
+                                          ? tr("Failed to import background image.")
+                                          : error);
+            return;
+        }
+        if (status == BackgroundImportStatus::Skipped)
+        {
+            showBackgroundImportError(tr("Background image not found: %1").arg(fileName));
+            return;
+        }
+        if (status == BackgroundImportStatus::KeptOriginal)
+            notifyBackgroundKeptOriginal(imported);
+        m_backgroundFileEdit->setText(imported);
+        emit backgroundResourceChanged(imported); });
 
     m_previewTimeSpin = new QSpinBox(this);
     m_previewTimeSpin->setRange(0, 999999);
@@ -167,8 +227,17 @@ void MetaEditPanel::onSaveClicked()
 {
     m_hasPendingMetaSave = false;
     m_autoSaveTimer->stop();
-    applyMetaAndPersist(false);
-    emit saveRequested();
+    m_saveAfterAudioConversion = true;
+    const ApplyResult result = applyMetaAndPersist(false);
+    if (result == ApplyResult::Applied)
+    {
+        m_saveAfterAudioConversion = false;
+        emit saveRequested();
+    }
+    else if (result == ApplyResult::Failed)
+    {
+        m_saveAfterAudioConversion = false;
+    }
 }
 
 void MetaEditPanel::onMetaFieldChanged()
@@ -189,10 +258,11 @@ void MetaEditPanel::flushPendingMetaSave()
 
 void MetaEditPanel::setChartController(ChartController *controller)
 {
+    if (m_chartController != controller)
+        m_saveAfterAudioConversion = false;
     if (m_chartController)
     {
         disconnect(m_chartController, &ChartController::metaDataChanged, this, &MetaEditPanel::refreshMeta);
-        disconnect(m_chartController, &ChartController::chartLoaded, this, &MetaEditPanel::refreshMeta);
     }
 
     m_chartController = controller;
@@ -200,7 +270,6 @@ void MetaEditPanel::setChartController(ChartController *controller)
         return;
 
     connect(m_chartController, &ChartController::metaDataChanged, this, &MetaEditPanel::refreshMeta, Qt::UniqueConnection);
-    connect(m_chartController, &ChartController::chartLoaded, this, &MetaEditPanel::refreshMeta, Qt::UniqueConnection);
     refreshMeta();
 }
 
@@ -226,7 +295,7 @@ void MetaEditPanel::retranslateUi()
     if (m_audioOggLabel)
         m_audioOggLabel->setText(tr("Audio (ogg):"));
     if (m_backgroundLabel)
-        m_backgroundLabel->setText(tr("Background (jpg):"));
+        m_backgroundLabel->setText(tr("Background:"));
     if (m_previewTimeLabel)
         m_previewTimeLabel->setText(tr("Preview Time:"));
     if (m_firstBpmLabel)
@@ -294,6 +363,109 @@ QString MetaEditPanel::importResourceToChartDirectory(const QString &sourcePath)
     return fileName;
 }
 
+MetaEditPanel::BackgroundImportStatus
+MetaEditPanel::importBackgroundImage(const QString &sourcePath,
+                                     QString *outRelativeName,
+                                     QString *outError)
+{
+    if (outRelativeName)
+        outRelativeName->clear();
+    if (outError)
+        outError->clear();
+
+    const QString chartPath = m_chartController ? m_chartController->chartFilePath() : QString();
+    if (chartPath.isEmpty())
+    {
+        if (outError)
+            *outError = tr("No chart is open, cannot import the background image.");
+        return BackgroundImportStatus::Failed;
+    }
+    const QDir chartDir(QFileInfo(chartPath).absolutePath());
+    if (!chartDir.exists())
+    {
+        if (outError)
+            *outError = tr("Cannot import background image: chart directory is not available.");
+        return BackgroundImportStatus::Failed;
+    }
+
+    const QFileInfo sourceInfo(sourcePath);
+    if (!sourceInfo.exists() || !sourceInfo.isFile())
+        return BackgroundImportStatus::Skipped;
+
+    const ImageConverter::ImageCategory category = ImageConverter::inspectImage(sourcePath);
+    switch (category)
+    {
+    case ImageConverter::ImageCategory::Native:
+    case ImageConverter::ImageCategory::MultiFrame:
+    case ImageConverter::ImageCategory::Unknown:
+    {
+        // PNG/JPEG payloads are copied as-is; multi-frame or unverifiable
+        // images keep their original format to avoid dropping frames.
+        const QString imported = importResourceToChartDirectory(sourcePath);
+        if (imported.isEmpty())
+        {
+            if (outError)
+                *outError = tr("Failed to copy background image into the chart directory.");
+            return BackgroundImportStatus::Failed;
+        }
+        if (outRelativeName)
+            *outRelativeName = imported;
+        return category == ImageConverter::ImageCategory::Native
+                   ? BackgroundImportStatus::Imported
+                   : BackgroundImportStatus::KeptOriginal;
+    }
+    case ImageConverter::ImageCategory::SingleFrame:
+    {
+        const QString baseName = sourceInfo.completeBaseName().isEmpty()
+                                     ? QStringLiteral("background")
+                                     : sourceInfo.completeBaseName();
+        QString fileName = baseName + QStringLiteral(".png");
+        QString targetPath = chartDir.filePath(fileName);
+        for (int i = 2; QFileInfo::exists(targetPath); ++i)
+        {
+            fileName = QStringLiteral("%1_%2.png").arg(baseName).arg(i);
+            targetPath = chartDir.filePath(fileName);
+        }
+
+        QString convertError;
+        if (!ImageConverter::convertToPng(sourceInfo.absoluteFilePath(), targetPath, &convertError))
+        {
+            Logger::warn(QString("Failed to convert background image to PNG: %1 -> %2 (%3)")
+                             .arg(sourceInfo.absoluteFilePath(), targetPath, convertError));
+            if (outError)
+                *outError = tr("Failed to convert background image to PNG:\n%1").arg(convertError);
+            return BackgroundImportStatus::Failed;
+        }
+        Logger::info(QString("Converted background image to PNG: %1 -> %2")
+                         .arg(sourceInfo.absoluteFilePath(), targetPath));
+        if (outRelativeName)
+            *outRelativeName = fileName;
+        return BackgroundImportStatus::Imported;
+    }
+    case ImageConverter::ImageCategory::Unreadable:
+    default:
+        Logger::warn(QString("Cannot decode background image: %1").arg(sourcePath));
+        if (outError)
+            *outError = tr("Cannot decode background image: %1").arg(sourcePath);
+        return BackgroundImportStatus::Failed;
+    }
+}
+
+void MetaEditPanel::notifyBackgroundKeptOriginal(const QString &fileName)
+{
+    Q_UNUSED(fileName);
+    QMessageBox::information(this,
+                             tr("Background image kept as-is"),
+                             tr("The image contains multiple frames (animated image) or its "
+                                "frame count could not be verified safely, so it was kept "
+                                "in its original format instead of being converted."));
+}
+
+void MetaEditPanel::showBackgroundImportError(const QString &message)
+{
+    QMessageBox::critical(this, tr("Error"), message);
+}
+
 MetaData MetaEditPanel::collectMetaFromUi() const
 {
     MetaData meta;
@@ -328,10 +500,12 @@ bool MetaEditPanel::isSameMeta(const MetaData &a, const MetaData &b) const
            a.speed == b.speed;
 }
 
-bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
+MetaEditPanel::ApplyResult MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
 {
     if (!m_chartController || !m_chartController->chart())
-        return false;
+        return ApplyResult::Failed;
+    if (m_audioConversionInProgress)
+        return ApplyResult::Pending;
 
     MetaData next = collectMetaFromUi();
     const MetaData current = m_chartController->chart()->meta();
@@ -339,11 +513,19 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
     bool bgChanged = false;
     bool audioChanged = false;
 
-    // Import background file to chart directory if absolute path.
+    // Import background file to chart directory if absolute path. Relative
+    // paths (resources already living next to the chart) are never touched,
+    // so legacy JPG/PNG references stay exactly as they are.
     if (!next.backgroundFile.trimmed().isEmpty() && QDir::isAbsolutePath(next.backgroundFile))
     {
-        const QString imported = importResourceToChartDirectory(next.backgroundFile);
-        if (!imported.isEmpty())
+        QString imported;
+        QString error;
+        const BackgroundImportStatus status =
+            importBackgroundImage(next.backgroundFile, &imported, &error);
+        switch (status)
+        {
+        case BackgroundImportStatus::Imported:
+        case BackgroundImportStatus::KeptOriginal:
         {
             next.backgroundFile = imported;
             if (m_backgroundFileEdit->text() != imported)
@@ -352,6 +534,22 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
                 m_backgroundFileEdit->setText(imported);
                 m_isRefreshingUi = false;
             }
+            if (status == BackgroundImportStatus::KeptOriginal)
+                notifyBackgroundKeptOriginal(imported);
+            break;
+        }
+        case BackgroundImportStatus::Skipped:
+            // Source vanished or is not a regular file: keep the reference
+            // untouched (same silent behavior as before this refactor).
+            break;
+        case BackgroundImportStatus::Failed:
+        default:
+            // Transactional: on any hard failure the chart metadata stays
+            // completely untouched and nothing is persisted.
+            showBackgroundImportError(error.isEmpty()
+                                          ? tr("Failed to import background image.")
+                                          : error);
+            return ApplyResult::Failed;
         }
     }
     if (next.backgroundFile != current.backgroundFile)
@@ -373,7 +571,7 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
             {
                 QMessageBox::critical(this, tr("Error"),
                                       tr("Cannot convert audio: chart directory is not available."));
-                return false;
+                return ApplyResult::Failed;
             }
 
             const QFileInfo sourceInfo(importSource);
@@ -388,16 +586,54 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
                 targetPath = chartDir.filePath(fileName);
             }
 
-            QString convertError;
-            if (AudioConverter::convertToOggWithProgress(this, importSource, targetPath,
-                                                         &convertError)
-                    .isEmpty())
-            {
-                QMessageBox::critical(this, tr("Error"),
-                                      tr("Failed to convert audio to OGG:\n%1").arg(convertError));
-                return false;
-            }
-            importSource = targetPath;
+            const QPointer<ChartController> controllerGuard(m_chartController);
+            const quint64 sourceRevision = m_chartController->revision();
+            const QString sourceChartPath = chartPath;
+            m_audioConversionInProgress = true;
+            convertAudioToOggAsync(
+                importSource,
+                targetPath,
+                [this,
+                 controllerGuard,
+                 sourceRevision,
+                 sourceChartPath,
+                 importSource,
+                 targetPath,
+                 persistToDisk](bool success, const QString &convertError) {
+                    m_audioConversionInProgress = false;
+                    const bool stillCurrent = controllerGuard
+                        && controllerGuard == m_chartController
+                        && controllerGuard->chartFilePath() == sourceChartPath
+                        && controllerGuard->revision() == sourceRevision
+                        && m_audioFileEdit->text() == importSource;
+                    if (!stillCurrent)
+                    {
+                        QFile::remove(targetPath);
+                        m_saveAfterAudioConversion = false;
+                        return;
+                    }
+                    if (!success)
+                    {
+                        QFile::remove(targetPath);
+                        m_saveAfterAudioConversion = false;
+                        QMessageBox::critical(
+                            this,
+                            tr("Error"),
+                            tr("Failed to convert audio to OGG:\n%1").arg(convertError));
+                        return;
+                    }
+
+                    m_isRefreshingUi = true;
+                    m_audioFileEdit->setText(targetPath);
+                    m_isRefreshingUi = false;
+                    const bool saveAfterApply = std::exchange(m_saveAfterAudioConversion, false);
+                    const ApplyResult result = applyMetaAndPersist(persistToDisk);
+                    if (saveAfterApply && result == ApplyResult::Applied)
+                        emit saveRequested();
+                    else if (saveAfterApply && result == ApplyResult::Pending)
+                        m_saveAfterAudioConversion = true;
+                });
+            return ApplyResult::Pending;
         }
 
         const QString imported = importResourceToChartDirectory(importSource);
@@ -419,11 +655,11 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
         m_chartController->setMetaData(next);
 
     if (!persistToDisk)
-        return true;
+        return ApplyResult::Applied;
 
     const QString path = m_chartController->chartFilePath();
     if (path.isEmpty())
-        return false;
+        return ApplyResult::Failed;
     const bool saved = m_chartController->saveChart(path);
 
     // Emit resource change signals after save so MainWindow can reload.
@@ -432,5 +668,15 @@ bool MetaEditPanel::applyMetaAndPersist(bool persistToDisk)
     if (audioChanged)
         emit audioFileChanged(next.audioFile);
 
-    return saved;
+    return saved ? ApplyResult::Applied : ApplyResult::Failed;
+}
+
+void MetaEditPanel::convertAudioToOggAsync(const QString &inputPath,
+                                           const QString &outputPath,
+                                           AudioConversionCompletion completion)
+{
+    AudioConverter::convertToOggWithProgressAsync(this,
+                                                  inputPath,
+                                                  outputPath,
+                                                  std::move(completion));
 }

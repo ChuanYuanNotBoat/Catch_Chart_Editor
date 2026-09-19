@@ -1,5 +1,8 @@
 ﻿# Beat Normalizer Process Plugin (Python)  
-# Beat Normalizer 流程插件（Python）
+**Beat Normalizer 流程插件（Python）**
+
+> Legacy Host API v2 sample; last verified against the v3 host on 2026-09-10.
+> This script directly overwrites input files and does not use host batch undo. Test only on copies.
 
 This sample ports `malody_catch_colour_changer.py` to the new process-plugin runtime.  
 此示例将 `malody_catch_colour_changer.py` 移植至新的流程插件运行时环境。
@@ -20,8 +23,9 @@ Files:
 - Supports `.mc` and `.mcz`.  
 - 支持 `.mc` 与 `.mcz` 格式。
 
-- Writes changes directly to original files.  
-- 处理时会直接覆盖原文件。
+- Writes changes directly to original files and cannot be rolled back by host Undo.
+
+- 处理时会直接覆盖原文件，宿主 Undo 无法撤销。
 
 ## Install (manual)  
 ## 安装步骤（手动）

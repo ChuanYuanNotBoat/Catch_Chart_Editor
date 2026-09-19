@@ -1,5 +1,6 @@
 ﻿#include "ProjectIO.h"
 #include "utils/Logger.h"
+#include "utils/FileUtils.h"
 #include "file/ChartFileSystem.h"
 #include <QDir>
 #include <QFile>
@@ -58,8 +59,10 @@ void ProjectIO::initializeBuiltinFileTypes()
         ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Audio File", false, nullptr, 90);
     }
 
-    // 注册常见图片格式
-    QStringList imageExts = {"jpg", "jpeg", "png", "bmp", "webp", "gif"};
+    // 注册常见图片格式（含依赖 Qt Image Formats 插件的扩展格式，
+    // 供 .mcz 打包时的引用资源收集使用）
+    QStringList imageExts = {"jpg", "jpeg", "png", "bmp", "webp", "gif",
+                             "tif", "tiff", "tga"};
     for (const QString &ext : imageExts)
     {
         ChartFileSystem::ChartFileSystemRegistry::registerFileType(ext, "Image File", false, nullptr, 90);
@@ -242,12 +245,11 @@ namespace
             return false;
         }
 
-        if (QFile::exists(outputMczPath))
-            QFile::remove(outputMczPath);
-
-        if (!QFile::rename(tempZipPath, outputMczPath))
+        QString replaceError;
+        if (!FileUtils::copyFileAtomically(tempZipPath, outputMczPath, &replaceError))
         {
-            Logger::error(QString("%1 - Failed to rename zip to mcz").arg(logTag));
+            Logger::error(QString("%1 - Failed to publish MCZ atomically: %2")
+                              .arg(logTag, replaceError));
             return false;
         }
 
@@ -267,8 +269,7 @@ namespace
         const QString dstDir = QFileInfo(dst).absolutePath();
         if (!QDir().mkpath(dstDir))
             return false;
-        QFile::remove(dst);
-        return QFile::copy(src, dst);
+        return FileUtils::copyFileSafely(src, dst);
     }
 }
 
