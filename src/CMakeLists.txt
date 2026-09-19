@@ -205,6 +205,11 @@ endif()
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/docs")
     add_custom_command(TARGET CatchChartEditor POST_BUILD
+        # Prune the destination first: copy_directory does not delete files that
+        # no longer exist in the source tree, which used to leak removed docs
+        # (e.g. NOTE_CHAIN_ASSIST_*.md, PLUGIN_BUG_TRACKER.md) into packaged builds.
+        COMMAND ${CMAKE_COMMAND} -E remove_directory
+            $<TARGET_FILE_DIR:CatchChartEditor>/docs
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/docs
             $<TARGET_FILE_DIR:CatchChartEditor>/docs

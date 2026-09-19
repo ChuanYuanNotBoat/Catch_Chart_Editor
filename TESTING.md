@@ -1,7 +1,7 @@
 # Testing Guide
 
-> 适用版本：Beta v1.11.1 + Unreleased maintenance
-> 最后核对：2026-09-12
+> 适用版本：Beta v1.11.2 发布候选
+> 最后核对：2026-09-19
 
 ## 测试目标
 

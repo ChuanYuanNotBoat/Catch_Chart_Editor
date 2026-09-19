@@ -1292,7 +1292,7 @@ namespace
         if (!ChartIO::load(path, loaded, false))
             return false;
 
-        if (loaded.notes().size() != 3)
+        if (loaded.notes().size() != 4)
             return false;
         if (loaded.bpmList().size() != 1 || !hasBpmEntry(loaded.bpmList(), 0, 0, 1, 150.0))
             return false;
@@ -1308,7 +1308,7 @@ namespace
 
         bool hasNormal = false;
         bool hasRain = false;
-        bool hasSound = false;
+        bool hasSound = false, hasPrimaryAudio = false;
         for (const Note &note : loaded.notes())
         {
             if (note.type == NoteType::NORMAL && note.beatNum == 1 && note.x == 64)
@@ -1317,8 +1317,10 @@ namespace
                 hasRain = true;
             if (note.type == NoteType::SOUND && note.beatNum == 4 && note.sound == "hit.wav" && note.vol == 88 && note.offset == 12)
                 hasSound = true;
+            if (note.type == NoteType::SOUND && note.sound == "roundtrip.ogg" && note.offset == 222 && note.vol == 100)
+                hasPrimaryAudio = true;
         }
-        return hasNormal && hasRain && hasSound;
+        return hasNormal && hasRain && hasSound && hasPrimaryAudio;
     }
 
     bool testChartIoLoadFlatMetaFields()

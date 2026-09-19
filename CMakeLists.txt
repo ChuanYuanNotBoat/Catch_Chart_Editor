@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.20)
-project(CatchChartEditor VERSION 1.11.1 LANGUAGES C CXX)
+project(CatchChartEditor VERSION 1.11.2 LANGUAGES C CXX)
 
 include(CTest)
 

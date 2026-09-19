@@ -1,10 +1,10 @@
 # Malody Catch Editor 开发者项目指南
 
 > 面向新开发者和代码代理的当前仓库速查。
-> 当前版本：**Beta v1.11.1（2026-09-07）**
-> 仓库状态：**Unreleased maintenance（2026-09-11）**
+> 当前版本：**Beta v1.11.2（2026-09-19）**
+> 仓库状态：**Release candidate（2026-09-19）**
 > Git 标签：待发布
-> 最后核对：2026-09-11
+> 最后核对：2026-09-19
 
 ## 1. 项目边界
 
@@ -190,8 +190,8 @@ Host API 当前为 v3，扩展点包括 tool actions、floating panels、canvas 
 
 ## 10. 文档与版本规则
 
-- 当前发布版本是 Beta v1.11.1；开发中的维护内容写入 `history.md` 顶部 `Unreleased`。
-- 已发布版本段落冻结，不把后续工作回填到 Beta v1.11.1。
+- 当前发布版本是 Beta v1.11.2；开发中的维护内容写入 `history.md` 顶部 `Unreleased`。
+- 已发布版本段落冻结，不把后续工作回填到 Beta v1.11.2。
 - 可验证的长期优化/重构事项维护在 [ENGINEERING_TODO.md](ENGINEERING_TODO.md)；临时审计快照和重复迁移草稿不提交。
 - 新增或删除文档时同步 [README.md](README.md) 总索引。
 

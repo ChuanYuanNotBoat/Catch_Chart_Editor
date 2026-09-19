@@ -1,8 +1,8 @@
 # Engineering TODO
 
-Last audited: 2026-09-12
+Last audited: 2026-09-19
 
-Target: Beta v1.11.1 maintenance line (`v2-main`)
+Target: Beta v1.11.2 maintenance line (`v2-main`)
 
 ## Strategy
 

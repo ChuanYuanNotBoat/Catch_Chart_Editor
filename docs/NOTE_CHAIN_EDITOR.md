@@ -1,8 +1,8 @@
 # 原生 Note Chain 曲线编辑器
 
-> 适用版本：Beta v1.11.1 + Unreleased maintenance
+> 适用版本：Beta v1.11.2 + Unreleased maintenance
 > 权威实现：`src/editor/NoteChain/`
-> 最后核对：2026-09-10
+> 最后核对：2026-09-19
 
 ## 定位
 

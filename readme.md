@@ -5,8 +5,8 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 ## Version status / 版本状态
 
-- Current release / 当前版本：**Beta v1.11.1（2026-09-07）**
-- Repository state / 仓库状态：**Unreleased maintenance（2026-09-11）**
+- Current release / 当前版本：**Beta v1.11.2（2026-09-19）**
+- Repository state / 仓库状态：**Release candidate（2026-09-19）**
 - Git tag / 标签：待发布
 - Download / 下载：[GitHub Releases](https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor/releases/latest)
 
@@ -26,12 +26,12 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 ## Current focus / 当前重点
 
-- Beta v1.11.1 adds chart statistics, Catch Star analysis, official-style Rain reward preview, Rain-tail editing, chart refresh, and automatic OGG conversion.
-  Beta v1.11.1 新增谱面统计、Catch Star 分析、官方逻辑 Rain 奖励点预览、Rain 尾部编辑、谱面刷新和自动 OGG 转换。
-- The current maintenance line hardens atomic save/recovery and removes large-chart editor hot paths through bulk mutations, render-only drag previews, typed invalidation, and asynchronous statistics.
-  当前维护线加强原子保存与崩溃恢复，并通过批量变更、纯渲染拖拽预览、细分失效信号和异步统计消除大谱面编辑热点。
-- Future requirements are now recorded: CCE will mature its internal document/layer architecture before any repository-level core split, while mobile may consume a compatible subset earlier.
-  未来需求已经形成规划：CCE 先在当前仓库内完善文档/图层架构，再考虑核心拆仓；移动端可在兼容边界稳定后提前接入受控子集。
+- Beta v1.11.2 fixes shortcut capture, persistence, and conflict handling, adds Alt+Up/Down note-mode cycling, and adds `View -> Move View...` for relocating panels; it also carries the AutoTiming 2 based BPM measurement, explicit tempo-map application, and expanded background image import from the same maintenance line.
+  Beta v1.11.2 修复快捷键录入、持久化与冲突处理，新增 Alt+↑/↓ 音符模式循环与 `View -> Move View...` 面板位置迁移；同维护线还包含 AutoTiming 2 BPM 测量、显式 tempo map 应用与背景图导入格式扩展。
+- Export now flushes the working copy before packaging `.mcz`, restores `meta.offset` through the main audio Sound Note, and keeps OGG conversion and background import atomic.
+  导出 `.mcz` 前先落盘工作副本，通过主音频 Sound Note 补回 `meta.offset`，OGG 转换与背景导入保持原子提交。
+- Unified shortcut routing across canvas, Note Chain, and plugin tools remains a tracked TODO in [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md); the settings dialog currently covers registered menu actions only.
+  画布、Note Chain 与插件工具的快捷键统一路由仍是 [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md) 中的 TODO；快捷键设置当前只覆盖已注册的菜单动作。
 
 完整变更见 [docs/history.md](docs/history.md) 顶部，近期维护见 [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md)，长期方向见 [docs/FUTURE_ROADMAP.md](docs/FUTURE_ROADMAP.md)。
 
