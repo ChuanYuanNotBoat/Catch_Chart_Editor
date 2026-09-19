@@ -266,6 +266,11 @@ void Settings::setBeatNumberFontSize(int size)
     m_settings.setValue("view/beatNumberFontSize", qBound(6, size, 24));
 }
 
+bool Settings::hasShortcut(const QString &action) const
+{
+    return m_settings.contains("shortcut/" + action);
+}
+
 QKeySequence Settings::shortcut(const QString &action) const
 {
     return QKeySequence(m_settings.value("shortcut/" + action).toString());

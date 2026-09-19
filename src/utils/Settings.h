@@ -67,6 +67,7 @@ public:
     int beatNumberFontSize() const;
     void setBeatNumberFontSize(int size);
 
+    bool hasShortcut(const QString &action) const;
     QKeySequence shortcut(const QString &action) const;
     void setShortcut(const QString &action, const QKeySequence &seq);
 

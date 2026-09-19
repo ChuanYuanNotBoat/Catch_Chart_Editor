@@ -289,20 +289,6 @@ namespace
         return key == Qt::Key_Control || key == Qt::Key_Shift || key == Qt::Key_Alt || key == Qt::Key_Meta;
     }
 
-    int modifierCount(Qt::KeyboardModifiers mods)
-    {
-        int count = 0;
-        if (mods.testFlag(Qt::ControlModifier))
-            ++count;
-        if (mods.testFlag(Qt::AltModifier))
-            ++count;
-        if (mods.testFlag(Qt::ShiftModifier))
-            ++count;
-        if (mods.testFlag(Qt::MetaModifier))
-            ++count;
-        return count;
-    }
-
     QString modifiersPreviewText(Qt::KeyboardModifiers mods)
     {
         QStringList parts;
@@ -569,7 +555,7 @@ namespace
             int k3 = seq.count() > 2 ? seq[2] : 0;
             int k4 = seq.count() > 3 ? seq[3] : 0;
             m_sequence = QKeySequence(k1, k2, k3, k4);
-            m_blockedChordAttempt = false;
+            m_replaceOnNextKey = true;
             refreshText();
         }
 
@@ -578,13 +564,10 @@ namespace
         {
             if (!event || event->isAutoRepeat())
                 return;
-            if (m_blockedChordAttempt)
-                return;
-
             const int key = event->key();
             const Qt::KeyboardModifiers mods = event->modifiers();
 
-            if ((key == Qt::Key_Backspace || key == Qt::Key_Delete) && mods == Qt::NoModifier)
+            if (key == Qt::Key_Backspace && mods == Qt::NoModifier)
             {
                 setKeySequence(QKeySequence());
                 return;
@@ -601,13 +584,8 @@ namespace
                 return;
             }
 
-            const int comboKeyCount = modifierCount(mods) + 1;
-            if (comboKeyCount > 2)
-            {
-                m_blockedChordAttempt = true;
-                return;
-            }
-
+            // Qt supports Ctrl+Shift+O and Alt+Up; modifier count must not
+            // reject combinations that the application itself uses by default.
             appendChord(key | mods);
             m_hasModifierPreview = false;
         }
@@ -624,17 +602,17 @@ namespace
             if (!event || event->isAutoRepeat())
                 return;
 
-            if (m_blockedChordAttempt && QApplication::keyboardModifiers() == Qt::NoModifier)
-            {
-                m_blockedChordAttempt = false;
-                refreshText();
-            }
-
             if (m_hasModifierPreview && QApplication::keyboardModifiers() == Qt::NoModifier)
             {
                 refreshText();
                 m_hasModifierPreview = false;
             }
+        }
+
+        void focusInEvent(QFocusEvent *event) override
+        {
+            QLineEdit::focusInEvent(event);
+            m_replaceOnNextKey = true;
         }
 
         void focusOutEvent(QFocusEvent *event) override
@@ -652,6 +630,14 @@ namespace
         {
             if (chord == 0)
                 return;
+
+            if (m_replaceOnNextKey)
+            {
+                m_sequence = QKeySequence(chord);
+                m_replaceOnNextKey = false;
+                refreshText();
+                return;
+            }
 
             int keys[4] = {0, 0, 0, 0};
             const int count = qMin(m_sequence.count(), 4);
@@ -674,7 +660,7 @@ namespace
 
         QKeySequence m_sequence;
         bool m_hasModifierPreview = false;
-        bool m_blockedChordAttempt = false;
+        bool m_replaceOnNextKey = true;
     };
 
     QString sessionWorkingCopyRootDir()
@@ -2407,8 +2393,9 @@ void MainWindow::registerShortcutAction(QAction *action, const QString &actionId
     if (!d->shortcutActionOrder.contains(actionId))
         d->shortcutActionOrder.append(actionId);
 
-    const QKeySequence saved = Settings::instance().shortcut(actionId);
-    action->setShortcut(saved.isEmpty() ? defaultShortcut : saved);
+    // An explicitly saved empty sequence means disabled, not "use default".
+    const Settings &settings = Settings::instance();
+    action->setShortcut(settings.hasShortcut(actionId) ? settings.shortcut(actionId) : defaultShortcut);
 }
 
 void MainWindow::configureShortcuts()
@@ -2426,7 +2413,7 @@ void MainWindow::configureShortcuts()
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
     layout->addWidget(new QLabel(tr("Rebind shortcuts. Clear a field to disable a shortcut."), &dialog));
-    QLabel *limitHint = new QLabel(tr("Note: currently only 2-key combos using Shift/Ctrl are reliably supported. More complex combos and multi-main-key single-step bindings are not supported yet."), &dialog);
+    QLabel *limitHint = new QLabel(tr("Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Canvas-specific keys are not yet configurable here."), &dialog);
     limitHint->setWordWrap(true);
     layout->addWidget(limitHint);
 
@@ -2467,34 +2454,37 @@ void MainWindow::configureShortcuts()
             {
         for (auto it = editors.constBegin(); it != editors.constEnd(); ++it)
             it.value()->setKeySequence(d->shortcutDefaults.value(it.key())); });
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, [&dialog]()
-            { dialog.accept(); });
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, [this, &dialog, &editors]()
+            {
+        // Validate while the dialog is still open: rejected duplicates should
+        // not discard all the user's edits.
+        QHash<QString, QString> usedByShortcut;
+        for (const QString &actionId : d->shortcutActionOrder)
+        {
+            ShortcutCaptureEdit *edit = editors.value(actionId, nullptr);
+            if (!edit)
+                continue;
+            const QString portable = edit->keySequence().toString(QKeySequence::PortableText);
+            if (portable.isEmpty())
+                continue;
+            if (usedByShortcut.contains(portable))
+            {
+                QMessageBox::warning(&dialog, tr("Keyboard Shortcuts"),
+                    tr("Shortcut conflict: %1 is assigned to both %2 and %3.")
+                        .arg(portable,
+                             d->shortcutActions.value(usedByShortcut.value(portable))->text(),
+                             d->shortcutActions.value(actionId)->text()));
+                edit->setFocus();
+                return;
+            }
+            usedByShortcut.insert(portable, actionId);
+        }
+        dialog.accept(); });
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
 
     if (dialog.exec() != QDialog::Accepted)
         return;
-
-    QHash<QString, QString> usedByShortcut;
-    for (const QString &actionId : d->shortcutActionOrder)
-    {
-        ShortcutCaptureEdit *edit = editors.value(actionId, nullptr);
-        if (!edit)
-            continue;
-
-        const QString portable = edit->keySequence().toString(QKeySequence::PortableText);
-        if (portable.isEmpty())
-            continue;
-        if (usedByShortcut.contains(portable) && usedByShortcut.value(portable) != actionId)
-        {
-            QMessageBox::warning(
-                this,
-                tr("Keyboard Shortcuts"),
-                tr("Shortcut conflict detected. Please assign unique shortcuts."));
-            return;
-        }
-        usedByShortcut.insert(portable, actionId);
-    }
 
     for (const QString &actionId : d->shortcutActionOrder)
     {
