@@ -1,6 +1,14 @@
 ﻿# 历史更新
 
-## Unreleased（2026-09-12）
+## Unreleased（2026-09-15）
+
+- **新增**：BPM 自动测速升级为 AutoTiming 2：`Measure BPM` 在旧版测量结果旁新增 AutoTiming 2 建议（推荐 BPM 与 supported/uncertain 证据等级、2 的幂次速度族关系提示、整体/速度/速度族置信度、可靠覆盖区间，“Use suggestion”可一键套用），测量结果详情新增节奏候选诊断（细分 / 复节奏 / 织体候选及置信度），无稳定候选或分析不可用时会说明原因；对话框新增 `Apply AutoTiming 2 BPM map`，可把 tempo track 投影出的变拍点写入 BPM 表（只替换首个相位锚点之后的条目，保留之前的原有时间轴），并显示生成点数、来源锚点数与锚点拟合残差；测量期间谱面或链接音频发生变化时结果作废并提示重新测量。
+- **新增**：`View -> Move View...` 可将 Navigation、Realtime Preview、Note、BPM、Metadata 移动到 Primary Sidebar、Auxiliary Sidebar 或 Bottom Panel，`Reset View Location` 将所选视图送回默认区域，位置随经典布局保存。
+- **修复**：导出 `.mcz` 前先把当前编辑状态写入会话工作副本再打包，修复 `File -> Export .mcz...` 丢失未保存 Meta 修改（尤其是 offset）的问题；打包前快照失败会明确报错，不再生成缺少最新修改的谱面包。
+- **修复**：保存与导出谱面时，指向谱面音乐的 Sound Note 写入谱面级 `meta.offset`（Malody 从 `type=1` 音符读取 offset），修复导出后全局偏移丢失；只有音效音符而缺少主音频音符的谱面会补注入主音频 Sound Note，避免 Malody 无法解析音乐。
+- **修复**：经典（固定四栏）布局下 Note / BPM / Meta 按同一右栏的互斥页处理，选择 BPM 或 Meta 后不再自动弹出 Note 面板；页面被移动到其他区域后仍保持互斥切换。
+- **修复**：Meta 面板选择非 OGG 音频后的 OGG 转换改为异步执行，转换期间界面保持响应；切换谱面、继续编辑或转换失败时会丢弃过期结果并删除临时文件，不会半途改写谱面元数据。
+- **修复**：修复启动后插件动作未及时出现在顶部工具栏、左侧栏或插件面板的问题（进程插件在启动冷却期间会推迟首个请求），以及带状态的异步进程插件会话在重连后丢失状态的问题。
 
 - **新增**：背景图导入扩展为"PNG/JPG 原样保留、其他可解码单帧图片自动无损转 PNG（保留 alpha 并应用 EXIF 旋转）、多帧动画图片保留原格式并提示"的策略；格式识别基于文件内容而非扩展名，转换经 `QSaveFile` 原子提交，失败时不改动谱面元数据；Meta 面板标签改为中性的 `Background:`，文件选择器列出当前环境实际可解码的格式。新增 `ImageConverter` 工具与 `utils_image_converter_tests` / Meta 面板背景导入共 20 项回归测试。
 
