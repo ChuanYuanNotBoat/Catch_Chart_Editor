@@ -82,6 +82,36 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [x] Replace the global ADS-leaf layout with stable Editor/Sidebar/Auxiliary Sidebar/Bottom Panel workbench parts and pane containers that cache expansion, order, visibility, and size by stable ID.
 - [x] Add explicit `Move View...` and `Reset View Location` commands before replacing raw floating docks with auxiliary pane-container windows.
 
+## P1 follow-up — unify keyboard shortcuts (2026-09-19)
+
+The settings-dialog fixes address capture, disable persistence, and duplicate handling
+for registered menu actions only. They do **not** make the dialog authoritative for
+canvas, Note Chain, or plugin-tool key handling. Build on the `CommandRouter` boundary
+already planned in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md); avoid a wholesale rewrite.
+
+- [ ] Inventory every keyboard action and its contexts (menus, canvas, Note Chain,
+      plugin tools, text inputs, modal dialogs, and floating docks). Record default
+      bindings, configurable vs. intentionally reserved keys, and existing duplicates.
+- [ ] Introduce stable command IDs and one shortcut registry/dispatcher shared by
+      menus, canvas, and panels. Route contextual Undo/Redo, Delete, F8 and arrow-key
+      navigation/selection through the intended command paths; remove legacy hardcoded
+      handling that bypasses user rebinding or disabling.
+- [ ] Drive the shortcut settings UI and help text from this registry. Show scope,
+      allow reset/disable, and detect collisions across overlapping contexts, including
+      exact matches and prefix conflicts for multi-stroke sequences; permit reuse only
+      when contexts are provably exclusive.
+- [ ] Preserve context-sensitive editing: typing into inputs must not navigate the
+      canvas; dialogs/popups must not trigger editor modes; Note Chain and plugin
+      tools must retain their intentional key behavior; floating docks must work.
+- [ ] Add automated tests for remap -> execute, disable -> no activation after restart,
+      reset -> default, collision rejection without losing edits, and command dispatch
+      in normal/Note Chain/plugin modes. Explicit regressions: F8 old key stops working
+      when reassigned; Undo/Redo/Delete honor overrides; Shift+Left/Right adjusts the
+      selection without a Note sound; Alt+Up/Down changes modes without scrolling.
+
+Do not mark this complete on the strength of the settings-dialog patch alone: require
+runtime GUI verification and a passing relevant regression suite.
+
 ## P2 — CCE-internal document architecture
 
 The product direction is decided in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md):
