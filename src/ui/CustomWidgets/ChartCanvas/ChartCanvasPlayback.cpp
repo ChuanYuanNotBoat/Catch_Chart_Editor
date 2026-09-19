@@ -549,11 +549,6 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
                 m_selectionController->select(newSelection);
                 autoScrollToNote(notes[newExtent]);
 
-                // Play note sound for the newly added end
-                if (m_noteSoundPlayer && m_noteSoundPlayer->isEnabled())
-                {
-                    m_noteSoundPlayer->playHitSound();
-                }
             }
             // else: already at edge, no-op
         }
