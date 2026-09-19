@@ -330,7 +330,9 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
 
     // ↑ / ↓ : scroll by one time division (snapped)
     // Shift + ↑ / ↓ : scroll by one beat (snapped)
-    if (event->key() == Qt::Key_Up || event->key() == Qt::Key_Down)
+    if ((event->key() == Qt::Key_Up || event->key() == Qt::Key_Down)
+        && (event->modifiers() == Qt::NoModifier
+            || event->modifiers() == Qt::ShiftModifier))
     {
         const bool shiftHeld = event->modifiers().testFlag(Qt::ShiftModifier);
         double step = shiftHeld ? 1.0 : (m_timeDivision > 0 ? 1.0 / m_timeDivision : 1.0);

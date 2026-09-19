@@ -82,6 +82,9 @@
 #include <QRadioButton>
 #include <QCheckBox>
 #include <QLineEdit>
+#include <QAbstractSpinBox>
+#include <QTextEdit>
+#include <QPlainTextEdit>
 #include <QDesktopServices>
 #include <QEventLoop>
 #include <QElapsedTimer>
@@ -1939,6 +1942,42 @@ void MainWindow::createEditMenu()
             d->selectionController->clearSelection();
             Logger::debug("Deleted selected notes via menu");
          } });
+
+    // Cycling the Note editor's five modes must use the radio buttons' existing
+    // signal path, including native curve/anchor mode transitions. Application
+    // scope also reaches detached ADS panels; suppress it in dialogs and inputs.
+    editMenu->addSeparator();
+    const auto cycleEditorMode = [this, editMenu](int direction)
+    {
+        if (!d->notePanel || QApplication::activeModalWidget())
+            return;
+        QWidget *popup = QApplication::activePopupWidget();
+        const bool fromEditMenu = popup == editMenu;
+        if (popup && !fromEditMenu)
+            return;
+        QWidget *activeWindow = QApplication::activeWindow();
+        if (!fromEditMenu && activeWindow != this
+            && !qobject_cast<ads::CFloatingDockContainer *>(activeWindow))
+            return;
+        QWidget *focus = QApplication::focusWidget();
+        if (!fromEditMenu && (qobject_cast<QLineEdit *>(focus)
+            || qobject_cast<QTextEdit *>(focus)
+            || qobject_cast<QPlainTextEdit *>(focus)
+            || qobject_cast<QAbstractSpinBox *>(focus)
+            || qobject_cast<QComboBox *>(focus)))
+            return;
+        d->notePanel->cycleMode(direction);
+    };
+    QAction *previousModeAction = editMenu->addAction(tr("Previous Edit Mode"), this,
+        [cycleEditorMode]() { cycleEditorMode(-1); });
+    previousModeAction->setShortcutContext(Qt::ApplicationShortcut);
+    previousModeAction->setAutoRepeat(false);
+    registerShortcutAction(previousModeAction, "edit.previous_mode", QKeySequence(Qt::ALT | Qt::Key_Up));
+    QAction *nextModeAction = editMenu->addAction(tr("Next Edit Mode"), this,
+        [cycleEditorMode]() { cycleEditorMode(1); });
+    nextModeAction->setShortcutContext(Qt::ApplicationShortcut);
+    nextModeAction->setAutoRepeat(false);
+    registerShortcutAction(nextModeAction, "edit.next_mode", QKeySequence(Qt::ALT | Qt::Key_Down));
 
     // Explicit paste timing mode. The same action is visible in the Edit menu
     // and the main toolbar so the active quantization cannot be missed.

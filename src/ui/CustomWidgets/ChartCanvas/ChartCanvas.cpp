@@ -198,6 +198,7 @@ bool ChartCanvas::eventFilter(QObject *watched, QEvent *event)
         const int key = ke->key();
         if ((key == Qt::Key_Left || key == Qt::Key_Right ||
              key == Qt::Key_Up   || key == Qt::Key_Down) &&
+            !ke->modifiers().testFlag(Qt::AltModifier) &&
             !ke->isAutoRepeat())
         {
             // Only redirect when focus is on a non-input GUI widget

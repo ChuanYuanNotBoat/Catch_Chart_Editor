@@ -351,6 +351,19 @@ void NoteEditPanel::setMode(int mode)
     emit modeChanged(mode);
 }
 
+void NoteEditPanel::cycleMode(int direction)
+{
+    if (!m_modeGroup || direction == 0)
+        return;
+
+    // Keep the order aligned with the five radio buttons in setupUi().
+    constexpr int modeCount = PlaceAnchorMode + 1;
+    const int delta = direction > 0 ? 1 : -1;
+    const int next = (m_currentMode + delta + modeCount) % modeCount;
+    if (QAbstractButton *button = m_modeGroup->button(next))
+        button->click(); // Reuse the radio button's modeChanged signal and host logic.
+}
+
 void NoteEditPanel::onNoteModeClicked() { setMode(0); }
 void NoteEditPanel::onRainModeClicked() { setMode(1); }
 void NoteEditPanel::onDeleteModeClicked() { setMode(2); }
