@@ -95,7 +95,7 @@
 - `Settings -> Session Settings...`：设置编辑会话选项，包括自动保存间隔和音频校正测试开关。
 - `Settings -> Skin`：选择可用皮肤。皮肤来自程序目录的 `skins` 或内置默认皮肤资源。
 - `Settings -> Note Sound`：选择编辑音符时播放的按键音；选择 `None` 可关闭音效。
-- `Settings -> Keyboard Shortcuts...`：自定义可配置快捷键。清空输入框可禁用对应快捷键，`Reset` 恢复单项默认值，`Reset All` 恢复全部默认值。录入新组合键会替换旧快捷键；连续录入可构成最多四段序列，支持 `Ctrl+Shift+O` 和 `Alt+↑` 等组合；画布专属按键暂未纳入统一自定义管理。
+- `Settings -> Keyboard Shortcuts...`：自定义可配置快捷键。清空输入框可禁用对应快捷键，`Reset` 恢复单项默认值，`Reset All` 恢复全部默认值。录入新组合键会替换旧快捷键；连续录入可构成最多四段序列，支持 `Ctrl+Shift+O` 和 `Alt+↑` 等组合；画布专属手势暂未纳入统一自定义管理。
 - `Settings -> Language`：切换界面语言。
 
 ### Playback 播放菜单
@@ -141,6 +141,7 @@ Grid Settings、范围选择、镜像执行、曲线操作、复制、BPM/Meta �
 - `Delete Mode`：删除模式。左键已有音符会删除该音符。
 - `Select Mode`：选择模式。左键点击选择音符，拖拽框选多个音符。
 - `Place Anchor`：启动原生曲线工具并进入锚点放置模式。
+- 画布上按住 `Alt` 滚轮可循环切换编辑模式：向上为上一个模式，向下为下一个模式。它与 `Alt+↑` / `Alt+↓` 共用模式切换逻辑，但属于固定画布手势，不占用可配置的键盘快捷键。
 - `Copy`：与 `Edit -> Copy` 相同。
 - `Time Division`：设置时间分度，影响音符放置、播放头吸附、粘贴预览和曲线生成密度。可手动输入，最大会限制到 `96`。
 - `Grid Snap`：开启后横向位置吸附到网格。

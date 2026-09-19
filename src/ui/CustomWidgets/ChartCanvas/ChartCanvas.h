@@ -128,6 +128,7 @@ signals:
     void verticalFlipChanged(bool flipped);
     void scrollPositionChanged(double beat);
     void timeScaleChanged(double scale);
+    void modeCycleRequested(int direction);
     void mirrorAxisChanged(int axisX);
     void statusMessage(const QString &msg); // Status bar message hook.
     void noteChainControlsChanged();
@@ -165,6 +166,7 @@ private:
     static constexpr int kOverlayPlaybackQueryBudgetMs = 3;
     static constexpr int kOverlaySlowCallThresholdMs = 40;
     static constexpr int kOverlaySlowCallBackoffMs = 1000;
+    static constexpr double kModeCycleWheelDeltaThreshold = 120.0;
 
     void drawBackground(QPainter &painter);
     void drawGrid(QPainter &painter);
@@ -410,6 +412,7 @@ private:
     bool m_snapToGrid;
     int m_snapTimerId;
     bool m_isScrolling;
+    double m_modeCycleWheelDelta = 0.0;
 
     QList<PluginInterface::CanvasOverlayItem> m_overlayCache;
     QList<PluginInterface::CanvasOverlayItem> m_eventOverlayCache;

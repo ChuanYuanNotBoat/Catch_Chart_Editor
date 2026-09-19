@@ -562,6 +562,9 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
 
 void ChartCanvas::keyReleaseEvent(QKeyEvent *event)
 {
+    if (event && (event->key() == Qt::Key_Alt || event->key() == Qt::Key_AltGr))
+        m_modeCycleWheelDelta = 0.0;
+
     PluginInterface::CanvasInputEvent pluginEvent;
     pluginEvent.type = "key_up";
     pluginEvent.key = event->key();

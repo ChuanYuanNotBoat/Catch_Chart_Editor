@@ -59,6 +59,7 @@ __pycache__
 *.pyc
 temp/*
 #不要删temp整个文件夹
+*.patch
 
 # 可能的不应提交的资源
 *.exe

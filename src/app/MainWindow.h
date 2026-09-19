@@ -112,6 +112,8 @@ private:
     void populatePluginToolsMenu();
     void populatePluginPanelsMenu();
     void refreshPluginUiExtensions();
+    void cycleNoteEditMode(int direction, QMenu *allowedPopup = nullptr,
+                           bool fromCanvasWheel = false);
     bool runPluginActionWithMeta(const QVariantMap &meta);
     void closePluginPanels(const QString &reasonText = QString());
     bool confirmSaveIfModified(const QString &reasonText);

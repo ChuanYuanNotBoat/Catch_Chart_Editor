@@ -5,11 +5,13 @@
 #include "render/NoteRenderer.h"
 #include "utils/MathUtils.h"
 #include "utils/Settings.h"
+#include "utils/Logger.h"
 #include "app/Application.h"
 #include "plugin/PluginManager.h"
 #include "model/Chart.h"
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QApplication>
 #include <QMenu>
 #include <QAction>
 #include <QMessageBox>
@@ -30,6 +32,9 @@ double extractWheelDeltaY(const QWheelEvent *event)
     if (!event)
         return 0.0;
 
+    // Keep the native Qt units. angleDelta is in eighths of a degree and
+    // pixelDelta is in screen pixels; the caller intentionally uses the same
+    // 120-unit normalization as the existing canvas scroll behavior.
     const int angleDeltaY = event->angleDelta().y();
     if (angleDeltaY != 0)
         return static_cast<double>(angleDeltaY);
@@ -39,6 +44,23 @@ double extractWheelDeltaY(const QWheelEvent *event)
         return static_cast<double>(pixelDeltaY);
 
     return 0.0;
+}
+
+// Qt can remap Alt+vertical-wheel input to the horizontal axis. Read that
+// axis only for mode switching; normal scroll and plugin wheel input keep
+// their original vertical-only semantics.
+double extractModeCycleWheelDelta(const QWheelEvent *event)
+{
+    const QPoint angle = event->angleDelta();
+    if (angle.y() != 0)
+        return static_cast<double>(angle.y());
+    if (angle.x() != 0)
+        return static_cast<double>(angle.x());
+
+    const QPoint pixel = event->pixelDelta();
+    if (pixel.y() != 0)
+        return static_cast<double>(pixel.y());
+    return static_cast<double>(pixel.x());
 }
 
 void fillPluginEventModifiers(PluginInterface::CanvasInputEvent *outEvent, Qt::KeyboardModifiers eventModifiers)
@@ -1538,6 +1560,22 @@ void ChartCanvas::mouseReleaseEvent(QMouseEvent *event)
 void ChartCanvas::wheelEvent(QWheelEvent *event)
 {
     const double wheelDeltaY = extractWheelDeltaY(event);
+    const bool altWheel = event->modifiers() == Qt::AltModifier;
+    Logger::info(QStringLiteral(
+        "[AltWheelTrace] canvas-wheel eventMods=0x%1 keyboardMods=0x%2 "
+        "angleY=%3 pixelY=%4 effectiveY=%5 exactAlt=%6 pending=%7")
+        .arg(QString::number(static_cast<int>(event->modifiers()), 16))
+        .arg(QString::number(static_cast<int>(QApplication::keyboardModifiers()), 16))
+        .arg(event->angleDelta().y())
+        .arg(event->pixelDelta().y())
+        .arg(wheelDeltaY)
+        .arg(static_cast<int>(altWheel))
+        .arg(m_modeCycleWheelDelta));
+    if (!altWheel)
+    {
+        Logger::info(QStringLiteral("[AltWheelTrace] route=normal (modifiers are not exactly Alt)"));
+        m_modeCycleWheelDelta = 0.0;
+    }
 
     PluginInterface::CanvasInputEvent pluginEvent;
     pluginEvent.type = "wheel";
@@ -1549,8 +1587,66 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
     pluginEvent.wheelDelta = wheelDeltaY;
     pluginEvent.timestampMs = QDateTime::currentMSecsSinceEpoch();
     bool consumed = false;
-    if (dispatchPluginCanvasInput(pluginEvent, &consumed) && consumed)
+    const bool dispatched = dispatchPluginCanvasInput(pluginEvent, &consumed);
+    Logger::info(QStringLiteral("[AltWheelTrace] plugin dispatched=%1 consumed=%2")
+                     .arg(static_cast<int>(dispatched)).arg(static_cast<int>(consumed)));
+    if (dispatched && consumed)
     {
+        Logger::info(QStringLiteral("[AltWheelTrace] stop: plugin consumed wheel"));
+        if (altWheel)
+            m_modeCycleWheelDelta = 0.0;
+        event->accept();
+        return;
+    }
+
+    // Alt+wheel is the canvas gesture counterpart of the configurable
+    // Previous/Next Edit Mode actions. Keep the modifier exact so Ctrl+wheel
+    // remains reserved for timeline zoom and mixed-modifier gestures stay
+    // available to plugins or the normal canvas behavior.
+    if (altWheel)
+    {
+        // Alt can move a vertical mouse wheel into angleDelta().x() on Qt.
+        // A fully zero delta (e.g. a scroll begin/end event) has no direction.
+        const double modeCycleDelta = extractModeCycleWheelDelta(event);
+        Logger::info(QStringLiteral(
+            "[AltWheelTrace] alt-axis angleX=%1 angleY=%2 pixelX=%3 pixelY=%4 modeDelta=%5")
+                         .arg(event->angleDelta().x())
+                         .arg(event->angleDelta().y())
+                         .arg(event->pixelDelta().x())
+                         .arg(event->pixelDelta().y())
+                         .arg(modeCycleDelta));
+        if (modeCycleDelta == 0)
+        {
+            Logger::info(QStringLiteral("[AltWheelTrace] stop: zero delta on both axes (ignored)"));
+            event->ignore();
+            return;
+        }
+
+        // The existing canvas scroll path normalizes both delta sources by
+        // 120. Accumulate small deltas so high-resolution wheels need a
+        // deliberate 120 units per mode, while a single event containing
+        // multiple detents cycles multiple times.
+        if ((m_modeCycleWheelDelta > 0.0 && modeCycleDelta < 0.0)
+            || (m_modeCycleWheelDelta < 0.0 && modeCycleDelta > 0.0))
+            m_modeCycleWheelDelta = 0.0;
+
+        m_modeCycleWheelDelta += modeCycleDelta;
+        const int steps = static_cast<int>(std::floor(
+            qAbs(m_modeCycleWheelDelta) / kModeCycleWheelDeltaThreshold));
+        Logger::info(QStringLiteral("[AltWheelTrace] accumulate pending=%1 threshold=%2 steps=%3")
+                         .arg(m_modeCycleWheelDelta)
+                         .arg(kModeCycleWheelDeltaThreshold)
+                         .arg(steps));
+        if (steps > 0)
+        {
+            const double sign = m_modeCycleWheelDelta > 0 ? 1.0 : -1.0;
+            m_modeCycleWheelDelta -= sign * steps * kModeCycleWheelDeltaThreshold;
+            const int direction = sign > 0 ? -1 : 1;
+            Logger::info(QStringLiteral("[AltWheelTrace] emit modeCycleRequested direction=%1 count=%2 remaining=%3")
+                             .arg(direction).arg(steps).arg(m_modeCycleWheelDelta));
+            for (int i = 0; i < steps; ++i)
+                emit modeCycleRequested(direction);
+        }
         event->accept();
         return;
     }
@@ -1599,10 +1695,6 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
 
     startSnapTimer();
 }
-
-
-
-
 
 
 
