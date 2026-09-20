@@ -1,6 +1,8 @@
 ﻿# 历史更新
 
-## Unreleased（2026-09-19）
+## Unreleased（2026-09-20）
+
+- **AutoTiming 2**：更新核心固定版本，稳定固定 BPM 音频可用跨 medium/long 窗口的长程 pulse grid 修正局部假相位；测量详情显示 phase 精修点数和 stable-grid 修正数。真实变速、rubato 与 phase reset 仍由核心门控排除，复杂分度继续只显示为诊断候选，不自动写入谱面。
 
 ## Beta v1.11.2（2026-09-19）
 

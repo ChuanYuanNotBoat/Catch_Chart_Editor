@@ -6,8 +6,8 @@
 
 - 上游仓库：`https://github.com/ChuanYuanNotBoat/AutoTimingCore.git`
 - 子模块路径：`third_party/AutoTimingCore`
-- 固定提交：`90f7a9529e1bcdb15475bfa9db5d873b0a38f1e2`
-- 接入日期：2026-09-14
+- 固定提交：`6371b31cb721cbbf0c692330d3cfbc5c97ee9338`
+- 接入日期：2026-09-20
 - 接入方式：Git submodule；CCE 仓库的 gitlink 是唯一版本来源
 
 克隆后必须初始化子模块：
@@ -26,6 +26,8 @@ git submodule update --init --recursive
 - `autotiming.probe.help`
 
 CCE 的 `audio_autotiming_bridge_tests` 继续验证 `AutoTimingCore -> AutoTiming2Bridge -> BpmDetector` 的宿主边界和 legacy/V2 行为。
+
+当前固定版本包含候选级 `RhythmProfile` 输出，以及对长程稳定、多尺度一致 pulse grid 的保守 phase 修正。CCE 只把 `stable_grid_regularization` 作为诊断原因和计数展示；BPM map 仍由已有 tempo-track 投影路径显式生成并要求用户确认，复杂分度候选不会自动写入谱面。
 
 ## 更新固定版本
 
@@ -50,7 +52,7 @@ git add third_party/AutoTimingCore docs/AUTOTIMING_VENDORING.md
 
 ## 来源边界与许可证状态
 
-以下内容来自子模块 `ATTRIBUTION.md`（固定提交 `90f7a9529e1bcdb15475bfa9db5d873b0a38f1e2`）：
+以下内容来自子模块 `ATTRIBUTION.md`（固定提交 `6371b31cb721cbbf0c692330d3cfbc5c97ee9338`）：
 
 - Legacy source set（`AutoTiming.cpp/.h`、`dsp.*`、`fft.*`、`util.*`、`platform.h`）源自 Malody 内部 AutoTiming 原始实现（原文件头 “Created by dolly on 16/1/3” 应保留）。
 - AutoTiming 2 是在 legacy 基线上继续发展的扩展。

@@ -203,6 +203,7 @@ struct AutoTiming2Summary
     int windowCount = 0;
     int anchorSelectedWindowCount = 0;
     int multiScalePhaseRefinedCount = 0;
+    int stableGridRegularizedCount = 0;
 };
 
 class AutoTiming2Bridge

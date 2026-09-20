@@ -131,6 +131,15 @@ namespace
             hasSelectedHypothesis = hasSelectedHypothesis || h.selected;
         require(hasSelectedHypothesis, "one hypothesis must be selected");
 
+        int mappedStableGridCount = 0;
+        for (const AutoTiming2TrackPoint &p : summary.tempoTrack)
+            if (p.propagationReason == QStringLiteral("stable_grid_regularization"))
+                ++mappedStableGridCount;
+        require(summary.stableGridRegularizedCount == mappedStableGridCount,
+                "stable-grid diagnostics count must match mapped tracker reasons");
+        require(summary.stableGridRegularizedCount <= summary.multiScalePhaseRefinedCount,
+                "stable-grid corrections must be included in phase-refined tracker points");
+
         // pulseTimeSeconds stays an absolute audio time, separate from the
         // legacy offset semantics.
         for (const AutoTiming2TrackPoint &p : summary.tempoTrack)
@@ -326,6 +335,8 @@ namespace
     {
         AutoTiming2Summary summary;
         summary.durationSeconds = 12.0;
+        summary.multiScalePhaseRefinedCount = 3;
+        summary.stableGridRegularizedCount = 2;
 
         AutoTiming2Candidate globalCandidate;
         globalCandidate.bpm = 120.0;
@@ -373,6 +384,9 @@ namespace
 
         require(nearlyEqual(summary.durationSeconds, 12.0),
                 "timeline translation must not change analysis duration");
+        require(summary.multiScalePhaseRefinedCount == 3 &&
+                    summary.stableGridRegularizedCount == 2,
+                "timeline translation must not change phase diagnostic counters");
         require(nearlyEqual(summary.tempoCandidates.first().pulseTimeSeconds, 0.0),
                 "phase-less global candidate must not gain a fake absolute pulse");
         require(nearlyEqual(summary.tempoTrack.first().timeSeconds, 64.0) &&

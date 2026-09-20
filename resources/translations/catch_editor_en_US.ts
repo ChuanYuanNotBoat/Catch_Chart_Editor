@@ -190,6 +190,11 @@
         <translation>Uncertain sections: </translation>
     </message>
     <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="333"/>
+        <source>Phase-refined tracker points: %1 (stable-grid corrections: %2)</source>
+        <translation>Phase-refined tracker points: %1 (stable-grid corrections: %2)</translation>
+    </message>
+    <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="284"/>
         <source>AutoTiming 2: unavailable</source>
         <translation>AutoTiming 2: unavailable</translation>

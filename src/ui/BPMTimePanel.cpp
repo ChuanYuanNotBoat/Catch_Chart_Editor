@@ -330,6 +330,10 @@ QString BPMTimePanel::buildMeasurementDetails(const BpmDetector::DetectionResult
         stream << tr("Reliable coverage: ") << percent(confidence.reliableCoverage) << "\n";
         stream << tr("Reliable sections: ") << ranges(result.analysis.anchors) << "\n";
         stream << tr("Uncertain sections: ") << ranges(result.analysis.uncertainRegions) << "\n";
+        stream << tr("Phase-refined tracker points: %1 (stable-grid corrections: %2)")
+                      .arg(result.analysis.multiScalePhaseRefinedCount)
+                      .arg(result.analysis.stableGridRegularizedCount)
+               << "\n";
         stream << tr("Rhythm candidates (diagnostic only): ")
                << rhythmSummary(result.analysis.rhythmProfiles) << "\n";
         break;

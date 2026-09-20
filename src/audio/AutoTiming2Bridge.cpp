@@ -288,8 +288,13 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             if (w.selectedAsAnchor)
                 ++outSummary.anchorSelectedWindowCount;
         for (const autotiming::TempoTrackPoint &p : result.tempoTrack.points)
+        {
             if (p.multiScalePhaseRefined)
                 ++outSummary.multiScalePhaseRefinedCount;
+            if (p.propagationReason ==
+                autotiming::TempoPropagationReason::StableGridRegularization)
+                ++outSummary.stableGridRegularizedCount;
+        }
         return true;
     }
     catch (const std::invalid_argument &e)

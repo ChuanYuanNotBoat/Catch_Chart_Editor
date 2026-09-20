@@ -190,6 +190,11 @@
         <translation>不确定区间：</translation>
     </message>
     <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="333"/>
+        <source>Phase-refined tracker points: %1 (stable-grid corrections: %2)</source>
+        <translation>相位精修追踪点：%1（稳定网格修正：%2）</translation>
+    </message>
+    <message>
         <location filename="../../src/ui/BPMTimePanel.cpp" line="284"/>
         <source>AutoTiming 2: unavailable</source>
         <translation>AutoTiming 2：不可用</translation>
