@@ -5,6 +5,7 @@
 #include "ui/LongRangeSelector.h"
 #include "ui/PlaybackSpeedPanel.h"
 #include "utils/Logger.h"
+#include "utils/Settings.h"
 #include <QtGlobal>
 #include <QButtonGroup>
 #include <QRadioButton>
@@ -35,7 +36,8 @@ void keepActionButtonCompact(QPushButton *button)
 }
 
 NoteEditPanel::NoteEditPanel(QWidget *parent)
-    : RightPanel(parent), m_chartController(nullptr), m_selectionController(nullptr), m_currentMode(0), m_gridDivision(20), m_pluginToolsExpanded(false)
+    : RightPanel(parent), m_chartController(nullptr), m_selectionController(nullptr), m_currentMode(0),
+      m_gridDivision(Settings::instance().editorGridDivision()), m_pluginToolsExpanded(false)
 {
     setupUi();
 }
@@ -175,12 +177,12 @@ void NoteEditPanel::setupUi()
     for (const QString &d : divisions)
         m_timeDivisionCombo->addItem(d);
     m_timeDivisionCombo->setEditable(true);
-    m_timeDivisionCombo->setCurrentText("4");
+    m_timeDivisionCombo->setCurrentText(QString::number(Settings::instance().editorTimeDivision()));
     connect(m_timeDivisionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &NoteEditPanel::onTimeDivisionChanged);
     timingLayout->addWidget(m_timeDivisionCombo);
 
     m_gridSnapCheck = new QCheckBox(tr("Grid Snap"), m_timingToolsContainer);
-    m_gridSnapCheck->setChecked(true);
+    m_gridSnapCheck->setChecked(Settings::instance().editorGridSnapEnabled());
     connect(m_gridSnapCheck, &QCheckBox::toggled, this, &NoteEditPanel::onGridSnapToggled);
     timingLayout->addWidget(m_gridSnapCheck);
 
@@ -197,6 +199,7 @@ void NoteEditPanel::setupUi()
 
     // 长范围选择器
     m_longRangeSelector = new LongRangeSelector(this);
+    m_longRangeSelector->setTimeDivision(Settings::instance().editorTimeDivision());
     mainLayout->addWidget(m_longRangeSelector);
 
     m_mirrorGroup = new QGroupBox(tr("Mirror Flip"), this);
@@ -205,17 +208,17 @@ void NoteEditPanel::setupUi()
     m_mirrorAxisLabel = new QLabel(tr("Axis X:"), m_mirrorGroup);
     m_mirrorAxisSpin = new QSpinBox(m_mirrorGroup);
     m_mirrorAxisSpin->setRange(0, 512);
-    m_mirrorAxisSpin->setValue(256);
+    m_mirrorAxisSpin->setValue(Settings::instance().mirrorAxisX());
     axisLayout->addWidget(m_mirrorAxisLabel);
     axisLayout->addWidget(m_mirrorAxisSpin, 1);
     mirrorLayout->addLayout(axisLayout);
 
     m_mirrorGuideCheck = new QCheckBox(tr("Show Guide"), m_mirrorGroup);
-    m_mirrorGuideCheck->setChecked(false);
+    m_mirrorGuideCheck->setChecked(Settings::instance().mirrorGuideVisible());
     mirrorLayout->addWidget(m_mirrorGuideCheck);
 
     m_mirrorPreviewCheck = new QCheckBox(tr("Show Preview"), m_mirrorGroup);
-    m_mirrorPreviewCheck->setChecked(false);
+    m_mirrorPreviewCheck->setChecked(Settings::instance().mirrorPreviewVisible());
     mirrorLayout->addWidget(m_mirrorPreviewCheck);
 
     m_mirrorFlipButton = new QPushButton(tr("Flip Selected"), m_mirrorGroup);

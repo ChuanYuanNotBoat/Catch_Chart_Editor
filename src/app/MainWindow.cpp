@@ -2183,6 +2183,10 @@ void MainWindow::createSettingsMenu()
         act->setChecked(it.key() == currentLanguage);
         connect(act, &QAction::triggered, this, &MainWindow::changeLanguage);
     }
+    settingsMenu->addSeparator();
+    QAction *settingsTransferAction = settingsMenu->addAction(tr("Settings Backup and Transfer..."));
+    connect(settingsTransferAction, &QAction::triggered, this,
+            &MainWindow::openSettingsTransfer);
 }
 
 void MainWindow::createPlaybackMenu()
@@ -5494,6 +5498,10 @@ void MainWindow::updateCompactToolDockHandle(ads::CDockWidget *dock)
 
 void MainWindow::saveDockLayout()
 {
+    // Import replaces the saved layout as well. Do not overwrite it with the
+    // still-running pre-import UI while the user exits to restart.
+    if (d->settingsImportPendingRestart)
+        return;
     Settings::instance().setMainWindowGeometry(saveGeometry());
     if (d->dockManager && d->floatingToolWindowsEnabled)
         Settings::instance().setDockLayoutState(d->dockManager->saveState(kDockLayoutVersion));

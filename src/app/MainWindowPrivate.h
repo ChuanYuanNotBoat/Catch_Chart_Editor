@@ -134,6 +134,7 @@ public:
     QTimer *recoverySnapshotTimer = nullptr;
     QAction *reloadChartAction = nullptr;
     bool compactUiMode = false;
+    bool settingsImportPendingRestart = false;
     bool floatingToolWindowsEnabled = true;
     bool floatingToolWindowsInitialized = false;
     bool timingToolsWereVisible = true;

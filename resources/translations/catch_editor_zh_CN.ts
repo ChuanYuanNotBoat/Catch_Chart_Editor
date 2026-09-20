@@ -4082,6 +4082,204 @@ Do you want to rename the imported file?</source>
         <source>Audio Conversion</source>
         <translation>音频转换</translation>
     </message>
+    <message>
+        <source>Settings Backup and Transfer...</source>
+        <translation>设置备份与迁移...</translation>
+    </message>
+    <message>
+        <source>Settings imported. Restart the editor to apply all changes.</source>
+        <translation>设置已导入。请重启编辑器以应用全部更改。</translation>
+    </message>
+</context>
+<context>
+    <name>Settings</name>
+    <message>
+        <source>A setting has no valid type tag.</source>
+        <translation>某项设置缺少有效的类型标记。</translation>
+    </message>
+    <message>
+        <source>A setting contains an invalid integer.</source>
+        <translation>某项设置包含无效整数。</translation>
+    </message>
+    <message>
+        <source>A setting contains an invalid unsigned integer.</source>
+        <translation>某项设置包含无效无符号整数。</translation>
+    </message>
+    <message>
+        <source>A setting contains an invalid 64-bit integer.</source>
+        <translation>某项设置包含无效 64 位整数。</translation>
+    </message>
+    <message>
+        <source>A setting contains an invalid unsigned 64-bit integer.</source>
+        <translation>某项设置包含无效无符号 64 位整数。</translation>
+    </message>
+    <message>
+        <source>A string-list setting is too large.</source>
+        <translation>某项字符串列表设置过大。</translation>
+    </message>
+    <message>
+        <source>A string-list setting is invalid.</source>
+        <translation>某项字符串列表设置无效。</translation>
+    </message>
+    <message>
+        <source>A byte-array setting is invalid or too large.</source>
+        <translation>某项二进制设置无效或过大。</translation>
+    </message>
+    <message>
+        <source>A color setting is invalid.</source>
+        <translation>某项颜色设置无效。</translation>
+    </message>
+    <message>
+        <source>A setting contains an unsupported or invalid value.</source>
+        <translation>某项设置包含不支持或无效的值。</translation>
+    </message>
+    <message>
+        <source>The settings text has an invalid header or footer.</source>
+        <translation>设置文本的头部或尾部标记无效。</translation>
+    </message>
+    <message>
+        <source>The settings payload is empty or too large.</source>
+        <translation>设置载荷为空或过大。</translation>
+    </message>
+    <message>
+        <source>The settings payload is not valid Base64 data.</source>
+        <translation>设置载荷不是有效的 Base64 数据。</translation>
+    </message>
+    <message>
+        <source>The settings payload does not contain valid JSON.</source>
+        <translation>设置载荷不包含有效的 JSON。</translation>
+    </message>
+    <message>
+        <source>This settings bundle uses an unsupported format or version.</source>
+        <translation>此设置包使用了不支持的格式或版本。</translation>
+    </message>
+    <message>
+        <source>The settings bundle contains too many entries.</source>
+        <translation>设置包包含过多条目。</translation>
+    </message>
+    <message>
+        <source>The settings bundle checksum does not match.</source>
+        <translation>设置包校验和不匹配。</translation>
+    </message>
+    <message>
+        <source>The settings bundle contains an invalid entry.</source>
+        <translation>设置包包含无效条目。</translation>
+    </message>
+    <message>
+        <source>The settings bundle contains an invalid or duplicate key.</source>
+        <translation>设置包包含无效或重复的键。</translation>
+    </message>
+    <message>
+        <source>There are too many settings to export.</source>
+        <translation>需要导出的设置过多。</translation>
+    </message>
+    <message>
+        <source>A stored setting has an invalid key: %1</source>
+        <translation>某项已存储设置的键无效：%1</translation>
+    </message>
+    <message>
+        <source>A stored setting uses an unsupported value type: %1</source>
+        <translation>某项已存储设置使用了不支持的值类型：%1</translation>
+    </message>
+    <message>
+        <source>The settings store could not be updated. Previous settings were restored.</source>
+        <translation>无法更新设置存储，已恢复原有设置。</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsTransferDialog</name>
+    <message>
+        <source>Settings Backup and Transfer</source>
+        <translation>设置备份与迁移</translation>
+    </message>
+    <message>
+        <source>Export all saved editor settings as a portable text bundle, or replace the current settings from one. Chart files are never included.</source>
+        <translation>将所有已保存的编辑器设置导出为便携文本包，或用文本包替换当前设置。谱面文件不会包含在内。</translation>
+    </message>
+    <message>
+        <source>The bundle uses fixed Malody Catch Editor markers around a Base64 payload. It may contain local paths and window layout data.</source>
+        <translation>设置包使用固定的 Malody Catch Editor 头尾标记包裹 Base64 载荷，其中可能包含本地路径和窗口布局数据。</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>导出</translation>
+    </message>
+    <message>
+        <source>Copy to Clipboard</source>
+        <translation>复制到剪贴板</translation>
+    </message>
+    <message>
+        <source>Save as TXT...</source>
+        <translation>另存为 TXT...</translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation>导入</translation>
+    </message>
+    <message>
+        <source>Import from Clipboard</source>
+        <translation>从剪贴板导入</translation>
+    </message>
+    <message>
+        <source>Import from TXT...</source>
+        <translation>从 TXT 导入...</translation>
+    </message>
+    <message>
+        <source>Import validates the complete bundle before replacing any settings. Restart the editor afterward so every imported setting takes effect.</source>
+        <translation>导入会先验证完整设置包，再替换当前设置。导入后请重启编辑器，以确保所有设置生效。</translation>
+    </message>
+    <message>
+        <source>Export Settings</source>
+        <translation>导出设置</translation>
+    </message>
+    <message>
+        <source>Settings copied to the clipboard.</source>
+        <translation>设置已复制到剪贴板。</translation>
+    </message>
+    <message>
+        <source>Text Files (*.txt);;All Files (*.*)</source>
+        <translation>文本文件 (*.txt);;所有文件 (*.*)</translation>
+    </message>
+    <message>
+        <source>Could not write the settings file: %1</source>
+        <translation>无法写入设置文件：%1</translation>
+    </message>
+    <message>
+        <source>Settings exported successfully.</source>
+        <translation>设置导出成功。</translation>
+    </message>
+    <message>
+        <source>Import Settings</source>
+        <translation>导入设置</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain settings text.</source>
+        <translation>剪贴板中没有设置文本。</translation>
+    </message>
+    <message>
+        <source>the clipboard</source>
+        <translation>剪贴板</translation>
+    </message>
+    <message>
+        <source>Could not read the settings file: %1</source>
+        <translation>无法读取设置文件：%1</translation>
+    </message>
+    <message>
+        <source>The settings file is too large.</source>
+        <translation>设置文件过大。</translation>
+    </message>
+    <message>
+        <source>Import settings from %1?
+
+This replaces all current editor settings. Open chart data is not affected.</source>
+        <translation>是否从%1导入设置？
+
+这将替换当前全部编辑器设置，不会影响已打开的谱面数据。</translation>
+    </message>
+    <message>
+        <source>Imported %1 settings. Restart the editor to apply every imported setting.</source>
+        <translation>已导入 %1 项设置。请重启编辑器以应用全部导入设置。</translation>
+    </message>
 </context>
 <context>
     <name>SpeedPopup</name>

@@ -7,6 +7,7 @@
 #include "plugin/PluginManager.h"
 #include "ui/dialogs/LogSettingsDialog.h"
 #include "ui/dialogs/PluginManagerDialog.h"
+#include "ui/dialogs/SettingsTransferDialog.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "ui/CustomWidgets/RealtimePreviewWidget.h"
 #include "ui/LeftPanel.h"
@@ -1293,6 +1294,17 @@ void MainWindow::openSessionSettings()
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
     dialog.exec();
+}
+
+void MainWindow::openSettingsTransfer()
+{
+    SettingsTransferDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted && dialog.settingsImported())
+    {
+        d->settingsImportPendingRestart = true;
+        statusBar()->showMessage(
+            tr("Settings imported. Restart the editor to apply all changes."), 8000);
+    }
 }
 
 void MainWindow::exportDiagnosticsReport()

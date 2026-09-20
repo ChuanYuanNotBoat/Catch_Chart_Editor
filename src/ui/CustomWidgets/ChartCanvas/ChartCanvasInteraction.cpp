@@ -127,6 +127,7 @@ void ChartCanvas::setTimeScale(double scale)
     }
 
     m_timeScale = clampedScale;
+    Settings::instance().setEditorTimeScale(clampedScale);
 
     if (m_verticalFlip)
     {
@@ -152,6 +153,7 @@ void ChartCanvas::setMirrorAxisX(int axisX)
         return;
 
     m_mirrorAxisX = clamped;
+    Settings::instance().setMirrorAxisX(clamped);
     invalidateMirrorPreviewCache();
     emit mirrorAxisChanged(m_mirrorAxisX);
     update();
@@ -162,6 +164,7 @@ void ChartCanvas::setMirrorGuideVisible(bool visible)
     if (m_mirrorGuideVisible == visible)
         return;
     m_mirrorGuideVisible = visible;
+    Settings::instance().setMirrorGuideVisible(visible);
     update();
 }
 
@@ -170,6 +173,7 @@ void ChartCanvas::setMirrorPreviewVisible(bool visible)
     if (m_mirrorPreviewVisible == visible)
         return;
     m_mirrorPreviewVisible = visible;
+    Settings::instance().setMirrorPreviewVisible(visible);
     invalidateMirrorPreviewCache();
     update();
 }

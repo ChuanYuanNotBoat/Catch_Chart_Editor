@@ -132,6 +132,14 @@ if(BUILD_TESTING)
     )
     add_test(NAME ui_docking_layout_tests COMMAND DockingLayoutTests)
 
+    add_executable(SettingsTransferTests
+        tests/settings_transfer_tests.cpp
+        src/utils/Settings.cpp
+    )
+    target_include_directories(SettingsTransferTests PRIVATE src)
+    target_link_libraries(SettingsTransferTests PRIVATE Qt6::Core Qt6::Gui)
+    add_test(NAME utils_settings_transfer_tests COMMAND SettingsTransferTests)
+
     add_executable(MetaEditPanelTests
         tests/meta_edit_panel_tests.cpp
         src/model/Note.cpp
@@ -239,6 +247,8 @@ if(BUILD_TESTING)
         set_tests_properties(core_minimal_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
         set_tests_properties(ui_docking_layout_tests PROPERTIES
+            ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
+        set_tests_properties(utils_settings_transfer_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
         set_tests_properties(ui_meta_edit_panel_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")

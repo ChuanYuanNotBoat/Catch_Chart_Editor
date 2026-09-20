@@ -75,6 +75,7 @@ set(SOURCES
     ui/dialogs/PluginManagerDialog.cpp
     ui/dialogs/BpmMeasureDialog.cpp
     ui/dialogs/DetailedStatsDialog.cpp
+    ui/dialogs/SettingsTransferDialog.cpp
     editor/NoteChain/NoteChainEditor.cpp
     editor/NoteChain/NoteChainState.cpp
     editor/NoteChain/NoteChainPersistence.cpp

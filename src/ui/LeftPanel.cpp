@@ -2,6 +2,7 @@
 #include "controller/ChartController.h"
 #include "controller/PlaybackController.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
+#include "utils/Settings.h"
 #include <QDoubleSpinBox>
 #include <QHBoxLayout>
 #include <QGroupBox>
@@ -36,7 +37,7 @@ void LeftPanel::setupUi()
     m_timeScaleSpin->setRange(0.2, 10.0);
     m_timeScaleSpin->setSingleStep(0.1);
     m_timeScaleSpin->setDecimals(2);
-    m_timeScaleSpin->setValue(2.25);
+    m_timeScaleSpin->setValue(Settings::instance().editorTimeScale());
     m_timeScaleSpin->setSuffix(tr("x"));
 
     zoomLayout->addWidget(m_zoomLabel);

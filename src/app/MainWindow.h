@@ -76,6 +76,7 @@ private slots:
     void calibrateSkin();
     void configureOutline();
     void openSessionSettings();
+    void openSettingsTransfer();
     void openLogSettings();
     void openPluginManager();
     void triggerPluginToolAction();

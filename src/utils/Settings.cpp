@@ -2,13 +2,374 @@
 #include "PlaybackSpeed.h"
 #include <QDir>
 #include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QSet>
 #include <QStandardPaths>
 #include <QtGlobal>
 #include <QStringList>
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace
 {
+    constexpr auto kTransferFormat = "malody-catch-editor-settings";
+    constexpr int kTransferVersion = 1;
+    constexpr qsizetype kMaximumEncodedPayloadBytes = 8 * 1024 * 1024;
+    constexpr qsizetype kMaximumDecodedPayloadBytes = 6 * 1024 * 1024;
+    constexpr qsizetype kMaximumSettingCount = 4096;
+    constexpr qsizetype kMaximumKeyLength = 1024;
+    constexpr qsizetype kMaximumStringLength = 2 * 1024 * 1024;
+    constexpr qsizetype kMaximumByteArrayLength = 4 * 1024 * 1024;
+
+    QString transferError(const char *text)
+    {
+        return QCoreApplication::translate("Settings", text);
+    }
+
+    bool isSafeSettingsKey(const QString &key)
+    {
+        if (key.isEmpty() || key.size() > kMaximumKeyLength || key.startsWith('/')
+            || key.endsWith('/') || key.contains(QStringLiteral("//")) || key.contains('\\'))
+        {
+            return false;
+        }
+
+        for (const QChar ch : key)
+        {
+            if (ch.unicode() < 0x20 || ch == QChar(0x7f))
+                return false;
+        }
+        return true;
+    }
+
+    QJsonObject serializeSettingValue(const QVariant &value, bool *ok)
+    {
+        QJsonObject result;
+        *ok = true;
+        switch (value.metaType().id())
+        {
+        case QMetaType::Bool:
+            result.insert(QStringLiteral("type"), QStringLiteral("bool"));
+            result.insert(QStringLiteral("value"), value.toBool());
+            break;
+        case QMetaType::Int:
+            result.insert(QStringLiteral("type"), QStringLiteral("int"));
+            result.insert(QStringLiteral("value"), value.toInt());
+            break;
+        case QMetaType::UInt:
+            result.insert(QStringLiteral("type"), QStringLiteral("uint"));
+            result.insert(QStringLiteral("value"), static_cast<qint64>(value.toUInt()));
+            break;
+        case QMetaType::LongLong:
+            result.insert(QStringLiteral("type"), QStringLiteral("int64"));
+            result.insert(QStringLiteral("value"), QString::number(value.toLongLong()));
+            break;
+        case QMetaType::ULongLong:
+            result.insert(QStringLiteral("type"), QStringLiteral("uint64"));
+            result.insert(QStringLiteral("value"), QString::number(value.toULongLong()));
+            break;
+        case QMetaType::Float:
+        case QMetaType::Double:
+        {
+            const double number = value.toDouble();
+            if (!std::isfinite(number))
+            {
+                *ok = false;
+                break;
+            }
+            result.insert(QStringLiteral("type"), QStringLiteral("double"));
+            result.insert(QStringLiteral("value"), number);
+            break;
+        }
+        case QMetaType::QString:
+            result.insert(QStringLiteral("type"), QStringLiteral("string"));
+            result.insert(QStringLiteral("value"), value.toString());
+            break;
+        case QMetaType::QStringList:
+        {
+            result.insert(QStringLiteral("type"), QStringLiteral("string-list"));
+            QJsonArray strings;
+            for (const QString &item : value.toStringList())
+                strings.append(item);
+            result.insert(QStringLiteral("value"), strings);
+            break;
+        }
+        case QMetaType::QByteArray:
+            result.insert(QStringLiteral("type"), QStringLiteral("bytes"));
+            result.insert(QStringLiteral("value"),
+                          QString::fromLatin1(value.toByteArray().toBase64()));
+            break;
+        case QMetaType::QColor:
+        {
+            const QColor color = value.value<QColor>();
+            if (!color.isValid())
+            {
+                *ok = false;
+                break;
+            }
+            result.insert(QStringLiteral("type"), QStringLiteral("color"));
+            result.insert(QStringLiteral("value"), color.name(QColor::HexArgb));
+            break;
+        }
+        default:
+            *ok = false;
+            break;
+        }
+        return result;
+    }
+
+    bool jsonInteger(const QJsonValue &value, qint64 minimum, qint64 maximum, qint64 *result)
+    {
+        if (!value.isDouble())
+            return false;
+        const double number = value.toDouble();
+        if (!std::isfinite(number) || std::floor(number) != number
+            || number < static_cast<double>(minimum) || number > static_cast<double>(maximum))
+        {
+            return false;
+        }
+        *result = static_cast<qint64>(number);
+        return true;
+    }
+
+    bool decodeSettingValue(const QJsonObject &object, QVariant *result, QString *errorMessage)
+    {
+        const QJsonValue typeValue = object.value(QStringLiteral("type"));
+        const QJsonValue value = object.value(QStringLiteral("value"));
+        if (!typeValue.isString())
+        {
+            if (errorMessage)
+                *errorMessage = transferError("A setting has no valid type tag.");
+            return false;
+        }
+
+        const QString type = typeValue.toString();
+        if (type == QLatin1String("bool") && value.isBool())
+            *result = value.toBool();
+        else if (type == QLatin1String("int"))
+        {
+            qint64 number = 0;
+            if (!jsonInteger(value, std::numeric_limits<int>::min(),
+                             std::numeric_limits<int>::max(), &number))
+            {
+                if (errorMessage)
+                    *errorMessage = transferError("A setting contains an invalid integer.");
+                return false;
+            }
+            *result = static_cast<int>(number);
+        }
+        else if (type == QLatin1String("uint"))
+        {
+            qint64 number = 0;
+            if (!jsonInteger(value, 0, std::numeric_limits<unsigned int>::max(), &number))
+            {
+                if (errorMessage)
+                    *errorMessage = transferError("A setting contains an invalid unsigned integer.");
+                return false;
+            }
+            *result = static_cast<unsigned int>(number);
+        }
+        else if (type == QLatin1String("int64") && value.isString())
+        {
+            bool ok = false;
+            const qlonglong number = value.toString().toLongLong(&ok);
+            if (!ok)
+            {
+                if (errorMessage)
+                    *errorMessage = transferError("A setting contains an invalid 64-bit integer.");
+                return false;
+            }
+            *result = number;
+        }
+        else if (type == QLatin1String("uint64") && value.isString())
+        {
+            bool ok = false;
+            const qulonglong number = value.toString().toULongLong(&ok);
+            if (!ok)
+            {
+                if (errorMessage)
+                    *errorMessage = transferError("A setting contains an invalid unsigned 64-bit integer.");
+                return false;
+            }
+            *result = number;
+        }
+        else if (type == QLatin1String("double") && value.isDouble()
+                 && std::isfinite(value.toDouble()))
+            *result = value.toDouble();
+        else if (type == QLatin1String("string") && value.isString()
+                 && value.toString().size() <= kMaximumStringLength)
+            *result = value.toString();
+        else if (type == QLatin1String("string-list") && value.isArray())
+        {
+            const QJsonArray array = value.toArray();
+            if (array.size() > kMaximumSettingCount)
+            {
+                if (errorMessage)
+                    *errorMessage = transferError("A string-list setting is too large.");
+                return false;
+            }
+            QStringList strings;
+            strings.reserve(array.size());
+            for (const QJsonValue &item : array)
+            {
+                if (!item.isString() || item.toString().size() > kMaximumStringLength)
+                {
+                    if (errorMessage)
+                        *errorMessage = transferError("A string-list setting is invalid.");
+                    return false;
+                }
+                strings.append(item.toString());
+            }
+            *result = strings;
+        }
+        else if (type == QLatin1String("bytes") && value.isString())
+        {
+            const QByteArray encoded = value.toString().toLatin1();
+            const auto decoded = QByteArray::fromBase64Encoding(
+                encoded, QByteArray::AbortOnBase64DecodingErrors);
+            if (!decoded || decoded.decoded.size() > kMaximumByteArrayLength)
+            {
+                if (errorMessage)
+                    *errorMessage = transferError("A byte-array setting is invalid or too large.");
+                return false;
+            }
+            *result = decoded.decoded;
+        }
+        else if (type == QLatin1String("color") && value.isString())
+        {
+            const QColor color(value.toString());
+            if (!color.isValid())
+            {
+                if (errorMessage)
+                    *errorMessage = transferError("A color setting is invalid.");
+                return false;
+            }
+            *result = color;
+        }
+        else
+        {
+            if (errorMessage)
+                *errorMessage = transferError("A setting contains an unsupported or invalid value.");
+            return false;
+        }
+        return true;
+    }
+
+    bool parseTransferText(const QString &text, QVariantMap *settings, QString *errorMessage)
+    {
+        QString normalized = text;
+        if (!normalized.isEmpty() && normalized.front() == QChar::ByteOrderMark)
+            normalized.remove(0, 1);
+
+        QStringList lines = normalized.split('\n');
+        while (!lines.isEmpty() && lines.front().trimmed().isEmpty())
+            lines.removeFirst();
+        while (!lines.isEmpty() && lines.back().trimmed().isEmpty())
+            lines.removeLast();
+        if (lines.size() < 3 || lines.front().trimmed() != Settings::transferBeginMarker()
+            || lines.back().trimmed() != Settings::transferEndMarker())
+        {
+            if (errorMessage)
+                *errorMessage = transferError("The settings text has an invalid header or footer.");
+            return false;
+        }
+
+        QByteArray encoded;
+        for (qsizetype i = 1; i + 1 < lines.size(); ++i)
+            encoded.append(lines.at(i).trimmed().toLatin1());
+        if (encoded.isEmpty() || encoded.size() > kMaximumEncodedPayloadBytes)
+        {
+            if (errorMessage)
+                *errorMessage = transferError("The settings payload is empty or too large.");
+            return false;
+        }
+
+        const auto decoded = QByteArray::fromBase64Encoding(
+            encoded, QByteArray::AbortOnBase64DecodingErrors);
+        if (!decoded || decoded.decoded.size() > kMaximumDecodedPayloadBytes)
+        {
+            if (errorMessage)
+                *errorMessage = transferError("The settings payload is not valid Base64 data.");
+            return false;
+        }
+
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(decoded.decoded, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !document.isObject())
+        {
+            if (errorMessage)
+                *errorMessage = transferError("The settings payload does not contain valid JSON.");
+            return false;
+        }
+
+        const QJsonObject root = document.object();
+        const QJsonValue version = root.value(QStringLiteral("version"));
+        if (root.value(QStringLiteral("format")).toString() != QLatin1String(kTransferFormat)
+            || !version.isDouble() || version.toDouble() != kTransferVersion
+            || !root.value(QStringLiteral("settings")).isArray())
+        {
+            if (errorMessage)
+                *errorMessage = transferError("This settings bundle uses an unsupported format or version.");
+            return false;
+        }
+
+        const QJsonArray entries = root.value(QStringLiteral("settings")).toArray();
+        if (entries.size() > kMaximumSettingCount)
+        {
+            if (errorMessage)
+                *errorMessage = transferError("The settings bundle contains too many entries.");
+            return false;
+        }
+
+        const QByteArray expectedChecksum = root.value(QStringLiteral("sha256")).toString().toLatin1();
+        const QByteArray actualChecksum = QCryptographicHash::hash(
+                                              QJsonDocument(entries).toJson(QJsonDocument::Compact),
+                                              QCryptographicHash::Sha256)
+                                              .toHex();
+        if (expectedChecksum.size() != 64 || expectedChecksum != actualChecksum)
+        {
+            if (errorMessage)
+                *errorMessage = transferError("The settings bundle checksum does not match.");
+            return false;
+        }
+
+        QVariantMap parsed;
+        QSet<QString> seenKeys;
+        for (const QJsonValue &entryValue : entries)
+        {
+            if (!entryValue.isObject())
+            {
+                if (errorMessage)
+                    *errorMessage = transferError("The settings bundle contains an invalid entry.");
+                return false;
+            }
+            const QJsonObject entry = entryValue.toObject();
+            const QJsonValue keyValue = entry.value(QStringLiteral("key"));
+            if (!keyValue.isString() || !isSafeSettingsKey(keyValue.toString())
+                || seenKeys.contains(keyValue.toString()))
+            {
+                if (errorMessage)
+                    *errorMessage = transferError("The settings bundle contains an invalid or duplicate key.");
+                return false;
+            }
+
+            QVariant value;
+            if (!decodeSettingValue(entry, &value, errorMessage))
+                return false;
+            const QString key = keyValue.toString();
+            seenKeys.insert(key);
+            parsed.insert(key, value);
+        }
+
+        *settings = parsed;
+        return true;
+    }
+
     int sanitizePlaybackFrameRateCap(int fpsCap)
     {
         switch (fpsCap)
@@ -289,6 +650,78 @@ void Settings::setPasteUse288Division(bool enabled)
     m_settings.setValue("editor/pasteUse288Division", enabled);
 }
 
+int Settings::editorTimeDivision() const
+{
+    return qBound(1, m_settings.value("editor/timeDivision", 4).toInt(), 96);
+}
+
+void Settings::setEditorTimeDivision(int division)
+{
+    m_settings.setValue("editor/timeDivision", qBound(1, division, 96));
+}
+
+int Settings::editorGridDivision() const
+{
+    return qBound(4, m_settings.value("editor/gridDivision", 20).toInt(), 64);
+}
+
+void Settings::setEditorGridDivision(int division)
+{
+    m_settings.setValue("editor/gridDivision", qBound(4, division, 64));
+}
+
+bool Settings::editorGridSnapEnabled() const
+{
+    return m_settings.value("editor/gridSnapEnabled", true).toBool();
+}
+
+void Settings::setEditorGridSnapEnabled(bool enabled)
+{
+    m_settings.setValue("editor/gridSnapEnabled", enabled);
+}
+
+double Settings::editorTimeScale() const
+{
+    const double scale = m_settings.value("editor/timeScale", 2.25).toDouble();
+    return std::isfinite(scale) ? qBound(0.2, scale, 10.0) : 2.25;
+}
+
+void Settings::setEditorTimeScale(double scale)
+{
+    m_settings.setValue("editor/timeScale",
+                        std::isfinite(scale) ? qBound(0.2, scale, 10.0) : 2.25);
+}
+
+int Settings::mirrorAxisX() const
+{
+    return qBound(0, m_settings.value("editor/mirrorAxisX", 256).toInt(), 512);
+}
+
+void Settings::setMirrorAxisX(int axisX)
+{
+    m_settings.setValue("editor/mirrorAxisX", qBound(0, axisX, 512));
+}
+
+bool Settings::mirrorGuideVisible() const
+{
+    return m_settings.value("editor/mirrorGuideVisible", false).toBool();
+}
+
+void Settings::setMirrorGuideVisible(bool visible)
+{
+    m_settings.setValue("editor/mirrorGuideVisible", visible);
+}
+
+bool Settings::mirrorPreviewVisible() const
+{
+    return m_settings.value("editor/mirrorPreviewVisible", false).toBool();
+}
+
+void Settings::setMirrorPreviewVisible(bool visible)
+{
+    m_settings.setValue("editor/mirrorPreviewVisible", visible);
+}
+
 bool Settings::backgroundImageEnabled() const
 {
     return m_settings.value("view/backgroundImageEnabled", true).toBool();
@@ -512,4 +945,111 @@ bool Settings::floatingToolWindowsEnabled() const
 void Settings::setFloatingToolWindowsEnabled(bool enabled)
 {
     m_settings.setValue("ui/floatingToolWindowsEnabled", enabled);
+}
+
+QString Settings::transferBeginMarker()
+{
+    return QStringLiteral("-----BEGIN MALODY CATCH EDITOR SETTINGS-----");
+}
+
+QString Settings::transferEndMarker()
+{
+    return QStringLiteral("-----END MALODY CATCH EDITOR SETTINGS-----");
+}
+
+QString Settings::exportTransferText(QString *errorMessage) const
+{
+    if (errorMessage)
+        errorMessage->clear();
+
+    const QStringList keys = m_settings.allKeys();
+    if (keys.size() > kMaximumSettingCount)
+    {
+        if (errorMessage)
+            *errorMessage = transferError("There are too many settings to export.");
+        return QString();
+    }
+
+    QJsonArray entries;
+    for (const QString &key : keys)
+    {
+        if (!isSafeSettingsKey(key))
+        {
+            if (errorMessage)
+                *errorMessage = transferError("A stored setting has an invalid key: %1").arg(key);
+            return QString();
+        }
+
+        bool ok = false;
+        QJsonObject entry = serializeSettingValue(m_settings.value(key), &ok);
+        if (!ok)
+        {
+            if (errorMessage)
+            {
+                *errorMessage = transferError("A stored setting uses an unsupported value type: %1")
+                                    .arg(key);
+            }
+            return QString();
+        }
+        entry.insert(QStringLiteral("key"), key);
+        entries.append(entry);
+    }
+
+    const QByteArray entriesJson = QJsonDocument(entries).toJson(QJsonDocument::Compact);
+    QJsonObject root;
+    root.insert(QStringLiteral("format"), QLatin1String(kTransferFormat));
+    root.insert(QStringLiteral("version"), kTransferVersion);
+    root.insert(QStringLiteral("settings"), entries);
+    root.insert(QStringLiteral("sha256"),
+                QString::fromLatin1(QCryptographicHash::hash(
+                                        entriesJson, QCryptographicHash::Sha256)
+                                        .toHex()));
+
+    const QByteArray encoded = QJsonDocument(root).toJson(QJsonDocument::Compact).toBase64();
+    QStringList lines;
+    lines.append(transferBeginMarker());
+    constexpr qsizetype lineLength = 76;
+    for (qsizetype offset = 0; offset < encoded.size(); offset += lineLength)
+        lines.append(QString::fromLatin1(encoded.mid(offset, lineLength)));
+    lines.append(transferEndMarker());
+    return lines.join(QLatin1Char('\n')) + QLatin1Char('\n');
+}
+
+bool Settings::importTransferText(const QString &text,
+                                  QString *errorMessage,
+                                  int *importedSettingCount)
+{
+    if (errorMessage)
+        errorMessage->clear();
+    if (importedSettingCount)
+        *importedSettingCount = 0;
+
+    QVariantMap imported;
+    if (!parseTransferText(text, &imported, errorMessage))
+        return false;
+
+    QVariantMap previous;
+    const QStringList previousKeys = m_settings.allKeys();
+    for (const QString &key : previousKeys)
+        previous.insert(key, m_settings.value(key));
+
+    m_settings.clear();
+    for (auto it = imported.cbegin(); it != imported.cend(); ++it)
+        m_settings.setValue(it.key(), it.value());
+    m_settings.sync();
+
+    if (m_settings.status() != QSettings::NoError)
+    {
+        m_settings.clear();
+        for (auto it = previous.cbegin(); it != previous.cend(); ++it)
+            m_settings.setValue(it.key(), it.value());
+        m_settings.sync();
+        if (errorMessage)
+            *errorMessage = transferError("The settings store could not be updated. Previous settings were restored.");
+        return false;
+    }
+
+    if (importedSettingCount)
+        *importedSettingCount = imported.size();
+    return true;
 }

@@ -74,6 +74,21 @@ public:
     bool pasteUse288Division() const;
     void setPasteUse288Division(bool enabled);
 
+    int editorTimeDivision() const;
+    void setEditorTimeDivision(int division);
+    int editorGridDivision() const;
+    void setEditorGridDivision(int division);
+    bool editorGridSnapEnabled() const;
+    void setEditorGridSnapEnabled(bool enabled);
+    double editorTimeScale() const;
+    void setEditorTimeScale(double scale);
+    int mirrorAxisX() const;
+    void setMirrorAxisX(int axisX);
+    bool mirrorGuideVisible() const;
+    void setMirrorGuideVisible(bool visible);
+    bool mirrorPreviewVisible() const;
+    void setMirrorPreviewVisible(bool visible);
+
     bool backgroundImageEnabled() const;
     void setBackgroundImageEnabled(bool enabled);
 
@@ -119,6 +134,15 @@ public:
     void setClassicPluginToolsVisible(bool visible);
     bool floatingToolWindowsEnabled() const;
     void setFloatingToolWindowsEnabled(bool enabled);
+
+    // Portable, human-copyable settings bundle. The payload is a typed JSON
+    // document wrapped in Base64 with fixed text markers.
+    QString exportTransferText(QString *errorMessage = nullptr) const;
+    bool importTransferText(const QString &text,
+                            QString *errorMessage = nullptr,
+                            int *importedSettingCount = nullptr);
+    static QString transferBeginMarker();
+    static QString transferEndMarker();
 
 private:
     Settings();

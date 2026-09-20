@@ -69,19 +69,19 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_colorMode(true),
       m_hyperfruitEnabled(true),
       m_verticalFlip(true),
-      m_timeDivision(4),
-      m_gridDivision(20),
-      m_gridSnap(true),
+      m_timeDivision(Settings::instance().editorTimeDivision()),
+      m_gridDivision(Settings::instance().editorGridDivision()),
+      m_gridSnap(Settings::instance().editorGridSnapEnabled()),
       m_scrollBeat(0),
       m_baseVisibleBeatRange(10),
-      m_timeScale(2.25),
+      m_timeScale(Settings::instance().editorTimeScale()),
       m_currentPlayTime(0),
       m_autoScrollEnabled(true),
       m_isSelecting(false),
       m_isDragging(false),
-      m_mirrorAxisX(kLaneWidth / 2),
-      m_mirrorGuideVisible(false),
-      m_mirrorPreviewVisible(false),
+      m_mirrorAxisX(Settings::instance().mirrorAxisX()),
+      m_mirrorGuideVisible(Settings::instance().mirrorGuideVisible()),
+      m_mirrorPreviewVisible(Settings::instance().mirrorPreviewVisible()),
       m_isDraggingMirrorGuide(false),
       m_isPasting(false),
       m_useCursorPaste(false),
@@ -691,9 +691,11 @@ void ChartCanvas::setVerticalFlip(bool flip)
 
 void ChartCanvas::setTimeDivision(int division)
 {
+    division = qBound(1, division, 96);
     if (division != m_timeDivision)
     {
         m_timeDivision = division;
+        Settings::instance().setEditorTimeDivision(division);
         invalidateGridCache();
         invalidatePastePreviewCache();
         snapPlayheadToGrid();
@@ -703,9 +705,11 @@ void ChartCanvas::setTimeDivision(int division)
 
 void ChartCanvas::setGridDivision(int division)
 {
+    division = qBound(4, division, 64);
     if (m_gridDivision != division)
     {
         m_gridDivision = division;
+        Settings::instance().setEditorGridDivision(division);
         invalidateGridCache();
         update();
     }
@@ -716,6 +720,7 @@ void ChartCanvas::setGridSnap(bool snap)
     if (m_gridSnap == snap)
         return;
     m_gridSnap = snap;
+    Settings::instance().setEditorGridSnapEnabled(snap);
 }
 
 void ChartCanvas::setScrollPos(double timeMs)
