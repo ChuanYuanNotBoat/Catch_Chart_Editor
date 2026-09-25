@@ -115,6 +115,8 @@ namespace
                     options.tempoMapMaximumTimeErrorMilliseconds + 1e-9,
                 "mapped BPM list exceeded the bridge-requested error bound");
         require(!summary.windows.isEmpty(), "diagnostics windows must not be empty");
+        require(summary.rhythmProfiles.isEmpty(),
+                "a single pulse layer must not cross the Core semantic rhythm gate");
         for (const AutoTiming2Candidate &candidate : summary.tempoCandidates)
             require(!candidate.hasPulseTime,
                     "global tempo candidates must not invent phase data");

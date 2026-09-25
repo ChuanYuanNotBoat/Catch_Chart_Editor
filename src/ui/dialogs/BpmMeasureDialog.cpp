@@ -15,6 +15,8 @@
 #include <QKeySequence>
 #include <QCheckBox>
 
+#include <limits>
+
 BpmMeasureDialog::BpmMeasureDialog(QWidget *parent)
     : QDialog(parent),
       m_measuredBpm(0.0),
@@ -25,6 +27,10 @@ BpmMeasureDialog::BpmMeasureDialog(QWidget *parent)
       m_measurementCompleted(false),
       m_hasAdoptedBpm(false),
       m_hasLegacyOffset(false),
+      m_hasAutoTimingPhaseOffset(false),
+      m_usingAutoTimingPhaseOffset(false),
+      m_legacyOffset(0),
+      m_autoTimingPhaseOffset(0),
       m_hasAutoTimingMap(false)
 {
     setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
@@ -52,7 +58,7 @@ void BpmMeasureDialog::setupUi()
     m_durationLabel = new QLabel(tr("Measure Duration (seconds):"), this);
     m_durationSpin = new QSpinBox(this);
     m_durationSpin->setObjectName(QStringLiteral("measureDurationSpin"));
-    m_durationSpin->setRange(1, 120);
+    m_durationSpin->setRange(1, std::numeric_limits<int>::max());
     m_durationSpin->setValue(120);
     m_durationSpin->setSuffix(" s");
     durationLayout->addWidget(m_durationLabel);
@@ -322,6 +328,13 @@ void BpmMeasureDialog::setAutoTimingUnavailable(const QString &text)
     updateActionState();
 }
 
+void BpmMeasureDialog::setAutoTimingPhaseOffset(int offsetMs)
+{
+    m_autoTimingPhaseOffset = offsetMs;
+    m_hasAutoTimingPhaseOffset = true;
+    updateActionState();
+}
+
 void BpmMeasureDialog::setAutoTimingMapSuggestion(const QString &summary)
 {
     m_hasAutoTimingMap = true;
@@ -388,6 +401,10 @@ void BpmMeasureDialog::resetMeasurementResults()
     m_measurementCompleted = false;
     m_hasAdoptedBpm = false;
     m_hasLegacyOffset = false;
+    m_hasAutoTimingPhaseOffset = false;
+    m_usingAutoTimingPhaseOffset = false;
+    m_legacyOffset = 0;
+    m_autoTimingPhaseOffset = 0;
     m_hasAutoTimingMap = false;
     m_lastFinalBpm = 0.0;
 
@@ -487,9 +504,12 @@ void BpmMeasureDialog::updateActionState()
             button->setEnabled(quickEnabled);
     }
 
+    const bool hasSelectedOffset = m_usingAutoTimingPhaseOffset
+                                       ? m_hasAutoTimingPhaseOffset
+                                       : m_hasLegacyOffset;
     const bool offsetEnabled = !m_isMeasuring &&
                                mode() == MeasureMode::FromStart &&
-                               m_hasLegacyOffset &&
+                               hasSelectedOffset &&
                                !usingTimingMap;
     if (m_finalOffsetSpin)
         m_finalOffsetSpin->setEnabled(offsetEnabled);
@@ -575,7 +595,9 @@ void BpmMeasureDialog::setMeasuredOffset(int offsetMs)
     if (m_finalOffsetSpin)
     {
         m_finalOffsetSpin->setValue(offsetMs);
+        m_legacyOffset = offsetMs;
         m_hasLegacyOffset = true;
+        m_usingAutoTimingPhaseOffset = false;
         m_applyOffsetCheck->setChecked(true);
         updateActionState();
     }
@@ -604,6 +626,12 @@ void BpmMeasureDialog::onQuickMultiply(int factor)
     m_lastFinalBpm = m_finalBpmSpin->value();
     m_finalBpmSpin->setValue(m_measuredBpm * factor);
     m_hasAdoptedBpm = true;
+    m_usingAutoTimingPhaseOffset = false;
+    if (m_hasLegacyOffset)
+    {
+        m_finalOffsetSpin->setValue(m_legacyOffset);
+        m_applyOffsetCheck->setChecked(true);
+    }
     updateActionState();
 }
 
@@ -620,6 +648,12 @@ void BpmMeasureDialog::onUseAutoTimingSuggestion()
     m_lastFinalBpm = m_finalBpmSpin->value();
     m_finalBpmSpin->setValue(m_autoTimingSuggestionBpm);
     m_hasAdoptedBpm = true;
+    if (mode() == MeasureMode::FromStart && m_hasAutoTimingPhaseOffset)
+    {
+        m_usingAutoTimingPhaseOffset = true;
+        m_finalOffsetSpin->setValue(m_autoTimingPhaseOffset);
+        m_applyOffsetCheck->setChecked(true);
+    }
     updateActionState();
 }
 

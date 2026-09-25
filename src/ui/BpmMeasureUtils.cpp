@@ -10,6 +10,8 @@
 
 namespace
 {
+    constexpr double kTwoPi = 6.28318530717958647692;
+
     bool isPositiveFinite(double value)
     {
         return std::isfinite(value) && value > 0.0;
@@ -29,6 +31,14 @@ namespace
     bool samePosition(double left, double right)
     {
         return std::fabs(left - right) <= 1.0e-8;
+    }
+
+    double wrapPositive(double value, double period)
+    {
+        double wrapped = std::fmod(value, period);
+        if (wrapped < 0.0)
+            wrapped += period;
+        return wrapped;
     }
 
     void appendProjectedEntry(QVector<ProjectedEntry> &entries, double beat, double bpm)
@@ -213,7 +223,7 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
     int firstBeatNumerator = 0;
     int firstBeatDenominator = 1;
     MathUtils::msToBeat(
-        map.startSeconds * 1000.0,
+        map.startSeconds * 1000.0 - offsetMs,
         existingBpmList,
         offsetMs,
         firstBeatNum,
@@ -273,15 +283,15 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
         const double beat = proposal.firstAnchorBeat +
                             anchor.phaseBeat - map.startBeat;
         const BpmEntry position = makeBpmEntry(beat, anchor.modelBpm, options.maximumBeatDenominator);
-        const double projectedMs = MathUtils::beatToMs(
+        const double projectedAudioMs = MathUtils::beatToMs(
             position.beatNum,
             position.numerator,
             position.denominator,
             normalized,
-            offsetMs);
+            offsetMs) + offsetMs;
         maximumAnchorResidualMs = std::max(
             maximumAnchorResidualMs,
-            std::fabs(projectedMs - anchor.timeSeconds * 1000.0));
+            std::fabs(projectedAudioMs - anchor.timeSeconds * 1000.0));
     }
 
     proposal.maximumAnchorResidualMs = maximumAnchorResidualMs;
@@ -293,6 +303,82 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
         proposal.unavailableReason = QStringLiteral(
             "The projected BPM list missed a detected pulse anchor by %1 ms.")
                                          .arg(maximumAnchorResidualMs, 0, 'f', 3);
+        return proposal;
+    }
+
+    proposal.available = true;
+    return proposal;
+}
+
+BpmMeasureUtils::PhaseOffsetProposal BpmMeasureUtils::buildPhaseOffsetProposal(
+    const AutoTiming2Summary &summary,
+    double bpm,
+    const PhaseOffsetOptions &options)
+{
+    PhaseOffsetProposal proposal;
+    const AutoTiming2TempoMap &map = summary.tempoMap;
+    proposal.sourceAnchorCount = map.anchors.size();
+    if (!isPositiveFinite(bpm) || !(options.maximumAcceptedResidualMs > 0.0))
+    {
+        proposal.unavailableReason = QStringLiteral("Invalid phase-offset projection options.");
+        return proposal;
+    }
+    if (!map.available || map.anchors.isEmpty())
+    {
+        proposal.unavailableReason = QStringLiteral("AutoTimingCore has no usable phase anchors.");
+        return proposal;
+    }
+    if (map.hasTempoChange)
+    {
+        proposal.unavailableReason = QStringLiteral(
+            "A single Malody offset cannot represent a variable-tempo phase map.");
+        return proposal;
+    }
+
+    const double periodMs = 60000.0 / bpm;
+    double weightedCosine = 0.0;
+    double weightedSine = 0.0;
+    double totalWeight = 0.0;
+    QVector<double> anchorOffsets;
+    anchorOffsets.reserve(map.anchors.size());
+    for (const AutoTiming2TempoMapAnchor &anchor : map.anchors)
+    {
+        if (!std::isfinite(anchor.timeSeconds))
+            continue;
+        const double offset = wrapPositive(-anchor.timeSeconds * 1000.0, periodMs);
+        const double weight = std::max(
+            1.0e-6,
+            std::max(0.0, anchor.confidence) *
+                std::max(0.0, anchor.phaseConfidence));
+        const double angle = kTwoPi * offset / periodMs;
+        weightedCosine += weight * std::cos(angle);
+        weightedSine += weight * std::sin(angle);
+        totalWeight += weight;
+        anchorOffsets.append(offset);
+    }
+    if (anchorOffsets.isEmpty() || !(totalWeight > 0.0) ||
+        std::hypot(weightedCosine, weightedSine) <= totalWeight * 1.0e-6)
+    {
+        proposal.unavailableReason = QStringLiteral("Core phase anchors do not define a stable cyclic offset.");
+        return proposal;
+    }
+
+    double meanAngle = std::atan2(weightedSine, weightedCosine);
+    if (meanAngle < 0.0)
+        meanAngle += kTwoPi;
+    proposal.offsetMs = meanAngle * periodMs / kTwoPi;
+    for (double offset : anchorOffsets)
+    {
+        const double direct = std::fabs(offset - proposal.offsetMs);
+        proposal.maximumAnchorResidualMs = std::max(
+            proposal.maximumAnchorResidualMs,
+            std::min(direct, periodMs - direct));
+    }
+    if (proposal.maximumAnchorResidualMs > options.maximumAcceptedResidualMs)
+    {
+        proposal.unavailableReason = QStringLiteral(
+            "The stable-grid phase spread (%1 ms) exceeded the CCE acceptance target.")
+                                         .arg(proposal.maximumAnchorResidualMs, 0, 'f', 3);
         return proposal;
     }
 

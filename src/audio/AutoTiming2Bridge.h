@@ -20,8 +20,9 @@
 //     never be merged. Direct bridge calls start that timeline at zero;
 //     BpmDetector translates location fields to whole-file time.
 //   - PeriodicityLayer rational values are evidence only, not subdivision or
-//     polyrhythm assertions. RhythmProfile roles are still candidate diagnostics
-//     and must never be projected into bpmList as tempo changes.
+//     polyrhythm assertions. Core publishes RhythmProfile only through its
+//     fail-closed semantic gates; neither form may be projected into bpmList.
+//     The ordinary BPM UI intentionally does not display raw rhythm diagnostics.
 //   - averageObjectiveCost is a diagnostic cost, not a calibrated probability.
 //   - Low confidence must be reported as uncertainty, not as an analysis error.
 // ---------------------------------------------------------------------------
@@ -172,9 +173,13 @@ struct AutoTiming2Layer
     quint32 ratioDenominator = 0;
     double phaseOffsetCycles = 0.0;
     double phaseConfidence = 0.0;
+    double highRatePulseCoverage = 0.0;
+    double highRateTransientDensityCoverage = 0.0;
     double confidence = 0.0;
     QString relation; // Harmonic | RationalApproximation | Unresolved
     QVector<qsizetype> supportingWindowIds;
+    QVector<qsizetype> tempoCandidateSupportingWindowIds;
+    QVector<qsizetype> highRateRhythmSupportingWindowIds;
 };
 
 struct AutoTiming2RhythmLayer
@@ -188,6 +193,8 @@ struct AutoTiming2RhythmLayer
     quint32 ratioDenominator = 0;
     double phaseOffsetCycles = 0.0;
     double phaseConfidence = 0.0;
+    double pulseCoverage = 0.0;
+    double transientDensityCoverage = 0.0;
     double confidence = 0.0;
     QString role; // subdivision_candidate | polyrhythm_candidate | texture_candidate | unresolved
     QVector<qsizetype> supportingWindowIds;

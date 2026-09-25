@@ -209,59 +209,6 @@ QString BPMTimePanel::buildMeasurementDetails(const BpmDetector::DetectionResult
             values.append(tr("+%1 more").arg(regions.size() - visibleCount));
         return values.isEmpty() ? tr("none") : values.join(QStringLiteral(", "));
     };
-    const auto rhythmSummary = [this](const QVector<AutoTiming2RhythmProfile> &profiles)
-    {
-        constexpr int kMaximumVisibleProfiles = 4;
-        constexpr int kMaximumVisibleLayers = 3;
-        QStringList profileValues;
-        const int visibleProfiles = qMin(kMaximumVisibleProfiles, static_cast<int>(profiles.size()));
-        for (int i = 0; i < visibleProfiles; ++i)
-        {
-            const AutoTiming2RhythmProfile &profile = profiles[i];
-            QStringList layerValues;
-            const int visibleLayers = qMin(kMaximumVisibleLayers, static_cast<int>(profile.layers.size()));
-            for (int j = 0; j < visibleLayers; ++j)
-            {
-                const AutoTiming2RhythmLayer &layer = profile.layers[j];
-                if (layer.role == QStringLiteral("subdivision_candidate"))
-                {
-                    layerValues.append(tr("x%1 subdivision candidate")
-                                           .arg(layer.ratioNumerator > 0
-                                                    ? QString::number(layer.ratioNumerator)
-                                                    : QString::number(layer.relativeRate, 'f', 2)));
-                }
-                else if (layer.role == QStringLiteral("polyrhythm_candidate") &&
-                         layer.ratioNumerator > 0 && layer.ratioDenominator > 0)
-                {
-                    layerValues.append(tr("%1:%2 polyrhythm candidate")
-                                           .arg(layer.ratioNumerator)
-                                           .arg(layer.ratioDenominator));
-                }
-                else if (layer.role == QStringLiteral("texture_candidate"))
-                {
-                    layerValues.append(tr("x%1 texture candidate")
-                                           .arg(QString::number(layer.relativeRate, 'f', 2)));
-                }
-                else
-                {
-                    layerValues.append(tr("x%1 unresolved rhythm candidate")
-                                           .arg(QString::number(layer.relativeRate, 'f', 2)));
-                }
-            }
-            if (profile.layers.size() > visibleLayers)
-                layerValues.append(tr("+%1 more").arg(profile.layers.size() - visibleLayers));
-            profileValues.append(tr("%1-%2 s: %3")
-                                     .arg(QString::number(profile.startSeconds, 'f', 1),
-                                          QString::number(profile.endSeconds, 'f', 1),
-                                          layerValues.isEmpty() ? tr("unresolved")
-                                                                : layerValues.join(QStringLiteral(" + "))));
-        }
-        if (profiles.size() > visibleProfiles)
-            profileValues.append(tr("+%1 more profiles").arg(profiles.size() - visibleProfiles));
-        return profileValues.isEmpty() ? tr("none")
-                                       : profileValues.join(QStringLiteral("; "));
-    };
-
     QString details;
     QTextStream stream(&details);
     stream << tr("Mode: ")
@@ -300,6 +247,19 @@ QString BPMTimePanel::buildMeasurementDetails(const BpmDetector::DetectionResult
                            : tr("uncertain"))
                    << "\n";
 
+            if (fromStart)
+            {
+                const BpmMeasureUtils::PhaseOffsetProposal phase =
+                    BpmMeasureUtils::buildPhaseOffsetProposal(result.analysis, recommendation.bpm);
+                if (phase.available)
+                {
+                    stream << tr("AutoTiming 2 phase offset: %1 ms (anchor spread %2 ms)")
+                                  .arg(phase.offsetMs, 0, 'f', 3)
+                                  .arg(phase.maximumAnchorResidualMs, 0, 'f', 3)
+                           << "\n";
+                }
+            }
+
             if (!recommendation.familyBpms.isEmpty())
             {
                 QStringList familyValues;
@@ -334,8 +294,6 @@ QString BPMTimePanel::buildMeasurementDetails(const BpmDetector::DetectionResult
                       .arg(result.analysis.multiScalePhaseRefinedCount)
                       .arg(result.analysis.stableGridRegularizedCount)
                << "\n";
-        stream << tr("Rhythm candidates (diagnostic only): ")
-               << rhythmSummary(result.analysis.rhythmProfiles) << "\n";
         break;
     }
     case BpmDetector::AnalysisStatus::Failed:
@@ -371,6 +329,7 @@ void BPMTimePanel::onMeasureBpmClicked()
         bool measuredFromStart = true;
         bool hasCompletedResult = false;
         BpmMeasureUtils::TimingMapProposal timingMap;
+        BpmMeasureUtils::PhaseOffsetProposal phaseOffset;
     };
 
     const double chartMs = currentChartTimeMs();
@@ -501,10 +460,24 @@ void BPMTimePanel::onMeasureBpmClicked()
                     BpmMeasureUtils::selectRecommendation(result);
                 if (recommendation.available)
                 {
-                    const QString qualifier =
+                    QString qualifier =
                         recommendation.quality == BpmMeasureUtils::EvidenceQuality::Supported
                             ? tr("(supported)")
                             : tr("(uncertain)");
+                    if (fromStart && result.hasAnalysis())
+                    {
+                        session->phaseOffset = BpmMeasureUtils::buildPhaseOffsetProposal(
+                            result.analysis,
+                            recommendation.bpm);
+                        if (session->phaseOffset.available)
+                        {
+                            const int phaseOffsetMs = qRound(session->phaseOffset.offsetMs);
+                            dialog.setAutoTimingPhaseOffset(phaseOffsetMs);
+                            qualifier = recommendation.quality == BpmMeasureUtils::EvidenceQuality::Supported
+                                ? tr("(supported; phase %1 ms)").arg(phaseOffsetMs)
+                                : tr("(uncertain; phase %1 ms)").arg(phaseOffsetMs);
+                        }
+                    }
                     dialog.setAutoTimingSuggestion(recommendation.bpm, qualifier);
                 }
                 else if (result.analysisStatus == BpmDetector::AnalysisStatus::Succeeded)

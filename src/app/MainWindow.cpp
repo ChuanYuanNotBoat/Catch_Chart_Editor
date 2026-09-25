@@ -3779,7 +3779,7 @@ void MainWindow::newChart()
             this,
             resolvedTargetAudioPath,
             0.0,
-            120000.0,
+            static_cast<double>(std::numeric_limits<int>::max()) * 1000.0,
             [this,
              progressGuard,
              chart = std::move(chart),

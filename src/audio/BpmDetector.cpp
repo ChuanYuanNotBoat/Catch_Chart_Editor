@@ -341,8 +341,6 @@ namespace
             return false;
         }
 
-        const double maxDurationMs = 120000.0;
-        durationMs = qMin(durationMs, maxDurationMs);
         const double clampedStartMs = qMax(0.0, startMs);
 
         if (cancelFlag && cancelFlag->load())

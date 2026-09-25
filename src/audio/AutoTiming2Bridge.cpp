@@ -287,10 +287,17 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             out.ratioDenominator = l.ratioDenominator;
             out.phaseOffsetCycles = l.phaseOffsetCycles;
             out.phaseConfidence = l.phaseConfidence;
+            out.highRatePulseCoverage = l.highRatePulseCoverage;
+            out.highRateTransientDensityCoverage =
+                l.highRateTransientDensityCoverage;
             out.confidence = l.confidence;
             out.relation = toStringField(l.relation);
             for (std::size_t w : l.supportingWindowIds)
                 out.supportingWindowIds.append(qsizetype(w));
+            for (std::size_t w : l.tempoCandidateSupportingWindowIds)
+                out.tempoCandidateSupportingWindowIds.append(qsizetype(w));
+            for (std::size_t w : l.highRateRhythmSupportingWindowIds)
+                out.highRateRhythmSupportingWindowIds.append(qsizetype(w));
             outSummary.periodicityLayers.append(out);
         }
 
@@ -314,6 +321,9 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
                 outLayer.ratioDenominator = layer.ratioDenominator;
                 outLayer.phaseOffsetCycles = layer.phaseOffsetCycles;
                 outLayer.phaseConfidence = layer.phaseConfidence;
+                outLayer.pulseCoverage = layer.pulseCoverage;
+                outLayer.transientDensityCoverage =
+                    layer.transientDensityCoverage;
                 outLayer.confidence = layer.confidence;
                 outLayer.role = toStringField(layer.role);
                 for (std::size_t w : layer.supportingWindowIds)

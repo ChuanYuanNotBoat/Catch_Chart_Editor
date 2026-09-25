@@ -192,6 +192,11 @@ namespace
                 "fixed BPM map must retain all pulse anchors without cumulative drift");
         require(!fixedProposal.hasTempoChange,
                 "fixed pulse track must not be presented as a tempo change");
+        const BpmMeasureUtils::TimingMapProposal offsetFixedProposal =
+            BpmMeasureUtils::buildTimingMapProposal(fixed, existing, 87);
+        require(offsetFixedProposal.available &&
+                    nearlyEqual(offsetFixedProposal.firstAnchorBeat, 0.25, 1.0e-4),
+                "audio-time anchors must map to the same chart beat regardless of the current offset");
 
         AutoTiming2Summary step;
         setCoreTempoMap(
@@ -217,6 +222,35 @@ namespace
                 "tempo-step proposal must contain more than a single global BPM");
         require(stepProposal.maximumAnchorResidualMs < 0.1,
                 "tempo-step map must not accumulate offset after the change");
+    }
+
+    void testStablePhaseProjectsToMalodyOffset()
+    {
+        AutoTiming2Summary stable;
+        setCoreTempoMap(
+            stable,
+            3.913,
+            11.913,
+            24.0,
+            {
+                tempoMapAnchor(3.9130, 0.0, 180.0),
+                tempoMapAnchor(7.9134, 12.0, 180.0),
+                tempoMapAnchor(11.9128, 24.0, 180.0),
+            },
+            {{0.0, 180.0}});
+        const BpmMeasureUtils::PhaseOffsetProposal phase =
+            BpmMeasureUtils::buildPhaseOffsetProposal(stable, 180.0);
+        require(phase.available, "stable Core pulse anchors must project to a Malody offset");
+        require(std::fabs(phase.offsetMs - 87.0) < 0.5,
+                "PIONEER-like 180 BPM anchors must recover the authored 87 ms phase");
+        require(phase.maximumAnchorResidualMs < 0.5,
+                "stable phase projection must report its cross-anchor residual");
+
+        stable.tempoMap.hasTempoChange = true;
+        const BpmMeasureUtils::PhaseOffsetProposal variable =
+            BpmMeasureUtils::buildPhaseOffsetProposal(stable, 180.0);
+        require(!variable.available,
+                "variable-tempo maps must not be collapsed into a single offset");
     }
 
     void testTimingMapProjectionApproximatesContinuousRampBelowFiveMs()
@@ -298,6 +332,7 @@ namespace
         dialog.setMeasuring(true);
         dialog.setLegacyUnavailable();
         dialog.setAutoTimingSuggestion(174.0, QStringLiteral("(uncertain)"));
+        dialog.setAutoTimingPhaseOffset(87);
         dialog.setMeasurementComplete();
 
         require(nearlyEqual(dialog.measuredBpm(), 0.0),
@@ -318,8 +353,8 @@ namespace
                 "Use suggestion must copy only the V2 BPM into BPM to Add");
         require(nearlyEqual(dialog.measuredBpm(), 0.0),
                 "Use suggestion must not relabel V2 as legacy Measured BPM");
-        require(nearlyEqual(dialog.finalOffset(), 0.0) && !dialog.applyOffset(),
-                "Use suggestion must not apply V2 phase as an offset");
+        require(nearlyEqual(dialog.finalOffset(), 87.0) && dialog.applyOffset(),
+                "Use suggestion must explicitly adopt the paired V2 phase offset");
     }
 
     void testTimingMapRequiresExplicitSelectionAndExcludesLegacyOffset()
@@ -411,7 +446,11 @@ namespace
         QSpinBox *durationSpin = dialog.findChild<QSpinBox *>(QStringLiteral("measureDurationSpin"));
         require(durationSpin != nullptr, "duration spin must be discoverable for regression tests");
         if (durationSpin)
+        {
+            require(durationSpin->maximum() > 120,
+                    "BPM measurement duration must not retain the old 120-second cap");
             durationSpin->setValue(durationSpin->value() - 1);
+        }
         require(nearlyEqual(dialog.measuredBpm(), 0.0) && nearlyEqual(dialog.finalBpm(), 0.0),
                 "changing duration must invalidate the completed BPM result");
     }
@@ -433,6 +472,7 @@ int main(int argc, char **argv)
     runTest("chart_start_target", testTargetEntryUsesTrueChartStart);
     runTest("timing_map_fixed_and_step", testTimingMapProjectionPreventsFixedAndStepDrift);
     runTest("timing_map_continuous_ramp", testTimingMapProjectionApproximatesContinuousRampBelowFiveMs);
+    runTest("stable_phase_offset", testStablePhaseProjectsToMalodyOffset);
     runTest("timing_map_abstains", testTimingMapProjectionAbstainsWithoutPhaseCoverage);
     runTest("v2_explicit_use", testV2SuggestionRequiresExplicitUse);
     runTest("timing_map_explicit_use", testTimingMapRequiresExplicitSelectionAndExcludesLegacyOffset);

@@ -38,6 +38,7 @@ public:
     void setLegacyUnavailable(const QString &text = QString());
     void setAutoTimingSuggestion(double bpm, const QString &qualifier = QString());
     void setAutoTimingUnavailable(const QString &text);
+    void setAutoTimingPhaseOffset(int offsetMs);
     void setAutoTimingMapSuggestion(const QString &summary);
     void setAutoTimingMapUnavailable(const QString &text = QString());
     void setMultiplierHint(int factor, const QString &text);
@@ -113,5 +114,9 @@ private:
     bool m_measurementCompleted;
     bool m_hasAdoptedBpm;
     bool m_hasLegacyOffset;
+    bool m_hasAutoTimingPhaseOffset;
+    bool m_usingAutoTimingPhaseOffset;
+    int m_legacyOffset;
+    int m_autoTimingPhaseOffset;
     bool m_hasAutoTimingMap;
 };

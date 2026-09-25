@@ -79,6 +79,23 @@ namespace BpmMeasureUtils
         bool hasAbruptChange = false;
     };
 
+    // Converts AutoTimingCore's stable pulse anchors into Malody's cyclic
+    // offset convention. Phase estimation remains in Core; this is only the
+    // host-coordinate projection needed by CCE.
+    struct PhaseOffsetOptions
+    {
+        double maximumAcceptedResidualMs = 5.0;
+    };
+
+    struct PhaseOffsetProposal
+    {
+        bool available = false;
+        double offsetMs = 0.0;
+        double maximumAnchorResidualMs = 0.0;
+        int sourceAnchorCount = 0;
+        QString unavailableReason;
+    };
+
     Recommendation selectRecommendation(const BpmDetector::DetectionResult &result);
 
     // Only returns factors backed by existing dialog buttons. A lower V2 value
@@ -95,6 +112,11 @@ namespace BpmMeasureUtils
         const QVector<BpmEntry> &existingBpmList,
         int offsetMs,
         const TimingMapOptions &options = {});
+
+    PhaseOffsetProposal buildPhaseOffsetProposal(
+        const AutoTiming2Summary &summary,
+        double bpm,
+        const PhaseOffsetOptions &options = {});
 
     // Centralizes the chart-start invariant used by the confirmation workflow.
     BpmEntry makeTargetEntry(bool fromStart,
