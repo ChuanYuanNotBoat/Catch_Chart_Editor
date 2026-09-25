@@ -214,11 +214,14 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
                 native.windowSpecs.push_back(ws);
             }
         }
+        native.preferLocalTempoEvidence = options.preferLocalTempoEvidence;
         native.minimumWindowSeconds = options.minimumWindowSeconds;
         native.minimumTempoBpm = options.minimumTempoBpm;
         native.maximumTempoBpm = options.maximumTempoBpm;
         native.anchorReliabilityThreshold = options.anchorReliabilityThreshold;
         native.maximumTrackedGapSeconds = options.maximumTrackedGapSeconds;
+        native.enableComplexSubdivisionAnalysis =
+            options.enableComplexSubdivisionAnalysis;
 
         const autotiming::AudioView view{mono.constData(),
                                          static_cast<std::size_t>(mono.size()),

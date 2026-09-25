@@ -85,6 +85,7 @@ namespace
         AutoTiming2Options options;
         options.windowSpecs = {{8.0, 4.0}};
         options.minimumWindowSeconds = 4.0;
+        options.enableComplexSubdivisionAnalysis = false;
         return options;
     }
 
@@ -111,6 +112,8 @@ namespace
                 "bridge must expose the core phase-anchored tempo map");
         require(summary.tempoMap.bpmListAvailable && !summary.tempoMap.bpmList.isEmpty(),
                 "bridge must expose the core bounded-error BPM list");
+        require(!summary.periodicityLayers.isEmpty(),
+                "disabling semantic subdivision analysis must retain raw periodicity layers");
         require(summary.tempoMap.maximumBpmListModelErrorMilliseconds <=
                     options.tempoMapMaximumTimeErrorMilliseconds + 1e-9,
                 "mapped BPM list exceeded the bridge-requested error bound");

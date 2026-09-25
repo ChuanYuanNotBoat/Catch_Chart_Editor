@@ -6,7 +6,7 @@
 
 - 上游仓库：`https://github.com/ChuanYuanNotBoat/AutoTimingCore.git`
 - 子模块路径：`third_party/AutoTimingCore`
-- 固定提交：`6371b31cb721cbbf0c692330d3cfbc5c97ee9338`
+- 固定提交：`e855b1990533ac41b4d365e5d1f79242714651e6`
 - 接入日期：2026-09-20
 - 接入方式：Git submodule；CCE 仓库的 gitlink 是唯一版本来源
 
@@ -28,7 +28,7 @@ git submodule update --init --recursive
 
 CCE 的 `audio_autotiming_bridge_tests` 继续验证 `AutoTimingCore -> AutoTiming2Bridge -> BpmDetector` 的宿主边界和 legacy/V2 行为。
 
-当前开发接入把 phase-anchored `TempoMap`、连续曲线和有误差上界的通用 BPM points 保留在 AutoTimingCore。CCE bridge 只转换 Qt 友好结构；`BpmMeasureUtils` 只负责将相对 beat 坐标映射成 Malody `BpmEntry`、合并谱面前段并复核量化后的 anchor 残差。完整 BPM map 仍需用户显式确认，`stable_grid_regularization` 仍只作为诊断展示，复杂分度候选不会自动写入谱面。
+当前开发接入把 phase-anchored `TempoMap`、连续曲线和有误差上界的通用 BPM points 保留在 AutoTimingCore。CCE bridge 只转换 Qt 友好结构并转发 `preferLocalTempoEvidence` 与 `enableComplexSubdivisionAnalysis`；普通 BPM 流程默认关闭后者，以避免把 SV/密集纹理误报为语义分度，同时保留 Core 的 raw periodicity evidence。`BpmMeasureUtils` 只负责将相对 beat 坐标映射成 Malody `BpmEntry`、合并谱面前段并复核量化后的 anchor 残差。完整 BPM map 仍需用户显式确认，`stable_grid_regularization` 仍只作为诊断展示，复杂分度候选不会自动写入谱面。
 
 ## 更新固定版本
 
@@ -54,7 +54,7 @@ git add third_party/AutoTimingCore docs/AUTOTIMING_VENDORING.md
 
 ## 来源边界与许可证状态
 
-以下内容来自子模块 `ATTRIBUTION.md`（固定提交 `6371b31cb721cbbf0c692330d3cfbc5c97ee9338`）：
+以下内容来自子模块 `ATTRIBUTION.md`（固定提交 `e855b1990533ac41b4d365e5d1f79242714651e6`）：
 
 - Legacy source set（`AutoTiming.cpp/.h`、`dsp.*`、`fft.*`、`util.*`、`platform.h`）源自 Malody 内部 AutoTiming 原始实现（原文件头 “Created by dolly on 16/1/3” 应保留）。
 - AutoTiming 2 是在 legacy 基线上继续发展的扩展。

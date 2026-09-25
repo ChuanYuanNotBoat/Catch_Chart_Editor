@@ -242,11 +242,18 @@ struct AutoTiming2Options
     // (durationSeconds, hopSeconds) pairs; empty -> upstream default scales
     // (8s/4s + 24s/12s + 48s/24s).
     QVector<QPair<double, double>> windowSpecs;
+    // Prefer Core's local-evidence tempo curve when the caller has independent
+    // evidence of structural tempo changes.
+    bool preferLocalTempoEvidence = false;
     double minimumWindowSeconds = 4.0;
     double minimumTempoBpm = 30.0;
     double maximumTempoBpm = 480.0;
     double anchorReliabilityThreshold = 0.62;
     double maximumTrackedGapSeconds = 12.0;
+    // CCE's ordinary BPM workflow does not consume semantic rhythm profiles;
+    // keep Core's raw periodicity evidence while avoiding false semantic SV
+    // or subdivision interpretations unless a caller explicitly opts in.
+    bool enableComplexSubdivisionAnalysis = false;
     double tempoMapMaximumTimeErrorMilliseconds = 1.0;
     qsizetype tempoMapMaximumEntries = 2048;
 };
