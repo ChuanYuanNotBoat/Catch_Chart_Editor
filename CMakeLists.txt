@@ -28,19 +28,21 @@ unset(BUILD_EXAMPLES)
 add_subdirectory(third_party/libogg EXCLUDE_FROM_ALL)
 add_subdirectory(third_party/libvorbis EXCLUDE_FROM_ALL)
 
-# AutoTimingCore is a pinned git submodule. Consume its exported targets
-# directly so the application and upstream regression tests share the exact
-# source revision recorded by the gitlink.
-set(AUTOTIMINGCORE_SUBMODULE_DIR "${CMAKE_SOURCE_DIR}/third_party/AutoTimingCore")
-if(NOT EXISTS "${AUTOTIMINGCORE_SUBMODULE_DIR}/CMakeLists.txt")
+# AutoTimingCore is a pinned git submodule in production. An explicit cache
+# override lets maintainers validate an adjacent upstream worktree before its
+# reviewed commit is pinned; release/CI builds keep the submodule default.
+set(AUTOTIMINGCORE_SOURCE_DIR
+    "${CMAKE_SOURCE_DIR}/third_party/AutoTimingCore"
+    CACHE PATH "AutoTimingCore source directory (development override)")
+if(NOT EXISTS "${AUTOTIMINGCORE_SOURCE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
-        "AutoTimingCore submodule is not initialized. Run: "
-        "git submodule update --init --recursive")
+        "AutoTimingCore source is unavailable at ${AUTOTIMINGCORE_SOURCE_DIR}. "
+        "Initialize the default submodule with: git submodule update --init --recursive")
 endif()
 if(NOT DEFINED AUTOTIMING_BUILD_TOOLS)
     set(AUTOTIMING_BUILD_TOOLS ${BUILD_TESTING})
 endif()
-add_subdirectory(third_party/AutoTimingCore)
+add_subdirectory("${AUTOTIMINGCORE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/AutoTimingCore")
 
 # Workaround for MSVC Release optimizer crash on specific files.
 # Disable optimization for ChartCanvas.cpp and ChartCanvasPlayback.cpp.

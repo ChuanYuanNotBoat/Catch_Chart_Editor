@@ -98,6 +98,16 @@ void ChartCanvas::cancelIntervalSelection()
 void ChartCanvas::cancelOperation()
 {
     m_pendingMove = false;
+    m_dragReferenceIndex = -1;
+    m_selectionAtPress.clear();
+    m_selectionPressHitIndex = -1;
+    m_selectionCtrlPressed = false;
+    m_selectionDragged = false;
+    if (m_isSelecting)
+    {
+        m_isSelecting = false;
+        update();
+    }
 
     if (m_isPasting)
         cancelPaste();

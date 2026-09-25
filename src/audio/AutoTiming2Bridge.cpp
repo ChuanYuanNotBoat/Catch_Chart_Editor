@@ -8,6 +8,9 @@ namespace
 {
     QString toStringField(autotiming::WindowScale v) { return QString::fromLatin1(autotiming::toString(v)); }
     QString toStringField(autotiming::TempoTrackState v) { return QString::fromLatin1(autotiming::toString(v)); }
+    QString toStringField(autotiming::TempoCurveKind v) { return QString::fromLatin1(autotiming::toString(v)); }
+    QString toStringField(autotiming::TempoMapFailureReason v) { return QString::fromLatin1(autotiming::toString(v)); }
+    QString toStringField(autotiming::TempoMapApproximationFailureReason v) { return QString::fromLatin1(autotiming::toString(v)); }
     QString toStringField(autotiming::TempoPropagationReason v) { return QString::fromLatin1(autotiming::toString(v)); }
     QString toStringField(autotiming::TempoHypothesisKind v) { return QString::fromLatin1(autotiming::toString(v)); }
     QString toStringField(autotiming::PeriodicityRelationKind v) { return QString::fromLatin1(autotiming::toString(v)); }
@@ -76,6 +79,88 @@ namespace
             out.append(mapTrackPoint(p));
         return out;
     }
+
+    AutoTiming2TempoMap mapTempoMap(const autotiming::TempoMap &map,
+                                    const AutoTiming2Options &options)
+    {
+        AutoTiming2TempoMap out;
+        out.available = map.available;
+        out.failureReason = toStringField(map.failureReason);
+        out.startSeconds = map.startSeconds;
+        out.endSeconds = map.endSeconds;
+        out.startBeat = map.startBeat;
+        out.endBeat = map.endBeat;
+        out.maximumAnchorResidualMilliseconds = map.maximumAnchorResidualMilliseconds;
+        out.maximumTempoCorrectionBpm = map.maximumTempoCorrectionBpm;
+        out.maximumTempoCorrectionRelative = map.maximumTempoCorrectionRelative;
+        out.robustPulseCountCorrectionCount = qsizetype(map.robustPulseCountCorrectionCount);
+        out.hasTempoChange = map.hasTempoChange;
+        out.hasContinuousChange = map.hasContinuousChange;
+        out.hasAbruptChange = map.hasAbruptChange;
+
+        out.anchors.reserve(map.anchors.size());
+        for (const autotiming::TempoMapAnchor &anchor : map.anchors)
+        {
+            AutoTiming2TempoMapAnchor mapped;
+            mapped.timeSeconds = anchor.timeSeconds;
+            mapped.observedBpm = anchor.observedBpm;
+            mapped.modelBpm = anchor.modelBpm;
+            mapped.confidence = anchor.confidence;
+            mapped.phaseConfidence = anchor.phaseConfidence;
+            mapped.phaseBeat = anchor.phaseBeat;
+            mapped.pulseIndex = qint64(anchor.pulseIndex);
+            out.anchors.append(mapped);
+        }
+
+        out.segments.reserve(map.segments.size());
+        for (const autotiming::TempoCurveSegment &segment : map.segments)
+        {
+            AutoTiming2TempoCurveSegment mapped;
+            mapped.startSeconds = segment.startSeconds;
+            mapped.endSeconds = segment.endSeconds;
+            mapped.startBeat = segment.startBeat;
+            mapped.endBeat = segment.endBeat;
+            mapped.startBpm = segment.startBpm;
+            mapped.endBpm = segment.endBpm;
+            mapped.phaseCubic = segment.phaseCubic;
+            mapped.phaseQuadratic = segment.phaseQuadratic;
+            mapped.phaseLinear = segment.phaseLinear;
+            mapped.confidence = segment.confidence;
+            mapped.kind = toStringField(segment.kind);
+            out.segments.append(mapped);
+        }
+
+        autotiming::TempoMapApproximationOptions approximationOptions;
+        approximationOptions.maximumTimeErrorMilliseconds =
+            options.tempoMapMaximumTimeErrorMilliseconds;
+        approximationOptions.maximumEntries =
+            static_cast<std::size_t>(options.tempoMapMaximumEntries);
+        const autotiming::TempoMapApproximation approximation =
+            autotiming::approximateTempoMap(map, approximationOptions);
+        out.bpmListAvailable = approximation.available;
+        out.bpmListFailureReason = toStringField(approximation.failureReason);
+        out.maximumBpmListModelErrorMilliseconds =
+            approximation.maximumModelErrorMilliseconds;
+        out.bpmList.reserve(approximation.points.size());
+        for (const autotiming::TempoMapBpmPoint &point : approximation.points)
+            out.bpmList.append({point.beat, point.bpm});
+        return out;
+    }
+
+    void translateTempoMap(AutoTiming2TempoMap &map, double offsetSeconds)
+    {
+        if (!map.available)
+            return;
+        map.startSeconds += offsetSeconds;
+        map.endSeconds += offsetSeconds;
+        for (AutoTiming2TempoMapAnchor &anchor : map.anchors)
+            anchor.timeSeconds += offsetSeconds;
+        for (AutoTiming2TempoCurveSegment &segment : map.segments)
+        {
+            segment.startSeconds += offsetSeconds;
+            segment.endSeconds += offsetSeconds;
+        }
+    }
 } // namespace
 
 bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
@@ -99,6 +184,13 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
         if (outError)
             *outError = QStringLiteral("不支持的采样率 %1 Hz：AutoTiming 2 仅支持 32000/44100/48000 Hz，请先重采样。")
                             .arg(sampleRate);
+        return false;
+    }
+    if (!(options.tempoMapMaximumTimeErrorMilliseconds > 0.0) ||
+        options.tempoMapMaximumEntries < 2)
+    {
+        if (outError)
+            *outError = QStringLiteral("AutoTiming 2 tempo-map BPM list options are invalid.");
         return false;
     }
 
@@ -168,6 +260,7 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             outSummary.tempoFamilies.append(out);
         }
         outSummary.tempoTrack = mapTrack(result.tempoTrack);
+        outSummary.tempoMap = mapTempoMap(result.tempoMap, options);
 
         outSummary.tempoHypotheses.reserve(result.tempoHypotheses.size());
         for (const autotiming::TempoTrackHypothesis &h : result.tempoHypotheses)
@@ -177,6 +270,7 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             out.averageObjectiveCost = h.averageObjectiveCost;
             out.selected = h.selected;
             out.track = mapTrack(h.track);
+            out.tempoMap = mapTempoMap(h.tempoMap, options);
             outSummary.tempoHypotheses.append(out);
         }
 
@@ -264,6 +358,7 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             out.scale = toStringField(w.scale);
             out.startSeconds = w.startSeconds;
             out.endSeconds = w.endSeconds;
+            out.isFineTempoWindow = w.isFineTempoWindow;
             out.tempoEvidence = w.tempoEvidence;
             out.legacyTempoEvidence = w.legacyTempoEvidence;
             out.onsetPeriodicityEvidence = w.onsetPeriodicityEvidence;
@@ -341,8 +436,12 @@ void AutoTiming2Bridge::translateTimeline(AutoTiming2Summary &summary, double of
     }
 
     translateTrack(summary.tempoTrack);
+    translateTempoMap(summary.tempoMap, offsetSeconds);
     for (AutoTiming2Hypothesis &hypothesis : summary.tempoHypotheses)
+    {
         translateTrack(hypothesis.track);
+        translateTempoMap(hypothesis.tempoMap, offsetSeconds);
+    }
 
     for (AutoTiming2Layer &layer : summary.periodicityLayers)
     {

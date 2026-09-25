@@ -125,7 +125,7 @@
 #include <QScopedValueRollback>
 #include <QUuid>
 #include <QDirIterator>
-#include <QtConcurrentRun>
+#include <QtConcurrent/QtConcurrentRun>
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -2383,27 +2383,13 @@ void MainWindow::registerShortcutAction(QAction *action, const QString &actionId
 
 void MainWindow::cycleNoteEditMode(int direction, QMenu *allowedPopup, bool fromCanvasWheel)
 {
-    Logger::info(QStringLiteral("[AltWheelTrace] main-receive source=%1 direction=%2 modeBefore=%3")
-                     .arg(fromCanvasWheel ? QStringLiteral("canvas") : QStringLiteral("shortcut"))
-                     .arg(direction)
-                     .arg(d->notePanel ? d->notePanel->currentMode() : -1));
     if (!d->notePanel || direction == 0 || QApplication::activeModalWidget())
-    {
-        Logger::info(QStringLiteral("[AltWheelTrace] main-block reason=%1")
-                         .arg(!d->notePanel ? QStringLiteral("no-note-panel")
-                             : direction == 0 ? QStringLiteral("zero-direction")
-                             : QStringLiteral("active-modal-widget")));
         return;
-    }
 
     QWidget *popup = QApplication::activePopupWidget();
     const bool fromAllowedPopup = popup && allowedPopup && popup == allowedPopup;
     if (popup && !fromAllowedPopup)
-    {
-        Logger::info(QStringLiteral("[AltWheelTrace] main-block reason=active-popup class=%1")
-                         .arg(QString::fromLatin1(popup->metaObject()->className())));
         return;
-    }
 
     // A canvas wheel signal already proves that the gesture originated in this
     // editor. On Qt/Windows, Alt may activate the menu bar or temporarily clear
@@ -2415,12 +2401,7 @@ void MainWindow::cycleNoteEditMode(int direction, QMenu *allowedPopup, bool from
         QWidget *activeWindow = QApplication::activeWindow();
         if (activeWindow != this
             && !qobject_cast<ads::CFloatingDockContainer *>(activeWindow))
-        {
-            Logger::info(QStringLiteral("[AltWheelTrace] main-block reason=inactive-window class=%1")
-                             .arg(activeWindow ? QString::fromLatin1(activeWindow->metaObject()->className())
-                                               : QStringLiteral("null")));
             return;
-        }
     }
 
     QWidget *focus = QApplication::focusWidget();
@@ -2429,16 +2410,9 @@ void MainWindow::cycleNoteEditMode(int direction, QMenu *allowedPopup, bool from
         || qobject_cast<QPlainTextEdit *>(focus)
         || qobject_cast<QAbstractSpinBox *>(focus)
         || qobject_cast<QComboBox *>(focus)))
-    {
-        Logger::info(QStringLiteral("[AltWheelTrace] main-block reason=input-focus class=%1")
-                         .arg(QString::fromLatin1(focus->metaObject()->className())));
         return;
-    }
 
-    const int before = d->notePanel->currentMode();
     d->notePanel->cycleMode(direction);
-    Logger::info(QStringLiteral("[AltWheelTrace] main-result modeBefore=%1 modeAfter=%2")
-                     .arg(before).arg(d->notePanel->currentMode()));
 }
 
 void MainWindow::configureShortcuts()

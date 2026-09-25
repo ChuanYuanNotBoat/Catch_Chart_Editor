@@ -16,18 +16,19 @@
 git submodule update --init --recursive
 ```
 
-根 `CMakeLists.txt` 会在子模块未初始化时直接给出上述命令。CCE 直接消费上游导出的 `AutoTimingCore::legacy` 与 `AutoTimingCore::core` 目标，不再维护 `src/audio/autotiming` 的源码副本，也不再重复声明上游测试目标。
+根 `CMakeLists.txt` 会在子模块未初始化时直接给出上述命令。CCE 直接消费上游导出的 `AutoTimingCore::legacy` 与 `AutoTimingCore::core` 目标，不再维护 `src/audio/autotiming` 的源码副本，也不再重复声明上游测试目标。维护者在更新 gitlink 前可显式传入 `-DAUTOTIMINGCORE_SOURCE_DIR=<相邻上游工作树>` 做集成验证；发布与 CI 必须保留默认子模块路径。
 
 在 `BUILD_TESTING=ON` 时，上游仍由自己的 CMake 配置注册以下回归测试：
 
 - `autotiming.legacy.baseline`
 - `autotiming.analysis.evidence`
 - `autotiming.analysis.phase_accuracy`
+- `autotiming.analysis.tempo_map`
 - `autotiming.probe.help`
 
 CCE 的 `audio_autotiming_bridge_tests` 继续验证 `AutoTimingCore -> AutoTiming2Bridge -> BpmDetector` 的宿主边界和 legacy/V2 行为。
 
-当前固定版本包含候选级 `RhythmProfile` 输出，以及对长程稳定、多尺度一致 pulse grid 的保守 phase 修正。CCE 只把 `stable_grid_regularization` 作为诊断原因和计数展示；BPM map 仍由已有 tempo-track 投影路径显式生成并要求用户确认，复杂分度候选不会自动写入谱面。
+当前开发接入把 phase-anchored `TempoMap`、连续曲线和有误差上界的通用 BPM points 保留在 AutoTimingCore。CCE bridge 只转换 Qt 友好结构；`BpmMeasureUtils` 只负责将相对 beat 坐标映射成 Malody `BpmEntry`、合并谱面前段并复核量化后的 anchor 残差。完整 BPM map 仍需用户显式确认，`stable_grid_regularization` 仍只作为诊断展示，复杂分度候选不会自动写入谱面。
 
 ## 更新固定版本
 
@@ -46,6 +47,7 @@ git add third_party/AutoTimingCore docs/AUTOTIMING_VENDORING.md
 - AutoTimingCore 保持上游 API 与实现。
 - `src/audio/AutoTiming2Bridge.*` 将 `autotiming::analyze` 的结果转换为 CCE/Qt 友好的数据结构。
 - `src/audio/BpmDetector.*` 负责音频准备、legacy/V2 独立状态以及整首音频绝对时间映射。
+- Tempo 曲线拟合、pulse-count/phase 误差修正和 bounded-error BPM-list 插值属于 AutoTimingCore；CCE 不维护第二套算法。
 - UI 不直接包含 `autotiming/Analysis.h`，也不把 V2 phase 当作 Malody offset。
 
 迁移前 CCE 的 legacy 版本与上游该提交已做 token 级算法等价核验；迁移后直接使用上游 `AutoTiming::AutoTimingResult`。legacy golden test 与 CCE bridge parity regression 用于冻结这条行为。

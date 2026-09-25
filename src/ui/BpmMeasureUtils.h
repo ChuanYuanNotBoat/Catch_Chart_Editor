@@ -50,18 +50,13 @@ namespace BpmMeasureUtils
         explicit operator bool() const noexcept { return factor > 0; }
     };
 
-    // Controls the CCE projection of an AutoTiming 2 pulse/tempo track into
-    // Malody's piecewise-constant BPM list. The error target is measured
-    // against the continuous model fitted between detected pulse anchors; it
-    // is not a claim about the accuracy of those audio-derived anchors.
+    // Controls only the CCE projection of AutoTimingCore's host-independent
+    // BPM points into Malody BpmEntry coordinates. Curve fitting, phase-error
+    // correction and bounded-error interpolation stay in AutoTimingCore.
     struct TimingMapOptions
     {
         double maximumModelErrorMs = 2.0;
         double maximumAcceptedAnchorResidualMs = 5.0;
-        double minimumPointConfidence = 0.05;
-        double minimumPhaseConfidence = 0.01;
-        double tempoChangeRelativeTolerance = 0.01;
-        double maximumContinuousSlopeOctavesPerSecond = 0.08;
         int maximumEntries = 2048;
         int maximumBeatDenominator = 65536;
     };

@@ -27,6 +27,14 @@ public:
     void addToSelection(int index);
     void removeFromSelection(int index);
     void clearSelection();
+    // Toggle only the hit notes against the selection captured when a gesture began.
+    void toggleSelection(const QSet<int> &initialSelection, const QSet<int> &hitIndices);
+
+    QSet<int> indicesInRect(const QRectF &rect, const QVector<Note> &notes,
+                            std::function<QPointF(const Note &)> noteToPos) const;
+    QSet<int> indicesInRect(const QRectF &rect, const QVector<Note> &notes,
+                            const QVector<int> &candidateIndices,
+                            std::function<QPointF(const Note &)> noteToPos) const;
 
     void selectInRect(const QRectF &rect, const QVector<Note> &notes,
                       std::function<QPointF(const Note &)> noteToPos);

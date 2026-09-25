@@ -195,6 +195,8 @@ private:
     double beatToY(double beat) const;
     double yToBeat(double y) const;
     int hitTestNote(const QPointF &pos) const;
+    double noteClickTolerance() const;
+    bool movedBeyondNoteClickTolerance(const QPointF &start, const QPointF &current) const;
     QRectF getRainNoteRect(const Note &note) const;
     void updateBackgroundCache();
     // 解析后的背景图绝对路径（chart 目录 + backgroundFile）；用于跨目录同名背景的变化检测。
@@ -211,6 +213,7 @@ private:
     void drawRangeSelectionHighlight(QPainter &painter, int lmargin, int availableWidth, int canvasHeight);
 
     void beginMoveSelection(const QPointF &startPos, int referenceIndex = -1);
+    void startPendingNoteMove(const QPointF &currentPos);
     void updateMoveSelection(const QPointF &currentPos);
     void endMoveSelection();
     void prepareMoveChanges();
@@ -231,10 +234,10 @@ private:
     // Cancels a pending two-step rain anchor (first click), if any. Returns
     // true when an anchor was actually cleared.
     bool cancelPendingRainAnchor();
-    bool handleHitNoteLeftClick(int hitIndex, Qt::KeyboardModifiers modifiers, const QPointF &pos);
+    bool handleHitNoteLeftClick(int hitIndex, const QPointF &pos);
     bool handleMirrorGuidePress(const QPointF &pos);
-    bool handleSelectionRelease();
-    bool handleMoveSelectionRelease();
+    bool handleSelectionRelease(const QPointF &releasePos);
+    bool handleMoveSelectionRelease(const QPointF &releasePos);
     bool handlePasteDragRelease();
     bool handleMirrorGuideRelease();
     bool handleRangeHandleRelease();
@@ -357,6 +360,11 @@ private:
     bool m_isSelecting;
     QPointF m_selectionStart;
     QPointF m_selectionEnd;
+    // Captured once on press: Ctrl-click is a one-note toggle gesture.
+    QSet<int> m_selectionAtPress;
+    int m_selectionPressHitIndex = -1;
+    bool m_selectionCtrlPressed = false;
+    bool m_selectionDragged = false;
     int m_selectionAnchorIndex = -1; // Range selection anchor (text-editor style shift+arrow)
     int m_selectionExtentIndex = -1; // Moveable end of the range selection
 

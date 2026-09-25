@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <functional>
 #include <limits>
 #include <utility>
 
@@ -15,15 +14,6 @@ namespace
     {
         return std::isfinite(value) && value > 0.0;
     }
-
-    struct TrackAnchor
-    {
-        double timeSeconds = 0.0;
-        double bpm = 0.0;
-        double confidence = 0.0;
-        double phaseConfidence = 0.0;
-        qint64 pulseIndex = 0;
-    };
 
     struct ProjectedEntry
     {
@@ -57,104 +47,6 @@ namespace
                 return;
         }
         entries.append({beat, bpm});
-    }
-
-    QVector<TrackAnchor> collectTrackAnchors(
-        const AutoTiming2Summary &summary,
-        const BpmMeasureUtils::TimingMapOptions &options)
-    {
-        QVector<TrackAnchor> anchors;
-        anchors.reserve(summary.tempoTrack.size());
-        for (const AutoTiming2TrackPoint &point : summary.tempoTrack)
-        {
-            if (point.state.compare(QStringLiteral("uncertain"), Qt::CaseInsensitive) == 0 ||
-                !std::isfinite(point.pulseTimeSeconds) ||
-                !isPositiveFinite(point.bpm) ||
-                point.confidence < options.minimumPointConfidence ||
-                point.phaseConfidence < options.minimumPhaseConfidence)
-            {
-                continue;
-            }
-            anchors.append({point.pulseTimeSeconds,
-                            point.bpm,
-                            point.confidence,
-                            point.phaseConfidence,
-                            0});
-        }
-        std::sort(anchors.begin(), anchors.end(), [](const TrackAnchor &left, const TrackAnchor &right)
-        {
-            return left.timeSeconds < right.timeSeconds;
-        });
-
-        QVector<TrackAnchor> unique;
-        unique.reserve(anchors.size());
-        for (const TrackAnchor &anchor : anchors)
-        {
-            if (!unique.isEmpty() &&
-                std::fabs(anchor.timeSeconds - unique.last().timeSeconds) <= 0.001)
-            {
-                const double oldStrength = unique.last().confidence + unique.last().phaseConfidence;
-                const double newStrength = anchor.confidence + anchor.phaseConfidence;
-                if (newStrength > oldStrength)
-                    unique.last() = anchor;
-                continue;
-            }
-            unique.append(anchor);
-        }
-
-        QVector<TrackAnchor> indexed;
-        indexed.reserve(unique.size());
-        for (const TrackAnchor &anchor : unique)
-        {
-            if (indexed.isEmpty())
-            {
-                indexed.append(anchor);
-                continue;
-            }
-
-            const TrackAnchor &previous = indexed.last();
-            const double elapsed = anchor.timeSeconds - previous.timeSeconds;
-            if (!(elapsed > 0.001))
-                continue;
-            const double meanBpm = 0.5 * (previous.bpm + anchor.bpm);
-            const double estimatedPulses = elapsed * meanBpm / 60.0;
-            const qint64 pulseCount = qRound64(estimatedPulses);
-            if (pulseCount < 1)
-                continue;
-
-            TrackAnchor indexedAnchor = anchor;
-            indexedAnchor.pulseIndex = previous.pulseIndex + pulseCount;
-            indexed.append(indexedAnchor);
-        }
-        return indexed;
-    }
-
-    double linearTempoTimeAtBeat(
-        double beatOffset,
-        double beatSpan,
-        double durationSeconds,
-        double startBpm,
-        double endBpm)
-    {
-        if (!(beatSpan > 0.0) || !(durationSeconds > 0.0) ||
-            !isPositiveFinite(startBpm) || !isPositiveFinite(endBpm))
-        {
-            return 0.0;
-        }
-        const double clampedBeat = std::clamp(beatOffset, 0.0, beatSpan);
-        const double startRate = startBpm / 60.0;
-        const double rateSlope = (endBpm - startBpm) / (60.0 * durationSeconds);
-        if (std::fabs(rateSlope) <= 1.0e-12)
-            return clampedBeat / startRate;
-
-        const double discriminant = std::max(
-            0.0,
-            startRate * startRate + 2.0 * rateSlope * clampedBeat);
-        const double root = std::sqrt(discriminant);
-        const double denominator = startRate + root;
-        return denominator > 1.0e-12
-                   ? 2.0 * clampedBeat / denominator
-                   : clampedBeat / std::max(1.0e-12, startRate);
     }
 
     BpmEntry makeBpmEntry(double beat, double bpm, int maximumDenominator)
@@ -277,28 +169,51 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
     }
     if (!(options.maximumModelErrorMs > 0.0) ||
         !(options.maximumAcceptedAnchorResidualMs > 0.0) ||
-        options.maximumEntries < 2 || options.maximumBeatDenominator < 1)
+        options.maximumEntries < 1 || options.maximumBeatDenominator < 1)
     {
         proposal.unavailableReason = QStringLiteral("Invalid timing-map projection options.");
         return proposal;
     }
 
-    const QVector<TrackAnchor> anchors = collectTrackAnchors(summary, options);
-    proposal.sourceAnchorCount = anchors.size();
-    if (anchors.size() < 2)
+    const AutoTiming2TempoMap &map = summary.tempoMap;
+    proposal.sourceAnchorCount = map.anchors.size();
+    proposal.sourceStartSeconds = map.startSeconds;
+    proposal.sourceEndSeconds = map.endSeconds;
+    proposal.maximumModelErrorMs = map.maximumBpmListModelErrorMilliseconds;
+    proposal.hasTempoChange = map.hasTempoChange;
+    proposal.hasContinuousChange = map.hasContinuousChange;
+    proposal.hasAbruptChange = map.hasAbruptChange;
+    if (!map.available)
     {
-        proposal.unavailableReason = QStringLiteral("AutoTiming 2 produced fewer than two phase anchors.");
+        proposal.unavailableReason = QStringLiteral(
+            "AutoTimingCore tempo map is unavailable (%1).").arg(map.failureReason);
         return proposal;
     }
-
-    proposal.sourceStartSeconds = anchors.first().timeSeconds;
-    proposal.sourceEndSeconds = anchors.last().timeSeconds;
+    if (!map.bpmListAvailable || map.bpmList.isEmpty())
+    {
+        proposal.unavailableReason = QStringLiteral(
+            "AutoTimingCore BPM list is unavailable (%1).").arg(map.bpmListFailureReason);
+        return proposal;
+    }
+    if (map.bpmList.size() > options.maximumEntries)
+    {
+        proposal.unavailableReason = QStringLiteral(
+            "The core BPM list exceeded the CCE safety entry limit.");
+        return proposal;
+    }
+    if (map.maximumBpmListModelErrorMilliseconds > options.maximumModelErrorMs + 1.0e-9)
+    {
+        proposal.unavailableReason = QStringLiteral(
+            "The core BPM list model error (%1 ms) exceeded the CCE acceptance target.")
+                                         .arg(map.maximumBpmListModelErrorMilliseconds, 0, 'f', 3);
+        return proposal;
+    }
 
     int firstBeatNum = 0;
     int firstBeatNumerator = 0;
     int firstBeatDenominator = 1;
     MathUtils::msToBeat(
-        anchors.first().timeSeconds * 1000.0,
+        map.startSeconds * 1000.0,
         existingBpmList,
         offsetMs,
         firstBeatNum,
@@ -308,129 +223,18 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
                                static_cast<double>(firstBeatNumerator) / firstBeatDenominator;
 
     QVector<ProjectedEntry> generated;
-    generated.reserve(std::min<qsizetype>(
-        static_cast<qsizetype>(options.maximumEntries),
-        anchors.size() * 4));
-    double maximumModelErrorMs = 0.0;
-
-    for (qsizetype i = 0; i + 1 < anchors.size(); ++i)
+    generated.reserve(map.bpmList.size());
+    for (const AutoTiming2BpmPoint &point : map.bpmList)
     {
-        const TrackAnchor &left = anchors[i];
-        const TrackAnchor &right = anchors[i + 1];
-        const double startBeat = proposal.firstAnchorBeat +
-                                 static_cast<double>(left.pulseIndex - anchors.first().pulseIndex);
-        const double endBeat = proposal.firstAnchorBeat +
-                               static_cast<double>(right.pulseIndex - anchors.first().pulseIndex);
-        const double beatSpan = endBeat - startBeat;
-        const double duration = right.timeSeconds - left.timeSeconds;
-        if (!(beatSpan > 0.0) || !(duration > 0.0))
-            continue;
-
-        const double exactAverageBpm = beatSpan * 60.0 / duration;
-        const double relativeTempoChange = std::fabs(right.bpm / left.bpm - 1.0);
-        proposal.hasTempoChange = proposal.hasTempoChange ||
-                                  relativeTempoChange > options.tempoChangeRelativeTolerance;
-        const double slope = relativeTempoChange > 0.0
-                                 ? std::fabs(std::log2(right.bpm / left.bpm)) / duration
-                                 : 0.0;
-
-        if (relativeTempoChange <= options.tempoChangeRelativeTolerance)
-        {
-            appendProjectedEntry(generated, startBeat, exactAverageBpm);
-            continue;
-        }
-
-        if (slope > options.maximumContinuousSlopeOctavesPerSecond)
-        {
-            proposal.hasAbruptChange = true;
-            const double denominator = left.bpm - right.bpm;
-            const double changeAfter = std::fabs(denominator) > 1.0e-9
-                                           ? (beatSpan * 60.0 - right.bpm * duration) / denominator
-                                           : -1.0;
-            if (changeAfter >= -1.0e-6 && changeAfter <= duration + 1.0e-6)
-            {
-                const double clampedChange = std::clamp(changeAfter, 0.0, duration);
-                const double changeBeat = startBeat + clampedChange * left.bpm / 60.0;
-                if (clampedChange > 1.0e-6)
-                    appendProjectedEntry(generated, startBeat, left.bpm);
-                appendProjectedEntry(generated, changeBeat, right.bpm);
-            }
-            else
-            {
-                appendProjectedEntry(generated, startBeat, exactAverageBpm);
-            }
-            continue;
-        }
-
-        proposal.hasContinuousChange = true;
-        const double rawIntegral = duration * (left.bpm + right.bpm) / 120.0;
-        const double scale = rawIntegral > 0.0 ? beatSpan / rawIntegral : 1.0;
-        const double startBpm = left.bpm * scale;
-        const double endBpm = right.bpm * scale;
-
-        std::function<void(double, double, double, double, int)> appendApproximation;
-        appendApproximation = [&](double localStartBeat,
-                                  double localEndBeat,
-                                  double localStartTime,
-                                  double localEndTime,
-                                  int depth)
-        {
-            if (generated.size() >= options.maximumEntries)
-                return;
-            const double localBeatSpan = localEndBeat - localStartBeat;
-            const double midpointBeat = 0.5 * (localStartBeat + localEndBeat);
-            const double exactMidpointTime = linearTempoTimeAtBeat(
-                midpointBeat - startBeat,
-                beatSpan,
-                duration,
-                startBpm,
-                endBpm);
-            const double linearMidpointTime = 0.5 * (localStartTime + localEndTime);
-            const double errorMs = std::fabs(exactMidpointTime - linearMidpointTime) * 1000.0;
-
-            if (errorMs <= options.maximumModelErrorMs ||
-                localBeatSpan <= 1.0 / 64.0 || depth >= 24)
-            {
-                maximumModelErrorMs = std::max(maximumModelErrorMs, errorMs);
-                const double segmentDuration = localEndTime - localStartTime;
-                if (segmentDuration > 0.0)
-                {
-                    appendProjectedEntry(
-                        generated,
-                        localStartBeat,
-                        localBeatSpan * 60.0 / segmentDuration);
-                }
-                return;
-            }
-
-            appendApproximation(
-                localStartBeat,
-                midpointBeat,
-                localStartTime,
-                exactMidpointTime,
-                depth + 1);
-            appendApproximation(
-                midpointBeat,
-                localEndBeat,
-                exactMidpointTime,
-                localEndTime,
-                depth + 1);
-        };
-
-        appendApproximation(startBeat, endBeat, 0.0, duration, 0);
-        if (generated.size() >= options.maximumEntries)
-        {
-            proposal.unavailableReason = QStringLiteral("The projected BPM list exceeded the safety entry limit.");
-            return proposal;
-        }
+        appendProjectedEntry(
+            generated,
+            proposal.firstAnchorBeat + point.beat - map.startBeat,
+            point.bpm);
     }
-
-    const double lastBeat = proposal.firstAnchorBeat +
-                            static_cast<double>(anchors.last().pulseIndex - anchors.first().pulseIndex);
-    appendProjectedEntry(generated, lastBeat, anchors.last().bpm);
     if (generated.isEmpty())
     {
-        proposal.unavailableReason = QStringLiteral("AutoTiming 2 anchors could not form a monotonic timing map.");
+        proposal.unavailableReason = QStringLiteral(
+            "AutoTimingCore BPM points could not be mapped to chart coordinates.");
         return proposal;
     }
 
@@ -463,12 +267,12 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
         }
     }
 
-    double maximumAnchorResidualMs = 0.0;
-    for (const TrackAnchor &anchor : anchors)
+    double maximumAnchorResidualMs = map.maximumAnchorResidualMilliseconds;
+    for (const AutoTiming2TempoMapAnchor &anchor : map.anchors)
     {
         const double beat = proposal.firstAnchorBeat +
-                            static_cast<double>(anchor.pulseIndex - anchors.first().pulseIndex);
-        const BpmEntry position = makeBpmEntry(beat, anchor.bpm, options.maximumBeatDenominator);
+                            anchor.phaseBeat - map.startBeat;
+        const BpmEntry position = makeBpmEntry(beat, anchor.modelBpm, options.maximumBeatDenominator);
         const double projectedMs = MathUtils::beatToMs(
             position.beatNum,
             position.numerator,
@@ -481,7 +285,6 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
     }
 
     proposal.maximumAnchorResidualMs = maximumAnchorResidualMs;
-    proposal.maximumModelErrorMs = maximumModelErrorMs;
     proposal.generatedEntryCount = generated.size();
     proposal.bpmList = std::move(normalized);
     if (maximumAnchorResidualMs > options.maximumAcceptedAnchorResidualMs)

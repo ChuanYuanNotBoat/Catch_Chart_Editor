@@ -23,8 +23,6 @@
 #include <limits>
 #include <numeric>
 
-constexpr double kMoveDragThresholdPx = 5.0;
-
 namespace
 {
 double extractWheelDeltaY(const QWheelEvent *event)
@@ -369,6 +367,20 @@ void ChartCanvas::beginMoveSelection(const QPointF &startPos, int referenceIndex
 
     prepareMoveChanges();
     update();
+}
+
+void ChartCanvas::startPendingNoteMove(const QPointF &currentPos)
+{
+    if (!m_pendingMove)
+        return;
+    m_pendingMove = false;
+    // Preserve the original behavior: moving an unselected note appends it
+    // to the existing selection before the move snapshot is taken.
+    if (!m_selectionAtPress.contains(m_dragReferenceIndex))
+        m_selectionController->addToSelection(m_dragReferenceIndex);
+    m_selectionAtPress.clear();
+    beginMoveSelection(m_moveStartPos, m_dragReferenceIndex);
+    updateMoveSelection(currentPos);
 }
 
 void ChartCanvas::updateMoveSelection(const QPointF &currentPos)
@@ -1123,7 +1135,14 @@ bool ChartCanvas::endRainTailDrag()
     return true;
 }
 
-bool ChartCanvas::handleHitNoteLeftClick(int hitIndex, Qt::KeyboardModifiers modifiers, const QPointF &pos)
+bool ChartCanvas::movedBeyondNoteClickTolerance(const QPointF &start, const QPointF &current) const
+{
+    const QPointF delta = current - start;
+    const double tolerance = noteClickTolerance();
+    return QPointF::dotProduct(delta, delta) > tolerance * tolerance;
+}
+
+bool ChartCanvas::handleHitNoteLeftClick(int hitIndex, const QPointF &pos)
 {
     if (hitIndex == -1)
         return false;
@@ -1140,19 +1159,9 @@ bool ChartCanvas::handleHitNoteLeftClick(int hitIndex, Qt::KeyboardModifiers mod
         return true;
     }
 
-    if (modifiers & Qt::ControlModifier)
-    {
-        if (m_selectionController->selectedIndices().contains(hitIndex))
-            m_selectionController->removeFromSelection(hitIndex);
-        else
-            m_selectionController->addToSelection(hitIndex);
-        return true;
-    }
-
-    if (!m_selectionController->selectedIndices().contains(hitIndex))
-        m_selectionController->addToSelection(hitIndex);
-
-    // Defer move start until mouse drag exceeds threshold (to distinguish click vs drag)
+    // Do not mutate selection on press: clicking an already-selected note
+    // toggles it off, but dragging it must retain the whole existing selection.
+    m_selectionAtPress = m_selectionController->selectedIndices();
     m_pendingMove = true;
     m_moveStartPos = pos;
     m_dragReferenceIndex = hitIndex;
@@ -1180,23 +1189,22 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
         }
     }
 
-    if (m_currentMode == Select)
+    // Ctrl always starts a selection gesture, including when pressed on a
+    // note. A click toggles that one note; a drag toggles the rectangle.
+    const bool ctrlPressed = event->modifiers().testFlag(Qt::ControlModifier);
+    if (ctrlPressed || m_currentMode == Select)
     {
         const int hitIndex = hitTestNote(event->pos());
-        if (handleHitNoteLeftClick(hitIndex, Qt::NoModifier, event->pos()))
+        if (!ctrlPressed && handleHitNoteLeftClick(hitIndex, event->pos()))
             return;
 
         m_isSelecting = true;
         m_selectionStart = event->pos();
         m_selectionEnd = event->pos();
-        return;
-    }
-
-    if (event->modifiers() & Qt::ControlModifier)
-    {
-        m_isSelecting = true;
-        m_selectionStart = event->pos();
-        m_selectionEnd = event->pos();
+        m_selectionAtPress = m_selectionController->selectedIndices();
+        m_selectionPressHitIndex = hitIndex;
+        m_selectionCtrlPressed = ctrlPressed;
+        m_selectionDragged = false;
         return;
     }
 
@@ -1204,7 +1212,7 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
         return;
 
     const int hitIndex = hitTestNote(event->pos());
-    if (handleHitNoteLeftClick(hitIndex, event->modifiers(), event->pos()))
+    if (handleHitNoteLeftClick(hitIndex, event->pos()))
         return;
 
     const bool hadSelection = m_selectionController && !m_selectionController->selectedIndices().isEmpty();
@@ -1385,6 +1393,8 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
     }
     else if (m_isSelecting)
     {
+        if (movedBeyondNoteClickTolerance(m_selectionStart, event->pos()))
+            m_selectionDragged = true;
         if (m_selectionEnd != event->pos())
         {
             const QPointF oldEnd = m_selectionEnd;
@@ -1395,13 +1405,8 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
     }
     else if (m_pendingMove)
     {
-        QPointF delta = event->pos() - m_moveStartPos;
-        if (qAbs(delta.x()) > kMoveDragThresholdPx || qAbs(delta.y()) > kMoveDragThresholdPx)
-        {
-            m_pendingMove = false;
-            beginMoveSelection(m_moveStartPos, m_dragReferenceIndex);
-            updateMoveSelection(event->pos());
-        }
+        if (movedBeyondNoteClickTolerance(m_moveStartPos, event->pos()))
+            startPendingNoteMove(event->pos());
     }
     else if (m_isMovingSelection)
     {
@@ -1413,17 +1418,37 @@ void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
     }
 }
 
-bool ChartCanvas::handleSelectionRelease()
+bool ChartCanvas::handleSelectionRelease(const QPointF &releasePos)
 {
     if (!m_isSelecting)
         return false;
 
-    const QRect dirty = QRectF(m_selectionStart, m_selectionEnd).normalized().toAlignedRect().adjusted(-2, -2, 2, 2);
+    const QRect dirty = selectionPreviewDirtyRect(m_selectionStart, m_selectionEnd, releasePos);
+    m_selectionEnd = releasePos;
+    const bool isBox = m_selectionDragged || movedBeyondNoteClickTolerance(m_selectionStart, releasePos);
+    m_isSelecting = false;
+
+    if (!isBox)
+    {
+        if (m_selectionPressHitIndex >= 0)
+            m_selectionController->toggleSelection(m_selectionAtPress, QSet<int>{m_selectionPressHitIndex});
+        else if (!m_selectionCtrlPressed)
+            m_selectionController->clearSelection();
+
+        m_selectionAtPress.clear();
+        m_selectionPressHitIndex = -1;
+        m_selectionCtrlPressed = false;
+        m_selectionDragged = false;
+        update(dirty);
+        return true;
+    }
+
     QRectF rect = QRectF(m_selectionStart, m_selectionEnd).normalized();
     const QVector<Note> &notes = chart()->notes();
     if (m_timesDirty || m_noteDataDirty)
         rebuildNoteTimesCache();
 
+    QSet<int> hitIndices;
     if (!m_sortedSelectionNoteIndicesByBeat.isEmpty())
     {
         const double beatAtTop = yToBeat(rect.top());
@@ -1441,30 +1466,46 @@ bool ChartCanvas::handleSelectionRelease()
             maxBeat,
             [&notes](double beat, int index) { return beat < notes[index].getStartBeat(); });
         const QVector<int> candidates(first, last);
-        m_selectionController->selectInRect(
+        hitIndices = m_selectionController->indicesInRect(
             rect, notes, candidates,
             [this](const Note &note) { return noteToPos(note); });
     }
     else
     {
-        m_selectionController->selectInRect(
+        hitIndices = m_selectionController->indicesInRect(
             rect, notes, [this](const Note &note) { return noteToPos(note); });
     }
-    m_isSelecting = false;
+    m_selectionController->toggleSelection(m_selectionAtPress, hitIndices);
+    m_selectionAtPress.clear();
+    m_selectionPressHitIndex = -1;
+    m_selectionCtrlPressed = false;
+    m_selectionDragged = false;
     update(dirty);
     return true;
 }
 
-bool ChartCanvas::handleMoveSelectionRelease()
+bool ChartCanvas::handleMoveSelectionRelease(const QPointF &releasePos)
 {
     if (m_pendingMove)
     {
+        // A synthetic or fast press/release may have no intervening move event.
+        // Classify it by the same tolerance instead of committing a false click.
+        if (movedBeyondNoteClickTolerance(m_moveStartPos, releasePos))
+        {
+            startPendingNoteMove(releasePos);
+            endMoveSelection();
+            return true;
+        }
         m_pendingMove = false;
-        return false;
+        m_selectionController->toggleSelection(m_selectionAtPress, QSet<int>{m_dragReferenceIndex});
+        m_selectionAtPress.clear();
+        m_dragReferenceIndex = -1;
+        return true;
     }
 
     if (!m_isMovingSelection)
         return false;
+    updateMoveSelection(releasePos);
     endMoveSelection();
     return true;
 }
@@ -1548,9 +1589,9 @@ void ChartCanvas::mouseReleaseEvent(QMouseEvent *event)
 
     if (handleMirrorGuideRelease())
         return;
-    if (handleSelectionRelease())
+    if (handleSelectionRelease(event->pos()))
         return;
-    if (handleMoveSelectionRelease())
+    if (handleMoveSelectionRelease(event->pos()))
         return;
     if (handlePasteDragRelease())
         return;
@@ -1561,21 +1602,8 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
 {
     const double wheelDeltaY = extractWheelDeltaY(event);
     const bool altWheel = event->modifiers() == Qt::AltModifier;
-    Logger::info(QStringLiteral(
-        "[AltWheelTrace] canvas-wheel eventMods=0x%1 keyboardMods=0x%2 "
-        "angleY=%3 pixelY=%4 effectiveY=%5 exactAlt=%6 pending=%7")
-        .arg(QString::number(static_cast<int>(event->modifiers()), 16))
-        .arg(QString::number(static_cast<int>(QApplication::keyboardModifiers()), 16))
-        .arg(event->angleDelta().y())
-        .arg(event->pixelDelta().y())
-        .arg(wheelDeltaY)
-        .arg(static_cast<int>(altWheel))
-        .arg(m_modeCycleWheelDelta));
     if (!altWheel)
-    {
-        Logger::info(QStringLiteral("[AltWheelTrace] route=normal (modifiers are not exactly Alt)"));
         m_modeCycleWheelDelta = 0.0;
-    }
 
     PluginInterface::CanvasInputEvent pluginEvent;
     pluginEvent.type = "wheel";
@@ -1588,11 +1616,8 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
     pluginEvent.timestampMs = QDateTime::currentMSecsSinceEpoch();
     bool consumed = false;
     const bool dispatched = dispatchPluginCanvasInput(pluginEvent, &consumed);
-    Logger::info(QStringLiteral("[AltWheelTrace] plugin dispatched=%1 consumed=%2")
-                     .arg(static_cast<int>(dispatched)).arg(static_cast<int>(consumed)));
     if (dispatched && consumed)
     {
-        Logger::info(QStringLiteral("[AltWheelTrace] stop: plugin consumed wheel"));
         if (altWheel)
             m_modeCycleWheelDelta = 0.0;
         event->accept();
@@ -1608,16 +1633,8 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
         // Alt can move a vertical mouse wheel into angleDelta().x() on Qt.
         // A fully zero delta (e.g. a scroll begin/end event) has no direction.
         const double modeCycleDelta = extractModeCycleWheelDelta(event);
-        Logger::info(QStringLiteral(
-            "[AltWheelTrace] alt-axis angleX=%1 angleY=%2 pixelX=%3 pixelY=%4 modeDelta=%5")
-                         .arg(event->angleDelta().x())
-                         .arg(event->angleDelta().y())
-                         .arg(event->pixelDelta().x())
-                         .arg(event->pixelDelta().y())
-                         .arg(modeCycleDelta));
         if (modeCycleDelta == 0)
         {
-            Logger::info(QStringLiteral("[AltWheelTrace] stop: zero delta on both axes (ignored)"));
             event->ignore();
             return;
         }
@@ -1633,17 +1650,11 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
         m_modeCycleWheelDelta += modeCycleDelta;
         const int steps = static_cast<int>(std::floor(
             qAbs(m_modeCycleWheelDelta) / kModeCycleWheelDeltaThreshold));
-        Logger::info(QStringLiteral("[AltWheelTrace] accumulate pending=%1 threshold=%2 steps=%3")
-                         .arg(m_modeCycleWheelDelta)
-                         .arg(kModeCycleWheelDeltaThreshold)
-                         .arg(steps));
         if (steps > 0)
         {
             const double sign = m_modeCycleWheelDelta > 0 ? 1.0 : -1.0;
             m_modeCycleWheelDelta -= sign * steps * kModeCycleWheelDeltaThreshold;
             const int direction = sign > 0 ? -1 : 1;
-            Logger::info(QStringLiteral("[AltWheelTrace] emit modeCycleRequested direction=%1 count=%2 remaining=%3")
-                             .arg(direction).arg(steps).arg(m_modeCycleWheelDelta));
             for (int i = 0; i < steps; ++i)
                 emit modeCycleRequested(direction);
         }
@@ -1695,6 +1706,5 @@ void ChartCanvas::wheelEvent(QWheelEvent *event)
 
     startSnapTimer();
 }
-
 
 

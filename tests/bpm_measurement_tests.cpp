@@ -34,16 +34,44 @@ namespace
         return std::fabs(left - right) <= tolerance;
     }
 
-    AutoTiming2TrackPoint trackPoint(double pulseTimeSeconds, double bpm)
+    AutoTiming2TempoMapAnchor tempoMapAnchor(double timeSeconds,
+                                              double phaseBeat,
+                                              double bpm)
     {
-        AutoTiming2TrackPoint point;
-        point.timeSeconds = pulseTimeSeconds;
-        point.pulseTimeSeconds = pulseTimeSeconds;
-        point.bpm = bpm;
-        point.confidence = 0.9;
-        point.phaseConfidence = 0.9;
-        point.state = QStringLiteral("observed");
-        return point;
+        AutoTiming2TempoMapAnchor anchor;
+        anchor.timeSeconds = timeSeconds;
+        anchor.observedBpm = bpm;
+        anchor.modelBpm = bpm;
+        anchor.confidence = 0.9;
+        anchor.phaseConfidence = 0.9;
+        anchor.phaseBeat = phaseBeat;
+        anchor.pulseIndex = qRound64(phaseBeat);
+        return anchor;
+    }
+
+    void setCoreTempoMap(AutoTiming2Summary &summary,
+                         double startSeconds,
+                         double endSeconds,
+                         double endBeat,
+                         const QVector<AutoTiming2TempoMapAnchor> &anchors,
+                         const QVector<AutoTiming2BpmPoint> &bpmList,
+                         bool continuousChange = false,
+                         bool abruptChange = false)
+    {
+        AutoTiming2TempoMap &map = summary.tempoMap;
+        map.available = true;
+        map.failureReason = QStringLiteral("none");
+        map.startSeconds = startSeconds;
+        map.endSeconds = endSeconds;
+        map.startBeat = 0.0;
+        map.endBeat = endBeat;
+        map.anchors = anchors;
+        map.hasContinuousChange = continuousChange;
+        map.hasAbruptChange = abruptChange;
+        map.hasTempoChange = continuousChange || abruptChange;
+        map.bpmListAvailable = true;
+        map.bpmListFailureReason = QStringLiteral("none");
+        map.bpmList = bpmList;
     }
 
     double linearRampPulseTime(double beats, double startBpm, double slopeBpmPerSecond)
@@ -146,11 +174,17 @@ namespace
         const QVector<BpmEntry> existing = {BpmEntry(0, 0, 1, 120.0)};
 
         AutoTiming2Summary fixed;
-        fixed.tempoTrack = {
-            trackPoint(0.125, 120.0),
-            trackPoint(4.125, 120.0),
-            trackPoint(8.125, 120.0),
-        };
+        setCoreTempoMap(
+            fixed,
+            0.125,
+            8.125,
+            16.0,
+            {
+                tempoMapAnchor(0.125, 0.0, 120.0),
+                tempoMapAnchor(4.125, 8.0, 120.0),
+                tempoMapAnchor(8.125, 16.0, 120.0),
+            },
+            {{0.0, 120.0}});
         const BpmMeasureUtils::TimingMapProposal fixedProposal =
             BpmMeasureUtils::buildTimingMapProposal(fixed, existing, 0);
         require(fixedProposal.available, "fixed pulse track must produce a BPM map proposal");
@@ -160,12 +194,20 @@ namespace
                 "fixed pulse track must not be presented as a tempo change");
 
         AutoTiming2Summary step;
-        step.tempoTrack = {
-            trackPoint(0.125, 100.0),
-            trackPoint(12.125, 100.0),
-            trackPoint(16.125, 150.0),
-            trackPoint(28.125, 150.0),
-        };
+        setCoreTempoMap(
+            step,
+            0.125,
+            28.125,
+            58.0,
+            {
+                tempoMapAnchor(0.125, 0.0, 100.0),
+                tempoMapAnchor(12.125, 20.0, 100.0),
+                tempoMapAnchor(16.125, 28.0, 150.0),
+                tempoMapAnchor(28.125, 58.0, 150.0),
+            },
+            {{0.0, 100.0}, {24.0, 150.0}},
+            false,
+            true);
         const BpmMeasureUtils::TimingMapProposal stepProposal =
             BpmMeasureUtils::buildTimingMapProposal(step, existing, 0);
         require(stepProposal.available, "tempo-step pulse track must produce a BPM map proposal");
@@ -183,13 +225,31 @@ namespace
         constexpr double startBpm = 90.0;
         constexpr double slope = 1.25;
         AutoTiming2Summary ramp;
+        QVector<AutoTiming2TempoMapAnchor> anchors;
         for (int beat = 0; beat <= 96; beat += 8)
         {
             const double localTime = linearRampPulseTime(beat, startBpm, slope);
-            ramp.tempoTrack.append(trackPoint(
+            anchors.append(tempoMapAnchor(
                 startTime + localTime,
+                beat,
                 startBpm + slope * localTime));
         }
+        QVector<AutoTiming2BpmPoint> bpmPoints;
+        for (int beat = 0; beat < 96; ++beat)
+        {
+            const double start = linearRampPulseTime(beat, startBpm, slope);
+            const double end = linearRampPulseTime(beat + 1, startBpm, slope);
+            bpmPoints.append({double(beat), 60.0 / (end - start)});
+        }
+        setCoreTempoMap(
+            ramp,
+            startTime,
+            startTime + linearRampPulseTime(96.0, startBpm, slope),
+            96.0,
+            anchors,
+            bpmPoints,
+            true,
+            false);
 
         BpmMeasureUtils::TimingMapOptions options;
         options.maximumModelErrorMs = 1.0;
@@ -225,9 +285,6 @@ namespace
     void testTimingMapProjectionAbstainsWithoutPhaseCoverage()
     {
         AutoTiming2Summary summary;
-        AutoTiming2TrackPoint uncertain = trackPoint(2.0, 120.0);
-        uncertain.state = QStringLiteral("uncertain");
-        summary.tempoTrack.append(uncertain);
         const QVector<BpmEntry> existing = {BpmEntry(0, 0, 1, 120.0)};
         const BpmMeasureUtils::TimingMapProposal proposal =
             BpmMeasureUtils::buildTimingMapProposal(summary, existing, 0);

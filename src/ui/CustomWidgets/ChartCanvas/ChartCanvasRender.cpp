@@ -415,7 +415,7 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         painter.drawText(canvasWidth - rmargin - 200, baselineY - 5, autoScrollText);
     }
 
-    if (m_isSelecting)
+    if (m_isSelecting && m_selectionDragged)
     {
         QRectF rect = QRectF(m_selectionStart, m_selectionEnd).normalized();
         painter.setPen(Qt::red);
@@ -1131,6 +1131,11 @@ void ChartCanvas::drawRainTailHandles(QPainter &painter)
     }
 }
 
+double ChartCanvas::noteClickTolerance() const
+{
+    return static_cast<double>(m_noteRenderer->getNoteSize()) * 0.6;
+}
+
 int ChartCanvas::hitTestNote(const QPointF &pos) const
 {
     if (!chart())
@@ -1140,8 +1145,7 @@ int ChartCanvas::hitTestNote(const QPointF &pos) const
     if (m_timesDirty || m_noteDataDirty)
         const_cast<ChartCanvas *>(this)->rebuildNoteTimesCache();
 
-    int noteSize = m_noteRenderer->getNoteSize();
-    double minDist = noteSize * 0.6;
+    double minDist = noteClickTolerance();
     int hit = -1;
 
     const RainVisibilityIndex::IntervalRange rainCandidates =
@@ -1160,7 +1164,7 @@ int ChartCanvas::hitTestNote(const QPointF &pos) const
     if (rainHit >= 0)
         return rainHit;
 
-    const double verticalPadding = m_noteRenderer->getNoteSize() * 0.6;
+    const double verticalPadding = noteClickTolerance();
     const double beatAtTop = yToBeat(pos.y() - verticalPadding);
     const double beatAtBottom = yToBeat(pos.y() + verticalPadding);
     const double minBeat = qMin(beatAtTop, beatAtBottom);

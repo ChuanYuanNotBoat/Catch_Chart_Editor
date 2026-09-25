@@ -530,12 +530,13 @@ void BPMTimePanel::onMeasureBpmClicked()
                 if (session->timingMap.available && session->timingMap.hasTempoChange)
                 {
                     dialog.setAutoTimingMapSuggestion(
-                        tr("%1 generated BPM points from %2 phase anchors; range %3-%4 s; detected-anchor fit %5 ms. Existing timing before the first anchor is preserved.")
+                        tr("%1 core-generated BPM points from %2 phase anchors; range %3-%4 s; detected-anchor fit %5 ms; interpolation bound %6 ms. Existing timing before the first anchor is preserved.")
                             .arg(session->timingMap.generatedEntryCount)
                             .arg(session->timingMap.sourceAnchorCount)
                             .arg(session->timingMap.sourceStartSeconds, 0, 'f', 2)
                             .arg(session->timingMap.sourceEndSeconds, 0, 'f', 2)
-                            .arg(session->timingMap.maximumAnchorResidualMs, 0, 'f', 3));
+                            .arg(session->timingMap.maximumAnchorResidualMs, 0, 'f', 3)
+                            .arg(session->timingMap.maximumModelErrorMs, 0, 'f', 3));
                 }
                 else
                 {

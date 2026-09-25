@@ -107,6 +107,13 @@ namespace
         require(!summary.tempoCandidates.isEmpty(), "global tempo candidates must not be empty");
         require(!summary.tempoFamilies.isEmpty(), "tempo families must not be empty");
         require(!summary.tempoHypotheses.isEmpty(), "tempo hypotheses must not be empty");
+        require(summary.tempoMap.available,
+                "bridge must expose the core phase-anchored tempo map");
+        require(summary.tempoMap.bpmListAvailable && !summary.tempoMap.bpmList.isEmpty(),
+                "bridge must expose the core bounded-error BPM list");
+        require(summary.tempoMap.maximumBpmListModelErrorMilliseconds <=
+                    options.tempoMapMaximumTimeErrorMilliseconds + 1e-9,
+                "mapped BPM list exceeded the bridge-requested error bound");
         require(!summary.windows.isEmpty(), "diagnostics windows must not be empty");
         for (const AutoTiming2Candidate &candidate : summary.tempoCandidates)
             require(!candidate.hasPulseTime,
@@ -351,7 +358,22 @@ namespace
 
         AutoTiming2Hypothesis hypothesis;
         hypothesis.track.append(trackPoint);
+        hypothesis.tempoMap.available = true;
+        hypothesis.tempoMap.startSeconds = 1.0;
+        hypothesis.tempoMap.endSeconds = 9.0;
         summary.tempoHypotheses.append(hypothesis);
+
+        summary.tempoMap.available = true;
+        summary.tempoMap.startSeconds = 0.25;
+        summary.tempoMap.endSeconds = 10.25;
+        AutoTiming2TempoMapAnchor mapAnchor;
+        mapAnchor.timeSeconds = 4.25;
+        summary.tempoMap.anchors.append(mapAnchor);
+        AutoTiming2TempoCurveSegment mapSegment;
+        mapSegment.startSeconds = 0.25;
+        mapSegment.endSeconds = 10.25;
+        summary.tempoMap.segments.append(mapSegment);
+        summary.tempoMap.bpmList.append({0.0, 120.0});
 
         AutoTiming2Layer layer;
         layer.startSeconds = 1.0;
@@ -395,6 +417,15 @@ namespace
         require(nearlyEqual(summary.tempoHypotheses.first().track.first().timeSeconds, 64.0) &&
                     nearlyEqual(summary.tempoHypotheses.first().track.first().pulseTimeSeconds, 64.25),
                 "hypothesis track times must become whole-file times");
+        require(nearlyEqual(summary.tempoMap.startSeconds, 60.25) &&
+                    nearlyEqual(summary.tempoMap.endSeconds, 70.25) &&
+                    nearlyEqual(summary.tempoMap.anchors.first().timeSeconds, 64.25) &&
+                    nearlyEqual(summary.tempoMap.segments.first().startSeconds, 60.25) &&
+                    nearlyEqual(summary.tempoMap.bpmList.first().beat, 0.0),
+                "tempo-map audio locations must translate while beat coordinates stay local");
+        require(nearlyEqual(summary.tempoHypotheses.first().tempoMap.startSeconds, 61.0) &&
+                    nearlyEqual(summary.tempoHypotheses.first().tempoMap.endSeconds, 69.0),
+                "hypothesis tempo-map locations must become whole-file times");
         require(nearlyEqual(summary.periodicityLayers.first().startSeconds, 61.0) &&
                     nearlyEqual(summary.periodicityLayers.first().endSeconds, 63.0),
                 "periodicity interval locations must be translated");

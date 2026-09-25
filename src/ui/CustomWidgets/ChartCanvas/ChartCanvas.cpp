@@ -16,7 +16,6 @@
 #include <QPainter>
 #include <QDir>
 #include <QMouseEvent>
-#include <QWheelEvent>
 #include <QFileInfo>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -178,8 +177,6 @@ ChartCanvas::ChartCanvas(QWidget *parent)
 
     // Install application-wide event filter to redirect arrow keys from GUI widgets to canvas
     QCoreApplication::instance()->installEventFilter(this);
-    Logger::info(QStringLiteral("[AltWheelTrace] ready: application event filter installed; log=%1")
-                     .arg(Logger::logFilePath()));
 
     connect(m_overlayQueryTimer, &QTimer::timeout, this, &ChartCanvas::onOverlayQueryTimerFire);
 }
@@ -194,44 +191,6 @@ ChartCanvas::~ChartCanvas()
 
 bool ChartCanvas::eventFilter(QObject *watched, QEvent *event)
 {
-    // Application-wide observation: logs Qt's actual wheel receiver before
-    // delivery to individual widgets, including events that never reach this canvas.
-    if (event->type() == QEvent::Wheel)
-    {
-        const auto *wheel = static_cast<const QWheelEvent *>(event);
-        const bool cursorOnCanvas = isVisible() && rect().contains(
-            mapFromGlobal(wheel->globalPosition().toPoint()));
-        const Qt::KeyboardModifiers keyboardMods = QApplication::keyboardModifiers();
-        if (cursorOnCanvas || wheel->modifiers().testFlag(Qt::AltModifier)
-            || keyboardMods.testFlag(Qt::AltModifier))
-        {
-            Logger::info(QStringLiteral(
-                "[AltWheelTrace] app-wheel target=%1 name=%2 cursorOnCanvas=%3 "
-                "eventMods=0x%4 keyboardMods=0x%5 angleY=%6 pixelY=%7")
-                .arg(QString::fromLatin1(watched->metaObject()->className()))
-                .arg(watched->objectName())
-                .arg(static_cast<int>(cursorOnCanvas))
-                .arg(QString::number(static_cast<int>(wheel->modifiers()), 16))
-                .arg(QString::number(static_cast<int>(keyboardMods), 16))
-                .arg(wheel->angleDelta().y())
-                .arg(wheel->pixelDelta().y()));
-        }
-    }
-    if (event->type() == QEvent::KeyRelease || event->type() == QEvent::KeyPress)
-    {
-        const auto *key = static_cast<const QKeyEvent *>(event);
-        if (!key->isAutoRepeat() &&
-            (key->key() == Qt::Key_Alt || key->key() == Qt::Key_AltGr))
-        {
-            Logger::info(QStringLiteral(
-                "[AltWheelTrace] app-key type=%1 target=%2 eventMods=0x%3 keyboardMods=0x%4 pending=%5")
-                .arg(event->type() == QEvent::KeyPress ? QStringLiteral("press") : QStringLiteral("release"))
-                .arg(QString::fromLatin1(watched->metaObject()->className()))
-                .arg(QString::number(static_cast<int>(key->modifiers()), 16))
-                .arg(QString::number(static_cast<int>(QApplication::keyboardModifiers()), 16))
-                .arg(m_modeCycleWheelDelta));
-        }
-    }
     if (event->type() == QEvent::KeyRelease)
     {
         const QKeyEvent *ke = static_cast<const QKeyEvent *>(event);

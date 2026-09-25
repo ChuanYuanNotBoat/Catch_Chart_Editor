@@ -105,32 +105,57 @@ void SelectionController::clearSelection()
     }
 }
 
-void SelectionController::selectInRect(const QRectF &rect, const QVector<Note> &notes,
-                                       std::function<QPointF(const Note &)> noteToPos)
+void SelectionController::toggleSelection(const QSet<int> &initialSelection, const QSet<int> &hitIndices)
+{
+    QSet<int> result = initialSelection;
+    for (int index : hitIndices)
+    {
+        if (result.contains(index))
+            result.remove(index);
+        else
+            result.insert(index);
+    }
+    if (result != selectedIndices())
+        select(result);
+}
+
+QSet<int> SelectionController::indicesInRect(const QRectF &rect, const QVector<Note> &notes,
+                                              std::function<QPointF(const Note &)> noteToPos) const
 {
     QVector<int> allIndices;
     allIndices.reserve(notes.size());
     for (int i = 0; i < notes.size(); ++i)
         allIndices.append(i);
-    selectInRect(rect, notes, allIndices, std::move(noteToPos));
+    return indicesInRect(rect, notes, allIndices, std::move(noteToPos));
 }
 
-void SelectionController::selectInRect(const QRectF &rect, const QVector<Note> &notes,
-                                       const QVector<int> &candidateIndices,
-                                       std::function<QPointF(const Note &)> noteToPos)
+QSet<int> SelectionController::indicesInRect(const QRectF &rect, const QVector<Note> &notes,
+                                              const QVector<int> &candidateIndices,
+                                              std::function<QPointF(const Note &)> noteToPos) const
 {
-    QSet<int> newSelection;
+    QSet<int> hitIndices;
     for (int i : candidateIndices)
     {
         if (i < 0 || i >= notes.size())
             continue;
         QPointF pos = noteToPos(notes[i]);
         if (rect.contains(pos))
-        {
-            newSelection.insert(i);
-        }
+            hitIndices.insert(i);
     }
-    select(newSelection);
+    return hitIndices;
+}
+
+void SelectionController::selectInRect(const QRectF &rect, const QVector<Note> &notes,
+                                       std::function<QPointF(const Note &)> noteToPos)
+{
+    select(indicesInRect(rect, notes, std::move(noteToPos)));
+}
+
+void SelectionController::selectInRect(const QRectF &rect, const QVector<Note> &notes,
+                                       const QVector<int> &candidateIndices,
+                                       std::function<QPointF(const Note &)> noteToPos)
+{
+    select(indicesInRect(rect, notes, candidateIndices, std::move(noteToPos)));
 }
 
 void SelectionController::selectInBeatRange(double startBeat, double endBeat)
