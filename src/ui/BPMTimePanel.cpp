@@ -390,6 +390,9 @@ void BPMTimePanel::onMeasureBpmClicked()
         session->cancelFlag = std::make_shared<std::atomic<bool>>(false);
         session->hasCompletedResult = false;
         const std::shared_ptr<std::atomic<bool>> cancelFlag = session->cancelFlag;
+        AutoTiming2Options analysisOptions;
+        analysisOptions.enableComplexSubdivisionAnalysis =
+            dialog.enableComplexSubdivisionAnalysis();
         const quint64 requestId = ++session->requestId;
         const double requestChartMs = fromStart ? 0.0 : currentChartTimeMs();
         const int requestOffsetMs = m_chartController->chart()->meta().offset;
@@ -510,9 +513,11 @@ void BPMTimePanel::onMeasureBpmClicked()
                             .arg(session->timingMap.sourceEndSeconds, 0, 'f', 2)
                             .arg(session->timingMap.maximumAnchorResidualMs, 0, 'f', 3)
                             .arg(session->timingMap.maximumModelErrorMs, 0, 'f', 3));
+                    dialog.setAutoTimingMapPreview(session->timingMap.bpmList);
                 }
                 else
                 {
+                    dialog.clearAutoTimingMapPreview();
                     dialog.setAutoTimingMapUnavailable(
                         session->timingMap.unavailableReason.isEmpty()
                             ? tr("No variable-tempo map detected")
@@ -548,7 +553,7 @@ void BPMTimePanel::onMeasureBpmClicked()
                     dialog.setStatusText(tr("Analysis complete, but no reliable BPM result was found."));
                 dialog.setMeasurementComplete();
             },
-            AutoTiming2Options{},
+            analysisOptions,
             cancelFlag);
             });
 
@@ -579,19 +584,23 @@ void BPMTimePanel::onMeasureBpmClicked()
                 return;
             }
 
-            const QMessageBox::StandardButton mapReply = QMessageBox::question(
-                this,
-                tr("Apply AutoTiming 2 BPM Map"),
-                tr("Replace BPM entries from beat %1 onward with %2 generated timing points?\n\n"
-                   "The map follows detected pulse anchors through %3-%4 s and keeps earlier BPM entries. "
-                   "It is audio-derived, not chart ground truth, and can be undone as one action.")
-                    .arg(proposal.firstAnchorBeat, 0, 'f', 4)
-                    .arg(proposal.generatedEntryCount)
-                    .arg(proposal.sourceStartSeconds, 0, 'f', 2)
-                    .arg(proposal.sourceEndSeconds, 0, 'f', 2),
-                QMessageBox::Yes | QMessageBox::No);
-            if (mapReply != QMessageBox::Yes)
-                return;
+            if (!m_chartController->chart()->notes().isEmpty())
+            {
+                const QMessageBox::StandardButton mapReply = QMessageBox::question(
+                    this,
+                    tr("Apply AutoTiming 2 BPM Map"),
+                    tr("This chart already contains %1 notes. Replace BPM entries from beat %2 onward with %3 generated timing points?\n\n"
+                       "The map follows detected pulse anchors through %4-%5 s and keeps earlier BPM entries. "
+                       "It is audio-derived, not chart ground truth, and can be undone as one action.")
+                        .arg(m_chartController->chart()->notes().size())
+                        .arg(proposal.firstAnchorBeat, 0, 'f', 4)
+                        .arg(proposal.generatedEntryCount)
+                        .arg(proposal.sourceStartSeconds, 0, 'f', 2)
+                        .arg(proposal.sourceEndSeconds, 0, 'f', 2),
+                    QMessageBox::Yes | QMessageBox::No);
+                if (mapReply != QMessageBox::Yes)
+                    return;
+            }
 
             Chart mutated = *m_chartController->chart();
             mutated.bpmList() = proposal.bpmList;

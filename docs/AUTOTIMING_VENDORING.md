@@ -28,7 +28,7 @@ git submodule update --init --recursive
 
 CCE 的 `audio_autotiming_bridge_tests` 继续验证 `AutoTimingCore -> AutoTiming2Bridge -> BpmDetector` 的宿主边界和 legacy/V2 行为。
 
-当前开发接入把 phase-anchored `TempoMap`、连续曲线和有误差上界的通用 BPM points 保留在 AutoTimingCore。CCE bridge 只转换 Qt 友好结构并转发 `preferLocalTempoEvidence` 与 `enableComplexSubdivisionAnalysis`；普通 BPM 流程默认关闭后者，以避免把 SV/密集纹理误报为语义分度，同时保留 Core 的 raw periodicity evidence。`BpmMeasureUtils` 只负责将相对 beat 坐标映射成 Malody `BpmEntry`、合并谱面前段并复核量化后的 anchor 残差。完整 BPM map 仍需用户显式确认，`stable_grid_regularization` 仍只作为诊断展示，复杂分度候选不会自动写入谱面。
+当前开发接入把 phase-anchored `TempoMap`、连续曲线和有误差上界的通用 BPM points 保留在 AutoTimingCore。CCE bridge 只转换 Qt 友好结构并转发 `preferLocalTempoEvidence` 与 `enableComplexSubdivisionAnalysis`；Measure BPM 对话框提供复杂分度复选框，普通流程默认关闭后者，以避免把 SV/密集纹理误报为语义分度，同时保留 Core 的 raw periodicity evidence。检测到变速 map 时，对话框显示可滚动的生成 BPM 列表，并要求用户显式勾选后应用；谱面已有 note 时，写入前再要求确认。`BpmMeasureUtils` 只负责将相对 beat 坐标映射成 Malody `BpmEntry`、合并谱面前段并复核量化后的 anchor 残差。完整 BPM map 仍需用户显式确认，`stable_grid_regularization` 仍只作为诊断展示，复杂分度候选不会自动写入谱面。
 
 ## 更新固定版本
 

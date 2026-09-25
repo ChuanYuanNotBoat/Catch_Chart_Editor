@@ -4,6 +4,8 @@
 #include <QDoubleSpinBox>
 #include <QCheckBox>
 
+#include "model/BpmEntry.h"
+
 class QSpinBox;
 class QLabel;
 class QPushButton;
@@ -12,6 +14,7 @@ class QComboBox;
 class QTextEdit;
 class QProgressBar;
 class QShortcut;
+class QTableWidget;
 
 class BpmMeasureDialog : public QDialog
 {
@@ -31,6 +34,7 @@ public:
     int finalOffset() const;
     bool applyOffset() const;
     bool applyAutoTimingMap() const;
+    bool enableComplexSubdivisionAnalysis() const;
     int measureDurationSeconds() const { return m_measureDuration; }
 
     void setCurrentTimeText(const QString &text);
@@ -40,6 +44,8 @@ public:
     void setAutoTimingUnavailable(const QString &text);
     void setAutoTimingPhaseOffset(int offsetMs);
     void setAutoTimingMapSuggestion(const QString &summary);
+    void setAutoTimingMapPreview(const QVector<BpmEntry> &bpmList);
+    void clearAutoTimingMapPreview();
     void setAutoTimingMapUnavailable(const QString &text = QString());
     void setMultiplierHint(int factor, const QString &text);
     void setResultDetailsText(const QString &text);
@@ -80,6 +86,8 @@ private:
     QPushButton *m_useAutoTimingSuggestionBtn;
     QCheckBox *m_applyAutoTimingMapCheck;
     QLabel *m_autoTimingMapSummaryLabel;
+    QTableWidget *m_autoTimingMapPreview;
+    QCheckBox *m_enableComplexSubdivisionCheck;
     QLabel *m_multiplierHintLabel;
     QLabel *m_statusLabel;
     QProgressBar *m_progressBar;

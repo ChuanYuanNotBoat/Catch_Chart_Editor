@@ -10,6 +10,7 @@
 #include <QDoubleSpinBox>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QTableWidget>
 
 #include <cmath>
 #include <cstdio>
@@ -427,6 +428,36 @@ namespace
         dialog.setMeasuredOffset(80);
         dialog.setAutoTimingSuggestion(240.0, QStringLiteral("(supported)"));
         dialog.setMeasurementComplete();
+
+        QCheckBox *complexSubdivisionCheck = dialog.findChild<QCheckBox *>(
+            QStringLiteral("enableComplexSubdivisionCheck"));
+        require(complexSubdivisionCheck != nullptr,
+                "complex subdivision option must be discoverable for regression tests");
+        if (complexSubdivisionCheck)
+        {
+            require(!complexSubdivisionCheck->isChecked() &&
+                        !dialog.enableComplexSubdivisionAnalysis(),
+                    "complex subdivision analysis must default to disabled");
+            complexSubdivisionCheck->setChecked(true);
+            require(dialog.enableComplexSubdivisionAnalysis(),
+                    "complex subdivision option must follow the GUI checkbox");
+            require(nearlyEqual(dialog.measuredBpm(), 0.0) &&
+                        nearlyEqual(dialog.finalBpm(), 0.0),
+                    "changing complex subdivision analysis must invalidate the completed result");
+        }
+
+        QVector<BpmEntry> previewEntries = {
+            BpmEntry(0, 0, 1, 120.0),
+            BpmEntry(8, 0, 1, 150.0),
+        };
+        dialog.setAutoTimingMapPreview(previewEntries);
+        QTableWidget *preview = dialog.findChild<QTableWidget *>(
+            QStringLiteral("autoTiming2MapPreview"));
+        require(preview != nullptr && !preview->isHidden() && preview->rowCount() == 2,
+                "variable-tempo BPM preview must show a scrollable generated list");
+        dialog.clearAutoTimingMapPreview();
+        require(preview != nullptr && preview->isHidden() && preview->rowCount() == 0,
+                "clearing the BPM preview must hide and remove generated rows");
 
         QComboBox *modeCombo = dialog.findChild<QComboBox *>(QStringLiteral("measureModeCombo"));
         require(modeCombo != nullptr, "measure mode combo must be discoverable for regression tests");

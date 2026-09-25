@@ -14,6 +14,9 @@
 #include <QShortcut>
 #include <QKeySequence>
 #include <QCheckBox>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QAbstractItemView>
 
 #include <limits>
 
@@ -65,6 +68,17 @@ void BpmMeasureDialog::setupUi()
     durationLayout->addWidget(m_durationSpin);
     durationLayout->addStretch();
     mainLayout->addLayout(durationLayout);
+
+    // Complex subdivision analysis is useful for explicit rhythm inspection,
+    // but can misread SV-heavy songs. Keep it opt-in for BPM measurement.
+    m_enableComplexSubdivisionCheck =
+        new QCheckBox(tr("Enable complex subdivision analysis"), this);
+    m_enableComplexSubdivisionCheck->setObjectName(
+        QStringLiteral("enableComplexSubdivisionCheck"));
+    m_enableComplexSubdivisionCheck->setChecked(false);
+    m_enableComplexSubdivisionCheck->setToolTip(
+        tr("Enable semantic rhythm profiles; disable this for SV-heavy songs."));
+    mainLayout->addWidget(m_enableComplexSubdivisionCheck);
 
     // Measure mode
     QHBoxLayout *modeLayout = new QHBoxLayout;
@@ -128,7 +142,8 @@ void BpmMeasureDialog::setupUi()
     mainLayout->addLayout(suggestionLayout);
 
     QHBoxLayout *timingMapLayout = new QHBoxLayout;
-    m_applyAutoTimingMapCheck = new QCheckBox(tr("Apply AutoTiming 2 BPM map"), this);
+    m_applyAutoTimingMapCheck =
+        new QCheckBox(tr("Use generated BPM list for the chart"), this);
     m_applyAutoTimingMapCheck->setObjectName(QStringLiteral("applyAutoTiming2MapCheck"));
     m_applyAutoTimingMapCheck->setEnabled(false);
     m_autoTimingMapSummaryLabel = new QLabel(tr("No timing map available"), this);
@@ -137,6 +152,21 @@ void BpmMeasureDialog::setupUi()
     timingMapLayout->addWidget(m_applyAutoTimingMapCheck);
     timingMapLayout->addWidget(m_autoTimingMapSummaryLabel, 1);
     mainLayout->addLayout(timingMapLayout);
+
+    m_autoTimingMapPreview = new QTableWidget(this);
+    m_autoTimingMapPreview->setObjectName(QStringLiteral("autoTiming2MapPreview"));
+    m_autoTimingMapPreview->setColumnCount(2);
+    m_autoTimingMapPreview->setHorizontalHeaderLabels(
+        {tr("Beat"), tr("BPM")});
+    m_autoTimingMapPreview->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_autoTimingMapPreview->setSelectionMode(QAbstractItemView::NoSelection);
+    m_autoTimingMapPreview->setFocusPolicy(Qt::NoFocus);
+    m_autoTimingMapPreview->verticalHeader()->setVisible(false);
+    m_autoTimingMapPreview->horizontalHeader()->setStretchLastSection(true);
+    m_autoTimingMapPreview->setMinimumHeight(90);
+    m_autoTimingMapPreview->setMaximumHeight(190);
+    m_autoTimingMapPreview->setVisible(false);
+    mainLayout->addWidget(m_autoTimingMapPreview);
 
     m_multiplierHintLabel = new QLabel(this);
     m_multiplierHintLabel->setObjectName(QStringLiteral("multiplierHintLabel"));
@@ -245,6 +275,13 @@ void BpmMeasureDialog::setupUi()
             {
                 invalidateCompletedMeasurement();
             });
+    connect(m_enableComplexSubdivisionCheck,
+            &QCheckBox::toggled,
+            this,
+            [this](bool)
+            {
+                invalidateCompletedMeasurement();
+            });
     connect(m_finalBpmSpin,
             QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this,
@@ -348,9 +385,44 @@ void BpmMeasureDialog::setAutoTimingMapSuggestion(const QString &summary)
     updateActionState();
 }
 
+void BpmMeasureDialog::setAutoTimingMapPreview(const QVector<BpmEntry> &bpmList)
+{
+    if (!m_autoTimingMapPreview)
+        return;
+
+    m_autoTimingMapPreview->clearContents();
+    m_autoTimingMapPreview->setRowCount(bpmList.size());
+    for (int row = 0; row < bpmList.size(); ++row)
+    {
+        const BpmEntry &entry = bpmList[row];
+        m_autoTimingMapPreview->setItem(
+            row,
+            0,
+            new QTableWidgetItem(QStringLiteral("%1:%2/%3")
+                                     .arg(entry.beatNum)
+                                     .arg(entry.numerator)
+                                     .arg(entry.denominator)));
+        m_autoTimingMapPreview->setItem(
+            row,
+            1,
+            new QTableWidgetItem(QString::number(entry.bpm, 'f', 3)));
+    }
+    m_autoTimingMapPreview->setVisible(!bpmList.isEmpty());
+}
+
+void BpmMeasureDialog::clearAutoTimingMapPreview()
+{
+    if (!m_autoTimingMapPreview)
+        return;
+    m_autoTimingMapPreview->clearContents();
+    m_autoTimingMapPreview->setRowCount(0);
+    m_autoTimingMapPreview->setVisible(false);
+}
+
 void BpmMeasureDialog::setAutoTimingMapUnavailable(const QString &text)
 {
     m_hasAutoTimingMap = false;
+    clearAutoTimingMapPreview();
     if (m_applyAutoTimingMapCheck)
     {
         m_applyAutoTimingMapCheck->setChecked(false);
@@ -419,6 +491,7 @@ void BpmMeasureDialog::resetMeasurementResults()
     }
     if (m_autoTimingMapSummaryLabel)
         m_autoTimingMapSummaryLabel->setText(tr("Analyzing tempo track..."));
+    clearAutoTimingMapPreview();
     if (m_finalBpmSpin)
         m_finalBpmSpin->setValue(0.0);
     if (m_finalOffsetSpin)
@@ -442,6 +515,7 @@ void BpmMeasureDialog::invalidateCompletedMeasurement()
         m_autoTimingSuggestionEdit->setText(tr("Not analyzed yet"));
     if (m_autoTimingMapSummaryLabel)
         m_autoTimingMapSummaryLabel->setText(tr("No timing map available"));
+    clearAutoTimingMapPreview();
     if (m_detailsEdit)
         m_detailsEdit->setPlainText(tr("Measurement settings changed. Measure again."));
     if (m_progressBar)
@@ -526,6 +600,8 @@ void BpmMeasureDialog::setMeasuring(bool measuring)
         m_durationSpin->setEnabled(!measuring);
     if (m_modeCombo)
         m_modeCombo->setEnabled(!measuring);
+    if (m_enableComplexSubdivisionCheck)
+        m_enableComplexSubdivisionCheck->setEnabled(!measuring);
     if (m_progressBar)
     {
         if (measuring)
@@ -588,6 +664,12 @@ bool BpmMeasureDialog::applyAutoTimingMap() const
     return m_hasAutoTimingMap &&
            m_applyAutoTimingMapCheck &&
            m_applyAutoTimingMapCheck->isChecked();
+}
+
+bool BpmMeasureDialog::enableComplexSubdivisionAnalysis() const
+{
+    return m_enableComplexSubdivisionCheck &&
+           m_enableComplexSubdivisionCheck->isChecked();
 }
 
 void BpmMeasureDialog::setMeasuredOffset(int offsetMs)
