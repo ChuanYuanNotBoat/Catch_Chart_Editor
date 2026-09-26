@@ -6,8 +6,8 @@
 
 - 上游仓库：`https://github.com/ChuanYuanNotBoat/AutoTimingCore.git`
 - 子模块路径：`third_party/AutoTimingCore`
-- 固定提交：`e855b1990533ac41b4d365e5d1f79242714651e6`
-- 接入日期：2026-09-20
+- 固定提交：`e47016ddfb24c4daf2d874164f3a64cc9346552c`
+- 接入日期：2026-09-27
 - 接入方式：Git submodule；CCE 仓库的 gitlink 是唯一版本来源
 
 克隆后必须初始化子模块：
@@ -28,7 +28,7 @@ git submodule update --init --recursive
 
 CCE 的 `audio_autotiming_bridge_tests` 继续验证 `AutoTimingCore -> AutoTiming2Bridge -> BpmDetector` 的宿主边界和 legacy/V2 行为。
 
-当前开发接入把 phase-anchored `TempoMap`、连续曲线和有误差上界的通用 BPM points 保留在 AutoTimingCore。CCE bridge 只转换 Qt 友好结构并转发 `preferLocalTempoEvidence` 与 `enableComplexSubdivisionAnalysis`；Measure BPM 对话框提供复杂分度复选框，普通流程默认关闭后者，以避免把 SV/密集纹理误报为语义分度，同时保留 Core 的 raw periodicity evidence。检测到变速 map 时，对话框显示可滚动的生成 BPM 列表，并要求用户显式勾选后应用；谱面已有 note 时，写入前再要求确认。`BpmMeasureUtils` 只负责将相对 beat 坐标映射成 Malody `BpmEntry`、合并谱面前段并复核量化后的 anchor 残差。完整 BPM map 仍需用户显式确认，`stable_grid_regularization` 仍只作为诊断展示，复杂分度候选不会自动写入谱面。
+当前开发接入把 phase-anchored `TempoMap`、连续曲线和有误差上界的通用 BPM points 保留在 AutoTimingCore。CCE bridge 只转换 Qt 友好结构并转发 `preferLocalTempoEvidence` 与 `enableComplexSubdivisionAnalysis`；Measure BPM 对话框提供“Prefer local tempo evidence for variable-tempo songs”和复杂分度两个独立开关，前者默认关闭以保持稳定曲的全局正则化结果，SV/结构性变速曲需要显式打开，后者普通流程默认关闭以避免把 SV/密集纹理误报为语义分度，同时保留 Core 的 raw periodicity evidence。检测到变速 map 时，对话框显示可滚动的最终合并 BPM 列表，并要求用户显式勾选后应用；谱面已有 note 时，写入前再要求确认。`BpmMeasureUtils` 只负责将相对 beat 坐标映射成 Malody `BpmEntry`，仅替换 Core `TempoMap.segments` 暴露的可信变速区间或阶跃边界，保留稳定区间已有 BPM，并复核被替换区间的量化 anchor 残差；小于 2% 的 segment 变化和低置信 segment 不自动写入。没有可信变速区间时 proposal 不可用，避免把整张 map 的近似噪声展开成 BPM。完整 BPM map 仍需用户显式确认，`stable_grid_regularization` 仍只作为诊断展示，复杂分度候选不会自动写入谱面。
 
 ## 更新固定版本
 
@@ -40,7 +40,7 @@ git -C third_party/AutoTimingCore checkout <reviewed-full-sha>
 git add third_party/AutoTimingCore docs/AUTOTIMING_VENDORING.md
 ```
 
-随后更新本文件中的完整 SHA，并从全新构建目录运行 Debug/Release 构建、上游四项回归与 CCE 全套测试。不要在 CCE 中直接修改子模块算法源码；需要的算法修复应先进入 AutoTimingCore，再更新 gitlink。
+随后更新本文件中的完整 SHA，并从全新构建目录运行 Debug/Release 构建、上游五项回归与 CCE 全套测试。不要在 CCE 中直接修改子模块算法源码；需要的算法修复应先进入 AutoTimingCore，再更新 gitlink。
 
 ## 宿主边界
 
@@ -54,7 +54,7 @@ git add third_party/AutoTimingCore docs/AUTOTIMING_VENDORING.md
 
 ## 来源边界与许可证状态
 
-以下内容来自子模块 `ATTRIBUTION.md`（固定提交 `e855b1990533ac41b4d365e5d1f79242714651e6`）：
+以下内容来自子模块 `ATTRIBUTION.md`（固定提交 `e47016ddfb24c4daf2d874164f3a64cc9346552c`）：
 
 - Legacy source set（`AutoTiming.cpp/.h`、`dsp.*`、`fft.*`、`util.*`、`platform.h`）源自 Malody 内部 AutoTiming 原始实现（原文件头 “Created by dolly on 16/1/3” 应保留）。
 - AutoTiming 2 是在 legacy 基线上继续发展的扩展。

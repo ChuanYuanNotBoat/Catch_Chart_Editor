@@ -141,6 +141,7 @@ struct AutoTiming2TempoMap
     double maximumTempoCorrectionBpm = 0.0;
     double maximumTempoCorrectionRelative = 0.0;
     qsizetype robustPulseCountCorrectionCount = 0;
+    qsizetype phaseCoherentIntervalCount = 0;
     bool hasTempoChange = false;
     bool hasContinuousChange = false;
     bool hasAbruptChange = false;

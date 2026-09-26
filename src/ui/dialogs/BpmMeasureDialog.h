@@ -3,6 +3,7 @@
 #include <QDialog>
 #include <QDoubleSpinBox>
 #include <QCheckBox>
+#include <QtGlobal>
 
 #include "model/BpmEntry.h"
 
@@ -35,9 +36,11 @@ public:
     bool applyOffset() const;
     bool applyAutoTimingMap() const;
     bool enableComplexSubdivisionAnalysis() const;
+    bool preferLocalTempoEvidence() const;
     int measureDurationSeconds() const { return m_measureDuration; }
 
     void setCurrentTimeText(const QString &text);
+    void setAudioDurationMs(qint64 durationMs);
     void setMeasuredBpm(double bpm);
     void setLegacyUnavailable(const QString &text = QString());
     void setAutoTimingSuggestion(double bpm, const QString &qualifier = QString());
@@ -88,6 +91,7 @@ private:
     QLabel *m_autoTimingMapSummaryLabel;
     QTableWidget *m_autoTimingMapPreview;
     QCheckBox *m_enableComplexSubdivisionCheck;
+    QCheckBox *m_preferLocalTempoEvidenceCheck;
     QLabel *m_multiplierHintLabel;
     QLabel *m_statusLabel;
     QProgressBar *m_progressBar;

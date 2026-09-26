@@ -1,6 +1,7 @@
 #include "BPMTimePanel.h"
 #include "controller/ChartController.h"
 #include "controller/PlaybackController.h"
+#include "audio/AudioPlayer.h"
 #include "model/BpmEntry.h"
 #include "model/Chart.h"
 #include "ui/dialogs/BpmMeasureDialog.h"
@@ -339,6 +340,18 @@ void BPMTimePanel::onMeasureBpmClicked()
     BpmMeasureDialog dialog(this);
     dialog.setCurrentTimeText(timeStr);
     dialog.setStatusText(tr("Ready to measure."));
+    if (m_playbackController && m_playbackController->audioPlayer())
+    {
+        AudioPlayer *audioPlayer = m_playbackController->audioPlayer();
+        dialog.setAudioDurationMs(audioPlayer->duration());
+        connect(audioPlayer,
+                &AudioPlayer::durationChanged,
+                &dialog,
+                [&dialog](qint64 durationMs)
+                {
+                    dialog.setAudioDurationMs(durationMs);
+                });
+    }
 
     const auto session = std::make_shared<MeasureSession>();
     session->controller = m_chartController;
@@ -391,6 +404,8 @@ void BPMTimePanel::onMeasureBpmClicked()
         session->hasCompletedResult = false;
         const std::shared_ptr<std::atomic<bool>> cancelFlag = session->cancelFlag;
         AutoTiming2Options analysisOptions;
+        analysisOptions.preferLocalTempoEvidence =
+            dialog.preferLocalTempoEvidence();
         analysisOptions.enableComplexSubdivisionAnalysis =
             dialog.enableComplexSubdivisionAnalysis();
         const quint64 requestId = ++session->requestId;
@@ -398,6 +413,23 @@ void BPMTimePanel::onMeasureBpmClicked()
         const int requestOffsetMs = m_chartController->chart()->meta().offset;
         const double audioStartMs = qMax(0.0,
                                          requestChartMs + static_cast<double>(requestOffsetMs));
+        const qint64 audioDurationMs = m_playbackController &&
+                                               m_playbackController->audioPlayer()
+                                           ? m_playbackController->audioPlayer()->duration()
+                                           : 0;
+        const double requestedDurationMs = durationSeconds * 1000.0;
+        if (audioDurationMs > 0 &&
+            (audioStartMs >= static_cast<double>(audioDurationMs) ||
+             requestedDurationMs > static_cast<double>(audioDurationMs) - audioStartMs))
+        {
+            dialog.setMeasuring(false);
+            dialog.setStatusText(tr("Measurement failed."));
+            QMessageBox::warning(
+                this,
+                tr("Measurement Failed"),
+                tr("Measurement duration cannot exceed the available audio length."));
+            return;
+        }
         dialog.setCurrentTimeText(tr("%1 ms").arg(QString::number(audioStartMs, 'f', 0)));
         BpmDetector::analyzeFromFileDetailedAsync(
             &dialog,
@@ -506,7 +538,7 @@ void BPMTimePanel::onMeasureBpmClicked()
                 if (session->timingMap.available && session->timingMap.hasTempoChange)
                 {
                     dialog.setAutoTimingMapSuggestion(
-                        tr("%1 core-generated BPM points from %2 phase anchors; range %3-%4 s; detected-anchor fit %5 ms; interpolation bound %6 ms. Existing timing before the first anchor is preserved.")
+                        tr("%1 core-generated BPM points from %2 phase anchors; range %3-%4 s; detected-anchor fit %5 ms; interpolation bound %6 ms. Existing BPM outside detected variable-tempo ranges is preserved.")
                             .arg(session->timingMap.generatedEntryCount)
                             .arg(session->timingMap.sourceAnchorCount)
                             .arg(session->timingMap.sourceStartSeconds, 0, 'f', 2)
@@ -589,11 +621,10 @@ void BPMTimePanel::onMeasureBpmClicked()
                 const QMessageBox::StandardButton mapReply = QMessageBox::question(
                     this,
                     tr("Apply AutoTiming 2 BPM Map"),
-                    tr("This chart already contains %1 notes. Replace BPM entries from beat %2 onward with %3 generated timing points?\n\n"
-                       "The map follows detected pulse anchors through %4-%5 s and keeps earlier BPM entries. "
+                    tr("This chart already contains %1 notes. Replace BPM entries inside detected variable-tempo ranges with %2 generated timing points?\n\n"
+                       "The map follows detected pulse anchors through %3-%4 s and keeps BPM entries outside those ranges. "
                        "It is audio-derived, not chart ground truth, and can be undone as one action.")
                         .arg(m_chartController->chart()->notes().size())
-                        .arg(proposal.firstAnchorBeat, 0, 'f', 4)
                         .arg(proposal.generatedEntryCount)
                         .arg(proposal.sourceStartSeconds, 0, 'f', 2)
                         .arg(proposal.sourceEndSeconds, 0, 'f', 2),

@@ -80,6 +80,17 @@ void BpmMeasureDialog::setupUi()
         tr("Enable semantic rhythm profiles; disable this for SV-heavy songs."));
     mainLayout->addWidget(m_enableComplexSubdivisionCheck);
 
+    // Local tempo evidence is useful for deliberate SV/tempo changes, but it
+    // can follow changing rhythmic texture. Keep it opt-in for stable songs.
+    m_preferLocalTempoEvidenceCheck =
+        new QCheckBox(tr("Prefer local tempo evidence for variable-tempo songs"), this);
+    m_preferLocalTempoEvidenceCheck->setObjectName(
+        QStringLiteral("preferLocalTempoEvidenceCheck"));
+    m_preferLocalTempoEvidenceCheck->setChecked(false);
+    m_preferLocalTempoEvidenceCheck->setToolTip(
+        tr("Use local tempo changes when the song intentionally varies speed; leave off for stable tempo songs."));
+    mainLayout->addWidget(m_preferLocalTempoEvidenceCheck);
+
     // Measure mode
     QHBoxLayout *modeLayout = new QHBoxLayout;
     m_modeLabel = new QLabel(tr("Measure Mode:"), this);
@@ -282,6 +293,13 @@ void BpmMeasureDialog::setupUi()
             {
                 invalidateCompletedMeasurement();
             });
+    connect(m_preferLocalTempoEvidenceCheck,
+            &QCheckBox::toggled,
+            this,
+            [this](bool)
+            {
+                invalidateCompletedMeasurement();
+            });
     connect(m_finalBpmSpin,
             QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this,
@@ -309,6 +327,17 @@ void BpmMeasureDialog::setCurrentTimeText(const QString &text)
             }
         }
     }
+}
+
+void BpmMeasureDialog::setAudioDurationMs(qint64 durationMs)
+{
+    if (!m_durationSpin || durationMs <= 0)
+        return;
+
+    const qint64 durationSeconds = durationMs / 1000;
+    const int maximumSeconds = static_cast<int>(qBound<qint64>(
+        qint64(1), durationSeconds, static_cast<qint64>(std::numeric_limits<int>::max())));
+    m_durationSpin->setRange(1, maximumSeconds);
 }
 
 void BpmMeasureDialog::setMeasuredBpm(double bpm)
@@ -602,6 +631,8 @@ void BpmMeasureDialog::setMeasuring(bool measuring)
         m_modeCombo->setEnabled(!measuring);
     if (m_enableComplexSubdivisionCheck)
         m_enableComplexSubdivisionCheck->setEnabled(!measuring);
+    if (m_preferLocalTempoEvidenceCheck)
+        m_preferLocalTempoEvidenceCheck->setEnabled(!measuring);
     if (m_progressBar)
     {
         if (measuring)
@@ -670,6 +701,12 @@ bool BpmMeasureDialog::enableComplexSubdivisionAnalysis() const
 {
     return m_enableComplexSubdivisionCheck &&
            m_enableComplexSubdivisionCheck->isChecked();
+}
+
+bool BpmMeasureDialog::preferLocalTempoEvidence() const
+{
+    return m_preferLocalTempoEvidenceCheck &&
+           m_preferLocalTempoEvidenceCheck->isChecked();
 }
 
 void BpmMeasureDialog::setMeasuredOffset(int offsetMs)

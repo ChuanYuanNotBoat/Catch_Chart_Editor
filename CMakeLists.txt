@@ -192,6 +192,7 @@ if(BUILD_TESTING)
 
     add_executable(BpmMeasurementTests
         tests/bpm_measurement_tests.cpp
+        src/audio/AutoTiming2Bridge.cpp
         src/model/Note.cpp
         src/model/BpmEntry.cpp
         src/utils/MathUtils.cpp
@@ -204,6 +205,7 @@ if(BUILD_TESTING)
     target_include_directories(BpmMeasurementTests PRIVATE src)
     target_link_libraries(BpmMeasurementTests
         PRIVATE
+        AutoTimingCore::core
         Qt6::Core
         Qt6::Gui
         Qt6::Widgets

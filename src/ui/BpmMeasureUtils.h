@@ -102,9 +102,9 @@ namespace BpmMeasureUtils
     // never produces a divide/0.5x suggestion because the UI cannot perform it.
     MultiplierHint findMultiplierHint(double legacyBpm, double suggestedBpm);
 
-    // Builds a complete BPM list by preserving entries before the first
-    // detected pulse anchor and replacing the remainder with a phase-locked
-    // AutoTiming 2 projection. Every accepted source anchor is validated
+    // Builds a BPM list by replacing only credible variable-tempo segments
+    // exposed by AutoTimingCore. Stable chart BPM entries outside those
+    // segments remain untouched. Every replaced source anchor is validated
     // through MathUtils::beatToMs so cumulative drift cannot be hidden by a
     // locally plausible BPM value. This function never mutates the chart.
     TimingMapProposal buildTimingMapProposal(

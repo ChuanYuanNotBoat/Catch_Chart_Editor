@@ -412,6 +412,25 @@
         <source>Audio BPM detection failed.</source>
         <translation type="vanished">音频 BPM 检测失败。</translation>
     </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="430"/>
+        <source>Measurement duration cannot exceed the available audio length.</source>
+        <translation>测量时长不能超过可用音频长度。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="541"/>
+        <source>%1 core-generated BPM points from %2 phase anchors; range %3-%4 s; detected-anchor fit %5 ms; interpolation bound %6 ms. Existing BPM outside detected variable-tempo ranges is preserved.</source>
+        <translation>%1 个由核心生成的 BPM 点，基于 %2 个相位锚点；范围 %3–%4 秒；检测锚点拟合误差 %5 毫秒；插值误差上限 %6 毫秒。已检测变速区间以外的现有 BPM 将保留。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="624"/>
+        <source>This chart already contains %1 notes. Replace BPM entries inside detected variable-tempo ranges with %2 generated timing points?
+
+The map follows detected pulse anchors through %3-%4 s and keeps BPM entries outside those ranges. It is audio-derived, not chart ground truth, and can be undone as one action.</source>
+        <translation>谱面已有 %1 个音符。要在检测到的变速区间内用 %2 个生成的时间点替换 BPM 吗？
+
+该时间图跟随 %3–%4 秒内检测到的脉冲锚点，并保留这些区间以外的 BPM。它根据音频推算，并非谱面基准；此操作可一次撤销。</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -579,6 +598,16 @@
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="169"/>
         <source>Apply offset</source>
         <translation>应用偏移</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="86"/>
+        <source>Prefer local tempo evidence for variable-tempo songs</source>
+        <translation>对变速歌曲优先采用局部速度证据</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="91"/>
+        <source>Use local tempo changes when the song intentionally varies speed; leave off for stable tempo songs.</source>
+        <translation>歌曲确实有意变速时使用局部速度变化；恒速歌曲请保持关闭。</translation>
     </message>
 </context>
 <context>

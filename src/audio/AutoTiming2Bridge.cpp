@@ -94,6 +94,7 @@ namespace
         out.maximumTempoCorrectionBpm = map.maximumTempoCorrectionBpm;
         out.maximumTempoCorrectionRelative = map.maximumTempoCorrectionRelative;
         out.robustPulseCountCorrectionCount = qsizetype(map.robustPulseCountCorrectionCount);
+        out.phaseCoherentIntervalCount = qsizetype(map.phaseCoherentIntervalCount);
         out.hasTempoChange = map.hasTempoChange;
         out.hasContinuousChange = map.hasContinuousChange;
         out.hasAbruptChange = map.hasAbruptChange;

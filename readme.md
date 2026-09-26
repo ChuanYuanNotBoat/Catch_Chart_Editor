@@ -133,7 +133,7 @@ The project is licensed under GPL-3.0; see [LICENSE](LICENSE).
 
 Qt Advanced Docking System 5.1.1 is licensed under LGPL-2.1. Its source and license files are included in [third_party/QtAdvancedDockingSystem](third_party/QtAdvancedDockingSystem).
 
-AutoTimingCore is pinned at `e855b1990533ac41b4d365e5d1f79242714651e6`.
+AutoTimingCore is pinned at `e47016ddfb24c4daf2d874164f3a64cc9346552c`.
 Its Malody legacy source license is not confirmed; see
 [docs/AUTOTIMING_VENDORING.md](docs/AUTOTIMING_VENDORING.md) and the submodule's
 `ATTRIBUTION.md` before redistribution.

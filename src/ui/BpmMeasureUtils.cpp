@@ -23,6 +23,19 @@ namespace
         double bpm = 0.0;
     };
 
+    struct BeatRange
+    {
+        double start = 0.0;
+        double end = 0.0;
+    };
+
+    // A small change in a Core segment is more likely to be estimation noise
+    // than a chart-level tempo event. Keep the CCE projection conservative;
+    // Core remains responsible for fitting the underlying curve.
+    constexpr double kMinimumVariableTempoRelativeChange = 0.02;
+    constexpr double kMinimumVariableSegmentConfidence = 0.20;
+    constexpr double kBeatComparisonEpsilon = 1.0e-8;
+
     double beatPosition(const BpmEntry &entry)
     {
         return entry.beatNum + static_cast<double>(entry.numerator) / entry.denominator;
@@ -57,6 +70,102 @@ namespace
                 return;
         }
         entries.append({beat, bpm});
+    }
+
+    double relativeTempoChange(double left, double right)
+    {
+        if (!isPositiveFinite(left) || !isPositiveFinite(right))
+            return std::numeric_limits<double>::infinity();
+        return std::fabs(right / left - 1.0);
+    }
+
+    bool usableTempoSegment(const AutoTiming2TempoCurveSegment &segment)
+    {
+        return std::isfinite(segment.startBeat) &&
+               std::isfinite(segment.endBeat) &&
+               segment.endBeat >= segment.startBeat &&
+               isPositiveFinite(segment.startBpm) &&
+               isPositiveFinite(segment.endBpm) &&
+               std::isfinite(segment.confidence) &&
+               segment.confidence >= kMinimumVariableSegmentConfidence;
+    }
+
+    void includeTempoRange(const AutoTiming2TempoCurveSegment &segment,
+                           double &minimumBpm, double &maximumBpm)
+    {
+        minimumBpm = std::min({minimumBpm, segment.startBpm, segment.endBpm});
+        maximumBpm = std::max({maximumBpm, segment.startBpm, segment.endBpm});
+        const double duration = segment.endSeconds - segment.startSeconds;
+        if (!(duration > 0.0) || !std::isfinite(duration) ||
+            !std::isfinite(segment.phaseCubic) ||
+            !std::isfinite(segment.phaseQuadratic) ||
+            !std::isfinite(segment.phaseLinear) ||
+            std::fabs(segment.phaseCubic) <= 1.0e-12)
+            return;
+
+        // Core's cubic beat phase has a quadratic BPM derivative. Inspect its
+        // interior extremum as well as its endpoints; no host-side curve fit.
+        const double x = -segment.phaseQuadratic / (3.0 * segment.phaseCubic);
+        if (x > 0.0 && x < 1.0)
+        {
+            const double bpm = 60.0 / duration *
+                (3.0 * segment.phaseCubic * x * x +
+                 2.0 * segment.phaseQuadratic * x + segment.phaseLinear);
+            if (isPositiveFinite(bpm))
+            {
+                minimumBpm = std::min(minimumBpm, bpm);
+                maximumBpm = std::max(maximumBpm, bpm);
+            }
+        }
+    }
+
+    bool containsBeat(const BeatRange &range, double beat)
+    {
+        return beat >= range.start - kBeatComparisonEpsilon &&
+               beat <= range.end + kBeatComparisonEpsilon;
+    }
+
+    void appendReplacementRange(QVector<BeatRange> &ranges, double start, double end)
+    {
+        if (!std::isfinite(start) || !std::isfinite(end))
+            return;
+        if (end < start)
+            std::swap(start, end);
+        ranges.append({start, end});
+    }
+
+    void normalizeReplacementRanges(QVector<BeatRange> &ranges)
+    {
+        std::sort(ranges.begin(), ranges.end(), [](const BeatRange &left, const BeatRange &right)
+        {
+            if (left.start != right.start)
+                return left.start < right.start;
+            return left.end < right.end;
+        });
+
+        QVector<BeatRange> normalized;
+        normalized.reserve(ranges.size());
+        for (const BeatRange &range : ranges)
+        {
+            if (normalized.isEmpty() ||
+                range.start > normalized.last().end + kBeatComparisonEpsilon)
+            {
+                normalized.append(range);
+            }
+            else
+            {
+                normalized.last().end = std::max(normalized.last().end, range.end);
+            }
+        }
+        ranges = std::move(normalized);
+    }
+
+    bool beatIsInAnyRange(const QVector<BeatRange> &ranges, double beat)
+    {
+        return std::any_of(ranges.cbegin(), ranges.cend(), [beat](const BeatRange &range)
+        {
+            return containsBeat(range, beat);
+        });
     }
 
     BpmEntry makeBpmEntry(double beat, double bpm, int maximumDenominator)
@@ -205,12 +314,6 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
             "AutoTimingCore BPM list is unavailable (%1).").arg(map.bpmListFailureReason);
         return proposal;
     }
-    if (map.bpmList.size() > options.maximumEntries)
-    {
-        proposal.unavailableReason = QStringLiteral(
-            "The core BPM list exceeded the CCE safety entry limit.");
-        return proposal;
-    }
     if (map.maximumBpmListModelErrorMilliseconds > options.maximumModelErrorMs + 1.0e-9)
     {
         proposal.unavailableReason = QStringLiteral(
@@ -232,10 +335,89 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
     proposal.firstAnchorBeat = firstBeatNum +
                                static_cast<double>(firstBeatNumerator) / firstBeatDenominator;
 
+    QVector<BeatRange> replacementRanges;
+    if (!map.segments.isEmpty())
+    {
+        for (qsizetype i = 0; i < map.segments.size();)
+        {
+            const AutoTiming2TempoCurveSegment &segment = map.segments[i];
+            if (!usableTempoSegment(segment))
+            {
+                ++i;
+                continue;
+            }
+
+            if (segment.kind == QLatin1String("continuous"))
+            {
+                qsizetype runEnd = i + 1;
+                while (runEnd < map.segments.size())
+                {
+                    const AutoTiming2TempoCurveSegment &next = map.segments[runEnd];
+                    const AutoTiming2TempoCurveSegment &previous = map.segments[runEnd - 1];
+                    if (!usableTempoSegment(next) ||
+                        next.kind != QLatin1String("continuous") ||
+                        std::fabs(previous.endBeat - next.startBeat) > 1.0e-6)
+                    {
+                        break;
+                    }
+                    ++runEnd;
+                }
+                const AutoTiming2TempoCurveSegment &last = map.segments[runEnd - 1];
+                double minimumBpm = segment.startBpm;
+                double maximumBpm = segment.startBpm;
+                for (qsizetype j = i; j < runEnd; ++j)
+                    includeTempoRange(map.segments[j], minimumBpm, maximumBpm);
+                if (relativeTempoChange(minimumBpm, maximumBpm) >=
+                    kMinimumVariableTempoRelativeChange)
+                {
+                    appendReplacementRange(
+                        replacementRanges,
+                        segment.startBeat,
+                        last.endBeat);
+                }
+                i = runEnd;
+                continue;
+            }
+
+            if (segment.kind != QLatin1String("constant") || i == 0)
+            {
+                ++i;
+                continue;
+            }
+            const AutoTiming2TempoCurveSegment &previous = map.segments[i - 1];
+            if (!usableTempoSegment(previous) ||
+                std::fabs(previous.endBeat - segment.startBeat) > 1.0e-6 ||
+                relativeTempoChange(previous.endBpm, segment.startBpm) <
+                    kMinimumVariableTempoRelativeChange)
+            {
+                ++i;
+                continue;
+            }
+
+            // An abrupt Core change is represented by two constant segments.
+            // Replacing only the boundary keeps the stable regions on either
+            // side of the step under the chart author's control.
+            appendReplacementRange(
+                replacementRanges,
+                segment.startBeat,
+                segment.startBeat);
+            ++i;
+        }
+    }
+    normalizeReplacementRanges(replacementRanges);
+    if (replacementRanges.isEmpty())
+    {
+        proposal.unavailableReason = QStringLiteral(
+            "AutoTimingCore did not expose a credible variable-tempo segment.");
+        return proposal;
+    }
+
     QVector<ProjectedEntry> generated;
     generated.reserve(map.bpmList.size());
     for (const AutoTiming2BpmPoint &point : map.bpmList)
     {
+        if (!beatIsInAnyRange(replacementRanges, point.beat))
+            continue;
         appendProjectedEntry(
             generated,
             proposal.firstAnchorBeat + point.beat - map.startBeat,
@@ -247,12 +429,29 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
             "AutoTimingCore BPM points could not be mapped to chart coordinates.");
         return proposal;
     }
+    if (generated.size() > options.maximumEntries)
+    {
+        proposal.unavailableReason = QStringLiteral(
+            "The variable-tempo BPM points exceeded the CCE safety entry limit.");
+        return proposal;
+    }
 
     QVector<BpmEntry> merged;
     merged.reserve(existingBpmList.size() + generated.size());
     for (const BpmEntry &entry : existingBpmList)
     {
-        if (beatPosition(entry) < proposal.firstAnchorBeat - 1.0e-8)
+        const double chartBeat = beatPosition(entry);
+        const bool replace = std::any_of(
+            replacementRanges.cbegin(),
+            replacementRanges.cend(),
+            [chartBeat, &proposal, &map](const BeatRange &range)
+            {
+                const double start = proposal.firstAnchorBeat + range.start - map.startBeat;
+                const double end = proposal.firstAnchorBeat + range.end - map.startBeat;
+                return chartBeat >= start - kBeatComparisonEpsilon &&
+                       chartBeat <= end + kBeatComparisonEpsilon;
+            });
+        if (!replace)
             merged.append(entry);
     }
     for (const ProjectedEntry &entry : generated)
@@ -277,9 +476,11 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
         }
     }
 
-    double maximumAnchorResidualMs = map.maximumAnchorResidualMilliseconds;
+    double maximumAnchorResidualMs = 0.0;
     for (const AutoTiming2TempoMapAnchor &anchor : map.anchors)
     {
+        if (!beatIsInAnyRange(replacementRanges, anchor.phaseBeat))
+            continue;
         const double beat = proposal.firstAnchorBeat +
                             anchor.phaseBeat - map.startBeat;
         const BpmEntry position = makeBpmEntry(beat, anchor.modelBpm, options.maximumBeatDenominator);

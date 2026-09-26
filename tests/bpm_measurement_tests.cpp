@@ -12,7 +12,9 @@
 #include <QSpinBox>
 #include <QTableWidget>
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <limits>
 #include <string>
@@ -57,7 +59,8 @@ namespace
                          const QVector<AutoTiming2TempoMapAnchor> &anchors,
                          const QVector<AutoTiming2BpmPoint> &bpmList,
                          bool continuousChange = false,
-                         bool abruptChange = false)
+                         bool abruptChange = false,
+                         const QVector<AutoTiming2TempoCurveSegment> &segments = {})
     {
         AutoTiming2TempoMap &map = summary.tempoMap;
         map.available = true;
@@ -70,6 +73,43 @@ namespace
         map.hasContinuousChange = continuousChange;
         map.hasAbruptChange = abruptChange;
         map.hasTempoChange = continuousChange || abruptChange;
+        map.segments = segments;
+        if (map.segments.isEmpty() && !bpmList.isEmpty())
+        {
+            if (abruptChange && bpmList.size() >= 2)
+            {
+                AutoTiming2TempoCurveSegment before;
+                before.startBeat = bpmList.first().beat;
+                before.endBeat = bpmList[1].beat;
+                before.startBpm = bpmList.first().bpm;
+                before.endBpm = before.startBpm;
+                before.confidence = 0.9;
+                before.kind = QStringLiteral("constant");
+                map.segments.append(before);
+
+                AutoTiming2TempoCurveSegment after;
+                after.startBeat = bpmList[1].beat;
+                after.endBeat = endBeat;
+                after.startBpm = bpmList.last().bpm;
+                after.endBpm = after.startBpm;
+                after.confidence = 0.9;
+                after.kind = QStringLiteral("constant");
+                map.segments.append(after);
+            }
+            else
+            {
+                AutoTiming2TempoCurveSegment segment;
+                segment.startBeat = bpmList.first().beat;
+                segment.endBeat = endBeat;
+                segment.startBpm = bpmList.first().bpm;
+                segment.endBpm = bpmList.last().bpm;
+                segment.confidence = 0.9;
+                segment.kind = continuousChange
+                    ? QStringLiteral("continuous")
+                    : QStringLiteral("constant");
+                map.segments.append(segment);
+            }
+        }
         map.bpmListAvailable = true;
         map.bpmListFailureReason = QStringLiteral("none");
         map.bpmList = bpmList;
@@ -188,16 +228,14 @@ namespace
             {{0.0, 120.0}});
         const BpmMeasureUtils::TimingMapProposal fixedProposal =
             BpmMeasureUtils::buildTimingMapProposal(fixed, existing, 0);
-        require(fixedProposal.available, "fixed pulse track must produce a BPM map proposal");
-        require(fixedProposal.maximumAnchorResidualMs < 0.1,
-                "fixed BPM map must retain all pulse anchors without cumulative drift");
+        require(!fixedProposal.available && !fixedProposal.unavailableReason.isEmpty(),
+                "fixed pulse track must abstain from generating a variable-tempo proposal");
         require(!fixedProposal.hasTempoChange,
                 "fixed pulse track must not be presented as a tempo change");
         const BpmMeasureUtils::TimingMapProposal offsetFixedProposal =
             BpmMeasureUtils::buildTimingMapProposal(fixed, existing, 87);
-        require(offsetFixedProposal.available &&
-                    nearlyEqual(offsetFixedProposal.firstAnchorBeat, 0.25, 1.0e-4),
-                "audio-time anchors must map to the same chart beat regardless of the current offset");
+        require(!offsetFixedProposal.available,
+                "a fixed map must remain unavailable regardless of the current offset");
 
         AutoTiming2Summary step;
         setCoreTempoMap(
@@ -208,19 +246,21 @@ namespace
             {
                 tempoMapAnchor(0.125, 0.0, 100.0),
                 tempoMapAnchor(12.125, 20.0, 100.0),
+                tempoMapAnchor(14.525, 24.0, 100.0),
                 tempoMapAnchor(16.125, 28.0, 150.0),
                 tempoMapAnchor(28.125, 58.0, 150.0),
             },
             {{0.0, 100.0}, {24.0, 150.0}},
             false,
             true);
+        const QVector<BpmEntry> stepExisting = {BpmEntry(0, 0, 1, 100.0)};
         const BpmMeasureUtils::TimingMapProposal stepProposal =
-            BpmMeasureUtils::buildTimingMapProposal(step, existing, 0);
+            BpmMeasureUtils::buildTimingMapProposal(step, stepExisting, 0);
         require(stepProposal.available, "tempo-step pulse track must produce a BPM map proposal");
         require(stepProposal.hasTempoChange && stepProposal.hasAbruptChange,
                 "tempo-step pulse track must retain an abrupt change in the proposal");
-        require(stepProposal.generatedEntryCount >= 2,
-                "tempo-step proposal must contain more than a single global BPM");
+        require(stepProposal.generatedEntryCount >= 1 && stepProposal.bpmList.size() >= 2,
+                "tempo-step proposal must contain a boundary BPM in addition to the stable entry");
         require(stepProposal.maximumAnchorResidualMs < 0.1,
                 "tempo-step map must not accumulate offset after the change");
     }
@@ -315,6 +355,235 @@ namespace
                 "continuous-ramp CCE BPM list exceeded the 5 ms pulse-grid target");
         require(proposal.maximumAnchorResidualMs < 0.1,
                 "continuous-ramp map accumulated drift at a source anchor");
+    }
+
+    void testTimingMapProjectionKeepsReversingTempo()
+    {
+        for (bool interiorPeak : {false, true})
+        {
+            const auto phase = [interiorPeak](double time)
+            {
+                if (interiorPeak)
+                {
+                    const double x = time / 8.0;
+                    return 16.0 * x + 8.0 * x * x - (16.0 / 3.0) * x * x * x;
+                }
+                if (time <= 4.0)
+                    return 2.0 * time + time * time / 16.0;
+                const double local = time - 4.0;
+                return 9.0 + 2.5 * local - local * local / 16.0;
+            };
+            AutoTiming2TempoCurveSegment up;
+            up.startSeconds = 0.0;
+            up.endSeconds = interiorPeak ? 8.0 : 4.0;
+            up.startBeat = 0.0;
+            up.endBeat = phase(up.endSeconds);
+            up.startBpm = 120.0;
+            up.endBpm = interiorPeak ? 120.0 : 150.0;
+            up.phaseLinear = interiorPeak ? 16.0 : 8.0;
+            up.phaseQuadratic = interiorPeak ? 8.0 : 1.0;
+            up.phaseCubic = interiorPeak ? -16.0 / 3.0 : 0.0;
+            up.confidence = 0.9;
+            up.kind = QStringLiteral("continuous");
+            QVector<AutoTiming2TempoCurveSegment> segments = {up};
+            if (!interiorPeak)
+            {
+                AutoTiming2TempoCurveSegment down = up;
+                down.startSeconds = 4.0;
+                down.endSeconds = 8.0;
+                down.startBeat = 9.0;
+                down.endBeat = 18.0;
+                down.startBpm = 150.0;
+                down.endBpm = 120.0;
+                down.phaseLinear = 10.0;
+                down.phaseQuadratic = -1.0;
+                segments.append(down);
+            }
+            QVector<AutoTiming2BpmPoint> points;
+            for (int i = 0; i < 64; ++i)
+            {
+                const double time = i / 8.0;
+                points.append({phase(time), (phase(time + 0.125) - phase(time)) * 480.0});
+            }
+            points.append({phase(8.0), 120.0});
+            AutoTiming2Summary summary;
+            setCoreTempoMap(summary, 0.0, 8.0, phase(8.0),
+                {tempoMapAnchor(0.0, 0.0, 120.0),
+                 tempoMapAnchor(4.0, phase(4.0), 150.0),
+                 tempoMapAnchor(8.0, phase(8.0), 120.0)},
+                points, true, false, segments);
+            const auto proposal = BpmMeasureUtils::buildTimingMapProposal(
+                summary, {BpmEntry(0, 0, 1, 120.0)}, 0);
+            require(proposal.available && proposal.generatedEntryCount > 2,
+                    "a tempo curve returning to its starting BPM must retain its interior changes");
+            require(proposal.maximumAnchorResidualMs < 0.1,
+                    "reversing tempo must preserve Core's phase anchors after projection");
+        }
+    }
+
+    void testCoreAudioToChartProjectionAccuracy()
+    {
+        constexpr int sampleRate = 32000;
+        constexpr double duration = 48.0;
+        constexpr double firstPulse = 0.1373;
+        for (bool decreasing : {false, true})
+        {
+            const double startBpm = decreasing ? 150.0 : 90.0;
+            const double slope = decreasing ? -1.25 : 1.25;
+            QVector<float> mono(int(duration * sampleRate));
+            std::uint32_t background = 0x243f6a88U;
+            for (float &sample : mono)
+            {
+                background = background * 1664525U + 1013904223U;
+                sample = float((double((background >> 8) & 0xffffU) / 32767.5 - 1.0) * 0.0002);
+            }
+            for (int beat = 0;; ++beat)
+            {
+                const double pulse = firstPulse + linearRampPulseTime(beat, startBpm, slope);
+                if (pulse >= duration)
+                    break;
+                const int firstSample = int(std::ceil(pulse * sampleRate));
+                std::uint32_t noise = 0xb7e15162U + std::uint32_t(beat) * 0x9e3779b9U;
+                for (int i = firstSample; i < mono.size() && i < firstSample + int(0.06 * sampleRate); ++i)
+                {
+                    noise = noise * 1664525U + 1013904223U;
+                    const double local = double(i) / sampleRate - pulse;
+                    mono[i] += float(0.85 * std::exp(-local * 70.0) *
+                        (double((noise >> 8) & 0xffffU) / 32767.5 - 1.0));
+                }
+            }
+            AutoTiming2Options options;
+            options.windowSpecs = {{8.0, 4.0}};
+            options.preferLocalTempoEvidence = true;
+            options.minimumTempoBpm = 70.0;
+            options.maximumTempoBpm = 180.0;
+            options.tempoMapMaximumTimeErrorMilliseconds = 0.5;
+            AutoTiming2Summary summary;
+            QString error;
+            const bool analyzed = AutoTiming2Bridge::analyzeMono(mono, sampleRate, options, summary, &error);
+            require(analyzed && summary.tempoMap.available,
+                    "analytic PCM must pass through the pinned Core and CCE bridge: " + error.toStdString());
+            if (!analyzed || !summary.tempoMap.available)
+                continue;
+            require(summary.tempoMap.phaseCoherentIntervalCount > 0,
+                    "the bridge must retain the new Core phase-coherence diagnostics");
+            const double localStart = summary.tempoMap.startSeconds - firstPulse;
+            const double firstBeat = std::round(
+                (startBpm * localStart + 0.5 * slope * localStart * localStart) / 60.0);
+            double maximumErrorMs = 0.0;
+            for (double audioStart : {0.0, 61.375})
+            {
+                AutoTiming2Summary translated = summary;
+                AutoTiming2Bridge::translateTimeline(translated, audioStart);
+                require(translated.tempoMap.phaseCoherentIntervalCount ==
+                            summary.tempoMap.phaseCoherentIntervalCount,
+                        "cropped-audio translation must preserve phase diagnostics");
+                for (int offset : {-87, 0, 137})
+                {
+                    const auto proposal = BpmMeasureUtils::buildTimingMapProposal(
+                        translated, {BpmEntry(0, 0, 1, 120.0)}, offset);
+                    require(proposal.available,
+                            "analytic variable tempo must produce an applicable CCE map: " +
+                                proposal.unavailableReason.toStdString());
+                    if (!proposal.available)
+                        continue;
+                    for (double beat = 0.0; beat <= summary.tempoMap.endBeat; beat += 1.0 / 32.0)
+                    {
+                        int whole = 0, numerator = 0, denominator = 1;
+                        MathUtils::floatToBeat(proposal.firstAnchorBeat + beat,
+                            whole, numerator, denominator, 65536);
+                        const double projectedAudioMs = MathUtils::beatToMs(
+                            whole, numerator, denominator, proposal.bpmList, offset) + offset;
+                        const double expectedAudioMs = 1000.0 * (audioStart + firstPulse +
+                            linearRampPulseTime(firstBeat + beat, startBpm, slope));
+                        maximumErrorMs = std::max(maximumErrorMs,
+                            std::fabs(projectedAudioMs - expectedAudioMs));
+                    }
+                }
+            }
+            std::printf("[bpm-ui-test] %s PCM-to-chart maximum: %.6f ms\n",
+                decreasing ? "decelerando" : "accelerando", maximumErrorMs);
+            require(maximumErrorMs < 5.0,
+                    "audio-to-Core-to-Malody projection must stay below 5 ms at dense interior beats");
+        }
+    }
+
+    void testTimingMapProjectionKeepsStableRegionsUntouched()
+    {
+        const QVector<BpmEntry> existing = {
+            BpmEntry(0, 0, 1, 120.0),
+            BpmEntry(20, 0, 1, 149.0),
+            BpmEntry(24, 0, 1, 151.0),
+        };
+
+        AutoTiming2TempoCurveSegment stableBefore;
+        stableBefore.startBeat = 0.0;
+        stableBefore.endBeat = 8.0;
+        stableBefore.startBpm = 120.0;
+        stableBefore.endBpm = 120.0;
+        stableBefore.confidence = 0.9;
+        stableBefore.kind = QStringLiteral("constant");
+
+        AutoTiming2TempoCurveSegment ramp;
+        ramp.startBeat = 8.0;
+        ramp.endBeat = 16.0;
+        ramp.startBpm = 120.0;
+        ramp.endBpm = 150.0;
+        ramp.confidence = 0.9;
+        ramp.kind = QStringLiteral("continuous");
+
+        AutoTiming2TempoCurveSegment stableAfter;
+        stableAfter.startBeat = 16.0;
+        stableAfter.endBeat = 32.0;
+        stableAfter.startBpm = 150.0;
+        stableAfter.endBpm = 150.0;
+        stableAfter.confidence = 0.9;
+        stableAfter.kind = QStringLiteral("constant");
+
+        AutoTiming2Summary summary;
+        setCoreTempoMap(
+            summary,
+            0.0,
+            7.594642857142857,
+            32.0,
+            {
+                tempoMapAnchor(0.0, 0.0, 120.0),
+                tempoMapAnchor(4.0, 8.0, 120.0),
+                tempoMapAnchor(5.9375, 12.0, 128.0),
+                tempoMapAnchor(7.594642857142857, 16.0, 150.0),
+            },
+            {
+                {0.0, 120.0},
+                {2.0, 119.0},
+                {4.0, 121.0},
+                {8.0, 120.0},
+                {10.0, 128.0},
+                {12.0, 140.0},
+                {14.0, 150.0},
+                {16.0, 150.0},
+                {20.0, 149.0},
+                {24.0, 151.0},
+                {32.0, 150.0},
+            },
+            true,
+            false,
+            {stableBefore, ramp, stableAfter});
+
+        const BpmMeasureUtils::TimingMapProposal proposal =
+            BpmMeasureUtils::buildTimingMapProposal(summary, existing, 0);
+        require(proposal.available,
+                "a credible continuous segment must produce a timing-map proposal");
+        require(proposal.generatedEntryCount == 4,
+                "only BPM points inside the continuous segment should be generated");
+        require(proposal.bpmList.size() == 7,
+                "stable chart entries and variable-segment entries must be merged");
+        require(nearlyEqual(proposal.bpmList[proposal.bpmList.size() - 2].bpm, 149.0),
+                "stable BPM entries outside the variable segment must be preserved");
+        require(nearlyEqual(proposal.bpmList.first().bpm, 120.0) &&
+                    nearlyEqual(proposal.bpmList.last().bpm, 151.0),
+                "stable BPM entries on both sides of the variable segment must be preserved");
+        require(proposal.maximumAnchorResidualMs < 0.1,
+                "anchor residual validation must remain limited to the replaced segment");
     }
 
     void testTimingMapProjectionAbstainsWithoutPhaseCoverage()
@@ -443,7 +712,24 @@ namespace
                     "complex subdivision option must follow the GUI checkbox");
             require(nearlyEqual(dialog.measuredBpm(), 0.0) &&
                         nearlyEqual(dialog.finalBpm(), 0.0),
-                    "changing complex subdivision analysis must invalidate the completed result");
+                        "changing complex subdivision analysis must invalidate the completed result");
+        }
+
+        QCheckBox *localTempoCheck = dialog.findChild<QCheckBox *>(
+            QStringLiteral("preferLocalTempoEvidenceCheck"));
+        require(localTempoCheck != nullptr,
+                "local tempo evidence option must be discoverable for regression tests");
+        if (localTempoCheck)
+        {
+            require(!localTempoCheck->isChecked() &&
+                        !dialog.preferLocalTempoEvidence(),
+                    "local tempo evidence preference must default to disabled");
+            localTempoCheck->setChecked(true);
+            require(dialog.preferLocalTempoEvidence(),
+                    "local tempo evidence preference must follow the GUI checkbox");
+            require(nearlyEqual(dialog.measuredBpm(), 0.0) &&
+                        nearlyEqual(dialog.finalBpm(), 0.0),
+                    "changing local tempo evidence preference must invalidate the completed result");
         }
 
         QVector<BpmEntry> previewEntries = {
@@ -485,6 +771,23 @@ namespace
         require(nearlyEqual(dialog.measuredBpm(), 0.0) && nearlyEqual(dialog.finalBpm(), 0.0),
                 "changing duration must invalidate the completed BPM result");
     }
+
+    void testMeasurementDurationIsLimitedByAudioLength()
+    {
+        BpmMeasureDialog dialog;
+        QSpinBox *durationSpin = dialog.findChild<QSpinBox *>(QStringLiteral("measureDurationSpin"));
+        require(durationSpin != nullptr, "duration spin must be discoverable for audio-length limit test");
+        if (!durationSpin)
+            return;
+
+        dialog.setAudioDurationMs(60000);
+        require(durationSpin->maximum() == 60,
+                "measurement duration maximum must match the audio length in seconds");
+        durationSpin->setValue(60);
+        durationSpin->setValue(120);
+        require(durationSpin->value() == 60,
+                "measurement duration must be clamped when it exceeds the audio length");
+    }
 }
 
 int main(int argc, char **argv)
@@ -503,12 +806,16 @@ int main(int argc, char **argv)
     runTest("chart_start_target", testTargetEntryUsesTrueChartStart);
     runTest("timing_map_fixed_and_step", testTimingMapProjectionPreventsFixedAndStepDrift);
     runTest("timing_map_continuous_ramp", testTimingMapProjectionApproximatesContinuousRampBelowFiveMs);
+    runTest("timing_map_reversing_tempo", testTimingMapProjectionKeepsReversingTempo);
+    runTest("core_audio_to_chart_accuracy", testCoreAudioToChartProjectionAccuracy);
+    runTest("timing_map_stable_regions", testTimingMapProjectionKeepsStableRegionsUntouched);
     runTest("stable_phase_offset", testStablePhaseProjectsToMalodyOffset);
     runTest("timing_map_abstains", testTimingMapProjectionAbstainsWithoutPhaseCoverage);
     runTest("v2_explicit_use", testV2SuggestionRequiresExplicitUse);
     runTest("timing_map_explicit_use", testTimingMapRequiresExplicitSelectionAndExcludesLegacyOffset);
     runTest("legacy_default_workflow", testLegacyWorkflowRemainsDefault);
     runTest("parameter_change_invalidation", testParameterChangesInvalidateCompletedResult);
+    runTest("duration_audio_length_limit", testMeasurementDurationIsLimitedByAudioLength);
 
     if (g_failures != 0)
     {

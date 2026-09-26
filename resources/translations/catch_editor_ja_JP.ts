@@ -412,6 +412,25 @@
         <source>Audio BPM detection failed.</source>
         <translation type="vanished">オーディオBPM検出に失敗しました。</translation>
     </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="430"/>
+        <source>Measurement duration cannot exceed the available audio length.</source>
+        <translation>測定時間は利用可能な音声の長さを超えられません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="541"/>
+        <source>%1 core-generated BPM points from %2 phase anchors; range %3-%4 s; detected-anchor fit %5 ms; interpolation bound %6 ms. Existing BPM outside detected variable-tempo ranges is preserved.</source>
+        <translation>コアが生成した BPM ポイント %1 個、位相アンカー %2 個、範囲 %3～%4 秒、検出アンカーの誤差 %5 ms、補間誤差の上限 %6 ms。検出された変速区間以外の既存 BPM は維持されます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="624"/>
+        <source>This chart already contains %1 notes. Replace BPM entries inside detected variable-tempo ranges with %2 generated timing points?
+
+The map follows detected pulse anchors through %3-%4 s and keeps BPM entries outside those ranges. It is audio-derived, not chart ground truth, and can be undone as one action.</source>
+        <translation>この譜面にはすでに %1 個のノートがあります。検出された変速区間内の BPM を、生成された %2 個のタイミングポイントに置き換えますか？
+
+このマップは %3～%4 秒の検出パルスアンカーに従い、区間外の BPM を維持します。音声からの推定であり譜面の正解ではありません。操作は一度に元に戻せます。</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -579,6 +598,16 @@
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="169"/>
         <source>Apply offset</source>
         <translation>オフセットを適用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="86"/>
+        <source>Prefer local tempo evidence for variable-tempo songs</source>
+        <translation>変速曲では局所テンポの証拠を優先する</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="91"/>
+        <source>Use local tempo changes when the song intentionally varies speed; leave off for stable tempo songs.</source>
+        <translation>曲が意図的に変速する場合に局所的なテンポ変化を使用します。一定テンポの曲ではオフにしてください。</translation>
     </message>
 </context>
 <context>

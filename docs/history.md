@@ -1,7 +1,9 @@
 ﻿# 历史更新
 
-## Unreleased（2026-09-20）
+## Unreleased（2026-09-27）
 
+- **AutoTiming 2**：更新核心固定版本，连续/恒速交界与段内 BPM 改用不等间隔相位锚点恢复导数，持续缓慢变速按整段累计变化识别，连续相位证据参与整数拍数约束，避免漏判与逐段累计漂移；bridge 透出 `TempoMap::phaseCoherentIntervalCount`。`Apply AutoTiming 2 BPM map` 改为只替换 Core `TempoMap.segments` 暴露的可信变速区间或阶跃边界，小于 2% 的相对变化与低置信段落不写入，区间外保留谱面已有 BPM，anchor 残差也只复核被替换区间；没有可信变速区间时明确 abstain，不再把整张 map 的近似噪声展开成 BPM。
+- **新增**：Measure BPM 对话框新增 “Prefer local tempo evidence for variable-tempo songs” 开关（默认关闭，改动会使已有测量结果作废），供结构性变速/SV 曲显式选择局部速度证据；测量时长上限随已加载音频长度自适应，超出音频剩余长度的测量在开始前报错，不再产生无效结果。
 - **AutoTiming 2**：接入 AutoTimingCore 输出的 phase-anchored TempoMap 与有误差上界的 BPM points；连续曲线拟合、pulse-count/phase 修正及插值统一由核心负责，编辑器仅完成 Malody 拍点映射、旧时间轴前段合并与量化后 anchor 残差复核，并支持通过 CMake 源目录覆盖验证相邻核心工作树。
 - **交互**：重做画布选择手势判定，单击音符可切换其选中状态，拖动已选音符时保留整组选择，`Ctrl` 单击/框选按手势开始时的选区逐项反选；点击与拖动统一使用随 Note 尺寸缩放的阈值，避免微小抖动误触发框选或移动。
 - **清理**：移除 Alt+滚轮模式切换验证期间的临时追踪日志与应用级滚轮观察输出，保留高精度滚轮累积、横轴兼容和模式切换行为。
