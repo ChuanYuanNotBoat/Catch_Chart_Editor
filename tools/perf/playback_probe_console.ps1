@@ -63,7 +63,7 @@ $stream | ForEach-Object {
         return
     }
 
-    $pattern = '^(?<time>\d{2}:\d{2}:\d{2}\.\d{3}).*PERF_PLAYBACK\s+window_ms=(?<window>\d+)\s+fps_tick=(?<fps_tick>[0-9.]+)\s+fps_canvas=(?<fps_canvas>[0-9.]+)\s+fps_preview=(?<fps_preview>[0-9.]+)\s+jitter_p95_ms=(?<jitter>[0-9.]+)\s+pacing_std_ms=(?<pacing_std>[0-9.]+)\s+pacing_jerk_p95_ms=(?<pacing_jerk>[0-9.]+)\s+step_jerk_p95_ms=(?<step_jerk>[0-9.]+)\s+ui_gap_p95_ms=(?<ui_gap>[0-9.]+)\s+jank_events=(?<jank>\d+)\s+step_jank_events=(?<step_jank>\d+)\s+manual_jerk_marks=(?<marks>\d+)\s+ui_hitch_events=(?<ui_hitch>\d+)\s+ui_stall_events=(?<ui_stall>\d+)\s+jitter_slow_pct=(?<jitter_slow>[0-9.]+)\s+canvas_slow_pct=(?<canvas_slow>[0-9.]+)\s+top=\[(?<top>.*?)\]\s+counters=\[(?<counters>.*)\]'
+    $pattern = '^(?<time>\d{2}:\d{2}:\d{2}\.\d{3}).*PERF_PLAYBACK\s+window_ms=(?<window>\d+)\s+fps_tick=(?<fps_tick>[0-9.]+)\s+fps_canvas=(?<fps_canvas>[0-9.]+)\s+fps_preview=(?<fps_preview>[0-9.]+)\s+jitter_p95_ms=(?<jitter>[0-9.]+)\s+pacing_std_ms=(?<pacing_std>[0-9.]+)\s+pacing_jerk_p95_ms=(?<pacing_jerk>[0-9.]+)\s+step_jerk_p95_ms=(?<step_jerk>[0-9.]+)\s+ui_gap_p95_ms=(?<ui_gap>[0-9.]+)(?:\s+scroll_velocity_change_p95_pct=[0-9.]+)?\s+jank_events=(?<jank>\d+)\s+step_jank_events=(?<step_jank>\d+)(?:\s+manual_jerk_marks=(?<marks>\d+))?\s+ui_hitch_events=(?<ui_hitch>\d+)\s+ui_stall_events=(?<ui_stall>\d+)\s+jitter_slow_pct=(?<jitter_slow>[0-9.]+)\s+canvas_slow_pct=(?<canvas_slow>[0-9.]+)\s+top=\[(?<top>.*?)\]\s+counters=\[(?<counters>.*)\]'
     if ($line -match $pattern) {
         $time = $Matches["time"]
         $fpsTick = [double]$Matches["fps_tick"]
@@ -76,7 +76,7 @@ $stream | ForEach-Object {
         $uiGap = [double]$Matches["ui_gap"]
         $jank = [int]$Matches["jank"]
         $stepJank = [int]$Matches["step_jank"]
-        $marks = [int]$Matches["marks"]
+        $marks = $(if ($Matches.ContainsKey("marks")) { [int]$Matches["marks"] } else { 0 })
         $uiHitch = [int]$Matches["ui_hitch"]
         $uiStall = [int]$Matches["ui_stall"]
         $canvasSlow = [double]$Matches["canvas_slow"]
@@ -91,7 +91,7 @@ $stream | ForEach-Object {
 
         $msg = "[{0}] fps(c/t/p)={1:N1}/{2:N1}/{3:N1} jitter_p95={4:N2}ms pace_std={5:N2}ms jerk={6:N2}/{7:N2}ms ui_gap_p95={8:N2}ms jank={9}/{10} marks={11} ui_hitch={12} ui_stall={13} canvas_slow={14:N1}% top={15}" -f `
             $time, $fpsCanvas, $fpsTick, $fpsPreview, $jitter, $pacingStd, $pacingJerk, $stepJerk, $uiGap, $jank, $stepJank, $marks, $uiHitch, $uiStall, $canvasSlow, $top
-        Write-Host $msg -ForegroundColor $color
+        Write-Host ($msg -replace ' marks=0(?= )', '') -ForegroundColor $color
     } else {
         Write-Host $line -ForegroundColor Cyan
     }

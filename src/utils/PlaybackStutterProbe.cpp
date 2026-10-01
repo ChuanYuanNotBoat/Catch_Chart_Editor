@@ -28,8 +28,6 @@ namespace
     constexpr qint64 kUiHitchThresholdMs = 22;
     constexpr qint64 kUiStallThresholdMs = 34;
     constexpr qint64 kUiStallStepMs = 8;
-    constexpr qint64 kRecentSampleKeepMs = 6000;
-    constexpr qint64 kManualMarkLookbackMs = 450;
 
     struct DurationBucket
     {
@@ -54,11 +52,6 @@ namespace
         QHash<QString, qint64> counters;
     };
 
-    struct TimedSample
-    {
-        qint64 tsMs = 0;
-        double valueMs = 0.0;
-    };
 
     struct ProbeState
     {
@@ -67,7 +60,6 @@ namespace
         QHash<QString, DurationBucket> durations;
         QHash<QString, DurationBucket> values;
         QHash<QString, qint64> counters;
-        QHash<QString, QVector<TimedSample>> recentDurations;
         PlaybackStutterProbe::LiveMetrics live;
         SessionState session;
     };
@@ -232,11 +224,6 @@ namespace
         return s;
     }
 
-    std::atomic<qint64> &manualMarkSeq()
-    {
-        static std::atomic<qint64> seq{0};
-        return seq;
-    }
 
     std::atomic<bool> &processOverrideEnabled()
     {
@@ -280,18 +267,10 @@ namespace
     {
         resetWindow(s, 0);
         s.lastPlaybackState = false;
-        s.recentDurations.clear();
         s.live = PlaybackStutterProbe::LiveMetrics{};
         s.session = SessionState{};
     }
 
-    void pruneRecentSamples(QVector<TimedSample> *samples, qint64 minTsMs)
-    {
-        if (!samples)
-            return;
-        while (!samples->isEmpty() && samples->front().tsMs < minTsMs)
-            samples->removeFirst();
-    }
 
     double percentile(const QVector<double> &sortedSamples, double p)
     {
@@ -418,47 +397,6 @@ namespace
         return result;
     }
 
-    double recentMaxMs(const ProbeState &s, const QString &key, qint64 sinceTsMs)
-    {
-        const auto it = s.recentDurations.constFind(key);
-        if (it == s.recentDurations.constEnd() || it->isEmpty())
-            return 0.0;
-
-        bool hasValue = false;
-        double maxValue = 0.0;
-        for (const TimedSample &sample : it.value())
-        {
-            if (sample.tsMs < sinceTsMs)
-                continue;
-            if (!hasValue)
-            {
-                maxValue = sample.valueMs;
-                hasValue = true;
-                continue;
-            }
-            maxValue = qMax(maxValue, sample.valueMs);
-        }
-        return hasValue ? maxValue : 0.0;
-    }
-
-    double recentP95Ms(const ProbeState &s, const QString &key, qint64 sinceTsMs)
-    {
-        const auto it = s.recentDurations.constFind(key);
-        if (it == s.recentDurations.constEnd() || it->isEmpty())
-            return 0.0;
-
-        QVector<double> recentValues;
-        recentValues.reserve(it->size());
-        for (const TimedSample &sample : it.value())
-        {
-            if (sample.tsMs >= sinceTsMs)
-                recentValues.append(sample.valueMs);
-        }
-        if (recentValues.isEmpty())
-            return 0.0;
-        std::sort(recentValues.begin(), recentValues.end());
-        return percentile(recentValues, 0.95);
-    }
 
     struct DerivedWindowMetrics
     {
@@ -483,7 +421,6 @@ namespace
         qint64 stepJankEvents = 0;
         qint64 visualJankEvents = 0;
         qint64 visualBacktrackEvents = 0;
-        qint64 manualJerkMarks = 0;
         qint64 uiHitchEvents = 0;
         qint64 uiStallEvents = 0;
     };
@@ -560,7 +497,6 @@ namespace
                                s.counters.value("visual.playhead_step_jank_events", 0) +
                                s.counters.value("visual.playhead_drift_events", 0);
         out.visualBacktrackEvents = s.counters.value("visual.scroll_backtrack_events", 0);
-        out.manualJerkMarks = s.counters.value("manual.jerk_marks", 0);
         out.uiHitchEvents = s.counters.value("monitor.ui_hitch_events", 0);
         out.uiStallEvents = s.counters.value("monitor.ui_stall_events", 0);
         return out;
@@ -593,7 +529,6 @@ namespace
         s.live.stepJankEvents = m.stepJankEvents;
         s.live.visualJankEvents = m.visualJankEvents;
         s.live.visualBacktrackEvents = m.visualBacktrackEvents;
-        s.live.manualJerkMarks = m.manualJerkMarks;
         s.live.uiHitchEvents = m.uiHitchEvents;
         s.live.uiStallEvents = m.uiStallEvents;
         s.live.topHotspot = m.topList.isEmpty() ? QString() : m.topList.first();
@@ -602,7 +537,7 @@ namespace
 
     void logLiveWindow(qint64 elapsedMs, const DerivedWindowMetrics &metrics)
     {
-        Logger::info(QString("PERF_PLAYBACK window_ms=%1 fps_tick=%2 fps_canvas=%3 fps_preview=%4 jitter_p95_ms=%5 pacing_std_ms=%6 pacing_jerk_p95_ms=%7 step_jerk_p95_ms=%8 ui_gap_p95_ms=%9 scroll_velocity_change_p95_pct=%10 jank_events=%11 step_jank_events=%12 manual_jerk_marks=%13 ui_hitch_events=%14 ui_stall_events=%15 jitter_slow_pct=%16 canvas_slow_pct=%17 top=[%18] counters=[%19]")
+        Logger::info(QString("PERF_PLAYBACK window_ms=%1 fps_tick=%2 fps_canvas=%3 fps_preview=%4 jitter_p95_ms=%5 pacing_std_ms=%6 pacing_jerk_p95_ms=%7 step_jerk_p95_ms=%8 ui_gap_p95_ms=%9 scroll_velocity_change_p95_pct=%10 jank_events=%11 step_jank_events=%12 ui_hitch_events=%13 ui_stall_events=%14 jitter_slow_pct=%15 canvas_slow_pct=%16 top=[%17] counters=[%18]")
                          .arg(elapsedMs)
                          .arg(metrics.fpsTick, 0, 'f', 1)
                          .arg(metrics.fpsCanvas, 0, 'f', 1)
@@ -615,7 +550,6 @@ namespace
                          .arg(metrics.visualScrollVelocityChangeP95Pct, 0, 'f', 3)
                          .arg(metrics.jankEvents)
                          .arg(metrics.stepJankEvents)
-                         .arg(metrics.manualJerkMarks)
                          .arg(metrics.uiHitchEvents)
                          .arg(metrics.uiStallEvents)
                          .arg(metrics.jitterSlowPct, 0, 'f', 1)
@@ -640,7 +574,6 @@ namespace
                        QString::number(metrics.visualScrollVelocityChangeP95Pct, 'f', 3));
         context.insert("jank_events", QString::number(metrics.jankEvents));
         context.insert("step_jank_events", QString::number(metrics.stepJankEvents));
-        context.insert("manual_jerk_marks", QString::number(metrics.manualJerkMarks));
         context.insert("ui_hitch_events", QString::number(metrics.uiHitchEvents));
         context.insert("ui_stall_events", QString::number(metrics.uiStallEvents));
         context.insert("jitter_slow_pct", QString::number(metrics.jitterSlowPct, 'f', 1));
@@ -790,11 +723,6 @@ namespace PlaybackStutterProbe
             s.windowStartMs = tsMs;
 
         addDurationSample(s.durations[key], elapsedMs, budgetMs);
-
-        QVector<TimedSample> &recent = s.recentDurations[key];
-        recent.append(TimedSample{tsMs, elapsedMs});
-        pruneRecentSamples(&recent, tsMs - kRecentSampleKeepMs);
-
         flushIfNeeded(false);
     }
 
@@ -901,56 +829,6 @@ namespace PlaybackStutterProbe
         }
     }
 
-    void markManualJerk(double playbackTimeMs, qint64 frameSeq)
-    {
-        if (!enabled())
-            return;
-
-        ProbeState &s = state();
-        const qint64 markTsMs = nowMs();
-        const qint64 markId = manualMarkSeq().fetch_add(1) + 1;
-
-        // Treat manual marks as high-priority evidence and keep them in counters even if
-        // the mark is pressed slightly after the perceived jerk.
-        PlaybackStutterProbe::recordCounter("manual.jerk_marks", 1, true);
-
-        Logger::info(QString("PERF_PLAYBACK_MARK type=manual_jerk mark_id=%1 play_time_ms=%2 frame_seq=%3")
-                         .arg(markId)
-                         .arg(playbackTimeMs, 0, 'f', 2)
-                         .arg(frameSeq));
-
-        const qint64 sinceTsMs = markTsMs - kManualMarkLookbackMs;
-        const double pulseMaxMs = recentMaxMs(s, "playback.pulse_interval", sinceTsMs);
-        const double pulseP95Ms = recentP95Ms(s, "playback.pulse_interval", sinceTsMs);
-        const double stepMaxMs = recentMaxMs(s, "playback.time_step_ms", sinceTsMs);
-        const double stepP95Ms = recentP95Ms(s, "playback.time_step_ms", sinceTsMs);
-        const double uiGapMaxMs = recentMaxMs(s, "monitor.ui_heartbeat_gap", sinceTsMs);
-        const double visualScrollStepMaxPx = recentMaxMs(s, "visual.scroll_step_px", sinceTsMs);
-        const double visualScrollJerkMaxPx = recentMaxMs(s, "visual.scroll_step_jerk_px", sinceTsMs);
-        const double visualPlayheadDriftMaxPx = recentMaxMs(s, "visual.playhead_drift_px", sinceTsMs);
-        const double canvasMaxMs = recentMaxMs(s, "canvas.paint_total", sinceTsMs);
-        const double previewMaxMs = recentMaxMs(s, "preview.paint_total", sinceTsMs);
-        const PlaybackStutterProbe::LiveMetrics live = latestMetrics();
-
-        Logger::info(QString("PERF_PLAYBACK_MARK_CONTEXT type=manual_jerk mark_id=%1 lookback_ms=%2 pulse_max_ms=%3 pulse_p95_ms=%4 step_max_ms=%5 step_p95_ms=%6 ui_gap_max_ms=%7 canvas_max_ms=%8 preview_max_ms=%9 live_jitter_p95_ms=%10 live_step_jerk_p95_ms=%11 live_ui_gap_p95_ms=%12 visual_scroll_step_max_px=%13 visual_scroll_jerk_max_px=%14 visual_playhead_drift_max_px=%15 live_visual_scroll_jerk_p95_px=%16 live_visual_playhead_drift_p95_px=%17")
-                         .arg(markId)
-                         .arg(kManualMarkLookbackMs)
-                         .arg(pulseMaxMs, 0, 'f', 2)
-                         .arg(pulseP95Ms, 0, 'f', 2)
-                         .arg(stepMaxMs, 0, 'f', 2)
-                         .arg(stepP95Ms, 0, 'f', 2)
-                         .arg(uiGapMaxMs, 0, 'f', 2)
-                         .arg(canvasMaxMs, 0, 'f', 2)
-                         .arg(previewMaxMs, 0, 'f', 2)
-                         .arg(live.jitterP95Ms, 0, 'f', 2)
-                         .arg(live.stepJerkP95Ms, 0, 'f', 2)
-                         .arg(live.uiGapP95Ms, 0, 'f', 2)
-                         .arg(visualScrollStepMaxPx, 0, 'f', 2)
-                         .arg(visualScrollJerkMaxPx, 0, 'f', 2)
-                         .arg(visualPlayheadDriftMaxPx, 0, 'f', 2)
-                         .arg(live.visualScrollJerkP95Px, 0, 'f', 2)
-                         .arg(live.visualPlayheadDriftP95Px, 0, 'f', 2));
-    }
 
     void forceFlush()
     {
@@ -969,7 +847,6 @@ namespace PlaybackStutterProbe
     {
         ProbeState &s = state();
         resetWindow(s, nowMs());
-        s.recentDurations.clear();
         s.session = SessionState{};
         s.session.active = true;
         s.session.name = name.trimmed().isEmpty() ? QStringLiteral("playback") : name.trimmed();

@@ -272,8 +272,9 @@ void BpmMeasureDialog::setupUi()
     connect(m_x8Btn, &QPushButton::clicked, this, [this]()
             { onQuickMultiply(8); });
 
-    // Ctrl+Z undo shortcut
-    m_undoShortcut = new QShortcut(QKeySequence::Undo, this);
+    const Settings &shortcutSettings = Settings::instance();
+    m_undoShortcut = new QShortcut(shortcutSettings.hasShortcut("edit.undo")
+        ? shortcutSettings.shortcut("edit.undo") : QKeySequence(QKeySequence::Undo), this);
     connect(m_undoShortcut, &QShortcut::activated, this, &BpmMeasureDialog::onUndoQuick);
 
     // Mode change signal for enabling/disabling offset controls

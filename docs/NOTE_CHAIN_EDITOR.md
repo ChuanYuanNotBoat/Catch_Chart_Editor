@@ -2,7 +2,7 @@
 
 > 适用版本：Beta v1.11.2 + Unreleased maintenance
 > 权威实现：`src/editor/NoteChain/`
-> 最后核对：2026-09-19
+> 最后核对：2026-10-01
 
 ## 定位
 
@@ -40,6 +40,8 @@ Note Chain 是主程序内部的 C++ 曲线编辑器。用户在谱面画布上�
 - 段形状为 `curve` 或 `polyline`。
 - 段密度为 Follow Editor（跟随当前 Time Division）或固定分母。
 - `Enter` 提交整条曲线；段右键菜单可只提交上下文命中的目标段。
+- 键盘命令统一由 `CommandRouter` 派发；Enter、A、Delete、备用 Backspace、
+  Esc 与 Undo/Redo 都支持改绑和禁用，默认值及范围见 [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md)。
 - `Snap Notes to Curve` 在普通音符拖拽或粘贴预览时按 beat 计算曲线 laneX。
 
 完整用户操作见 [help.md](help.md#原生曲线工具note-chain-assist)。

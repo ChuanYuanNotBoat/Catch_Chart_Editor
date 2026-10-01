@@ -1,9 +1,9 @@
 # Malody Catch Editor 文档索引
 
 > 当前版本：**Beta v1.11.2（2026-09-19）**
-> 仓库状态：**Release candidate（2026-09-19）**
-> Git 标签：待发布
-> 索引最后核对：2026-09-19
+> 仓库状态：**v1.11.2 后续维护（Unreleased）**
+> Git 标签：`v1.11.2`
+> 索引最后核对：2026-10-01
 
 ## 用户文档
 
@@ -20,6 +20,7 @@
 |------|------|
 | [AI_PROJECT_GUIDE.md](AI_PROJECT_GUIDE.md) | 当前源码结构、关键数据流、构建测试和维护约束 |
 | [ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md) | `.mc` / `.mcz`、模型、坐标、插件、sidecar 和 Malody 引擎兼容参考 |
+| [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md) | 统一快捷键命令清单、上下文和保留手势 |
 | [NOTE_CHAIN_EDITOR.md](NOTE_CHAIN_EDITOR.md) | 原生 C++ 曲线编辑器的状态、交互、持久化、撤销和性能约束 |
 | [Autotiming.md](Autotiming.md) | AutoTiming 自动节拍检测流程与公共接口 |
 | [ENGINEERING_TODO.md](ENGINEERING_TODO.md) | 已审计的性能/可靠性事项、验收门槛与未来重构决策 |

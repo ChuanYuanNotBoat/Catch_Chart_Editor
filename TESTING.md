@@ -1,7 +1,7 @@
 # Testing Guide
 
-> 适用版本：Beta v1.11.2 发布候选
-> 最后核对：2026-09-19
+> 适用版本：Beta v1.11.2 + Unreleased maintenance
+> 最后核对：2026-10-01
 
 ## 测试目标
 
@@ -52,6 +52,24 @@ CTest 名称：`ui_docking_layout_tests`
 - 主编辑区的全部 splitter 祖先不可折叠，并保留 `420x300` 的最低可用交互面；拖放到主编辑区时只允许创建左/右侧区域，不允许把它变成纵向工具栈或标签页。
 - 浮动拖拽轮廓随当前目标区域动态变化，便于在释放鼠标前确认最终停靠位置。
 
+### `ShortcutTests`
+
+CTest 名称：`ui_shortcut_tests`；入口：[tests/shortcut_tests.cpp](tests/shortcut_tests.cpp)。
+与主程序链接同一个 `CatchChartEditorRuntime`，使用独立临时设置目录，直接测试
+真实 MainWindow、ChartCanvas、原生曲线工具和 ADS 浮动面板：
+
+- 改绑后执行 Undo/Redo/Delete/Copy，旧键失效；F8 移除后可重新分配。
+- 禁用保存后重新创建注册表仍保持禁用，恢复默认后执行。
+- 多段组合键执行、重叠范围同键/前缀冲突拒绝、互斥曲线/插件提交键复用。
+- 方向键及扩展选择改绑、选择不改变播放位置、Alt+方向键切换模式不滚动。
+- 输入框、对话框、弹出菜单隔离，BPM 对话框使用已配置的局部撤销键。
+- 原生曲线删除/撤销、进程工具宿主撤销，以及实际浮动面板的命令派发。
+- 语言切换重建菜单保留绑定且不重复注册；冲突后设置窗口不丢失编辑内容。
+- 在其他面板释放 Alt 会清除高精度滚轮的模式切换累积量。
+
+进程插件的真实通信由现有核心回归覆盖；此窗口套件验证宿主工具模式的路由。
+当前 CTest 共 13 组（CCE 8 组、AutoTimingCore 5 组）。
+
 ## 本地命令
 
 首次配置：
@@ -79,6 +97,7 @@ ctest --test-dir build -C Release --output-on-failure
 ```powershell
 ctest --test-dir build -C Debug -R core_minimal_tests --output-on-failure
 ctest --test-dir build -C Debug -R ui_docking_layout_tests --output-on-failure
+ctest --test-dir build -C Debug -R ui_shortcut_tests --output-on-failure
 ```
 
 重复检查偶发 UI 回归：

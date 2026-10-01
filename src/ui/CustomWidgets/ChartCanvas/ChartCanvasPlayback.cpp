@@ -1,4 +1,4 @@
-﻿#include "ChartCanvas.h"
+#include "ChartCanvas.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
@@ -6,12 +6,8 @@
 #include "audio/PlaybackTiming.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackStutterProbe.h"
-#include "app/Application.h"
-#include "plugin/PluginManager.h"
 #include <QDateTime>
 #include <QKeyEvent>
-#include <QKeySequence>
-#include <QCoreApplication>
 #include <QHideEvent>
 #include <QScreen>
 #include <QShowEvent>
@@ -33,13 +29,6 @@ namespace
         outEvent->ctrlDown = eventModifiers.testFlag(Qt::ControlModifier);
     }
 
-    PluginManager *activePluginManager()
-    {
-        auto *app = qobject_cast<Application *>(QCoreApplication::instance());
-        if (!app || !app->pluginSystemReady())
-            return nullptr;
-        return app->pluginManager();
-    }
 }
 
 void ChartCanvas::playbackPositionChanged(double timeMs)
@@ -156,253 +145,130 @@ double ChartCanvas::currentPlayTime() const
     return m_currentPlayTime;
 }
 
-void ChartCanvas::recordManualJerkMark()
-{
-    PlaybackStutterProbe::markManualJerk(m_currentPlayTime, m_lastPlaybackFrameSeq);
-    emit statusMessage(tr("Manual jerk mark recorded (F8)."));
-}
 
 void ChartCanvas::onSelectionChanged()
 {
 }
 
-void ChartCanvas::keyPressEvent(QKeyEvent *event)
+void ChartCanvas::scrollByDivision(int direction, bool wholeBeat)
 {
-    if (event->key() == Qt::Key_F8)
+    const bool shiftHeld = wholeBeat;
+    double step = shiftHeld ? 1.0 : (m_timeDivision > 0 ? 1.0 / m_timeDivision : 1.0);
+
+    if (direction < 0)
+        step = -step;
+
+    double newScrollBeat = m_scrollBeat + step;
+    newScrollBeat = snapBeatToTimeDivision(newScrollBeat);
+    if (newScrollBeat < 0.0)
+        newScrollBeat = 0.0;
+
+    if (qAbs(newScrollBeat - m_scrollBeat) >= 1e-6)
     {
-        recordManualJerkMark();
-        event->accept();
+        if (m_playbackController
+            && m_playbackController->state() == PlaybackController::Playing)
+        {
+            m_playbackController->pause();
+        }
+
+        m_scrollBeat = newScrollBeat;
+        m_autoScrollEnabled = false;
+        update();
+        emit scrollPositionChanged(m_scrollBeat);
+        syncCurrentPlayTimeToReferenceLine();
+    }
+}
+
+void ChartCanvas::navigateSelection(int direction, bool extend)
+{
+    if (!m_selectionController || !chart())
+    {
         return;
     }
 
-    // NoteChain native: keyboard shortcuts
-    if (m_noteChainModeActive && m_noteChainEditor) {
-        m_noteChainEditor->setHostContext(buildPluginCanvasContext());
-        if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
-            m_noteChainEditor->commitCurveToNotes();
-            event->accept(); return;
-        }
-        if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
-            m_noteChainEditor->deleteSelected();
-            event->accept(); return;
-        }
-        if (event->key() == Qt::Key_Escape) {
-            m_noteChainEditor->handleKeyDown(Qt::Key_Escape, false, false);
-            event->accept(); return;
-        }
-        if (event->key() == Qt::Key_A && !event->modifiers().testFlag(Qt::ControlModifier)) {
-            m_noteChainEditor->toggleAnchorPlacement();
-            event->accept(); return;
-        }
-        if (event->matches(QKeySequence::Undo)) {
-            if (m_chartController && m_chartController->canUndo()) {
-                const QString actionText = m_chartController->nextUndoActionText();
-                m_chartController->undo();
-                m_noteChainEditor->onHostUndo(actionText);
-            } else {
-                m_noteChainEditor->undo();
-            }
-            event->accept(); return;
-        }
-        if (event->matches(QKeySequence::Redo)) {
-            if (m_chartController && m_chartController->canRedo()) {
-                const QString actionText = m_chartController->nextRedoActionText();
-                m_chartController->redo();
-                m_noteChainEditor->onHostRedo(actionText);
-            } else {
-                m_noteChainEditor->redo();
-            }
-            event->accept(); return;
-        }
-    }
-
-    if (m_pluginToolModeActive && event->key() == Qt::Key_Return)
+    const auto &notes = chart()->notes();
+    if (notes.isEmpty())
     {
-        if (triggerPluginBatchAction("commit_curve_to_notes", tr("Commit Curve -> Notes")))
-        {
-            event->accept();
-            return;
-        }
-    }
-    if (m_pluginToolModeActive && event->key() == Qt::Key_Enter)
-    {
-        if (triggerPluginBatchAction("commit_curve_to_notes", tr("Commit Curve -> Notes")))
-        {
-            event->accept();
-            return;
-        }
-    }
-    if (m_pluginToolModeActive && event->key() == Qt::Key_Escape)
-    {
-        PluginInterface::CanvasInputEvent cancelEvent;
-        cancelEvent.type = "cancel";
-        fillPluginEventModifiers(&cancelEvent, event->modifiers());
-        cancelEvent.timestampMs = QDateTime::currentMSecsSinceEpoch();
-        bool consumedCancel = false;
-        if (dispatchPluginCanvasInput(cancelEvent, &consumedCancel) && consumedCancel)
-        {
-            event->accept();
-            return;
-        }
-    }
-
-    PluginInterface::CanvasInputEvent pluginEvent;
-    pluginEvent.type = "key_down";
-    pluginEvent.key = event->key();
-    fillPluginEventModifiers(&pluginEvent, event->modifiers());
-    pluginEvent.timestampMs = QDateTime::currentMSecsSinceEpoch();
-    bool consumed = false;
-    if (dispatchPluginCanvasInput(pluginEvent, &consumed) && consumed)
-    {
-        event->accept();
         return;
     }
+    if (m_timesDirty || m_noteDataDirty)
+        rebuildNoteTimesCache();
 
-    if (m_pluginToolModeActive && event->matches(QKeySequence::Undo))
-    {
-        bool handled = false;
-        if (m_chartController && m_chartController->canUndo())
-        {
-            const QString actionText = m_chartController->nextUndoActionText();
-            m_chartController->undo();
-            if (PluginManager *pm = activePluginManager())
-                pm->notifyHostUndo(actionText);
-            handled = true;
-        }
-        if (handled)
-        {
-            event->accept();
-            return;
-        }
-    }
-    if (m_pluginToolModeActive && event->matches(QKeySequence::Redo))
-    {
-        bool handled = false;
-        if (m_chartController && m_chartController->canRedo())
-        {
-            const QString actionText = m_chartController->nextRedoActionText();
-            m_chartController->redo();
-            if (PluginManager *pm = activePluginManager())
-                pm->notifyHostRedo(actionText);
-            handled = true;
-        }
-        if (handled)
-        {
-            event->accept();
-            return;
-        }
-    }
+    const bool shiftHeld = extend;
+    const QSet<int> currentSelection = m_selectionController->selectedIndices();
 
-    if (event->key() == Qt::Key_Escape)
+    if (currentSelection.isEmpty())
     {
-        cancelOperation();
-        event->accept();
-        return;
-    }
-    if (event->key() == Qt::Key_Delete)
-    {
-        if (m_selectionController && !m_selectionController->selectedIndices().isEmpty())
-        {
-            QSet<int> selected = m_selectionController->selectedIndices();
-            const auto &notes = chart()->notes();
-            QList<int> sorted = selected.values();
-            std::sort(sorted.begin(), sorted.end(), std::greater<int>());
+        // Nothing selected yet: find the note closest to the reference line beat.
+        const double baselineRatio = kReferenceLineRatio;
+        const double refBeat = m_verticalFlip
+            ? m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange()
+            : m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
 
-            QVector<Note> notesToDelete;
-            for (int idx : sorted)
+        int closestIndex = -1;
+        double closestDist = std::numeric_limits<double>::max();
+        int closestX = kLaneWidth + 1;
+        const auto noteBeat = [&notes](int index) {
+            return notes[index].getStartBeat();
+        };
+        if (m_sortedSelectionNoteIndicesByBeat.isEmpty())
+        {
+            for (int index = 0; index < notes.size(); ++index)
             {
-                if (idx >= 0 && idx < notes.size())
+                const double dist = qAbs(noteBeat(index) - refBeat);
+                if (dist < closestDist - 1e-9 ||
+                    (qAbs(dist - closestDist) < 1e-9 &&
+                     (notes[index].x < closestX ||
+                      (notes[index].x == closestX && index < closestIndex))))
                 {
-                    notesToDelete.append(notes[idx]);
+                    closestDist = dist;
+                    closestIndex = index;
+                    closestX = notes[index].x;
                 }
             }
+        }
+        else
+        {
+            const auto lower = std::lower_bound(
+                m_sortedSelectionNoteIndicesByBeat.cbegin(),
+                m_sortedSelectionNoteIndicesByBeat.cend(),
+                refBeat,
+                [&noteBeat](int index, double beat) { return noteBeat(index) < beat; });
 
-            if (!notesToDelete.isEmpty())
+            qsizetype left = std::distance(
+                m_sortedSelectionNoteIndicesByBeat.cbegin(), lower) - 1;
+            qsizetype right = left + 1;
+            while (left >= 0 || right < m_sortedSelectionNoteIndicesByBeat.size())
             {
-                m_chartController->removeNotes(notesToDelete);
-            }
+                const bool haveLeft = left >= 0;
+                const bool haveRight = right < m_sortedSelectionNoteIndicesByBeat.size();
+                const double leftDistance = haveLeft
+                                                ? qAbs(noteBeat(m_sortedSelectionNoteIndicesByBeat[left]) - refBeat)
+                                                : std::numeric_limits<double>::max();
+                const double rightDistance = haveRight
+                                                 ? qAbs(noteBeat(m_sortedSelectionNoteIndicesByBeat[right]) - refBeat)
+                                                 : std::numeric_limits<double>::max();
+                const bool useLeft = leftDistance <= rightDistance;
+                const double nextDistance = useLeft ? leftDistance : rightDistance;
+                if (nextDistance > closestDist + 1e-9)
+                    break;
 
-            m_selectionController->clearSelection();
-        }
-    }
+                qsizetype groupStart = useLeft ? left : right;
+                qsizetype groupEnd = groupStart + 1;
+                const double groupBeat = noteBeat(
+                    m_sortedSelectionNoteIndicesByBeat[groupStart]);
+                while (groupStart > 0 &&
+                       qFuzzyCompare(noteBeat(m_sortedSelectionNoteIndicesByBeat[groupStart - 1]),
+                                     groupBeat))
+                    --groupStart;
+                while (groupEnd < m_sortedSelectionNoteIndicesByBeat.size() &&
+                       qFuzzyCompare(noteBeat(m_sortedSelectionNoteIndicesByBeat[groupEnd]),
+                                     groupBeat))
+                    ++groupEnd;
 
-    // ---- Arrow key navigation ----
-
-    // ↑ / ↓ : scroll by one time division (snapped)
-    // Shift + ↑ / ↓ : scroll by one beat (snapped)
-    if ((event->key() == Qt::Key_Up || event->key() == Qt::Key_Down)
-        && (event->modifiers() == Qt::NoModifier
-            || event->modifiers() == Qt::ShiftModifier))
-    {
-        const bool shiftHeld = event->modifiers().testFlag(Qt::ShiftModifier);
-        double step = shiftHeld ? 1.0 : (m_timeDivision > 0 ? 1.0 / m_timeDivision : 1.0);
-
-        if (event->key() == Qt::Key_Down)
-            step = -step;
-
-        double newScrollBeat = m_scrollBeat + step;
-        newScrollBeat = snapBeatToTimeDivision(newScrollBeat);
-        if (newScrollBeat < 0.0)
-            newScrollBeat = 0.0;
-
-        if (qAbs(newScrollBeat - m_scrollBeat) >= 1e-6)
-        {
-            if (m_playbackController
-                && m_playbackController->state() == PlaybackController::Playing)
-            {
-                m_playbackController->pause();
-            }
-
-            m_scrollBeat = newScrollBeat;
-            m_autoScrollEnabled = false;
-            update();
-            emit scrollPositionChanged(m_scrollBeat);
-            syncCurrentPlayTimeToReferenceLine();
-        }
-        event->accept();
-        return;
-    }
-
-    // ← / → : select previous / next note (single select)
-    // Shift + ← / → : range selection (text-editor style, anchor + movable extent)
-    if (event->key() == Qt::Key_Left || event->key() == Qt::Key_Right)
-    {
-        if (!m_selectionController || !chart())
-        {
-            event->accept();
-            return;
-        }
-
-        const auto &notes = chart()->notes();
-        if (notes.isEmpty())
-        {
-            event->accept();
-            return;
-        }
-        if (m_timesDirty || m_noteDataDirty)
-            rebuildNoteTimesCache();
-
-        const bool shiftHeld = event->modifiers().testFlag(Qt::ShiftModifier);
-        const QSet<int> currentSelection = m_selectionController->selectedIndices();
-
-        if (currentSelection.isEmpty())
-        {
-            // Nothing selected yet: find the note closest to the reference line beat.
-            const double baselineRatio = kReferenceLineRatio;
-            const double refBeat = m_verticalFlip
-                ? m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange()
-                : m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
-
-            int closestIndex = -1;
-            double closestDist = std::numeric_limits<double>::max();
-            int closestX = kLaneWidth + 1;
-            const auto noteBeat = [&notes](int index) {
-                return notes[index].getStartBeat();
-            };
-            if (m_sortedSelectionNoteIndicesByBeat.isEmpty())
-            {
-                for (int index = 0; index < notes.size(); ++index)
+                for (qsizetype position = groupStart; position < groupEnd; ++position)
                 {
+                    const int index = m_sortedSelectionNoteIndicesByBeat[position];
                     const double dist = qAbs(noteBeat(index) - refBeat);
                     if (dist < closestDist - 1e-9 ||
                         (qAbs(dist - closestDist) < 1e-9 &&
@@ -414,157 +280,140 @@ void ChartCanvas::keyPressEvent(QKeyEvent *event)
                         closestX = notes[index].x;
                     }
                 }
+
+                if (useLeft)
+                    left = groupStart - 1;
+                else
+                    right = groupEnd;
             }
-            else
-            {
-                const auto lower = std::lower_bound(
-                    m_sortedSelectionNoteIndicesByBeat.cbegin(),
-                    m_sortedSelectionNoteIndicesByBeat.cend(),
-                    refBeat,
-                    [&noteBeat](int index, double beat) { return noteBeat(index) < beat; });
-
-                qsizetype left = std::distance(
-                    m_sortedSelectionNoteIndicesByBeat.cbegin(), lower) - 1;
-                qsizetype right = left + 1;
-                while (left >= 0 || right < m_sortedSelectionNoteIndicesByBeat.size())
-                {
-                    const bool haveLeft = left >= 0;
-                    const bool haveRight = right < m_sortedSelectionNoteIndicesByBeat.size();
-                    const double leftDistance = haveLeft
-                                                    ? qAbs(noteBeat(m_sortedSelectionNoteIndicesByBeat[left]) - refBeat)
-                                                    : std::numeric_limits<double>::max();
-                    const double rightDistance = haveRight
-                                                     ? qAbs(noteBeat(m_sortedSelectionNoteIndicesByBeat[right]) - refBeat)
-                                                     : std::numeric_limits<double>::max();
-                    const bool useLeft = leftDistance <= rightDistance;
-                    const double nextDistance = useLeft ? leftDistance : rightDistance;
-                    if (nextDistance > closestDist + 1e-9)
-                        break;
-
-                    qsizetype groupStart = useLeft ? left : right;
-                    qsizetype groupEnd = groupStart + 1;
-                    const double groupBeat = noteBeat(
-                        m_sortedSelectionNoteIndicesByBeat[groupStart]);
-                    while (groupStart > 0 &&
-                           qFuzzyCompare(noteBeat(m_sortedSelectionNoteIndicesByBeat[groupStart - 1]),
-                                         groupBeat))
-                        --groupStart;
-                    while (groupEnd < m_sortedSelectionNoteIndicesByBeat.size() &&
-                           qFuzzyCompare(noteBeat(m_sortedSelectionNoteIndicesByBeat[groupEnd]),
-                                         groupBeat))
-                        ++groupEnd;
-
-                    for (qsizetype position = groupStart; position < groupEnd; ++position)
-                    {
-                        const int index = m_sortedSelectionNoteIndicesByBeat[position];
-                        const double dist = qAbs(noteBeat(index) - refBeat);
-                        if (dist < closestDist - 1e-9 ||
-                            (qAbs(dist - closestDist) < 1e-9 &&
-                             (notes[index].x < closestX ||
-                              (notes[index].x == closestX && index < closestIndex))))
-                        {
-                            closestDist = dist;
-                            closestIndex = index;
-                            closestX = notes[index].x;
-                        }
-                    }
-
-                    if (useLeft)
-                        left = groupStart - 1;
-                    else
-                        right = groupEnd;
-                }
-            }
-
-            if (closestIndex >= 0)
-            {
-                m_selectionController->select(closestIndex);
-                m_selectionAnchorIndex = closestIndex;
-                m_selectionExtentIndex = closestIndex;
-                autoScrollToNote(notes[closestIndex]);
-            }
-            event->accept();
-            return;
         }
 
-        // --- Existing selection ---
-        if (!shiftHeld)
+        if (closestIndex >= 0)
         {
-            // No shift: single-select next / previous note, reset anchor & extent
-            QList<int> sorted = currentSelection.values();
-            std::sort(sorted.begin(), sorted.end());
-            const int minSel = sorted.first();
-            const int maxSel = sorted.last();
-
-            int targetIndex = -1;
-            if (event->key() == Qt::Key_Right)
-            {
-                if (maxSel + 1 < notes.size())
-                    targetIndex = maxSel + 1;
-            }
-            else // Qt::Key_Left
-            {
-                if (minSel - 1 >= 0)
-                    targetIndex = minSel - 1;
-            }
-
-            if (targetIndex >= 0 && targetIndex < notes.size())
-            {
-                m_selectionController->select(targetIndex);
-                m_selectionAnchorIndex = targetIndex;
-                m_selectionExtentIndex = targetIndex;
-                autoScrollToNote(notes[targetIndex]);
-            }
+            m_selectionController->select(closestIndex);
+            m_selectionAnchorIndex = closestIndex;
+            m_selectionExtentIndex = closestIndex;
+            autoScrollToNote(notes[closestIndex]);
         }
-        else
-        {
-            // Shift held: text-editor style range selection
-            // Anchor stays fixed, extent moves with the arrow.
-            if (m_selectionExtentIndex < 0 ||
-                m_selectionAnchorIndex < 0 ||
-                m_selectionExtentIndex >= notes.size())
-            {
-                // Stale state – reset to current selection bounds
-                QList<int> sorted = currentSelection.values();
-                std::sort(sorted.begin(), sorted.end());
-                m_selectionAnchorIndex = sorted.first();
-                m_selectionExtentIndex = sorted.last();
-            }
-
-            const int delta = (event->key() == Qt::Key_Right) ? 1 : -1;
-            const int newExtent = m_selectionExtentIndex + delta;
-
-            if (newExtent >= 0 && newExtent < notes.size())
-            {
-                m_selectionExtentIndex = newExtent;
-
-                // Compute the range [low, high] from anchor to extent (inclusive)
-                const int low = qMin(m_selectionAnchorIndex, m_selectionExtentIndex);
-                const int high = qMax(m_selectionAnchorIndex, m_selectionExtentIndex);
-
-                QSet<int> newSelection;
-                for (int i = low; i <= high; ++i)
-                    newSelection.insert(i);
-
-                m_selectionController->select(newSelection);
-                autoScrollToNote(notes[newExtent]);
-
-            }
-            // else: already at edge, no-op
-        }
-
-        event->accept();
         return;
     }
 
-    QWidget::keyPressEvent(event);
+    // --- Existing selection ---
+    if (!shiftHeld)
+    {
+        // No shift: single-select next / previous note, reset anchor & extent
+        QList<int> sorted = currentSelection.values();
+        std::sort(sorted.begin(), sorted.end());
+        const int minSel = sorted.first();
+        const int maxSel = sorted.last();
+
+        int targetIndex = -1;
+        if (direction > 0)
+        {
+            if (maxSel + 1 < notes.size())
+                targetIndex = maxSel + 1;
+        }
+        else // Qt::Key_Left
+        {
+            if (minSel - 1 >= 0)
+                targetIndex = minSel - 1;
+        }
+
+        if (targetIndex >= 0 && targetIndex < notes.size())
+        {
+            m_selectionController->select(targetIndex);
+            m_selectionAnchorIndex = targetIndex;
+            m_selectionExtentIndex = targetIndex;
+            autoScrollToNote(notes[targetIndex]);
+        }
+    }
+    else
+    {
+        // Shift held: text-editor style range selection
+        // Anchor stays fixed, extent moves with the arrow.
+        if (m_selectionExtentIndex < 0 ||
+            m_selectionAnchorIndex < 0 ||
+            m_selectionExtentIndex >= notes.size())
+        {
+            // Stale state – reset to current selection bounds
+            QList<int> sorted = currentSelection.values();
+            std::sort(sorted.begin(), sorted.end());
+            m_selectionAnchorIndex = sorted.first();
+            m_selectionExtentIndex = sorted.last();
+        }
+
+        const int delta = (direction > 0) ? 1 : -1;
+        const int newExtent = m_selectionExtentIndex + delta;
+
+        if (newExtent >= 0 && newExtent < notes.size())
+        {
+            m_selectionExtentIndex = newExtent;
+
+            // Compute the range [low, high] from anchor to extent (inclusive)
+            const int low = qMin(m_selectionAnchorIndex, m_selectionExtentIndex);
+            const int high = qMax(m_selectionAnchorIndex, m_selectionExtentIndex);
+
+            QSet<int> newSelection;
+            for (int i = low; i <= high; ++i)
+                newSelection.insert(i);
+
+            m_selectionController->select(newSelection);
+            autoScrollToNote(notes[newExtent]);
+
+        }
+        // else: already at edge, no-op
+    }
+}
+
+void ChartCanvas::commitToolNotes()
+{
+    if (m_noteChainModeActive && m_noteChainEditor)
+    {
+        m_noteChainEditor->setHostContext(buildPluginCanvasContext());
+        m_noteChainEditor->commitCurveToNotes();
+        update();
+    }
+    else if (m_pluginToolModeActive)
+        triggerPluginBatchAction("commit_curve_to_notes", tr("Commit Curve -> Notes"));
+}
+
+void ChartCanvas::cancelEditorOperation()
+{
+    if (m_noteChainModeActive && m_noteChainEditor)
+    {
+        m_noteChainEditor->cancelInteraction();
+        update();
+    }
+    if (m_pluginToolModeActive)
+    {
+        PluginInterface::CanvasInputEvent cancelEvent;
+        cancelEvent.type = "cancel";
+        cancelEvent.timestampMs = QDateTime::currentMSecsSinceEpoch();
+        bool consumed = false;
+        if (dispatchPluginCanvasInput(cancelEvent, &consumed) && consumed)
+            return;
+    }
+    cancelOperation();
+}
+
+void ChartCanvas::keyPressEvent(QKeyEvent *event)
+{
+    // Host commands have already been handled by CommandRouter. Forward only
+    // remaining tool-specific input; no default-key fallback may bypass rebinding.
+    PluginInterface::CanvasInputEvent pluginEvent;
+    pluginEvent.type = "key_down";
+    pluginEvent.key = event->key();
+    fillPluginEventModifiers(&pluginEvent, event->modifiers());
+    pluginEvent.timestampMs = QDateTime::currentMSecsSinceEpoch();
+    bool consumed = false;
+    if (dispatchPluginCanvasInput(pluginEvent, &consumed) && consumed)
+        event->accept();
+    else
+        QWidget::keyPressEvent(event);
 }
 
 void ChartCanvas::keyReleaseEvent(QKeyEvent *event)
 {
-    if (event && (event->key() == Qt::Key_Alt || event->key() == Qt::Key_AltGr))
-        m_modeCycleWheelDelta = 0.0;
-
     PluginInterface::CanvasInputEvent pluginEvent;
     pluginEvent.type = "key_up";
     pluginEvent.key = event->key();

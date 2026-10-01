@@ -828,11 +828,6 @@
         <translation>Pasted %1 notes</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="152"/>
-        <source>Manual jerk mark recorded (F8).</source>
-        <translation>Manual jerk mark recorded (F8).</translation>
-    </message>
-    <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="211"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="219"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="777"/>
@@ -3061,11 +3056,6 @@ Open the **History** tab for collapsible long update notes.</translation>
         <translation>Launch Curve Tool</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2107"/>
-        <source>Mark Playback Jerk</source>
-        <translation>Mark Playback Jerk</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="2129"/>
         <source>Playback FPS Cap</source>
         <translation>Playback FPS Cap</translation>
@@ -3114,6 +3104,66 @@ Open the **History** tab for collapsible long update notes.</translation>
         <location filename="../../src/app/MainWindow.cpp" line="2073"/>
         <source>Session Settings...</source>
         <translation>Session Settings...</translation>
+    </message>
+    <message>
+        <source>Cancel Current Operation</source>
+        <translation>Cancel Current Operation</translation>
+    </message>
+    <message>
+        <source>Scroll Forward by Division</source>
+        <translation>Scroll Forward by Division</translation>
+    </message>
+    <message>
+        <source>Scroll Backward by Division</source>
+        <translation>Scroll Backward by Division</translation>
+    </message>
+    <message>
+        <source>Scroll Forward by Beat</source>
+        <translation>Scroll Forward by Beat</translation>
+    </message>
+    <message>
+        <source>Scroll Backward by Beat</source>
+        <translation>Scroll Backward by Beat</translation>
+    </message>
+    <message>
+        <source>Select Previous Note</source>
+        <translation>Select Previous Note</translation>
+    </message>
+    <message>
+        <source>Select Next Note</source>
+        <translation>Select Next Note</translation>
+    </message>
+    <message>
+        <source>Extend Selection to Previous Note</source>
+        <translation>Extend Selection to Previous Note</translation>
+    </message>
+    <message>
+        <source>Extend Selection to Next Note</source>
+        <translation>Extend Selection to Next Note</translation>
+    </message>
+    <message>
+        <source>Toggle Anchor Placement</source>
+        <translation>Toggle Anchor Placement</translation>
+    </message>
+    <message>
+        <source>Delete Curve Selection (Alternate)</source>
+        <translation>Delete Curve Selection (Alternate)</translation>
+    </message>
+    <message>
+        <source>Commit Curve to Notes</source>
+        <translation>Commit Curve to Notes</translation>
+    </message>
+    <message>
+        <source>Commit Plugin Tool to Notes</source>
+        <translation>Commit Plugin Tool to Notes</translation>
+    </message>
+    <message>
+        <source>Shortcut Reference</source>
+        <translation>Shortcut Reference</translation>
+    </message>
+    <message>
+        <source>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</source>
+        <translation>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</translation>
     </message>
 </context>
 <context>
@@ -4089,6 +4139,41 @@ Do you want to rename the imported file?</translation>
         <location filename="../../src/ui/SpeedPopup.cpp" line="24"/>
         <source>%1x</source>
         <translation>%1x</translation>
+    </message>
+</context>
+<context>
+    <name>CommandRouter</name>
+    <message>
+        <source>Shortcut conflict (including sequence prefixes): %1 and %2.</source>
+        <translation>Shortcut conflict (including sequence prefixes): %1 and %2.</translation>
+    </message>
+    <message>
+        <source>Editor window</source>
+        <translation>Editor window</translation>
+    </message>
+    <message>
+        <source>Editing (outside text inputs)</source>
+        <translation>Editing (outside text inputs)</translation>
+    </message>
+    <message>
+        <source>Native curve tool</source>
+        <translation>Native curve tool</translation>
+    </message>
+    <message>
+        <source>Process plugin tool</source>
+        <translation>Process plugin tool</translation>
+    </message>
+    <message>
+        <source>| Command | Current shortcut | Default | Scope |
+| --- | --- | --- | --- |
+</source>
+        <translation>| Command | Current shortcut | Default | Scope |
+| --- | --- | --- | --- |
+</translation>
+    </message>
+    <message>
+        <source>Disabled</source>
+        <translation>Disabled</translation>
     </message>
 </context>
 </TS>

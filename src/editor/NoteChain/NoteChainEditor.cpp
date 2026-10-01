@@ -590,33 +590,21 @@ bool NoteChainEditor::handleMouseRelease(const QPointF &canvasPos, const CanvasP
     return true;
 }
 
-bool NoteChainEditor::handleKeyDown(int key, bool shift, bool ctrl)
+bool NoteChainEditor::cancelInteraction()
 {
-    Q_UNUSED(shift)
     if (!m_active)
         return false;
-    if (key == Qt::Key_Delete || key == Qt::Key_Backspace) {
-        deleteSelected();
-        return true;
-    }
-    if (key == Qt::Key_Escape) {
-        const bool hadInteraction = !m_state.drag().mode.isEmpty() || m_state.linkDrag().active || m_state.boxSelect().active;
-        const bool hadSelection = !m_state.selectedAnchorIds().isEmpty() || !m_state.selectedLinkKeys().isEmpty();
-        m_state.drag() = DragState{};
-        m_state.linkDrag() = LinkDrag{};
-        m_state.boxSelect() = BoxSelect{};
-        m_state.clearAnchorSelection();
-        m_state.clearLinkSelection();
-        m_state.setPendingConnectAnchorId(-1);
-        m_dragChanged = false;
-        if (hadInteraction || hadSelection) emit needsRepaint();
-        return hadInteraction || hadSelection;
-    }
-    if (key == Qt::Key_A && !ctrl) {
-        toggleAnchorPlacement();
-        return true;
-    }
-    return false;
+    const bool hadInteraction = !m_state.drag().mode.isEmpty() || m_state.linkDrag().active || m_state.boxSelect().active;
+    const bool hadSelection = !m_state.selectedAnchorIds().isEmpty() || !m_state.selectedLinkKeys().isEmpty();
+    m_state.drag() = DragState{};
+    m_state.linkDrag() = LinkDrag{};
+    m_state.boxSelect() = BoxSelect{};
+    m_state.clearAnchorSelection();
+    m_state.clearLinkSelection();
+    m_state.setPendingConnectAnchorId(-1);
+    m_dragChanged = false;
+    if (hadInteraction || hadSelection) emit needsRepaint();
+    return hadInteraction || hadSelection;
 }
 
 bool NoteChainEditor::commitLinksToNotes(const QSet<LinkKey> *targetLinks)

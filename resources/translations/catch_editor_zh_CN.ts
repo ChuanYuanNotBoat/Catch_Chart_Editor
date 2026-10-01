@@ -847,11 +847,6 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <translation>已粘贴 %1 个音符</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="152"/>
-        <source>Manual jerk mark recorded (F8).</source>
-        <translation>已记录手动卡顿标记 (F8)。</translation>
-    </message>
-    <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="696"/>
         <source>Paste cancelled.</source>
         <translation>粘贴已取消。</translation>
@@ -3090,11 +3085,6 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>插件增强工具模式：关闭</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2107"/>
-        <source>Mark Playback Jerk</source>
-        <translation>标记播放卡顿</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="2129"/>
         <source>Playback FPS Cap</source>
         <translation>播放帧率上限</translation>
@@ -3143,6 +3133,66 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindow.cpp" line="2073"/>
         <source>Session Settings...</source>
         <translation>会话设置...</translation>
+    </message>
+    <message>
+        <source>Cancel Current Operation</source>
+        <translation>取消当前操作</translation>
+    </message>
+    <message>
+        <source>Scroll Forward by Division</source>
+        <translation>按分度向前滚动</translation>
+    </message>
+    <message>
+        <source>Scroll Backward by Division</source>
+        <translation>按分度向后滚动</translation>
+    </message>
+    <message>
+        <source>Scroll Forward by Beat</source>
+        <translation>按整拍向前滚动</translation>
+    </message>
+    <message>
+        <source>Scroll Backward by Beat</source>
+        <translation>按整拍向后滚动</translation>
+    </message>
+    <message>
+        <source>Select Previous Note</source>
+        <translation>选择上一个音符</translation>
+    </message>
+    <message>
+        <source>Select Next Note</source>
+        <translation>选择下一个音符</translation>
+    </message>
+    <message>
+        <source>Extend Selection to Previous Note</source>
+        <translation>扩展选区到上一个音符</translation>
+    </message>
+    <message>
+        <source>Extend Selection to Next Note</source>
+        <translation>扩展选区到下一个音符</translation>
+    </message>
+    <message>
+        <source>Toggle Anchor Placement</source>
+        <translation>切换锚点放置</translation>
+    </message>
+    <message>
+        <source>Delete Curve Selection (Alternate)</source>
+        <translation>删除曲线选区（备用）</translation>
+    </message>
+    <message>
+        <source>Commit Curve to Notes</source>
+        <translation>将曲线提交为音符</translation>
+    </message>
+    <message>
+        <source>Commit Plugin Tool to Notes</source>
+        <translation>将插件工具结果提交为音符</translation>
+    </message>
+    <message>
+        <source>Shortcut Reference</source>
+        <translation>快捷键速查</translation>
+    </message>
+    <message>
+        <source>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</source>
+        <translation>按下新组合键替换当前快捷键；连续录入可组成最多四段序列。按 Backspace 或清空按钮可禁用。设置统一用于菜单、画布和浮动面板；输入框与对话框保留各自的编辑按键。</translation>
     </message>
 </context>
 <context>
@@ -4316,6 +4366,41 @@ This replaces all current editor settings. Open chart data is not affected.</sou
         <location filename="../../src/ui/SpeedPopup.cpp" line="24"/>
         <source>%1x</source>
         <translation>%1x</translation>
+    </message>
+</context>
+<context>
+    <name>CommandRouter</name>
+    <message>
+        <source>Shortcut conflict (including sequence prefixes): %1 and %2.</source>
+        <translation>快捷键冲突（包括序列前缀）：%1 与 %2。</translation>
+    </message>
+    <message>
+        <source>Editor window</source>
+        <translation>编辑器窗口</translation>
+    </message>
+    <message>
+        <source>Editing (outside text inputs)</source>
+        <translation>编辑区域（输入框除外）</translation>
+    </message>
+    <message>
+        <source>Native curve tool</source>
+        <translation>原生曲线工具</translation>
+    </message>
+    <message>
+        <source>Process plugin tool</source>
+        <translation>进程插件工具</translation>
+    </message>
+    <message>
+        <source>| Command | Current shortcut | Default | Scope |
+| --- | --- | --- | --- |
+</source>
+        <translation>| 命令 | 当前快捷键 | 默认值 | 作用范围 |
+| --- | --- | --- | --- |
+</translation>
+    </message>
+    <message>
+        <source>Disabled</source>
+        <translation>已禁用</translation>
     </message>
 </context>
 </TS>

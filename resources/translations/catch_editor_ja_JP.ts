@@ -847,11 +847,6 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <translation>%1 個のノートを貼り付けました</translation>
     </message>
     <message>
-        <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="152"/>
-        <source>Manual jerk mark recorded (F8).</source>
-        <translation>手動のジャークマークが記録されました (F8)。</translation>
-    </message>
-    <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp" line="696"/>
         <source>Paste cancelled.</source>
         <translation>貼り付けがキャンセルされました。</translation>
@@ -3090,11 +3085,6 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>プラグイン拡張ツールモード: OFF</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2107"/>
-        <source>Mark Playback Jerk</source>
-        <translation>再生の乱れをマーク</translation>
-    </message>
-    <message>
         <location filename="../../src/app/MainWindow.cpp" line="2129"/>
         <source>Playback FPS Cap</source>
         <translation>再生FPS上限</translation>
@@ -3143,6 +3133,66 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindow.cpp" line="2073"/>
         <source>Session Settings...</source>
         <translation>セッション設定...</translation>
+    </message>
+    <message>
+        <source>Cancel Current Operation</source>
+        <translation>現在の操作をキャンセル</translation>
+    </message>
+    <message>
+        <source>Scroll Forward by Division</source>
+        <translation>分割単位で前へスクロール</translation>
+    </message>
+    <message>
+        <source>Scroll Backward by Division</source>
+        <translation>分割単位で後へスクロール</translation>
+    </message>
+    <message>
+        <source>Scroll Forward by Beat</source>
+        <translation>拍単位で前へスクロール</translation>
+    </message>
+    <message>
+        <source>Scroll Backward by Beat</source>
+        <translation>拍単位で後へスクロール</translation>
+    </message>
+    <message>
+        <source>Select Previous Note</source>
+        <translation>前のノーツを選択</translation>
+    </message>
+    <message>
+        <source>Select Next Note</source>
+        <translation>次のノーツを選択</translation>
+    </message>
+    <message>
+        <source>Extend Selection to Previous Note</source>
+        <translation>前のノーツまで選択範囲を拡張</translation>
+    </message>
+    <message>
+        <source>Extend Selection to Next Note</source>
+        <translation>次のノーツまで選択範囲を拡張</translation>
+    </message>
+    <message>
+        <source>Toggle Anchor Placement</source>
+        <translation>アンカー配置を切り替え</translation>
+    </message>
+    <message>
+        <source>Delete Curve Selection (Alternate)</source>
+        <translation>曲線の選択項目を削除（代替）</translation>
+    </message>
+    <message>
+        <source>Commit Curve to Notes</source>
+        <translation>曲線をノーツに変換</translation>
+    </message>
+    <message>
+        <source>Commit Plugin Tool to Notes</source>
+        <translation>プラグインツールの結果をノーツに変換</translation>
+    </message>
+    <message>
+        <source>Shortcut Reference</source>
+        <translation>ショートカット一覧</translation>
+    </message>
+    <message>
+        <source>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</source>
+        <translation>新しいキーを押すと現在の設定を置き換え、続けて入力すると最大4段のキーシーケンスになります。Backspace またはクリアボタンで無効化できます。設定はメニュー、キャンバス、フローティングパネルに共通です。入力欄とダイアログでは各自の編集キーが使われます。</translation>
     </message>
 </context>
 <context>
@@ -4118,6 +4168,41 @@ Do you want to rename the imported file?</source>
         <location filename="../../src/ui/SpeedPopup.cpp" line="24"/>
         <source>%1x</source>
         <translation>%1x</translation>
+    </message>
+</context>
+<context>
+    <name>CommandRouter</name>
+    <message>
+        <source>Shortcut conflict (including sequence prefixes): %1 and %2.</source>
+        <translation>ショートカットが競合しています（シーケンスの接頭部分を含む）：%1 と %2。</translation>
+    </message>
+    <message>
+        <source>Editor window</source>
+        <translation>エディターウィンドウ</translation>
+    </message>
+    <message>
+        <source>Editing (outside text inputs)</source>
+        <translation>編集領域（入力欄を除く）</translation>
+    </message>
+    <message>
+        <source>Native curve tool</source>
+        <translation>内蔵曲線ツール</translation>
+    </message>
+    <message>
+        <source>Process plugin tool</source>
+        <translation>プロセスプラグインツール</translation>
+    </message>
+    <message>
+        <source>| Command | Current shortcut | Default | Scope |
+| --- | --- | --- | --- |
+</source>
+        <translation>| コマンド | 現在のキー | 初期値 | 適用範囲 |
+| --- | --- | --- | --- |
+</translation>
+    </message>
+    <message>
+        <source>Disabled</source>
+        <translation>無効</translation>
     </message>
 </context>
 </TS>

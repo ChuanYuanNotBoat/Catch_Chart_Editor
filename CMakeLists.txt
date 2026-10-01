@@ -80,6 +80,15 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/plugins")
 endif()
 
 if(BUILD_TESTING)
+    add_executable(ShortcutTests tests/shortcut_tests.cpp)
+    target_link_libraries(ShortcutTests PRIVATE CatchChartEditorRuntime Qt6::Test)
+    add_test(NAME ui_shortcut_tests COMMAND ShortcutTests)
+    set_tests_properties(ui_shortcut_tests PROPERTIES TIMEOUT 60)
+    if(WIN32)
+        set_tests_properties(ui_shortcut_tests PROPERTIES
+            ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
+    endif()
+
     add_executable(CatchChartEditorTests
         tests/minimal_tests.cpp
         src/app/SessionPathUtils.cpp

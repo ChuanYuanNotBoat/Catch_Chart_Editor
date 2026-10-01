@@ -99,7 +99,11 @@ public:
     QVariantMap pluginOverlayToggles() const { return m_pluginOverlayToggles; }
     QVariantMap pluginCanvasActionContext() const;
     bool triggerPluginDeleteSelection();
-    void recordManualJerkMark();
+    void scrollByDivision(int direction, bool wholeBeat);
+    void navigateSelection(int direction, bool extend);
+    void commitToolNotes();
+    void cancelEditorOperation();
+    void resetModeCycleWheelGesture() { m_modeCycleWheelDelta = 0.0; }
 
     // NoteChain native integration
     void setNoteChainModeActive(bool active);
@@ -148,7 +152,6 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
     void hideEvent(QHideEvent *event) override;
-    bool eventFilter(QObject *watched, QEvent *event) override;
 
 
 private:

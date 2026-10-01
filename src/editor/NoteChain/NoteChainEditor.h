@@ -32,8 +32,7 @@ public:
     // ---- Cursor hint (called after mouseMove to update canvas cursor) ----
     QString hoverCursorHint(const QPointF &canvasPos, const CanvasProjection &projection) const;
 
-    // ---- Keyboard ----
-    bool handleKeyDown(int key, bool shift, bool ctrl);
+    bool cancelInteraction();
 
     // ---- Render (direct QPainter, no overlay serialization) ----
     void render(QPainter *painter, const QRectF &viewport, const CanvasProjection &projection);

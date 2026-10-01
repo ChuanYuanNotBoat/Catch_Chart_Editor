@@ -41,6 +41,7 @@ class PluginActionPanel;
 class ChartStatsPanel;
 class DetailedStatsDialog;
 class WorkbenchLayout;
+class CommandRouter;
 
 namespace ads
 {
@@ -156,9 +157,7 @@ public:
     QHash<QString, QPointer<QDialog>> pluginPanelDialogs;
     QSet<QString> batchEditDisabledActions;
     QString pluginToolModePluginId;
-    QHash<QString, QAction *> shortcutActions;
-    QHash<QString, QKeySequence> shortcutDefaults;
-    QList<QString> shortcutActionOrder;
+    CommandRouter *commandRouter = nullptr;
     quint64 pendingPluginRequestId = 0;
     quint64 pluginActionGeneration = 0;
 

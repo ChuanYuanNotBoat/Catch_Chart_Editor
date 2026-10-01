@@ -71,9 +71,10 @@ function Get-Mean {
 $resolved = Resolve-LogFilePath -GivenLogFile $LogFile -GivenLogDir $LogDir
 Write-Host "Analyzing playback probe log: $resolved"
 
-$pattern = '^(?<time>\d{2}:\d{2}:\d{2}\.\d{3}).*PERF_PLAYBACK\s+window_ms=(?<window>\d+)\s+fps_tick=(?<fps_tick>[0-9.]+)\s+fps_canvas=(?<fps_canvas>[0-9.]+)\s+fps_preview=(?<fps_preview>[0-9.]+)\s+jitter_p95_ms=(?<jitter>[0-9.]+)\s+pacing_std_ms=(?<pacing_std>[0-9.]+)\s+pacing_jerk_p95_ms=(?<pacing_jerk>[0-9.]+)\s+step_jerk_p95_ms=(?<step_jerk>[0-9.]+)\s+ui_gap_p95_ms=(?<ui_gap>[0-9.]+)\s+jank_events=(?<jank>\d+)\s+step_jank_events=(?<step_jank>\d+)\s+manual_jerk_marks=(?<marks>\d+)\s+ui_hitch_events=(?<ui_hitch>\d+)\s+ui_stall_events=(?<ui_stall>\d+)\s+jitter_slow_pct=(?<jitter_slow>[0-9.]+)\s+canvas_slow_pct=(?<canvas_slow>[0-9.]+)\s+top=\[(?<top>.*?)\]\s+counters=\[(?<counters>.*)\]'
+$pattern = '^(?<time>\d{2}:\d{2}:\d{2}\.\d{3}).*PERF_PLAYBACK\s+window_ms=(?<window>\d+)\s+fps_tick=(?<fps_tick>[0-9.]+)\s+fps_canvas=(?<fps_canvas>[0-9.]+)\s+fps_preview=(?<fps_preview>[0-9.]+)\s+jitter_p95_ms=(?<jitter>[0-9.]+)\s+pacing_std_ms=(?<pacing_std>[0-9.]+)\s+pacing_jerk_p95_ms=(?<pacing_jerk>[0-9.]+)\s+step_jerk_p95_ms=(?<step_jerk>[0-9.]+)\s+ui_gap_p95_ms=(?<ui_gap>[0-9.]+)(?:\s+scroll_velocity_change_p95_pct=[0-9.]+)?\s+jank_events=(?<jank>\d+)\s+step_jank_events=(?<step_jank>\d+)(?:\s+manual_jerk_marks=(?<marks>\d+))?\s+ui_hitch_events=(?<ui_hitch>\d+)\s+ui_stall_events=(?<ui_stall>\d+)\s+jitter_slow_pct=(?<jitter_slow>[0-9.]+)\s+canvas_slow_pct=(?<canvas_slow>[0-9.]+)\s+top=\[(?<top>.*?)\]\s+counters=\[(?<counters>.*)\]'
 $markContextPattern = '^(?<time>\d{2}:\d{2}:\d{2}\.\d{3}).*PERF_PLAYBACK_MARK_CONTEXT\s+type=manual_jerk\s+mark_id=(?<mark_id>\d+)\s+lookback_ms=(?<lookback>\d+)\s+pulse_max_ms=(?<pulse_max>[0-9.]+)\s+pulse_p95_ms=(?<pulse_p95>[0-9.]+)\s+step_max_ms=(?<step_max>[0-9.]+)\s+step_p95_ms=(?<step_p95>[0-9.]+)\s+ui_gap_max_ms=(?<ui_gap_max>[0-9.]+)\s+canvas_max_ms=(?<canvas_max>[0-9.]+)\s+preview_max_ms=(?<preview_max>[0-9.]+)\s+live_jitter_p95_ms=(?<live_jitter>[0-9.]+)\s+live_step_jerk_p95_ms=(?<live_step_jerk>[0-9.]+)\s+live_ui_gap_p95_ms=(?<live_ui_gap>[0-9.]+)(?:\s+visual_scroll_step_max_px=(?<visual_scroll_step_max>[0-9.]+)\s+visual_scroll_jerk_max_px=(?<visual_scroll_jerk_max>[0-9.]+)\s+visual_playhead_drift_max_px=(?<visual_playhead_drift_max>[0-9.]+)\s+live_visual_scroll_jerk_p95_px=(?<live_visual_scroll_jerk>[0-9.]+)\s+live_visual_playhead_drift_p95_px=(?<live_visual_playhead_drift>[0-9.]+))?'
 
+# New logs omit manual markers; keep the context parser for archived sessions.
 $rows = New-Object System.Collections.Generic.List[object]
 $markContexts = New-Object System.Collections.Generic.List[object]
 $hotKeyCount = @{}
@@ -98,7 +99,7 @@ Get-Content -LiteralPath $resolved | ForEach-Object {
         ui_gap_p95_ms   = [double]$Matches["ui_gap"]
         jank_events     = [int]$Matches["jank"]
         step_jank_events = [int]$Matches["step_jank"]
-        manual_jerk_marks = [int]$Matches["marks"]
+        manual_jerk_marks = $(if ($Matches.ContainsKey("marks")) { [int]$Matches["marks"] } else { 0 })
         ui_hitch_events = [int]$Matches["ui_hitch"]
         ui_stall_events = [int]$Matches["ui_stall"]
         jitter_slow_pct = [double]$Matches["jitter_slow"]
@@ -235,10 +236,12 @@ Write-Host ("step_jank_events avg={0:N1} p95={1:N1} max={2:N0}" -f `
     (Get-Mean $stepJankValues),
     (Get-Percentile $stepJankValues 0.95),
     (($stepJankValues | Measure-Object -Maximum).Maximum))
-Write-Host ("manual_jerk_marks avg={0:N1} p95={1:N1} max={2:N0}" -f `
-    (Get-Mean $markValues),
-    (Get-Percentile $markValues 0.95),
-    (($markValues | Measure-Object -Maximum).Maximum))
+if (($markValues | Measure-Object -Maximum).Maximum -gt 0) {
+    Write-Host ("manual_jerk_marks avg={0:N1} p95={1:N1} max={2:N0}" -f `
+        (Get-Mean $markValues),
+        (Get-Percentile $markValues 0.95),
+        (($markValues | Measure-Object -Maximum).Maximum))
+}
 Write-Host ("ui_hitch_events avg={0:N1} p95={1:N1} max={2:N0}" -f `
     (Get-Mean $uiHitchValues),
     (Get-Percentile $uiHitchValues 0.95),

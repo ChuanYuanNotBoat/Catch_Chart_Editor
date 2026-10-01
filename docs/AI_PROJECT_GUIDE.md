@@ -2,15 +2,18 @@
 
 > 面向新开发者和代码代理的当前仓库速查。
 > 当前版本：**Beta v1.11.2（2026-09-19）**
-> 仓库状态：**Release candidate（2026-09-19）**
-> Git 标签：待发布
-> 最后核对：2026-09-19
+> 仓库状态：**v1.11.2 后续维护（Unreleased）**
+> Git 标签：`v1.11.2`
+> 最后核对：2026-10-01
 
 ## 1. 项目边界
 
 Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 Malody Catch `.mc` 谱面并导入/导出 `.mcz`。
 
 核心约束：
+
+- 快捷键统一经 `CommandRouter` 注册与派发，新增宿主命令不得在画布中硬编码按键；命令范围与保留手势见 [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md)。
+- AutoTiming 算法在独立 AutoTimingCore 仓库迭代，CCE 仅维护 bridge、设置、显示和应用行为。
 
 - 项目当前只维护桌面链路；旧 Android/QML 移动端方案已经移除。
 - `.mc` JSON 必须保持 Malody 兼容，编辑器扩展数据只能写入 sidecar。
@@ -31,14 +34,16 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 | 构建 | CMake 3.20+ |
 | 面板 | Qt Advanced Docking System 5.1.1（静态 vendored） |
 | 翻译 | Qt Linguist，`resources/translations/*.ts` |
-| 测试 | CTest；CCE 五项测试 + AutoTimingCore 四项上游回归 |
+| 测试 | CTest；CCE 八组测试 + AutoTimingCore 五组上游回归 |
 | 桌面平台 | Windows 为主要验证平台；代码保留 macOS/Linux 支持 |
 
 主目标：
 
 - `CatchChartEditor`：桌面主程序；
 - `CatchChartEditorTests`：核心模型、I/O、控制器和 Note Chain 测试；
-- `DockingLayoutTests`：ADS 布局、浮动窗口和原生主题测试。
+- `DockingLayoutTests`：ADS 布局、浮动窗口和原生主题测试；
+- `CatchChartEditorRuntime`：主程序与窗口回归共用的静态运行时；
+- `ShortcutTests`：真实 MainWindow/ChartCanvas 的统一快捷键回归。
 
 ## 3. 构建与测试
 
@@ -71,7 +76,7 @@ cmake --build build --config Debug --target CatchChartEditor --parallel
 | `src/main.cpp` | Qt 应用入口与运行时版本字符串 |
 | `src/app/` | Application、MainWindow、会话路径安全、菜单、对话框、主题和工作区装配 |
 | `src/model/` | Note、BPM、MetaData、Chart、Skin 数据模型 |
-| `src/controller/` | Chart、Selection、Playback 的业务编排与信号 |
+| `src/controller/` | Chart、Selection、Playback 业务编排及 CommandRouter 快捷键注册/派发 |
 | `src/ui/` | 编辑面板、对话框、时间线、预览和 ChartCanvas |
 | `src/ui/CustomWidgets/ChartCanvas/` | 画布输入、播放、粘贴、渲染和 Note Chain 接线 |
 | `src/editor/NoteChain/` | 原生曲线状态、采样、交互与 V3 sidecar |

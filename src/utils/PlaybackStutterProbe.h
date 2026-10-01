@@ -31,7 +31,6 @@ namespace PlaybackStutterProbe
         qint64 stepJankEvents = 0;
         qint64 visualJankEvents = 0;
         qint64 visualBacktrackEvents = 0;
-        qint64 manualJerkMarks = 0;
         qint64 uiHitchEvents = 0;
         qint64 uiStallEvents = 0;
         QString topHotspot;
@@ -43,7 +42,6 @@ namespace PlaybackStutterProbe
     void recordCounter(const QString &key, qint64 delta, bool playing);
     void markPlaybackState(bool playing);
     void markUiHeartbeat(bool playing);
-    void markManualJerk(double playbackTimeMs, qint64 frameSeq);
     void forceFlush();
     LiveMetrics latestMetrics();
     void beginSession(const QString &name, const QJsonObject &metadata = QJsonObject());

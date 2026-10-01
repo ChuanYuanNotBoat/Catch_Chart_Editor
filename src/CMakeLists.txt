@@ -1,5 +1,4 @@
 set(SOURCES
-    main.cpp
     app/Application.cpp
     app/SessionPathUtils.cpp
     app/PlaybackBenchmarkRunner.cpp
@@ -34,6 +33,7 @@ set(SOURCES
     audio/BpmDetector.cpp
     audio/AutoTiming2Bridge.cpp
     audio/AudioConverter.cpp
+    controller/CommandRouter.cpp
     controller/ChartController.cpp
     controller/SelectionController.cpp
     controller/DisplayFrameScheduler.cpp
@@ -92,13 +92,12 @@ set_source_files_properties(
     PROPERTIES COMPILE_OPTIONS "/utf-8"
 )
 
-qt_add_executable(CatchChartEditor
-    MANUAL_FINALIZATION
-    ${SOURCES}
-)
+add_library(CatchChartEditorRuntime STATIC ${SOURCES})
+qt_add_executable(CatchChartEditor MANUAL_FINALIZATION main.cpp)
+target_link_libraries(CatchChartEditor PRIVATE CatchChartEditorRuntime)
 
-target_link_libraries(CatchChartEditor
-    PRIVATE
+target_link_libraries(CatchChartEditorRuntime
+    PUBLIC
     Qt6::Core
     Qt6::Widgets
     Qt6::Multimedia
@@ -110,14 +109,14 @@ target_link_libraries(CatchChartEditor
 )
 
 if(WIN32)
-    target_link_libraries(CatchChartEditor PRIVATE dwmapi)
+    target_link_libraries(CatchChartEditorRuntime PUBLIC dwmapi)
 endif()
 
 if(COMMAND qt_finalize_executable)
     qt_finalize_executable(CatchChartEditor)
 endif()
 
-target_include_directories(CatchChartEditor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(CatchChartEditorRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Translation files.
 set(TRANSLATION_TS_FILES
@@ -136,7 +135,7 @@ qt6_add_translations(CatchChartEditor
 # This scans source code for tr() calls and updates .ts files.
 qt_add_lupdate(CatchChartEditor
     TS_FILES ${TRANSLATION_TS_FILES}
-    SOURCES ${SOURCES}
+    SOURCES main.cpp ${SOURCES}
 )
 
 

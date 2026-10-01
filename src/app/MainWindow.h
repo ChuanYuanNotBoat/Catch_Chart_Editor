@@ -106,6 +106,7 @@ private:
     void createPlaybackMenu();
     void createToolsAndPluginsMenus();
     void createHelpMenu();
+    void registerCanvasCommands();
     void createCentralArea();
     void retranslateUi();
     void populateSkinMenu();

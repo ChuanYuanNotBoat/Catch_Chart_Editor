@@ -95,7 +95,7 @@
 - `Settings -> Session Settings...`：设置编辑会话选项，包括自动保存间隔和音频校正测试开关。
 - `Settings -> Skin`：选择可用皮肤。皮肤来自程序目录的 `skins` 或内置默认皮肤资源。
 - `Settings -> Note Sound`：选择编辑音符时播放的按键音；选择 `None` 可关闭音效。
-- `Settings -> Keyboard Shortcuts...`：自定义可配置快捷键。清空输入框可禁用对应快捷键，`Reset` 恢复单项默认值，`Reset All` 恢复全部默认值。录入新组合键会替换旧快捷键；连续录入可构成最多四段序列，支持 `Ctrl+Shift+O` 和 `Alt+↑` 等组合；画布专属手势暂未纳入统一自定义管理。
+- `Settings -> Keyboard Shortcuts...`：自定义可配置快捷键。清空输入框可禁用对应快捷键，`Reset` 恢复单项默认值，`Reset All` 恢复全部默认值。录入新组合键会替换旧快捷键；连续录入可构成最多四段序列，支持 `Ctrl+Shift+O` 和 `Alt+↑` 等组合；菜单、画布、原生曲线工具与浮动面板共用配置；每项显示作用范围。相同快捷键和多段序列的前缀在重叠范围内不能重复，冲突提示后设置窗口保留编辑内容。`Shortcut Reference` 展示当前绑定、默认值和范围。输入框、对话框及弹出菜单保留各自编辑按键，鼠标手势仍固定。
 - `Settings -> Language`：切换界面语言。
 
 ### Playback 播放菜单
@@ -330,7 +330,16 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 | 粘贴 | `Ctrl+V` | `Edit -> Paste` |
 | 删除 | `Delete` | `Edit -> Delete` |
 | 播放/暂停 | `Space` | `Playback -> Play/Pause` |
-| 取消当前操作 | `Esc` | 画布 |
+| 取消当前操作 | `Esc` | 编辑区域 / 曲线 / 插件工具 |
+| 按分度向前/后滚动 | `↑` / `↓` | 编辑区域 |
+| 按整拍向前/后滚动 | `Shift+↑` / `Shift+↓` | 编辑区域 |
+| 选择上一个/下一个音符 | `←` / `→` | 编辑区域 |
+| 扩展音符选区 | `Shift+←` / `Shift+→` | 编辑区域；不跳转播放位置或播放 Note 音效 |
+| 上一个/下一个编辑模式 | `Alt+↑` / `Alt+↓` | 编辑区域 / 浮动面板 |
+| 删除曲线选区（备用） | `Backspace` | 原生曲线工具 |
+| 提交插件工具结果 | `Enter` | 进程插件工具模式 |
 | 缩放时间轴 | `Ctrl + 鼠标滚轮` | 画布 |
 | 切换曲线锚点放置 | `A` | 原生 Note Chain Assist 工具模式 |
 | 提交整条曲线 | `Enter` | 原生 Note Chain Assist 工具模式 |
+
+快捷键速查以设置窗口中的实时命令表为准；`Enter` 与数字小键盘 `Enter` 视为同一键。F8 手动卡顿标记已移除，F8 当前没有默认命令，可自行分配。完整命令 ID 与上下文规则见 [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md)。

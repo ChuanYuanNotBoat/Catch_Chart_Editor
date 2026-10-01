@@ -102,7 +102,7 @@ Write-Host "Packaging completeness check passed."
 
 # Nothing that ships to users may look like a test binary, symbol, or redist.
 $forbidden = Get-ChildItem $buildOutput -Recurse -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -match '^(CatchChartEditorTests|CoordMapperTests|DockingLayoutTests|MetaEditPanelTests|ImageConverterTests|BpmMeasurementTests|AutoTiming\w*Tests|autotiming_\w+_tests|autotiming_probe|vc_redist)\.' -or $_.Extension -in '.pdb', '.ilk' }
+    Where-Object { $_.Name -match '^(CatchChartEditorTests|CoordMapperTests|DockingLayoutTests|MetaEditPanelTests|ImageConverterTests|BpmMeasurementTests|SettingsTransferTests|ShortcutTests|AutoTiming\w*Tests|autotiming_\w+_tests|autotiming_probe|vc_redist)\.' -or $_.Extension -in '.pdb', '.ilk' }
 if ($forbidden) {
     Write-Host "The following files exist but will be excluded by setup.iss:" -ForegroundColor Yellow
     $forbidden | ForEach-Object { Write-Host "  excluded: $($_.FullName.Substring($buildOutput.Length + 1))" }

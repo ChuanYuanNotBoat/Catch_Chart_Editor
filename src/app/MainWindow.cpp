@@ -20,6 +20,7 @@
 #include "model/ChartStatistics.h"
 #include "ui/dialogs/LogSettingsDialog.h"
 #include "controller/ChartController.h"
+#include "controller/CommandRouter.h"
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "audio/AudioPlayer.h"
@@ -1568,6 +1569,18 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
     setupUi();
     createCentralArea();
+    d->commandRouter = new CommandRouter(this);
+    connect(d->commandRouter, &CommandRouter::modifierReleased, d->canvas, [this](int key) {
+        if (key == Qt::Key_Alt || key == Qt::Key_AltGr)
+            d->canvas->resetModeCycleWheelGesture();
+    });
+    d->commandRouter->setScopePredicate([this](CommandRouter::Scope scope) {
+        if (scope == CommandRouter::Scope::Curve)
+            return d->canvas && d->canvas->isNoteChainModeActive();
+        if (scope == CommandRouter::Scope::Plugin)
+            return d->canvas && d->canvas->isPluginToolModeActive() && !d->canvas->isNoteChainModeActive();
+        return true;
+    });
     createMenus();
     setupAutoSaveTimer();
     d->recoverySnapshotTimer = new QTimer(this);
@@ -1826,9 +1839,7 @@ void MainWindow::createMenus()
 {
     Logger::debug("Creating menus...");
     menuBar()->clear();
-    d->shortcutActions.clear();
-    d->shortcutDefaults.clear();
-    d->shortcutActionOrder.clear();
+    d->commandRouter->clear();
     if (d->languageActionGroup)
     {
         delete d->languageActionGroup;
@@ -1847,6 +1858,7 @@ void MainWindow::createMenus()
     createPlaybackMenu();
     createToolsAndPluginsMenus();
     createHelpMenu();
+    registerCanvasCommands();
     applySidebarTheme();
 
     Logger::debug("Menus created");
@@ -1862,7 +1874,7 @@ void MainWindow::createFileMenu()
     registerShortcutAction(openAction, "file.open_chart", QKeySequence::Open);
     QAction *openFolderAction = fileMenu->addAction(tr("Open &Folder..."), this, &MainWindow::openFolder);
     QAction *openImportedAction = fileMenu->addAction(tr("Open &Imported Charts..."), this, &MainWindow::openImportedLibrary);
-    registerShortcutAction(openImportedAction, "file.open_imported_charts", QKeySequence(tr("Ctrl+Shift+O")));
+    registerShortcutAction(openImportedAction, "file.open_imported_charts", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
     d->reloadChartAction = fileMenu->addAction(tr("&Reload Chart"), this, &MainWindow::reloadChart);
     registerShortcutAction(d->reloadChartAction, "file.reload_chart", QKeySequence(Qt::Key_F5));
     d->reloadChartAction->setEnabled(false);
@@ -1930,17 +1942,15 @@ void MainWindow::createEditMenu()
          } });
 
     // Cycling the Note editor's five modes must use the radio buttons' existing
-    // signal path, including native curve/anchor mode transitions. Application
-    // scope also reaches detached ADS panels; suppress it in dialogs and inputs.
+    // signal path, including native curve/anchor mode transitions. CommandRouter
+    // also reaches detached ADS panels and suppresses dialog/input activation.
     editMenu->addSeparator();
     QAction *previousModeAction = editMenu->addAction(tr("Previous Edit Mode"), this,
         [this, editMenu]() { cycleNoteEditMode(-1, editMenu); });
-    previousModeAction->setShortcutContext(Qt::ApplicationShortcut);
     previousModeAction->setAutoRepeat(false);
     registerShortcutAction(previousModeAction, "edit.previous_mode", QKeySequence(Qt::ALT | Qt::Key_Up));
     QAction *nextModeAction = editMenu->addAction(tr("Next Edit Mode"), this,
         [this, editMenu]() { cycleNoteEditMode(1, editMenu); });
-    nextModeAction->setShortcutContext(Qt::ApplicationShortcut);
     nextModeAction->setAutoRepeat(false);
     registerShortcutAction(nextModeAction, "edit.next_mode", QKeySequence(Qt::ALT | Qt::Key_Down));
 
@@ -2195,13 +2205,7 @@ void MainWindow::createPlaybackMenu()
     d->playAction = playMenu->addAction(tr("&Play/Pause"), this, &MainWindow::togglePlayback);
     d->playAction->setEnabled(d->audioPlaybackReady);
     registerShortcutAction(d->playAction, "playback.play_pause", QKeySequence(Qt::Key_Space));
-    QAction *markJerkAction = playMenu->addAction(tr("Mark Playback Jerk"));
-    connect(markJerkAction, &QAction::triggered, this, [this]()
-            {
-        if (d->canvas)
-            d->canvas->recordManualJerkMark(); });
-    registerShortcutAction(markJerkAction, "playback.mark_manual_jerk", QKeySequence(Qt::Key_F8));
-    markJerkAction->setShortcutContext(Qt::ApplicationShortcut);
+
     playMenu->addSeparator();
     QMenu *speedMenu = playMenu->addMenu(tr("&Speed"));
     d->speedActionGroup = new QActionGroup(this);
@@ -2368,17 +2372,50 @@ void MainWindow::createHelpMenu()
 
 void MainWindow::registerShortcutAction(QAction *action, const QString &actionId, const QKeySequence &defaultShortcut)
 {
-    if (!action || actionId.isEmpty())
-        return;
+    d->commandRouter->registerAction(action, actionId, defaultShortcut,
+        actionId.startsWith("file.") ? CommandRouter::Scope::Window : CommandRouter::Scope::Editor);
+}
 
-    d->shortcutActions.insert(actionId, action);
-    d->shortcutDefaults.insert(actionId, defaultShortcut);
-    if (!d->shortcutActionOrder.contains(actionId))
-        d->shortcutActionOrder.append(actionId);
-
-    // An explicitly saved empty sequence means disabled, not "use default".
-    const Settings &settings = Settings::instance();
-    action->setShortcut(settings.hasShortcut(actionId) ? settings.shortcut(actionId) : defaultShortcut);
+void MainWindow::registerCanvasCommands()
+{
+    // These actions are also the authoritative entries shown in shortcut settings.
+    // Their callbacks take semantic arguments, never synthetic/default key events.
+    using Scope = CommandRouter::Scope;
+    const auto add = [this](const QString &id, const QString &label, const QKeySequence &binding,
+                           Scope scope, std::function<void()> execute) {
+        QAction *action = new QAction(label, this);
+        action->setProperty("canvasCommand", true);
+        action->setAutoRepeat(id.startsWith("canvas."));
+        addAction(action);
+        connect(action, &QAction::triggered, this, std::move(execute));
+        d->commandRouter->registerAction(action, id, binding, scope);
+    };
+    add("edit.cancel", tr("Cancel Current Operation"), QKeySequence(Qt::Key_Escape), Scope::Editor,
+        [this]() { d->canvas->cancelEditorOperation(); });
+    add("canvas.scroll_forward", tr("Scroll Forward by Division"), QKeySequence(Qt::Key_Up), Scope::Editor,
+        [this]() { d->canvas->scrollByDivision(1, false); });
+    add("canvas.scroll_backward", tr("Scroll Backward by Division"), QKeySequence(Qt::Key_Down), Scope::Editor,
+        [this]() { d->canvas->scrollByDivision(-1, false); });
+    add("canvas.scroll_forward_beat", tr("Scroll Forward by Beat"), QKeySequence(Qt::SHIFT | Qt::Key_Up), Scope::Editor,
+        [this]() { d->canvas->scrollByDivision(1, true); });
+    add("canvas.scroll_backward_beat", tr("Scroll Backward by Beat"), QKeySequence(Qt::SHIFT | Qt::Key_Down), Scope::Editor,
+        [this]() { d->canvas->scrollByDivision(-1, true); });
+    add("canvas.select_previous", tr("Select Previous Note"), QKeySequence(Qt::Key_Left), Scope::Editor,
+        [this]() { d->canvas->navigateSelection(-1, false); });
+    add("canvas.select_next", tr("Select Next Note"), QKeySequence(Qt::Key_Right), Scope::Editor,
+        [this]() { d->canvas->navigateSelection(1, false); });
+    add("canvas.extend_previous", tr("Extend Selection to Previous Note"), QKeySequence(Qt::SHIFT | Qt::Key_Left), Scope::Editor,
+        [this]() { d->canvas->navigateSelection(-1, true); });
+    add("canvas.extend_next", tr("Extend Selection to Next Note"), QKeySequence(Qt::SHIFT | Qt::Key_Right), Scope::Editor,
+        [this]() { d->canvas->navigateSelection(1, true); });
+    add("curve.toggle_anchor", tr("Toggle Anchor Placement"), QKeySequence(Qt::Key_A), Scope::Curve,
+        [this]() { d->canvas->noteChainEditor()->toggleAnchorPlacement(); });
+    add("curve.delete", tr("Delete Curve Selection (Alternate)"), QKeySequence(Qt::Key_Backspace), Scope::Curve,
+        [this]() { d->deleteAction->trigger(); });
+    add("curve.commit", tr("Commit Curve to Notes"), QKeySequence(Qt::Key_Return), Scope::Curve,
+        [this]() { d->canvas->commitToolNotes(); });
+    add("plugin.commit", tr("Commit Plugin Tool to Notes"), QKeySequence(Qt::Key_Return), Scope::Plugin,
+        [this]() { d->canvas->commitToolNotes(); });
 }
 
 void MainWindow::cycleNoteEditMode(int direction, QMenu *allowedPopup, bool fromCanvasWheel)
@@ -2417,7 +2454,7 @@ void MainWindow::cycleNoteEditMode(int direction, QMenu *allowedPopup, bool from
 
 void MainWindow::configureShortcuts()
 {
-    if (d->shortcutActionOrder.isEmpty())
+    if (d->commandRouter->commands().isEmpty())
     {
         QMessageBox::information(this, tr("Keyboard Shortcuts"), tr("No configurable shortcuts are available."));
         return;
@@ -2426,20 +2463,24 @@ void MainWindow::configureShortcuts()
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Keyboard Shortcuts"));
     dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
-    dialog.setMinimumWidth(520);
+    dialog.resize(760, 640);
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
     layout->addWidget(new QLabel(tr("Rebind shortcuts. Clear a field to disable a shortcut."), &dialog));
-    QLabel *limitHint = new QLabel(tr("Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Canvas-specific keys are not yet configurable here."), &dialog);
+    QLabel *limitHint = new QLabel(tr("Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys."), &dialog);
     limitHint->setWordWrap(true);
     layout->addWidget(limitHint);
 
-    QFormLayout *form = new QFormLayout();
+    QScrollArea *scroll = new QScrollArea(&dialog);
+    scroll->setWidgetResizable(true);
+    QWidget *rows = new QWidget(scroll);
+    QFormLayout *form = new QFormLayout(rows);
     QHash<QString, ShortcutCaptureEdit *> editors;
 
-    for (const QString &actionId : d->shortcutActionOrder)
+    for (const auto &command : d->commandRouter->commands())
     {
-        QAction *action = d->shortcutActions.value(actionId, nullptr);
+        const QString actionId = command.id;
+        QAction *action = command.action;
         if (!action)
             continue;
 
@@ -2448,72 +2489,66 @@ void MainWindow::configureShortcuts()
         rowLayout->setContentsMargins(0, 0, 0, 0);
 
         ShortcutCaptureEdit *edit = new ShortcutCaptureEdit(row);
+        edit->setObjectName("shortcut." + actionId);
         edit->setKeySequence(action->shortcut());
 
         QPushButton *resetBtn = new QPushButton(tr("Reset"), row);
-        connect(resetBtn, &QPushButton::clicked, this, [this, actionId, edit]()
-                { edit->setKeySequence(d->shortcutDefaults.value(actionId)); });
+        connect(resetBtn, &QPushButton::clicked, this, [defaultBinding = command.defaultBinding, edit]()
+                { edit->setKeySequence(defaultBinding); });
 
         rowLayout->addWidget(edit, 1);
         rowLayout->addWidget(resetBtn);
 
         QString label = action->text();
         label.remove('&');
+        label += QStringLiteral("\n(%1)").arg(CommandRouter::scopeLabel(command.scope));
         form->addRow(label, row);
         editors.insert(actionId, edit);
     }
 
-    layout->addLayout(form);
+    scroll->setWidget(rows);
+    layout->addWidget(scroll, 1);
+    QPushButton *reference = new QPushButton(tr("Shortcut Reference"), &dialog);
+    connect(reference, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        QDialog help(&dialog);
+        help.setWindowTitle(tr("Shortcut Reference"));
+        help.resize(800, 600);
+        QVBoxLayout *helpLayout = new QVBoxLayout(&help);
+        QTextBrowser *browser = new QTextBrowser(&help);
+        browser->setMarkdown(d->commandRouter->referenceMarkdown());
+        helpLayout->addWidget(browser);
+        help.exec();
+    });
+    layout->addWidget(reference);
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     QPushButton *resetAllBtn = buttons->addButton(tr("Reset All"), QDialogButtonBox::ResetRole);
     connect(resetAllBtn, &QPushButton::clicked, this, [this, &editors]()
             {
+        for (const auto &command : d->commandRouter->commands())
+            if (auto *edit = editors.value(command.id))
+                edit->setKeySequence(command.defaultBinding);
+    });
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, [this, &dialog, &editors]() {
+        QHash<QString, QKeySequence> bindings;
         for (auto it = editors.constBegin(); it != editors.constEnd(); ++it)
-            it.value()->setKeySequence(d->shortcutDefaults.value(it.key())); });
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, [this, &dialog, &editors]()
-            {
-        // Validate while the dialog is still open: rejected duplicates should
-        // not discard all the user's edits.
-        QHash<QString, QString> usedByShortcut;
-        for (const QString &actionId : d->shortcutActionOrder)
+            bindings.insert(it.key(), it.value()->keySequence());
+        QString error;
+        QString conflictingId;
+        if (!d->commandRouter->applyBindings(bindings, &error, &conflictingId))
         {
-            ShortcutCaptureEdit *edit = editors.value(actionId, nullptr);
-            if (!edit)
-                continue;
-            const QString portable = edit->keySequence().toString(QKeySequence::PortableText);
-            if (portable.isEmpty())
-                continue;
-            if (usedByShortcut.contains(portable))
-            {
-                QMessageBox::warning(&dialog, tr("Keyboard Shortcuts"),
-                    tr("Shortcut conflict: %1 is assigned to both %2 and %3.")
-                        .arg(portable,
-                             d->shortcutActions.value(usedByShortcut.value(portable))->text(),
-                             d->shortcutActions.value(actionId)->text()));
+            QMessageBox::warning(&dialog, tr("Keyboard Shortcuts"), error);
+            if (auto *edit = editors.value(conflictingId))
                 edit->setFocus();
-                return;
-            }
-            usedByShortcut.insert(portable, actionId);
+            return;
         }
-        dialog.accept(); });
+        dialog.accept();
+    });
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
 
     if (dialog.exec() != QDialog::Accepted)
         return;
-
-    for (const QString &actionId : d->shortcutActionOrder)
-    {
-        QAction *action = d->shortcutActions.value(actionId, nullptr);
-        ShortcutCaptureEdit *edit = editors.value(actionId, nullptr);
-        if (!action || !edit)
-            continue;
-
-        const QKeySequence seq = edit->keySequence();
-        Settings::instance().setShortcut(actionId, seq);
-        action->setShortcut(seq);
-    }
 
     statusBar()->showMessage(tr("Keyboard shortcuts updated."), 2500);
 }
@@ -4776,6 +4811,11 @@ void MainWindow::undo()
     {
         Logger::debug("Undo triggered");
         ++d->editStatistics.undoCount;
+        if (!d->chartController->canUndo() && d->canvas && d->canvas->isNoteChainModeActive())
+        {
+            d->canvas->noteChainEditor()->undo();
+            return;
+        }
         const QString actionText = d->chartController->nextUndoActionText();
         d->chartController->undo();
         if (d->canvas && d->canvas->noteChainEditor())
@@ -4791,6 +4831,11 @@ void MainWindow::redo()
     {
         Logger::debug("Redo triggered");
         ++d->editStatistics.redoCount;
+        if (!d->chartController->canRedo() && d->canvas && d->canvas->isNoteChainModeActive())
+        {
+            d->canvas->noteChainEditor()->redo();
+            return;
+        }
         const QString actionText = d->chartController->nextRedoActionText();
         d->chartController->redo();
         if (d->canvas && d->canvas->noteChainEditor())
