@@ -278,10 +278,9 @@ void ChartCanvas::rebuildNoteTimesCache()
               m_sortedSelectionNoteIndicesByBeat.end(),
               [&notes](int a, int b)
               {
-                  const double aBeat = notes[a].getStartBeat();
-                  const double bBeat = notes[b].getStartBeat();
-                  if (aBeat != bBeat)
-                      return aBeat < bBeat;
+                  const int positionOrder = notes[a].startPosition().compare(notes[b].startPosition());
+                  if (positionOrder != 0)
+                      return positionOrder < 0;
                   if (notes[a].x != notes[b].x)
                       return notes[a].x < notes[b].x;
                   return a < b;
@@ -374,15 +373,15 @@ void ChartCanvas::rebuildNoteTimesCache()
 
     std::sort(m_sortedNormalNoteIndicesByBeat.begin(),
               m_sortedNormalNoteIndicesByBeat.end(),
-              [this](int a, int b)
+              [&notes](int a, int b)
               {
-                  return m_noteBeatPositions[a] < m_noteBeatPositions[b];
+                  return notes[a].startPosition() < notes[b].startPosition();
               });
     std::sort(m_sortedRainNoteIndicesByBeat.begin(),
               m_sortedRainNoteIndicesByBeat.end(),
-              [this](int a, int b)
+              [&notes](int a, int b)
               {
-                  return m_noteBeatPositions[a] < m_noteBeatPositions[b];
+                  return notes[a].startPosition() < notes[b].startPosition();
               });
     m_rainIntervalIndex.build(
         m_sortedRainNoteIndicesByBeat, m_noteBeatPositions, m_noteEndBeatPositions);

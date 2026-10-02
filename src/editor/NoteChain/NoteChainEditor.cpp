@@ -667,11 +667,10 @@ bool NoteChainEditor::commitLinksToNotes(const QSet<LinkKey> *targetLinks)
     }
     if (notes.isEmpty())
         return false;
-    std::sort(notes.begin(), notes.end(), [](const Note &left, const Note &right) {
-        const double leftBeat = left.getStartBeat();
-        const double rightBeat = right.getStartBeat();
-        if (qAbs(leftBeat - rightBeat) <= 1e-9) return left.x < right.x;
-        return leftBeat < rightBeat;
+    std::stable_sort(notes.begin(), notes.end(), [](const Note &left, const Note &right) {
+        const int positionOrder = left.startPosition().compare(right.startPosition());
+        if (positionOrder != 0) return positionOrder < 0;
+        return left.x < right.x;
     });
     return m_chartCtrl->applyBatchEdit(tr("Commit Curve -> Notes"), notes, {}, {});
 }

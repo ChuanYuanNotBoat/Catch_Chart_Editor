@@ -359,8 +359,8 @@ void LongRangeSelector::autoSwapIfNeeded()
     if (!isValidBeat(*startParsed) || !isValidBeat(*endParsed))
         return;
 
-    double startVal = beatToDouble(*startParsed);
-    double endVal = beatToDouble(*endParsed);
+    const BeatPosition startVal(startParsed->integer, startParsed->numerator, startParsed->denominator);
+    const BeatPosition endVal(endParsed->integer, endParsed->numerator, endParsed->denominator);
 
     if (startVal > endVal)
     {
@@ -449,8 +449,8 @@ void LongRangeSelector::performSelection()
     if (!isValidBeat(*startParsed) || !isValidBeat(*endParsed))
         return;
 
-    double startBeat = beatToDouble(*startParsed);
-    double endBeat = beatToDouble(*endParsed);
+    const BeatPosition startBeat(startParsed->integer, startParsed->numerator, startParsed->denominator);
+    const BeatPosition endBeat(endParsed->integer, endParsed->numerator, endParsed->denominator);
 
     const Chart *chart = m_chartController->chart();
     if (!chart)

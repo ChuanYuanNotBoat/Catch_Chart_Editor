@@ -1,6 +1,5 @@
 #include "Logger.h"
 
-#include <Windows.h>
 #include <iomanip>
 #include <utility>
 

@@ -86,11 +86,13 @@ set(SOURCES
 # depend on the system code page. /utf-8 is safe for the remaining (ASCII)
 # content of both files. AutoTimingBridgeTests compiles the same files and
 # applies /utf-8 at target level (root CMakeLists.txt) to stay identical.
-set_source_files_properties(
-    audio/BpmDetector.cpp
-    audio/AutoTiming2Bridge.cpp
-    PROPERTIES COMPILE_OPTIONS "/utf-8"
-)
+if(MSVC)
+    set_source_files_properties(
+        audio/BpmDetector.cpp
+        audio/AutoTiming2Bridge.cpp
+        PROPERTIES COMPILE_OPTIONS "/utf-8"
+    )
+endif()
 
 add_library(CatchChartEditorRuntime STATIC ${SOURCES})
 qt_add_executable(CatchChartEditor MANUAL_FINALIZATION main.cpp)
@@ -128,15 +130,14 @@ set(TRANSLATION_TS_FILES
 qt6_add_translations(CatchChartEditor
     RESOURCE_PREFIX /translations
     TS_FILES ${TRANSLATION_TS_FILES}
+    SOURCES main.cpp ${SOURCES}
 )
 
 # ---- Auto-update translation source files ----
 # Run: cmake --build . --target CatchChartEditor_lupdate
 # This scans source code for tr() calls and updates .ts files.
-qt_add_lupdate(CatchChartEditor
-    TS_FILES ${TRANSLATION_TS_FILES}
-    SOURCES main.cpp ${SOURCES}
-)
+# qt6_add_translations already creates CatchChartEditor_lupdate. Registering it
+# a second time makes CMake configuration fail (including with Qt 6.4).
 
 
 # ---- windeployqt ----
@@ -183,7 +184,7 @@ add_custom_command(TARGET CatchChartEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
         $<TARGET_FILE_DIR:CatchChartEditor>/notices/AutoTimingCore
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_SOURCE_DIR}/third_party/AutoTimingCore/ATTRIBUTION.md
+        ${AUTOTIMINGCORE_SOURCE_DIR}/ATTRIBUTION.md
         $<TARGET_FILE_DIR:CatchChartEditor>/notices/AutoTimingCore
 )
 

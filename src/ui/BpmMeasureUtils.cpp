@@ -38,7 +38,7 @@ namespace
 
     double beatPosition(const BpmEntry &entry)
     {
-        return entry.beatNum + static_cast<double>(entry.numerator) / entry.denominator;
+        return entry.position().toDouble();
     }
 
     bool samePosition(double left, double right)
@@ -456,9 +456,9 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
     }
     for (const ProjectedEntry &entry : generated)
         merged.append(makeBpmEntry(entry.beat, entry.bpm, options.maximumBeatDenominator));
-    std::sort(merged.begin(), merged.end(), [](const BpmEntry &left, const BpmEntry &right)
+    std::stable_sort(merged.begin(), merged.end(), [](const BpmEntry &left, const BpmEntry &right)
     {
-        return beatPosition(left) < beatPosition(right);
+        return left.position() < right.position();
     });
 
     QVector<BpmEntry> normalized;

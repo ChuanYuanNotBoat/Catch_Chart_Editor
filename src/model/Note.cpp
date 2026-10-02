@@ -44,38 +44,13 @@ bool Note::isValidRain() const
     if (type != NoteType::RAIN)
         return false;
 
-    // 结束时间必须 >= 起始时间
-    if (endBeatNum < beatNum)
-        return false;
-
-    if (endBeatNum == beatNum)
-    {
-        double start = static_cast<double>(numerator) / denominator;
-        double end = static_cast<double>(endNumerator) / endDenominator;
-        if (end < start)
-            return false;
-    }
-
-    // 扩展验证：检查分母不为零
-    if (denominator == 0 || endDenominator == 0)
-        return false;
-
-    // 扩展验证：检查分子分母的有效性
-    if (numerator < 0 || denominator < 0 ||
-        endNumerator < 0 || endDenominator < 0)
-        return false;
-
-    // 扩展验证：检查x坐标的有效性
-    if (x < 0 || x > 512)
-        return false;
-
-    return true;
+    return isTimeValid() && isXValid();
 }
 
 bool Note::isValid() const
 {
-    // 基本验证：检查分母不为零
-    if (denominator == 0)
+    // Validate the timeline before any type-specific use of the beat triplet.
+    if (!isTimeValid())
         return false;
 
     // 类型特定验证
@@ -98,16 +73,14 @@ bool Note::isValid() const
 
 double Note::getStartBeat() const
 {
-    return static_cast<double>(beatNum) +
-           static_cast<double>(numerator) / denominator;
+    return startPosition().toDouble();
 }
 
 double Note::getEndBeat() const
 {
     if (type == NoteType::RAIN)
     {
-        return static_cast<double>(endBeatNum) +
-               static_cast<double>(endNumerator) / endDenominator;
+        return endPosition().toDouble();
     }
     // 非rain音符的结束时间等于开始时间
     return getStartBeat();
@@ -184,9 +157,7 @@ bool Note::isTimeValid() const
             return false;
 
         // 检查结束时间不早于开始时间
-        double startBeat = getStartBeat();
-        double endBeat = getEndBeat();
-        return endBeat >= startBeat;
+        return endPosition() >= startPosition();
     }
 
     return true;

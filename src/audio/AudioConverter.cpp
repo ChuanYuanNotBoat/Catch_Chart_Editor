@@ -242,7 +242,6 @@ bool convertToOgg(const QString &inputPath,
         return fail(QStringLiteral("Cannot open output file: %1").arg(outputPath));
 
     QAudioDecoder decoder;
-    decoder.setSource(QUrl::fromLocalFile(inInfo.absoluteFilePath()));
 
     VorbisEncoder enc;
     int channels = 0;
@@ -258,6 +257,8 @@ bool convertToOgg(const QString &inputPath,
     qint64 lastPositionMs = 0;
     QString decodeError;
     QAudioDecoder::Error decoderError = QAudioDecoder::NoError;
+    QEventLoop loop;
+    bool finished = false;
 
     // Encodes one decoded buffer. Returns false on cancel or IO failure.
     const auto processBuffer = [&](const QAudioBuffer &buffer) -> bool
@@ -355,8 +356,23 @@ bool convertToOgg(const QString &inputPath,
 
     QObject::connect(&decoder, &QAudioDecoder::bufferReady, &decoder, [&]()
                      {
-        if (cancelled)
+        if (cancelled || decodeFailed)
             return;
+        // Some backends deliver all buffers before duration/position signals.
+        // Check cancellation for every buffer even when progress is unknown.
+        if (progress)
+        {
+            const float fraction = durationMs > 0
+                ? qBound(0.0f, static_cast<float>(static_cast<double>(lastPositionMs) / durationMs), 1.0f)
+                : 0.0f;
+            if (!progress(fraction))
+            {
+                cancelled = true;
+                decoder.stop();
+                loop.quit();
+                return;
+            }
+        }
         QAudioBuffer buffer = decoder.read();
         if (!buffer.isValid())
             return;
@@ -364,6 +380,7 @@ bool convertToOgg(const QString &inputPath,
         {
             decodeFailed = true;
             decoder.stop();
+            loop.quit();
         } });
 
     QObject::connect(&decoder, &QAudioDecoder::durationChanged, &decoder, [&](qint64 duration)
@@ -380,22 +397,34 @@ bool convertToOgg(const QString &inputPath,
             {
                 cancelled = true;
                 decoder.stop();
+                loop.quit();
             }
         } });
 
     QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error),
                      &decoder, [&](QAudioDecoder::Error error)
                      {
+        if (error == QAudioDecoder::NoError)
+            return;
         decodeFailed = true;
         decoderError = error;
         decodeError = decoder.errorString().isEmpty()
                           ? QStringLiteral("QAudioDecoder failed.")
-                          : decoder.errorString(); });
+                          : decoder.errorString();
+        loop.quit(); });
 
-    QEventLoop loop;
-    QObject::connect(&decoder, &QAudioDecoder::finished, &loop, &QEventLoop::quit);
-    decoder.start();
-    loop.exec();
+    QObject::connect(&decoder, &QAudioDecoder::finished, &loop, [&]() {
+        finished = true;
+        loop.quit();
+    });
+    decoder.setSource(QUrl::fromLocalFile(inInfo.absoluteFilePath()));
+    if (!decodeFailed)
+        decoder.start();
+    // Errors/stop do not necessarily emit finished. start() can also report an
+    // error synchronously, before exec(), so do not enter the loop in that case.
+    if (!finished && !cancelled && !decodeFailed)
+        loop.exec();
+    decoder.stop();
 
     if (cancelled)
     {

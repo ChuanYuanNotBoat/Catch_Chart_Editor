@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BeatPosition.h"
 #include <QUuid>
 #include <QString>
 #include <cstdint>
@@ -101,6 +102,15 @@ struct Note
      * @brief 获取音符的结束时间（以拍为单位）
      */
     double getEndBeat() const;
+
+    // Exact positions for ordering and logical ranges; doubles remain the
+    // projection used by rendering/audio, not the entity comparison key.
+    BeatPosition startPosition() const { return {beatNum, numerator, denominator}; }
+    BeatPosition endPosition() const
+    {
+        return isRainNote() ? BeatPosition(endBeatNum, endNumerator, endDenominator)
+                            : startPosition();
+    }
 
     /**
      * @brief 判断两个音符是否相等（用于撤销/重做比较）

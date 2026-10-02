@@ -9,27 +9,19 @@ namespace
 {
     bool bpmLess(const BpmEntry &a, const BpmEntry &b)
     {
-        if (a.beatNum != b.beatNum)
-            return a.beatNum < b.beatNum;
-        double aPos = static_cast<double>(a.numerator) / a.denominator;
-        double bPos = static_cast<double>(b.numerator) / b.denominator;
-        return aPos < bPos;
+        return a.position() < b.position();
     }
 
     void sortBpmList(QVector<BpmEntry> &list)
     {
-        std::sort(list.begin(), list.end(), bpmLess);
+        std::stable_sort(list.begin(), list.end(), bpmLess);
     }
 
     bool noteLess(const Note &a, const Note &b)
     {
-        if (a.beatNum != b.beatNum)
-            return a.beatNum < b.beatNum;
-
-        const double aPos = static_cast<double>(a.numerator) / a.denominator;
-        const double bPos = static_cast<double>(b.numerator) / b.denominator;
-        if (aPos != bPos)
-            return aPos < bPos;
+        const int positionOrder = a.startPosition().compare(b.startPosition());
+        if (positionOrder != 0)
+            return positionOrder < 0;
 
         if (a.type == NoteType::SOUND && b.type != NoteType::SOUND)
             return false;
@@ -254,7 +246,7 @@ const MetaData &Chart::meta() const { return m_meta; }
 
 void Chart::sortNotes()
 {
-    std::sort(m_notes.begin(), m_notes.end(), noteLess);
+    std::stable_sort(m_notes.begin(), m_notes.end(), noteLess);
 }
 
 bool Chart::isValid() const { return !m_notes.isEmpty() || m_bpmList.size() >= 1; }

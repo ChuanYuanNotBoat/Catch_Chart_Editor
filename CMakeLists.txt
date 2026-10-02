@@ -72,7 +72,7 @@ install(FILES
     DESTINATION share/${PROJECT_NAME}/licenses/libvorbis
 )
 install(FILES
-    third_party/AutoTimingCore/ATTRIBUTION.md
+    "${AUTOTIMINGCORE_SOURCE_DIR}/ATTRIBUTION.md"
     DESTINATION share/${PROJECT_NAME}/notices/AutoTimingCore
 )
 if(EXISTS "${CMAKE_SOURCE_DIR}/plugins")
@@ -123,6 +123,7 @@ if(BUILD_TESTING)
         Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test Qt6::Multimedia Qt6::Concurrent Vorbis::vorbis)
 
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
+    set_tests_properties(core_minimal_tests PROPERTIES TIMEOUT 60)
 
     add_executable(DockingLayoutTests
         tests/docking_layout_tests.cpp

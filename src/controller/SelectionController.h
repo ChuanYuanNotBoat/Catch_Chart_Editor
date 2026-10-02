@@ -43,6 +43,9 @@ public:
                       std::function<QPointF(const Note &)> noteToPos);
     void selectInBeatRange(double startBeat, double endBeat);
     QVector<int> noteIndicesInBeatRange(double startBeat, double endBeat) const;
+    void selectInBeatRange(const BeatPosition &startBeat, const BeatPosition &endBeat);
+    QVector<int> noteIndicesInBeatRange(const BeatPosition &startBeat,
+                                       const BeatPosition &endBeat) const;
 
     void copySelected(const QVector<Note> &notes); // 复制当前选中的音符到剪贴板
     void setClipboard(const QVector<Note> &notes);
