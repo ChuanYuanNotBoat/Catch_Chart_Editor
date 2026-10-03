@@ -22,6 +22,7 @@ class QTableWidget;
 class QPlainTextEdit;
 class QTimer;
 class CommandRouter;
+class TransientPanel;
 // A second workspace over the same chart/playback controllers, not a chart copy.
 class AnalysisEditor : public QWidget
 {
@@ -67,10 +68,11 @@ class AnalysisEditor : public QWidget
     ChartCanvas *m_main;
     LongRangeSelector *m_range;
     AnalysisCanvas *m_canvas;
+    TransientPanel *m_transient;
     QSplitter *m_panels, *m_work;
     QTabBar *m_leftTabs, *m_rightTabs;
     QStackedWidget *m_leftPanels, *m_rightPanels;
-    QLabel *m_time, *m_status, *m_timingSummary, *m_candidateDetails;
+    QLabel *m_time, *m_status, *m_timingSummary, *m_candidateDetails, *m_sourceName;
     QPushButton *m_play, *m_runTiming, *m_cancelTiming, *m_candidateSeek;
     QCheckBox *m_loop, *m_syncView, *m_complexSubdivision, *m_candidateGrid;
     QDoubleSpinBox *m_zoom, *m_timingStart, *m_timingDuration;

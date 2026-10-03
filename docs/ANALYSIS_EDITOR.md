@@ -59,17 +59,33 @@ These diagnostics never modify the chart or populate a BPM list. Uncertain evide
 
 Only one timing worker runs per window. Cancel discards its result and cooperatively stops preparation. The pinned AutoTiming core has no mid-analysis cancellation hook, so a running core calculation must finish before another timing job can start. Source/chart generations and audio file identity reject stale asynchronous results. Hiding the editor cancels spectrum work and discards outstanding timing work.
 
-Transient, Timbre, Tracks and Generation are explicitly marked future panels. The current extension point is only `addAnalysisPanel`; no speculative algorithm framework, machine learning, pseudo tracks or automatic chart generation is introduced. Future audio events can remain plain input/output data. Future chart candidates must enter an explicit ghost preview and then a separate undoable commit before reaching the real chart.
+Timbre, Tracks and Generation are explicitly marked future panels. The current extension point is only `addAnalysisPanel`; no speculative algorithm framework, machine learning, pseudo tracks or automatic chart generation is introduced. Future audio events can remain plain input/output data. Future chart candidates must enter an explicit ghost preview and then a separate undoable commit before reaching the real chart.
+
+## Transient debugging
+
+The Transient tab now uses the decoded stereo spectrum page without a second audio decode. Its **Curves** view shows total, low (30–250 Hz), mid (250–2000 Hz) and high (2000 Hz–Nyquist) positive spectral flux. Time runs vertically and follows the main Analysis canvas's current visible interval, flip direction and playback time. Each colored curve can be hidden independently; the dashed purple threshold applies to the total flux. Click the plot to seek both editors into a close independent view.
+
+**Peaks** lists absolute audio time, disposition, strength, half-height peak width and band strengths. Double-click a peak to seek; rejected peaks can be hidden. Rejection reasons distinguish a weak peak, minimum-interval suppression and the FFT's padded page edges. Peak width describes a flux lobe, not the duration of the underlying sound. Neither parameter changes, seeking nor JSON export writes notes, timing, snap or undo history.
+
+Relative threshold is a fraction of the strongest total flux in the loaded audio page. A 150 ms local median floor is also applied. Minimum interval keeps the stronger of nearby peaks; it does not assume a BPM or quantize event times. Export includes every curve frame, threshold and detected/rejected peak, options and STFT provenance.
+
+`analysis/TransientAnalysis` has no Qt or editor dependency. It rectifies channels separately and averages positive differences of log-compressed linear magnitudes from the existing display-band STFT. This is an inspection baseline, not a calibrated detector: log bands overlap, FFT resolution and hop limit temporal accuracy, and page-relative thresholds can change when a new page is loaded. The first frame has no previous-frame evidence and is not a detected onset; a half-FFT margin excludes page-edge peaks. Absolute audio times never include chart offset.
+
+The panel debounces parameter edits and allows one background transient worker. A new spectrum page, new parameters or source changes cancel/supersede obsolete work. Source changes immediately clear results and export data, and stale callbacks cannot repopulate them. A shared immutable page keeps worker input alive safely after the panel is destroyed.
 
 ## Validation
 
 `SpectrumAnalysisTests` builds the core without Qt and checks stereo tone separation, audio origin, RMS/peak, mono duplication, silence, invalid samples and cancellation.
+
+`TransientAnalysisTests` also builds without Qt. Synthetic frequency bursts check band attribution and absolute times; a weaker high-frequency attack verifies threshold recovery. Additional cases check opposite-channel rectification, stronger-peak suppression, padded boundaries, silence, malformed/non-finite input and cancellation. Editor integration checks real WAV-derived events, row filtering, peak/plot seeking, JSON provenance, rapid parameter updates and rejection of an active worker after source replacement.
 
 `AnalysisEditorTests` uses the real MainWindow/controller integration in Qt's offscreen platform. It checks compact/persistent layout, coordinate inversion and viewport modes, bidirectional seeking, shared undo, isolated shortcuts, Rain tail editing, shared range/loop, diagnostic semantics, window-candidate navigation, absolute-phase preview placement and range limits, unchanged chart/snap during preview, actual stereo WAV decoding, the real asynchronous timing pipeline, stale-result rejection, playback synchronization and loop wraparound.
 
 The normal CCE tests remain enabled. Native Windows/macOS appearance and hardware audio latency require platform validation; the first implementation is validated with Qt 6.4 on Linux.
 
 The compact-lane and candidate-preview iteration built with Qt 6.4.2 / GCC 13 on Linux and passed all 15 CTest targets. Its UI checks include returning to the same selected row in another table, empty-window handling and clearing old previews after an audio source change.
+
+The Transient iteration built on the same Linux/Qt environment and passed all 16 CTest targets (127.26 s). After the final JSON/legend/table refinements and active-worker cancellation case, all three Analysis targets passed again (17.55 s). The real WAV/timing screenshot case also passed, and both new Transient views were visually inspected. Native Windows/macOS appearance and real-song detector tuning remain follow-up validation.
 
 To reproduce the five runtime screenshots, run the real audio/timing integration case with an output directory:
 
@@ -78,7 +94,21 @@ QT_QPA_PLATFORM=offscreen CCE_ANALYSIS_SCREENSHOT_DIR=/tmp/cce-analysis-screensh
   ./build/AnalysisEditorTests realAudioAndTimingPipeline
 ```
 
-The fixture creates 12 seconds of synthetic stereo pulses, decodes and analyzes that WAV through the production pipeline, and temporarily adds Notes and Rain through the chart controller. It captures the collapsed layout, a close view, global timing candidates, a window candidate's grid preview and raw diagnostics. Fixture chart edits are undone after capture.
+The fixture creates 12 seconds of synthetic stereo pulses, decodes and analyzes that WAV through the production pipeline, and temporarily adds Notes and Rain through the chart controller. It captures the collapsed layout, a close view, global timing candidates, a window candidate's grid preview, raw diagnostics, transient curves and the detected/rejected peak table. Fixture chart edits are undone after capture.
+
+### User-supplied audio inspection
+
+The window header now identifies the loaded audio by filename. An optional test case uses the actual project decoding, asynchronous analysis, table interactions and playback controllers to inspect a local audio file. It skips when the environment variable is absent; no music files or generated song diagnostics are included in the repository and no new dependency is required.
+
+```sh
+QT_QPA_PLATFORM=offscreen CCE_ANALYSIS_AUDIO_FILE=/absolute/path/music.flac \
+  CCE_ANALYSIS_SCREENSHOT_DIR=/tmp/cce-real-audio \
+  ./build/AnalysisEditorTests externalAudioInspection
+```
+
+The case checks the opening eight seconds, an eight-second range at 40% of the file, a late eight-second range and a cropped EOF range. It validates finite stereo magnitudes, absolute event locations and page boundaries. Equal channels and silent ranges are valid audio, not failures. In the real editor it checks parameter restoration, peak double-click navigation, 16 seconds of timing analysis, local candidate preview, loop wraparound, unchanged chart/undo history and clearing results after source removal. It captures five views and exports transient/timing JSON plus an inspection report. The preview screenshot selects the available local candidate with the highest reported phase confidence; that selection is only test setup, not an automatic timing recommendation.
+
+On 2026-10-03 the case was run directly on user-supplied **II-L – SPUTNIK-1** (173.647 s) and **Horror Gamer Nikson – Old dog,New tricks** (307.622 s), both original 44.1 kHz stereo FLACs. All four decode ranges and GUI interactions passed for both tracks. The 60–90 s SPUTNIK spectrum page yielded 247 detected / 408 rejected peaks, and the 120–150 s Old dog page yielded 216 / 621 with the default threshold 0.12 and 60 ms interval. SPUTNIK's final two seconds were silent and correctly yielded no peaks. These are detector outputs, not counts of manually annotated musical attacks. Timing analysis completed and exposed absolute-phase candidates on both tracks; candidate accuracy and hardware audio latency were not certified by this inspection.
 
 ## Original implementation patch
 

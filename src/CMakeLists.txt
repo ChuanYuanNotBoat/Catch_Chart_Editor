@@ -29,10 +29,12 @@ set(SOURCES
     file/PluginLoader.cpp
     file/ChartFileSystem.cpp
     analysis/SpectrumAnalysis.cpp
+    analysis/TransientAnalysis.cpp
     analysis/AutoTimingDiagnostics.cpp
     audio/SpectrumService.cpp
     ui/analysis/AnalysisCanvas.cpp
     ui/analysis/AnalysisEditor.cpp
+    ui/analysis/TransientPanel.cpp
     audio/AudioPlayer.cpp
     audio/NoteSoundPlayer.cpp
     audio/BpmDetector.cpp
@@ -95,6 +97,7 @@ if(MSVC)
         audio/AutoTiming2Bridge.cpp
         ui/analysis/AnalysisCanvas.cpp
         ui/analysis/AnalysisEditor.cpp
+        ui/analysis/TransientPanel.cpp
         PROPERTIES COMPILE_OPTIONS "/utf-8"
     )
 endif()
