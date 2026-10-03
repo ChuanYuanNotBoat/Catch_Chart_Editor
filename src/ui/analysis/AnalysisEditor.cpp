@@ -17,6 +17,7 @@
 #include <QTabWidget>
 #include <QStackedWidget>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QLabel>
 #include <QPushButton>
 #include <QCheckBox>
@@ -522,13 +523,33 @@ QWidget *AnalysisEditor::createTimingPanel()
         t->setHorizontalHeaderLabels(fields);
         t->setEditTriggers(QAbstractItemView::NoEditTriggers);
         t->setSelectionBehavior(QAbstractItemView::SelectRows);
+        t->setSelectionMode(QAbstractItemView::SingleSelection);
         t->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
         t->horizontalHeader()->setDefaultSectionSize(116);
         t->verticalHeader()->hide();
         t->setAlternatingRowColors(true);
         for (int i = 0; i < fields.size(); ++i)
             t->horizontalHeaderItem(i)->setData(Qt::UserRole, fields[i]);
-        connect(t, &QTableWidget::cellDoubleClicked, this, [this, t](int row, int) {
+        const auto inspectRow = [this, t, id](int row) {
+            const auto *item = t->item(row, 0);
+            if (!item)
+                return;
+            const auto object = item->data(Qt::UserRole).toJsonObject();
+            if (id == QLatin1String("windows"))
+                selectDiagnosticWindow(object);
+            else if (id == QLatin1String("tempoCandidates") || id == QLatin1String("windowCandidates"))
+                selectTimingCandidate(object);
+        };
+        connect(t, &QTableWidget::currentCellChanged, this, [inspectRow](int row, int, int, int) {
+            inspectRow(row);
+        });
+        // Re-selecting a row after inspecting another table must restore its
+        // candidate too; the current cell need not have changed.
+        connect(t, &QTableWidget::cellClicked, this, [inspectRow](int row, int) {
+            inspectRow(row);
+        });
+        connect(t, &QTableWidget::cellDoubleClicked, this, [this, t, id, tabs, inspectRow](int row, int) {
+            inspectRow(row);
             if (!t->item(row, 0))
                 return;
             const auto o = t->item(row, 0)->data(Qt::UserRole).toJsonObject();
@@ -537,12 +558,14 @@ QWidget *AnalysisEditor::createTimingPanel()
                 v = o.value("startSeconds");
             if (!v.isDouble())
                 v = o.value("pulseTimeSeconds");
-            if (v.isDouble())
+            if (v.isDouble() && std::isfinite(v.toDouble()))
             {
                 m_syncView->setChecked(false);
                 m_zoom->setValue(1);
                 seek(v.toDouble() * 1000);
             }
+            if (id == QLatin1String("windows"))
+                tabs->setCurrentWidget(m_tables.value("windowCandidates"));
         });
         m_tables.insert(id, t);
         tabs->addTab(t, label);
@@ -554,6 +577,9 @@ QWidget *AnalysisEditor::createTimingPanel()
     table("windows", tr("Windows"),
           {"id", "startSeconds", "endSeconds", "scale", "reliability", "tempoEvidence",
            "crossScaleConsistency", "selectedAsAnchor", "estimatorMessage"});
+    table("windowCandidates", tr("Window candidates"),
+          {"bpm", "rawBpm", "score", "rawBpmUncertainty", "pulseTimeSeconds", "phaseConfidence",
+           "legacyOffsetMilliseconds", "origin", "harmonicRatio", "periodSeconds"});
     table("tempoTrack", tr("Track"),
           {"timeSeconds", "bpm", "pulseTimeSeconds", "confidence", "phaseConfidence", "state",
            "propagationReason", "sourceWindowId"});
@@ -572,8 +598,36 @@ QWidget *AnalysisEditor::createTimingPanel()
     table("uncertainRegions", tr("Uncertainty"), {"startSeconds", "endSeconds", "confidence", "reason"});
     tabs->setMinimumHeight(230);
     layout->addWidget(tabs, 1);
-    auto *hint = new QLabel(tr("Double-click a timed row to inspect audio. Scores/costs are diagnostics, not "
-                               "probabilities. Analysis does not modify the chart."));
+    m_candidateDetails = new QLabel(tr("Select a candidate or an analysis window to inspect its phase."));
+    m_candidateDetails->setObjectName("analysis.candidateDetails");
+    m_candidateDetails->setWordWrap(true);
+    m_candidateDetails->setTextFormat(Qt::PlainText);
+    m_candidateDetails->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    layout->addWidget(m_candidateDetails);
+    auto *preview = new QHBoxLayout;
+    m_candidateGrid = new QCheckBox(tr("Preview candidate grid"));
+    m_candidateGrid->setObjectName("analysis.candidateGrid");
+    m_candidateGrid->setEnabled(false);
+    m_candidateGrid->setToolTip(tr("Constant BPM reference at the reported absolute pulse. Cyan lines are "
+                                   "limited to the analyzed range. Chart timing and placement snap stay unchanged."));
+    m_candidateSeek = new QPushButton(tr("Go to pulse"));
+    m_candidateSeek->setObjectName("analysis.candidateSeek");
+    m_candidateSeek->setEnabled(false);
+    preview->addWidget(m_candidateGrid);
+    preview->addWidget(m_candidateSeek);
+    layout->addLayout(preview);
+    connect(m_candidateGrid, &QCheckBox::toggled, this, &AnalysisEditor::updateTimingPreview);
+    connect(m_candidateSeek, &QPushButton::clicked, this, [this] {
+        const auto pulse = m_selectedCandidate.value("pulseTimeSeconds");
+        if (!pulse.isDouble() || !std::isfinite(pulse.toDouble()))
+            return;
+        m_syncView->setChecked(false);
+        m_zoom->setValue(1);
+        seek(pulse.toDouble() * 1000);
+    });
+    auto *hint =
+        new QLabel(tr("Double-click a window to inspect its local candidates and audio. Global "
+                      "candidates currently carry tempo only. Scores/costs are diagnostics, not probabilities."));
     hint->setWordWrap(true);
     layout->addWidget(hint);
     return panel;
@@ -597,7 +651,11 @@ void AnalysisEditor::fillTable(const QString &id, const QJsonArray &rows)
     auto *t = m_tables.value(id);
     if (!t)
         return;
+    const QSignalBlocker blocker(t);
+    t->clearContents();
     t->setRowCount(rows.size());
+    t->setCurrentCell(-1, -1);
+    t->clearSelection();
     for (int r = 0; r < rows.size(); ++r)
     {
         const auto o = rows[r].toObject();
@@ -611,9 +669,88 @@ void AnalysisEditor::fillTable(const QString &id, const QJsonArray &rows)
         }
     }
 }
+void AnalysisEditor::selectDiagnosticWindow(const QJsonObject &window)
+{
+    QJsonArray rows;
+    for (const auto &value : window.value("tempoCandidates").toArray())
+    {
+        auto candidate = value.toObject();
+        candidate["windowId"] = window.value("id");
+        candidate["previewStartSeconds"] = window.value("startSeconds");
+        candidate["previewEndSeconds"] = window.value("endSeconds");
+        rows.append(candidate);
+    }
+    fillTable("windowCandidates", rows);
+    if (!rows.isEmpty())
+    {
+        auto *locals = m_tables.value("windowCandidates");
+        locals->setCurrentCell(0, 0);
+        // A hidden table can have a narrow provisional viewport when selection
+        // scrolls the first cell into view. Keep the BPM column fully visible.
+        locals->horizontalScrollBar()->setValue(0);
+        selectTimingCandidate(rows.first().toObject());
+    }
+    else
+    {
+        selectTimingCandidate({});
+        m_candidateDetails->setText(tr("Window #%1 has no tempo candidates.").arg(cellText(window.value("id"))));
+    }
+}
+void AnalysisEditor::selectTimingCandidate(const QJsonObject &candidate)
+{
+    m_selectedCandidate = candidate;
+    const auto pulse = candidate.value("pulseTimeSeconds");
+    const bool hasPulse =
+        candidate.value("hasPulseTime").toBool() && pulse.isDouble() && std::isfinite(pulse.toDouble());
+    m_candidateSeek->setEnabled(hasPulse);
+    const double bpm = candidate.value("bpm").toDouble();
+    const double start =
+        candidate.value("previewStartSeconds").toDouble(m_diagnostics.value("analysisStartMs").toDouble() / 1000);
+    const double end =
+        candidate.value("previewEndSeconds").toDouble(start + m_diagnostics.value("durationSeconds").toDouble());
+    const bool canPreview = hasPulse && std::isfinite(bpm) && bpm > 0 && bpm <= 10000 && std::isfinite(start)
+                            && std::isfinite(end) && start >= 0 && end > start;
+    m_candidateGrid->setEnabled(canPreview);
+    if (!canPreview)
+        m_candidateGrid->setChecked(false);
+    if (candidate.isEmpty())
+        m_candidateDetails->setText(tr("Select a candidate or an analysis window to inspect its phase."));
+    else
+    {
+        const QString scope = candidate.contains("windowId") ? tr("Window #%1 · %2–%3 s")
+                                                                   .arg(cellText(candidate.value("windowId")))
+                                                                   .arg(start, 0, 'f', 3)
+                                                                   .arg(end, 0, 'f', 3)
+                                                             : tr("Global candidate");
+        m_candidateDetails->setText(
+            tr("%1\n%2 BPM · pulse %3\nPhase confidence %4 · legacy offset %5 ms")
+                .arg(scope)
+                .arg(bpm, 0, 'f', 5)
+                .arg(hasPulse ? tr("%1 s").arg(pulse.toDouble(), 0, 'f', 6) : tr("unavailable (tempo only)"))
+                .arg(cellText(candidate.value("phaseConfidence")))
+                .arg(cellText(candidate.value("legacyOffsetMilliseconds"))));
+    }
+    updateTimingPreview();
+}
+void AnalysisEditor::updateTimingPreview()
+{
+    if (!m_candidateGrid->isChecked() || !m_candidateGrid->isEnabled())
+    {
+        m_canvas->clearTimingPreview();
+        return;
+    }
+    const double start = m_selectedCandidate.value("previewStartSeconds")
+                             .toDouble(m_diagnostics.value("analysisStartMs").toDouble() / 1000);
+    const double end = m_selectedCandidate.value("previewEndSeconds")
+                           .toDouble(start + m_diagnostics.value("durationSeconds").toDouble());
+    m_canvas->setTimingPreview(m_selectedCandidate.value("bpm").toDouble(),
+                               m_selectedCandidate.value("pulseTimeSeconds").toDouble() * 1000, start * 1000,
+                               end * 1000);
+}
 void AnalysisEditor::showTimingResult(const BpmDetector::DetectionResult &result,
                                       const QString &pipelineError)
 {
+    clearDiagnostics();
     m_diagnostics = analysis::timingDiagnostics(result);
     m_diagnostics["pipelineError"] = pipelineError;
     m_diagnostics["audioPath"] = m_audioPath;
@@ -685,6 +822,11 @@ void AnalysisEditor::showTimingResult(const BpmDetector::DetectionResult &result
             summary += '\n' + error;
     m_timingSummary->setText(summary);
     m_raw->setPlainText(QString::fromUtf8(QJsonDocument(m_diagnostics).toJson()));
+    if (m_tables.value("tempoCandidates")->rowCount() > 0)
+    {
+        m_tables.value("tempoCandidates")->setCurrentCell(0, 0);
+        selectTimingCandidate(m_diagnostics.value("tempoCandidates").toArray().first().toObject());
+    }
 }
 void AnalysisEditor::runTiming()
 {
@@ -737,6 +879,12 @@ void AnalysisEditor::cancelTiming()
 }
 void AnalysisEditor::clearDiagnostics()
 {
+    m_selectedCandidate = {};
+    m_candidateGrid->setChecked(false);
+    m_candidateGrid->setEnabled(false);
+    m_candidateSeek->setEnabled(false);
+    m_canvas->clearTimingPreview();
+    m_candidateDetails->setText(tr("Select a candidate or an analysis window to inspect its phase."));
     m_diagnostics = {};
     for (auto *table : m_tables)
         table->setRowCount(0);
@@ -770,7 +918,8 @@ void AnalysisEditor::saveLayout()
     s.setValue("geometry", saveGeometry());
     s.setValue("work", m_work->saveState());
     s.setValue("panels", m_panels->saveState());
-    s.setValue("spectrumFraction", m_canvas->spectrumFraction());
+    s.setValue("noteLaneWidth", m_canvas->noteLaneWidth());
+    s.remove("spectrumFraction");
     s.setValue("msPerPixel", m_canvas->millisecondsPerPixel());
     s.setValue("syncView", m_syncView->isChecked());
     s.setValue("leftOpen", m_leftOpen);
@@ -785,7 +934,7 @@ void AnalysisEditor::restoreLayout()
     m_work->setSizes({available / 2, available / 2});
     m_work->restoreState(s.value("work").toByteArray());
     m_panels->restoreState(s.value("panels").toByteArray());
-    m_canvas->setSpectrumFraction(s.value("spectrumFraction", .72).toDouble());
+    m_canvas->setNoteLaneWidth(s.value("noteLaneWidth", 56).toInt());
     m_zoom->setValue(s.value("msPerPixel", 6).toDouble());
     m_syncView->setChecked(s.value("syncView", false).toBool());
     const int left = s.value("leftOpen", -1).toInt(), right = s.value("rightOpen", -1).toInt();
