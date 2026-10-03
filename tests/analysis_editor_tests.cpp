@@ -1,6 +1,7 @@
 #include "app/MainWindow.h"
 #include "ui/analysis/AnalysisEditor.h"
 #include "ui/analysis/AnalysisCanvas.h"
+#include "ui/analysis/TransientPanel.h"
 #include "analysis/AutoTimingDiagnostics.h"
 #include "audio/SpectrumService.h"
 #include "audio/AudioPlayer.h"
@@ -33,6 +34,8 @@
 #include <QMenu>
 #include <QTabWidget>
 #include <QLabel>
+#include <QElapsedTimer>
+#include <QFileInfo>
 #include <memory>
 #include <cmath>
 class AnalysisEditorTests : public QObject
@@ -48,7 +51,10 @@ class AnalysisEditorTests : public QObject
     ChartCanvas *m_mainCanvas = nullptr;
     LongRangeSelector *m_range = nullptr;
     QString m_wav;
-    AnalysisCanvas *canvas() const { return m_editor->canvas(); }
+    AnalysisCanvas *canvas() const
+    {
+        return m_editor->canvas();
+    }
     QPoint atBeat(double beat) const
     {
         return QPoint((canvas()->spectrumWidth() + canvas()->width()) / 2,
@@ -90,14 +96,14 @@ class AnalysisEditorTests : public QObject
     }
     void createEditor()
     {
-        m_editor = std::make_unique<AnalysisEditor>(&m_chart, &m_selection, &m_playback, m_mainCanvas,
-                                                    m_range, m_main.get());
+        m_editor =
+            std::make_unique<AnalysisEditor>(&m_chart, &m_selection, &m_playback, m_mainCanvas, m_range, m_main.get());
         m_editor->show();
         m_editor->activateWindow();
         canvas()->setFocus();
         QTest::qWait(30);
     }
-  private slots:
+private slots:
     void initTestCase()
     {
         QVERIFY(m_temp.isValid());
@@ -305,21 +311,16 @@ class AnalysisEditorTests : public QObject
         anchor.phaseBeat = 2;
         result.analysis.tempoMap.anchors.append(anchor);
         m_editor->showTimingResult(result);
-        const auto raw =
-            QJsonDocument::fromJson(
-                m_editor->findChild<QPlainTextEdit *>("analysis.rawDiagnostics")->toPlainText().toUtf8())
-                .object();
+        const auto raw = QJsonDocument::fromJson(
+                             m_editor->findChild<QPlainTextEdit *>("analysis.rawDiagnostics")->toPlainText().toUtf8())
+                             .object();
         const auto row = raw.value("tempoCandidates").toArray().first().toObject();
         QCOMPARE(row.value("pulseTimeSeconds").toDouble(), 12.345);
         QCOMPARE(row.value("legacyOffsetMilliseconds").toDouble(), -41.);
         QVERIFY(raw.value("legacyBpm").isNull());
-        QVERIFY(qAbs(raw.value("derivedAnchorFit")
-                         .toArray()
-                         .first()
-                         .toObject()
-                         .value("residualMilliseconds")
-                         .toDouble() +
-                     100) < 1e-6);
+        QVERIFY(qAbs(raw.value("derivedAnchorFit").toArray().first().toObject().value("residualMilliseconds").toDouble()
+                     + 100)
+                < 1e-6);
         result.analysis.tempoCandidates[0].hasPulseTime = false;
         QVERIFY(analysis::timingDiagnostics(result)
                     .value("tempoCandidates")
@@ -443,6 +444,10 @@ class AnalysisEditorTests : public QObject
         QVERIFY(qAbs(result.durationSeconds - 2.5) < .001);
         loadChart(true);
         QTRY_VERIFY_WITH_TIMEOUT(canvas()->spectrum().valid(), 15000);
+        auto *transient = m_editor->findChild<TransientPanel *>();
+        QVERIFY(transient);
+        QTRY_VERIFY_WITH_TIMEOUT(transient->result().valid(), 15000);
+        QVERIFY(!transient->result().peaks.empty());
         auto *tabs = m_editor->findChild<QTabBar *>("analysis.leftTabs");
         QTest::mouseClick(tabs, Qt::LeftButton, {}, tabs->tabRect(0).center());
         m_editor->findChild<QDoubleSpinBox *>("analysis.timingDuration")->setValue(12);
@@ -450,10 +455,9 @@ class AnalysisEditorTests : public QObject
         run->click();
         QVERIFY(!run->isEnabled());
         QTRY_VERIFY_WITH_TIMEOUT(run->isEnabled(), 45000);
-        const auto raw =
-            QJsonDocument::fromJson(
-                m_editor->findChild<QPlainTextEdit *>("analysis.rawDiagnostics")->toPlainText().toUtf8())
-                .object();
+        const auto raw = QJsonDocument::fromJson(
+                             m_editor->findChild<QPlainTextEdit *>("analysis.rawDiagnostics")->toPlainText().toUtf8())
+                             .object();
         QCOMPARE(raw.value("analysisStatus").toString(), QString("Succeeded"));
         QVERIFY(raw.value("windows").toArray().size() > 0);
         QCOMPARE(raw.value("timeline").toString(), QString("whole-file audio seconds"));
@@ -518,6 +522,17 @@ class AnalysisEditorTests : public QObject
             m_editor->findChild<QSplitter *>("analysis.work")->setSizes({620, 180});
             QTest::qWait(60);
             QVERIFY(m_editor->grab().save(screenshots + "/05-diagnostics.png"));
+            QTest::mouseClick(right, Qt::LeftButton, {}, right->tabRect(2).center());
+            QTest::mouseClick(tabs, Qt::LeftButton, {}, tabs->tabRect(1).center());
+            m_editor->findChild<QSplitter *>("analysis.panels")->setSizes({450, 950, 0});
+            m_editor->findChild<QSplitter *>("analysis.work")->setSizes({580, 370});
+            m_mainCanvas->setScrollPos(2000);
+            QTest::qWait(60);
+            QVERIFY(m_editor->grab().save(screenshots + "/06-transient-curves.png"));
+            auto *transientTabs = m_editor->findChild<QTabWidget *>("analysis.transientTabs");
+            transientTabs->setCurrentIndex(1);
+            QTest::qWait(60);
+            QVERIFY(m_editor->grab().save(screenshots + "/07-transient-peaks.png"));
             while (m_chart.canUndo())
                 m_chart.undo();
             QCOMPARE(m_chart.chart()->notes().size(), 0);
@@ -531,6 +546,92 @@ class AnalysisEditorTests : public QObject
         QVERIFY(!canvas()->timingPreviewVisible());
         QVERIFY(!preview->isChecked());
         QCOMPARE(locals->rowCount(), 0);
+        QVERIFY(!transient->result().valid());
+    }
+    void transientParametersNavigationAndStaleResults()
+    {
+        auto *panel = m_editor->findChild<TransientPanel *>();
+        auto *peaks = m_editor->findChild<QTableWidget *>("analysis.transientPeaks");
+        auto *threshold = m_editor->findChild<QDoubleSpinBox *>("analysis.transientThreshold");
+        auto *interval = m_editor->findChild<QDoubleSpinBox *>("analysis.transientInterval");
+        auto *rejected = m_editor->findChild<QCheckBox *>("analysis.transientRejected");
+        QVERIFY(panel && peaks && threshold && interval && rejected);
+        loadChart(true);
+        QTRY_VERIFY_WITH_TIMEOUT(panel->result().valid(), 15000);
+        const int all = peaks->rowCount();
+        QVERIFY(all > 5);
+        auto detectedCount = [&] {
+            return std::count_if(panel->result().peaks.begin(), panel->result().peaks.end(), [](const auto &p) {
+                return p.disposition == analysis::PeakDisposition::Detected;
+            });
+        };
+        const auto defaultCount = detectedCount();
+        QVERIFY(defaultCount >= 5);
+        const auto json = panel->diagnostics();
+        QCOMPARE(json.value("timeline").toString(), QString("whole-file audio seconds"));
+        QCOMPARE(json.value("peaks").toArray().size(), int(panel->result().peaks.size()));
+        const auto firstPeak = json.value("peaks").toArray().first().toObject();
+        QCOMPARE(firstPeak.value("timeSeconds").toDouble(), panel->result().peaks.front().timeSeconds);
+        QVERIFY(firstPeak.contains("disposition") && firstPeak.contains("widthSeconds"));
+        rejected->setChecked(false);
+        QCOMPARE(peaks->rowCount(), int(defaultCount));
+        rejected->setChecked(true);
+        QCOMPARE(peaks->rowCount(), all);
+        auto *side = m_editor->findChild<QTabBar *>("analysis.leftTabs");
+        QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(1).center());
+        auto *tabs = m_editor->findChild<QTabWidget *>("analysis.transientTabs");
+        tabs->setCurrentIndex(1);
+        peaks->setCurrentCell(2, 0);
+        const double time = peaks->item(2, 0)->data(Qt::UserRole).toDouble();
+        QTest::mouseClick(peaks->viewport(), Qt::LeftButton, {}, peaks->visualItemRect(peaks->item(2, 0)).center());
+        QTest::mouseDClick(peaks->viewport(), Qt::LeftButton, {}, peaks->visualItemRect(peaks->item(2, 0)).center());
+        QVERIFY(qAbs(canvas()->currentTime() - time * 1000) < .01);
+        QVERIFY(qAbs(m_mainCanvas->currentPlayTime() - time * 1000) < .01);
+        QVERIFY(!canvas()->viewSynchronized());
+        QCOMPARE(canvas()->millisecondsPerPixel(), 1.);
+        tabs->setCurrentIndex(0);
+        auto *plot = m_editor->findChild<QWidget *>("analysis.transientPlot");
+        const double expected = canvas()->timeAtY(28 + .5 * (canvas()->height() - 28));
+        QTest::mouseClick(plot, Qt::LeftButton, {}, QPoint(plot->width() / 2, qRound(24 + .5 * (plot->height() - 42))));
+        QVERIFY(qAbs(canvas()->currentTime() - expected) < 3);
+        // Rapid parameter edits must finish with only the latest options visible.
+        threshold->setValue(.95);
+        interval->setValue(2000);
+        QTRY_VERIFY_WITH_TIMEOUT(panel->result().valid() && !panel->busy(), 10000);
+        QVERIFY(detectedCount() < defaultCount);
+        QCOMPARE(panel->diagnostics().value("minimumIntervalSeconds").toDouble(), 2.);
+        threshold->setValue(.12);
+        interval->setValue(60);
+        QTRY_VERIFY_WITH_TIMEOUT(panel->result().valid() && !panel->busy(), 10000);
+        QCOMPARE(detectedCount(), defaultCount);
+        QCOMPARE(m_chart.chart()->notes().size(), 0);
+        QVERIFY(!m_chart.canUndo());
+        QCOMPARE(m_chart.chart()->meta().offset, 125.);
+        // Supersede a pending job with a different source, without accepting its old results.
+        auto large = canvas()->spectrum();
+        const auto left = large.leftDb, right = large.rightDb;
+        large.frames.resize(12000);
+        large.durationSeconds = large.hopSeconds * 12000;
+        large.leftDb.clear();
+        large.rightDb.clear();
+        for (int i = 0; i < 10; ++i)
+        {
+            large.leftDb.insert(large.leftDb.end(), left.begin(), left.end());
+            large.rightDb.insert(large.rightDb.end(), right.begin(), right.end());
+        }
+        panel->setSpectrum(large);
+        QTRY_VERIFY_WITH_TIMEOUT(([&] {
+                                     const auto watchers = panel->findChildren<QFutureWatcherBase *>();
+                                     return std::any_of(watchers.begin(), watchers.end(), [](auto *w) {
+                                         return w->isRunning();
+                                     });
+                                 })(),
+                                 10000);
+        loadChart();
+        QTRY_VERIFY_WITH_TIMEOUT(!panel->busy(), 10000);
+        QVERIFY(!panel->result().valid());
+        QVERIFY(panel->diagnostics().isEmpty());
+        QCOMPARE(peaks->rowCount(), 0);
     }
     void realPlaybackAndLoop()
     {
@@ -539,8 +640,10 @@ class AnalysisEditorTests : public QObject
         QTRY_VERIFY_WITH_TIMEOUT(m_audio.canPlay(), 10000);
         m_playback.setLoopRange(400, 800, true);
         QSignalSpy ticks(&m_playback, &PlaybackController::playbackFrameTick);
-        const auto ack = connect(&m_playback, &PlaybackController::playbackFrameTick, &m_playback,
-                                 [this](double, qint64 seq) { m_playback.acknowledgeFramePainted(seq); });
+        const auto ack =
+            connect(&m_playback, &PlaybackController::playbackFrameTick, &m_playback, [this](double, qint64 seq) {
+                m_playback.acknowledgeFramePainted(seq);
+            });
         m_playback.playFromTime(400);
         QTRY_VERIFY_WITH_TIMEOUT(ticks.size() >= 10, 5000);
         QTest::qWait(950);
@@ -557,6 +660,234 @@ class AnalysisEditorTests : public QObject
         }
         QVERIFY(wrapped);
         QVERIFY(qAbs(canvas()->currentTime() - m_mainCanvas->currentPlayTime()) < 25);
+    }
+    // Optional integration case: no copyrighted audio is included in the repository.
+    // Set CCE_ANALYSIS_AUDIO_FILE to inspect an actual audio file through production Qt APIs.
+    void externalAudioInspection()
+    {
+        const QString path = qEnvironmentVariable("CCE_ANALYSIS_AUDIO_FILE");
+        if (path.isEmpty())
+            QSKIP("Set CCE_ANALYSIS_AUDIO_FILE to inspect user-supplied audio");
+        QVERIFY(QFileInfo::exists(path));
+        const QString output = qEnvironmentVariable("CCE_ANALYSIS_SCREENSHOT_DIR");
+        if (!output.isEmpty())
+            QVERIFY(QDir().mkpath(output));
+        Chart chart;
+        chart.addBpm(BpmEntry(0, 0, 1, 120)); // blank test chart, not inferred song timing
+        chart.meta().offset = 0;
+        chart.meta().audioFile = path;
+        chart.meta().title = QFileInfo(path).completeBaseName();
+        QVERIFY(m_chart.loadChartFromData(m_temp.filePath("external.mc"), chart));
+        QTRY_VERIFY_WITH_TIMEOUT(m_audio.duration() > 1000 && m_audio.canPlay(), 15000);
+        const double duration = m_audio.duration() / 1000.;
+        auto *panel = m_editor->findChild<TransientPanel *>();
+        QVERIFY(panel);
+        QJsonObject report{{"fileName", QFileInfo(path).fileName()},
+                           {"audioDurationSeconds", duration},
+                           {"chartGrid", "blank test chart at 120 BPM; not song ground truth"}};
+        QJsonArray inspected;
+        // Early, middle, late and EOF ranges check seeking/cropping in a long FLAC.
+        for (double start : {0., duration * .4, std::max(0., duration - 12), std::max(0., duration - 2)})
+        {
+            QElapsedTimer elapsed;
+            elapsed.start();
+            const auto spectrum = SpectrumService::analyzeFileRange(path, start * 1000, 8000, {});
+            QVERIFY2(spectrum.valid(), spectrum.error.c_str());
+            QVERIFY(spectrum.sourceChannels > 0);
+            QVERIFY(spectrum.sampleRate >= 1000 && spectrum.sampleRate <= 384000);
+            QVERIFY(qAbs(spectrum.startSeconds - start) < .001);
+            QVERIFY(qAbs(spectrum.durationSeconds - std::min(8., duration - start)) < .02);
+            for (float value : spectrum.leftDb)
+                QVERIFY(std::isfinite(value));
+            for (float value : spectrum.rightDb)
+                QVERIFY(std::isfinite(value));
+            const auto result = analysis::analyzeTransients(spectrum);
+            QVERIFY2(result.valid(), result.error.c_str());
+            int detected = 0;
+            for (const auto &peak : result.peaks)
+            {
+                QVERIFY(peak.timeSeconds >= spectrum.startSeconds);
+                QVERIFY(peak.timeSeconds < spectrum.startSeconds + spectrum.durationSeconds);
+                QVERIFY(std::isfinite(peak.strength) && std::isfinite(peak.widthSeconds));
+                if (peak.disposition == analysis::PeakDisposition::Detected)
+                    ++detected;
+            }
+            inspected.append(QJsonObject{{"requestedStartSeconds", start},
+                                         {"decodedStartSeconds", spectrum.startSeconds},
+                                         {"decodedDurationSeconds", spectrum.durationSeconds},
+                                         {"hopMilliseconds", spectrum.hopSeconds * 1000},
+                                         {"sampleRate", spectrum.sampleRate},
+                                         {"channels", spectrum.sourceChannels},
+                                         {"stereoBandsDiffer", spectrum.leftDb != spectrum.rightDb},
+                                         {"frames", int(spectrum.frames.size())},
+                                         {"detected", detected},
+                                         {"rejected", int(result.peaks.size()) - detected},
+                                         {"decodeAndAnalysisMilliseconds", elapsed.elapsed()}});
+        }
+        report["inspectedRanges"] = inspected;
+        const double center = std::floor(duration * .4);
+        m_editor->resize(1460, 860);
+        m_mainCanvas->setScrollPos(center * 1000);
+        canvas()->setMillisecondsPerPixel(4);
+        QTRY_VERIFY_WITH_TIMEOUT(canvas()->spectrum().valid() && canvas()->spectrum().startSeconds <= center
+                                     && canvas()->spectrum().startSeconds + canvas()->spectrum().durationSeconds
+                                            > center
+                                     && panel->result().valid() && !panel->busy(),
+                                 30000);
+        QVERIFY(m_editor->findChild<QLabel *>("analysis.audioName")->text().contains(QFileInfo(path).fileName()));
+        auto saveJson = [&](const QString &name, const QJsonObject &object) {
+            if (output.isEmpty())
+                return;
+            QFile file(output + '/' + name);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            const auto data = QJsonDocument(object).toJson();
+            QCOMPARE(file.write(data), qint64(data.size()));
+        };
+        auto capture = [&](const QString &name) {
+            if (output.isEmpty())
+                return;
+            QTest::qWait(80);
+            QVERIFY(m_editor->grab().save(output + '/' + name));
+        };
+        capture("01-spectrum.png");
+        auto *side = m_editor->findChild<QTabBar *>("analysis.leftTabs");
+        QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(1).center());
+        m_editor->findChild<QSplitter *>("analysis.panels")->setSizes({470, 950, 0});
+        m_editor->findChild<QSplitter *>("analysis.work")->setSizes({580, 370});
+        capture("02-transient-curves.png");
+        const auto transientJson = panel->diagnostics();
+        const int all = int(panel->result().peaks.size());
+        QVERIFY(all > 0);
+        auto *threshold = m_editor->findChild<QDoubleSpinBox *>("analysis.transientThreshold");
+        auto *interval = m_editor->findChild<QDoubleSpinBox *>("analysis.transientInterval");
+        interval->setValue(120);
+        threshold->setValue(.35);
+        QTRY_VERIFY_WITH_TIMEOUT(panel->result().valid() && !panel->busy(), 10000);
+        report["changedParameterTransient"] = panel->diagnostics();
+        interval->setValue(60);
+        threshold->setValue(.12);
+        QTRY_VERIFY_WITH_TIMEOUT(panel->result().valid() && !panel->busy(), 10000);
+        QCOMPARE(int(panel->result().peaks.size()), all);
+        auto *transientTabs = m_editor->findChild<QTabWidget *>("analysis.transientTabs");
+        transientTabs->setCurrentIndex(1);
+        auto *peaks = m_editor->findChild<QTableWidget *>("analysis.transientPeaks");
+        int near = 0;
+        while (near + 1 < peaks->rowCount() && peaks->item(near, 0)->data(Qt::UserRole).toDouble() < center)
+            ++near;
+        peaks->setCurrentCell(near, 0);
+        peaks->scrollToItem(peaks->item(near, 0), QAbstractItemView::PositionAtCenter);
+        QTest::qWait(30);
+        const double selected = peaks->item(near, 0)->data(Qt::UserRole).toDouble();
+        const QPoint point = peaks->visualItemRect(peaks->item(near, 0)).center();
+        QTest::mouseClick(peaks->viewport(), Qt::LeftButton, {}, point);
+        QTest::mouseDClick(peaks->viewport(), Qt::LeftButton, {}, point);
+        QVERIFY(qAbs(canvas()->currentTime() - selected * 1000) < .01);
+        QVERIFY(qAbs(m_mainCanvas->currentPlayTime() - selected * 1000) < .01);
+        capture("03-transient-peaks.png");
+        transientTabs->setCurrentIndex(0);
+        capture("04-transient-closeup.png");
+        saveJson("transient-diagnostics.json", transientJson);
+        // Run the same asynchronous timing pipeline used by the Timing button.
+        QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(0).center());
+        m_editor->findChild<QDoubleSpinBox *>("analysis.timingStart")->setValue(center);
+        m_editor->findChild<QDoubleSpinBox *>("analysis.timingDuration")->setValue(16);
+        auto *run = m_editor->findChild<QPushButton *>("analysis.runTiming");
+        QElapsedTimer timingElapsed;
+        timingElapsed.start();
+        run->click();
+        QVERIFY(!run->isEnabled());
+        QTRY_VERIFY_WITH_TIMEOUT(run->isEnabled(), 90000);
+        const auto timing =
+            QJsonDocument::fromJson(
+                m_editor->findChild<QPlainTextEdit *>("analysis.rawDiagnostics")->toPlainText().toUtf8())
+                .object();
+        QCOMPARE(timing.value("analysisStatus").toString(), QString("Succeeded"));
+        QCOMPARE(timing.value("timeline").toString(), QString("whole-file audio seconds"));
+        QVERIFY(!timing.value("windows").toArray().isEmpty());
+        report["timingAnalysisMilliseconds"] = timingElapsed.elapsed();
+        report["timingCandidates"] = timing.value("tempoCandidates");
+        report["timingStatus"] = timing.value("analysisStatus");
+        saveJson("timing-diagnostics.json", timing);
+        canvas()->setMillisecondsPerPixel(4);
+        m_mainCanvas->setScrollPos(center * 1000);
+        auto *windows = m_editor->findChild<QTableWidget *>("analysis.table.windows");
+        auto *locals = m_editor->findChild<QTableWidget *>("analysis.table.windowCandidates");
+        auto *tables = m_editor->findChild<QTabWidget *>("analysis.timingTables");
+        int bestWindow = -1, bestLocal = -1;
+        double bestPhase = -1;
+        for (int row = 0; row < windows->rowCount(); ++row)
+        {
+            windows->setCurrentCell(row, 0);
+            for (int local = 0; local < locals->rowCount(); ++local)
+            {
+                locals->setCurrentCell(local, 0);
+                const auto candidate = locals->item(local, 0)->data(Qt::UserRole).toJsonObject();
+                const double phase = candidate.value("phaseConfidence").toDouble();
+                if (!candidate.value("pulseTimeSeconds").isDouble() || phase <= bestPhase)
+                    continue;
+                bestWindow = row;
+                bestLocal = local;
+                bestPhase = phase;
+            }
+        }
+        bool previewed = false;
+        if (bestWindow >= 0)
+        {
+            windows->setCurrentCell(bestWindow, 0);
+            // Selecting the same window again also restores its local candidates.
+            QMetaObject::invokeMethod(windows, "cellClicked", Qt::DirectConnection, Q_ARG(int, bestWindow),
+                                      Q_ARG(int, 0));
+            locals->setCurrentCell(bestLocal, 0);
+            auto *preview = m_editor->findChild<QCheckBox *>("analysis.candidateGrid");
+            if (preview->isEnabled())
+            {
+                preview->setChecked(true);
+                previewed = canvas()->timingPreviewVisible();
+                tables->setCurrentWidget(locals);
+                const auto selectedCandidate = locals->item(bestLocal, 0)->data(Qt::UserRole).toJsonObject();
+                report["previewedWindowCandidate"] = selectedCandidate;
+                m_editor->findChild<QPushButton *>("analysis.candidateSeek")->click();
+                canvas()->setMillisecondsPerPixel(4);
+            }
+        }
+        report["candidateGridAvailable"] = previewed;
+        capture("05-timing.png");
+        // Real FLAC playback seeks/loops over the inspected part; display clock
+        // validation does not claim that hardware audio output was monitored.
+        const double loopStart = center * 1000;
+        m_playback.setLoopRange(loopStart, loopStart + 500, true);
+        QSignalSpy ticks(&m_playback, &PlaybackController::playbackFrameTick);
+        const auto ack =
+            connect(&m_playback, &PlaybackController::playbackFrameTick, &m_playback, [this](double, qint64 seq) {
+                m_playback.acknowledgeFramePainted(seq);
+            });
+        m_playback.playFromTime(loopStart);
+        QTRY_VERIFY_WITH_TIMEOUT(ticks.size() >= 10, 10000);
+        QTest::qWait(800);
+        m_playback.pause();
+        disconnect(ack);
+        bool wrapped = false;
+        double previous = loopStart;
+        for (const auto &tick : ticks)
+        {
+            const double time = tick[0].toDouble();
+            if (previous > loopStart + 300 && time < loopStart + 150)
+                wrapped = true;
+            QVERIFY(time >= loopStart - 5 && time <= loopStart + 550);
+            previous = time;
+        }
+        QVERIFY(wrapped);
+        QVERIFY(qAbs(canvas()->currentTime() - m_mainCanvas->currentPlayTime()) < 25);
+        QCOMPARE(m_chart.chart()->notes().size(), 0);
+        QVERIFY(!m_chart.canUndo());
+        report["playbackLoopWrapped"] = wrapped;
+        report["chartUnchanged"] = true;
+        saveJson("inspection-report.json", report);
+        loadChart();
+        QTRY_VERIFY_WITH_TIMEOUT(!panel->busy(), 10000);
+        QVERIFY(!panel->result().valid());
+        QVERIFY(!canvas()->spectrum().valid());
+        QVERIFY(!canvas()->timingPreviewVisible());
     }
 };
 int main(int argc, char **argv)

@@ -85,6 +85,11 @@ if(BUILD_TESTING)
     target_include_directories(SpectrumAnalysisTests PRIVATE src)
     add_test(NAME analysis_spectrum_tests COMMAND SpectrumAnalysisTests)
 
+    add_executable(TransientAnalysisTests tests/transient_analysis_tests.cpp src/analysis/TransientAnalysis.cpp src/analysis/SpectrumAnalysis.cpp)
+    set_target_properties(TransientAnalysisTests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+    target_include_directories(TransientAnalysisTests PRIVATE src)
+    add_test(NAME analysis_transient_tests COMMAND TransientAnalysisTests)
+
     add_executable(AnalysisEditorTests tests/analysis_editor_tests.cpp)
     target_link_libraries(AnalysisEditorTests PRIVATE CatchChartEditorRuntime Qt6::Test)
     add_test(NAME analysis_editor_tests COMMAND AnalysisEditorTests)

@@ -1,5 +1,6 @@
 #include "AnalysisEditor.h"
 #include "AnalysisCanvas.h"
+#include "TransientPanel.h"
 #include "analysis/AutoTimingDiagnostics.h"
 #include "audio/SpectrumService.h"
 #include "controller/ChartController.h"
@@ -82,7 +83,11 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     root->setContentsMargins(6, 6, 6, 4);
     root->setSpacing(4);
     auto *header = new QHBoxLayout;
-    header->addWidget(new QLabel(tr("Analysis Editor")));
+    m_sourceName = new QLabel(tr("Analysis Editor"));
+    m_sourceName->setObjectName("analysis.audioName");
+    m_sourceName->setTextFormat(Qt::PlainText);
+    m_sourceName->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    header->addWidget(m_sourceName, 1);
     header->addStretch();
     m_syncView = new QCheckBox(tr("Sync visible range"));
     m_syncView->setObjectName("analysis.syncView");
@@ -140,8 +145,13 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     m_work->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     root->addLayout(body, 1);
     addAnalysisPanel(tr("Timing"), createTimingPanel());
-    addAnalysisPanel(tr("Transient"),
-                     placeholder(tr("Future: onset strength, band transients, detected / rejected events.")));
+    m_transient = new TransientPanel(m_canvas);
+    addAnalysisPanel(tr("Transient"), m_transient);
+    connect(m_transient, &TransientPanel::seekRequested, this, [this](double ms) {
+        m_syncView->setChecked(false);
+        m_zoom->setValue(1);
+        seek(ms);
+    });
     addAnalysisPanel(tr("Timbre"),
                      placeholder(tr("Future: spectral features, event groups and stereo characteristics.")));
     addAnalysisPanel(tr("Tracks"), placeholder(tr("Future: pseudo tracks, continuity and preferred track.")),
@@ -261,6 +271,7 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
         if (m_spectrumCancel)
             *m_spectrumCancel = true;
         m_canvas->clearSpectrum();
+        m_transient->clearSource();
         clearDiagnostics();
         cancelTiming();
         m_playback->setLoopRange(0, 0, false);
@@ -364,6 +375,9 @@ void AnalysisEditor::refreshAudioSource()
     if (identity == m_sourceIdentity)
         return;
     m_audioPath = path;
+    m_sourceName->setText(path.isEmpty() ? tr("Analysis Editor")
+                                       : tr("Analysis Editor · %1").arg(info.fileName()));
+    m_sourceName->setToolTip(path);
     m_sourceIdentity = identity;
     ++m_sourceGeneration;
     ++m_spectrumGeneration;
@@ -372,6 +386,7 @@ void AnalysisEditor::refreshAudioSource()
     cancelTiming();
     clearDiagnostics();
     m_canvas->clearSpectrum();
+    m_transient->clearSource();
     m_spectrumFailureKey.clear();
     m_cachedEofMs = -1;
     scheduleSpectrum();
@@ -450,6 +465,7 @@ void AnalysisEditor::requestSpectrum()
             {
                 if (result.durationSeconds * 1000 + 20 < duration)
                     m_cachedEofMs = (result.startSeconds + result.durationSeconds) * 1000;
+                m_transient->setSpectrum(result);
                 m_canvas->setSpectrum(std::move(result));
                 m_status->setText(tr("Stereo spectrum ready · gutters: peak / RMS"));
             }
