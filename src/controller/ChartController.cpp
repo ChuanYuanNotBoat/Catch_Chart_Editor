@@ -729,6 +729,7 @@ ChartController::ChartController(QObject *parent) : QObject(parent)
 {
     qRegisterMetaType<ChartChange>();
     m_undoStack = new QUndoStack(this);
+    connect(m_undoStack, &QUndoStack::indexChanged, this, [this] { emit undoStateChanged(); });
 }
 
 ChartController::~ChartController()

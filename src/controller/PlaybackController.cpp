@@ -403,6 +403,18 @@ bool PlaybackController::autoPausedAtEnd() const
     return m_autoPausedAtEnd;
 }
 
+void PlaybackController::setLoopRange(double startMs, double endMs, bool enabled)
+{
+    if (!std::isfinite(startMs) || !std::isfinite(endMs)) { startMs = endMs = 0; enabled = false; }
+    startMs = qMax(0.0, startMs); endMs = qMax(0.0, endMs);
+    const double duration = m_audioPlayer->duration();
+    if (duration > 0) { startMs = qMin(startMs, duration); endMs = qMin(endMs, duration); }
+    enabled = enabled && endMs - startMs >= 10;
+    if (m_loopStartMs == startMs && m_loopEndMs == endMs && m_loopEnabled == enabled) return;
+    m_loopStartMs = startMs; m_loopEndMs = endMs; m_loopEnabled = enabled;
+    emit loopRangeChanged(startMs, endMs, enabled);
+}
+
 void PlaybackController::onAudioPositionChanged(qint64 position)
 {
     Q_UNUSED(position);
@@ -412,6 +424,7 @@ void PlaybackController::onAudioPositionChanged(qint64 position)
     if (probeFanout)
         fanoutTimer.start();
     const double observedMs = static_cast<double>(m_audioPlayer->adjustedPosition());
+    if (m_state == Playing && m_loopEnabled && observedMs >= m_loopEndMs) { seekTo(m_loopStartMs); return; }
     emit positionChanged(observedMs);
     if (probeFanout)
     {
@@ -660,6 +673,7 @@ bool PlaybackController::emitFramePulse(qint64 nowNs)
         resetFrameAnchor(currentTime(), nowNs);
 
     double predictedMs = predictedTimeAt(nowNs);
+    if (m_loopEnabled && predictedMs >= m_loopEndMs) { seekTo(m_loopStartMs); predictedMs = m_loopStartMs; }
     predictedMs = qMax(0.0, predictedMs);
     if (predictedMs < m_lastFrameTickMs)
         predictedMs = m_lastFrameTickMs;
