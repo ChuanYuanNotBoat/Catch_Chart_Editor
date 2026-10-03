@@ -30,6 +30,9 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QAction>
+#include <QMenu>
+#include <QTabWidget>
+#include <QLabel>
 #include <memory>
 #include <cmath>
 class AnalysisEditorTests : public QObject
@@ -137,6 +140,7 @@ class AnalysisEditorTests : public QObject
         QVERIFY(canvas()->height() > m_editor->height() * .75);
         QVERIFY(canvas()->width() <= m_editor->width() * .67);
         QVERIFY(canvas()->width() >= m_editor->width() * .35);
+        QVERIFY(canvas()->width() - canvas()->spectrumWidth() <= 56);
         QVERIFY(m_editor->findChild<QWidget *>("analysis.bottom")->height() <= 38);
         auto *tabs = m_editor->findChild<QTabBar *>("analysis.leftTabs");
         const int initial = canvas()->width();
@@ -152,7 +156,7 @@ class AnalysisEditorTests : public QObject
         QTest::mouseMove(canvas(), divider - QPoint(30, 0));
         QTest::mouseRelease(canvas(), Qt::LeftButton, {}, divider - QPoint(30, 0));
         QVERIFY(canvas()->spectrumWidth() < divider.x() - 20);
-        canvas()->setSpectrumFraction(.64);
+        canvas()->setNoteLaneWidth(84);
         canvas()->setMillisecondsPerPixel(2.5);
         auto *work = m_editor->findChild<QSplitter *>("analysis.work");
         work->setSizes({420, 720});
@@ -161,7 +165,7 @@ class AnalysisEditorTests : public QObject
         QVERIFY(!m_editor->isVisible());
         m_editor.reset();
         createEditor();
-        QCOMPARE(canvas()->spectrumFraction(), .64);
+        QCOMPARE(canvas()->noteLaneWidth(), 84);
         QCOMPARE(canvas()->millisecondsPerPixel(), 2.5);
         QVERIFY(qAbs(canvas()->width() - width) <= 3);
     }
@@ -241,8 +245,11 @@ class AnalysisEditorTests : public QObject
     }
     void rainPlacementTailAndTimeRange()
     {
-        const int rainX = canvas()->spectrumWidth() + (canvas()->width() - canvas()->spectrumWidth()) * 3 / 4;
-        QTest::mouseClick(canvas(), Qt::LeftButton, {}, QPoint(rainX, 14));
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, QPoint(atBeat(3).x(), 14));
+        auto *tools = canvas()->findChild<QMenu *>("analysis.noteTools");
+        QVERIFY(tools && tools->isVisible());
+        tools->actions().at(1)->trigger();
+        tools->close();
         QTest::mouseClick(canvas(), Qt::LeftButton, {}, atBeat(2));
         QTest::mouseClick(canvas(), Qt::RightButton, {}, atBeat(3));
         QCOMPARE(m_chart.chart()->notes().size(), 0);
@@ -324,6 +331,85 @@ class AnalysisEditorTests : public QObject
         QCOMPARE(m_chart.chart()->notes().size(), 0);
         QVERIFY(!m_chart.canUndo());
     }
+    void diagnosticWindowPreviewAndNavigation()
+    {
+        BpmDetector::DetectionResult result;
+        result.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
+        result.analysis.valid = true;
+        result.analysis.durationSeconds = 4;
+        result.analysisStartMs = 10000;
+        AutoTiming2Candidate global;
+        global.bpm = 120;
+        global.legacyOffsetMilliseconds = -41;
+        result.analysis.tempoCandidates.append(global);
+        AutoTiming2Window window;
+        window.id = 7;
+        window.startSeconds = 10;
+        window.endSeconds = 14;
+        auto local = global;
+        local.hasPulseTime = true;
+        local.pulseTimeSeconds = 10.125;
+        local.phaseConfidence = .8;
+        window.tempoCandidates.append(local);
+        result.analysis.windows.append(window);
+        auto empty = window;
+        empty.id = 8;
+        empty.tempoCandidates.clear();
+        result.analysis.windows.append(empty);
+        m_editor->showTimingResult(result);
+        auto *preview = m_editor->findChild<QCheckBox *>("analysis.candidateGrid");
+        auto *go = m_editor->findChild<QPushButton *>("analysis.candidateSeek");
+        auto *windows = m_editor->findChild<QTableWidget *>("analysis.table.windows");
+        auto *locals = m_editor->findChild<QTableWidget *>("analysis.table.windowCandidates");
+        QVERIFY(!preview->isEnabled());
+        QVERIFY(!go->isEnabled());
+        QVERIFY(!canvas()->timingPreviewVisible());
+        windows->setCurrentCell(0, 0);
+        QCOMPARE(locals->rowCount(), 1);
+        QVERIFY(preview->isEnabled());
+        QVERIFY(!preview->isChecked());
+        go->click();
+        QVERIFY(qAbs(m_mainCanvas->currentPlayTime() - 10125) < .01);
+        QVERIFY(qAbs(canvas()->currentTime() - 10125) < .01);
+        m_mainCanvas->setScrollPos(12000);
+        m_editor->findChild<QDoubleSpinBox *>("analysis.zoom")->setValue(10);
+        const double probeTime = 10625;
+        const auto originalSnap = canvas()->snappedNoteAtY(canvas()->yAtTime(probeTime)).getStartBeat();
+        preview->setChecked(true);
+        QVERIFY(canvas()->timingPreviewVisible());
+        QCOMPARE(canvas()->snappedNoteAtY(canvas()->yAtTime(probeTime)).getStartBeat(), originalSnap);
+        const QImage image = canvas()->grab().toImage();
+        auto hasCyanLine = [&](double time) {
+            const int row = qRound(canvas()->yAtTime(time));
+            for (int y = qMax(28, row - 1); y <= qMin(image.height() - 1, row + 1); ++y)
+                for (int x = 50; x < qMin(200, canvas()->spectrumWidth()); ++x)
+                {
+                    const auto color = image.pixelColor(x, y);
+                    if (color.red() < 110 && color.green() > 150 && color.blue() > 170)
+                        return true;
+                }
+            return false;
+        };
+        QVERIFY(hasCyanLine(probeTime));
+        QVERIFY(!hasCyanLine(9625));
+        auto *side = m_editor->findChild<QTabBar *>("analysis.leftTabs");
+        QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(0).center());
+        auto *tables = m_editor->findChild<QTabWidget *>("analysis.timingTables");
+        tables->setCurrentWidget(windows);
+        QTest::mouseDClick(windows->viewport(), Qt::LeftButton, {}, windows->visualItemRect(windows->item(0, 0)).center());
+        QCOMPARE(tables->currentWidget(), locals);
+        QVERIFY(qAbs(m_mainCanvas->currentPlayTime() - 10000) < .01);
+        windows->setCurrentCell(1, 0);
+        QCOMPARE(locals->rowCount(), 0);
+        QVERIFY(!preview->isEnabled());
+        QVERIFY(!preview->isChecked());
+        QVERIFY(!canvas()->timingPreviewVisible());
+        QVERIFY(m_editor->findChild<QLabel *>("analysis.candidateDetails")->text().contains("#8"));
+        QCOMPARE(m_chart.chart()->notes().size(), 0);
+        QVERIFY(!m_chart.canUndo());
+        QCOMPARE(m_chart.chart()->meta().offset, 125.);
+        QCOMPARE(m_chart.chart()->bpmList().size(), 2);
+    }
     void realAudioAndTimingPipeline()
     {
         auto result = SpectrumService::analyzeFileRange(m_wav, 2000, 2500, {});
@@ -351,6 +437,14 @@ class AnalysisEditorTests : public QObject
         QCOMPARE(m_chart.chart()->notes().size(), 0);
         QVERIFY(!m_chart.canUndo());
         const QString screenshots = qEnvironmentVariable("CCE_ANALYSIS_SCREENSHOT_DIR");
+        auto *windows = m_editor->findChild<QTableWidget *>("analysis.table.windows");
+        windows->setCurrentCell(0, 0);
+        auto *locals = m_editor->findChild<QTableWidget *>("analysis.table.windowCandidates");
+        QVERIFY(locals->rowCount() > 0);
+        auto *preview = m_editor->findChild<QCheckBox *>("analysis.candidateGrid");
+        QVERIFY(preview->isEnabled());
+        preview->setChecked(true);
+        QVERIFY(canvas()->timingPreviewVisible());
         if (!screenshots.isEmpty())
         {
             QDir().mkpath(screenshots);
@@ -365,6 +459,9 @@ class AnalysisEditorTests : public QObject
         QTRY_VERIFY_WITH_TIMEOUT(run->isEnabled(), 45000);
         QVERIFY(m_editor->findChild<QPlainTextEdit *>("analysis.rawDiagnostics")->toPlainText().isEmpty());
         QVERIFY(!canvas()->spectrum().valid());
+        QVERIFY(!canvas()->timingPreviewVisible());
+        QVERIFY(!preview->isChecked());
+        QCOMPARE(locals->rowCount(), 0);
     }
     void realPlaybackAndLoop()
     {

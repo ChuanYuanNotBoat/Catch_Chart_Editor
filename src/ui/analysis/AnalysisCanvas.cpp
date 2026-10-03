@@ -6,6 +6,7 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QKeyEvent>
+#include <QMenu>
 #include <algorithm>
 #include <cmath>
 namespace
@@ -48,7 +49,7 @@ AnalysisCanvas::AnalysisCanvas(ChartController *chart, SelectionController *sele
 }
 int AnalysisCanvas::spectrumWidth() const
 {
-    return qBound(80, qRound(width() * m_spectrumFraction), qMax(80, width() - 60));
+    return width() - qBound(42, m_noteLaneWidth, qMax(42, width() - 80));
 }
 double AnalysisCanvas::timeAtBeat(double beat) const
 {
@@ -117,13 +118,10 @@ void AnalysisCanvas::setMillisecondsPerPixel(double value)
     update();
     emit viewportChanged();
 }
-void AnalysisCanvas::setSpectrumFraction(double f)
+void AnalysisCanvas::setNoteLaneWidth(int width)
 {
-    if (std::isfinite(f))
-    {
-        m_spectrumFraction = qBound(0.15, f, 0.90);
-        update();
-    }
+    m_noteLaneWidth = qBound(42, width, 4096);
+    update();
 }
 void AnalysisCanvas::setViewSynchronized(bool enabled)
 {
@@ -155,6 +153,22 @@ void AnalysisCanvas::setLoop(double a, double b, bool enabled)
 void AnalysisCanvas::setStatus(const QString &text)
 {
     m_status = text;
+    update();
+}
+void AnalysisCanvas::setTimingPreview(double bpm, double pulseMs, double startMs, double endMs)
+{
+    if (!std::isfinite(bpm) || bpm <= 0 || bpm > 10000 || !std::isfinite(pulseMs) ||
+        !std::isfinite(startMs) || !std::isfinite(endMs) || startMs < 0 || endMs <= startMs)
+    {
+        clearTimingPreview();
+        return;
+    }
+    m_timingPreview = TimingPreview{bpm, pulseMs, startMs, endMs};
+    update();
+}
+void AnalysisCanvas::clearTimingPreview()
+{
+    m_timingPreview.reset();
     update();
 }
 void AnalysisCanvas::clearSpectrum()
@@ -300,6 +314,34 @@ void AnalysisCanvas::drawTiming(QPainter &p)
         p.drawText(r, Qt::AlignCenter, label);
     }
 }
+void AnalysisCanvas::drawTimingPreview(QPainter &p)
+{
+    if (!m_timingPreview)
+        return;
+    const auto &grid = *m_timingPreview;
+    const double a = timeAtY(headerHeight), b = timeAtY(height());
+    const double low = qMax(grid.startMs, qMin(a, b)), high = qMin(grid.endMs, qMax(a, b));
+    if (high <= low)
+        return;
+    const double period = 60000 / grid.bpm;
+    // Thin dense references without shifting phase or changing placement snap.
+    const int limit = qBound(1, (height() - headerHeight) / 6, 1024);
+    const double stride = qMax(1.0, std::ceil((high - low) / (period * limit)));
+    const double first = std::ceil((low - grid.pulseMs) / (period * stride));
+    p.setPen(QPen(QColor(85, 211, 239, 190), 1, Qt::DashDotLine));
+    for (int i = 0; i <= limit; ++i)
+    {
+        const double time = grid.pulseMs + (first + i) * stride * period;
+        if (!std::isfinite(time) || time > high)
+            break;
+        const double y = yAtTime(time);
+        p.drawLine(QPointF(0, y), QPointF(width(), y));
+    }
+    p.setPen(QPen(QColor(85, 211, 239), 1, Qt::DotLine));
+    for (double time : {grid.startMs, grid.endMs})
+        if (time >= qMin(a, b) && time <= qMax(a, b))
+            p.drawLine(QPointF(0, yAtTime(time)), QPointF(width(), yAtTime(time)));
+}
 void AnalysisCanvas::drawNotes(QPainter &p)
 {
     const double low = qMin(timeAtY(headerHeight - 12), timeAtY(height() + 12)),
@@ -308,6 +350,8 @@ void AnalysisCanvas::drawNotes(QPainter &p)
     const auto &notes = m_chart->chart()->notes();
     const auto selected = m_selection->selectedIndices();
     const double x = (spectrumWidth() + width()) / 2.0;
+    // Paint Rain first so ordinary Notes remain visible inside its rectangle.
+    for (bool rainPass : {true, false})
     for (auto i = visible.begin; i < visible.end; ++i)
     {
         const auto e = m_noteIndex.entryAt(i);
@@ -316,6 +360,8 @@ void AnalysisCanvas::drawNotes(QPainter &p)
         const Note &n = m_tailPreview && m_tailOriginal && notes[e.index].id == m_tailOriginal->id
                             ? *m_tailPreview
                             : notes[e.index];
+        if (n.isRainNote() != rainPass)
+            continue;
         const double y = yAtTime(timeAtBeat(n.getStartBeat()));
         const QColor color = selected.contains(e.index) ? QColor(255, 217, 113)
                              : n.isRainNote()           ? QColor(105, 169, 255)
@@ -325,12 +371,12 @@ void AnalysisCanvas::drawNotes(QPainter &p)
         if (n.isRainNote())
         {
             const double tail = yAtTime(timeAtBeat(n.getEndBeat()));
-            p.fillRect(QRectF(x - 6, qMin(y, tail), 12, qAbs(tail - y)),
-                       QColor(color.red(), color.green(), color.blue(), 75));
-            p.drawLine(QPointF(x, y), QPointF(x, tail));
-            p.drawRect(QRectF(x - 7, tail - 3, 14, 6));
+            p.setBrush(QColor(color.red(), color.green(), color.blue(), 75));
+            p.drawRect(QRectF(spectrumWidth() + 6, qMin(y, tail), width() - spectrumWidth() - 12,
+                             qMax(1.0, qAbs(tail - y))));
         }
-        p.drawRoundedRect(QRectF(x - 14, y - 4, 28, 8), 3, 3);
+        else
+            p.drawRoundedRect(QRectF(x - 14, y - 4, 28, 8), 3, 3);
     }
     if (m_rainAnchor)
     {
@@ -355,6 +401,7 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
     if (m_loopEnabled)
         shade(m_loopStart, m_loopEnd, QColor(86, 217, 172, 23));
     drawTiming(p);
+    drawTimingPreview(p);
     drawNotes(p);
     p.setPen(QPen(QColor(255, 119, 113), 1.5));
     p.drawLine(QPointF(0, yAtTime(m_current)), QPointF(width(), yAtTime(m_current)));
@@ -368,14 +415,23 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
     p.setClipping(false);
     p.fillRect(QRect(0, 0, width(), headerHeight), QColor(30, 38, 50));
     p.setPen(QColor(201, 215, 231));
-    p.drawText(QRect(2, 0, spectrumWidth(), headerHeight), Qt::AlignCenter,
-               m_spectrum.sourceChannels == 1 ? tr("Spectrum · Mono → L / R") : tr("Spectrum · L / R"));
-    const int half = (width() - spectrumWidth()) / 2;
-    const QRect note(spectrumWidth() + 2, 2, half - 2, headerHeight - 4);
-    const QRect rain(spectrumWidth() + half, 2, width() - spectrumWidth() - half - 2, headerHeight - 4);
-    p.fillRect(m_rainMode ? rain : note, QColor(65, 87, 115));
-    p.drawText(note, Qt::AlignCenter, tr("Note"));
-    p.drawText(rain, Qt::AlignCenter, tr("Rain"));
+    QString spectrumTitle =
+        m_spectrum.sourceChannels == 1 ? tr("Spectrum · Mono → L / R") : tr("Spectrum · L / R");
+    if (m_timingPreview)
+    {
+        spectrumTitle += tr(" · Preview %1 BPM").arg(m_timingPreview->bpm, 0, 'f', 3);
+        p.setPen(QColor(85, 211, 239));
+    }
+    p.drawText(QRect(2, 0, spectrumWidth() - 4, headerHeight), Qt::AlignCenter,
+               p.fontMetrics().elidedText(spectrumTitle, Qt::ElideRight, spectrumWidth() - 8));
+    p.setPen(QColor(201, 215, 231));
+    const QRect tool(spectrumWidth() + 2, 2, width() - spectrumWidth() - 4, headerHeight - 4);
+    p.fillRect(tool, QColor(65, 87, 115));
+    p.drawText(tool.adjusted(2, 0, -12, 0), Qt::AlignCenter, m_rainMode ? tr("Rain") : tr("Note"));
+    const double arrowX = tool.right() - 6;
+    p.setPen(Qt::NoPen);
+    p.setBrush(QColor(201, 215, 231));
+    p.drawPolygon(QPolygonF{QPointF(arrowX - 3, 12), QPointF(arrowX + 3, 12), QPointF(arrowX, 16)});
     p.setPen(QPen(QColor(92, 112, 137), 3));
     p.drawLine(spectrumWidth(), 0, spectrumWidth(), height());
 }
@@ -431,7 +487,19 @@ void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
     if (pos.y() < headerHeight)
     {
         if (e->button() == Qt::LeftButton && pos.x() > spectrumWidth() + 5)
-            setRainMode(pos.x() > (spectrumWidth() + width()) / 2.0);
+        {
+            auto *menu = new QMenu(this);
+            menu->setObjectName("analysis.noteTools");
+            menu->setAttribute(Qt::WA_DeleteOnClose);
+            for (bool rain : {false, true})
+            {
+                auto *action = menu->addAction(rain ? tr("Rain") : tr("Note"));
+                action->setCheckable(true);
+                action->setChecked(rain == m_rainMode);
+                connect(action, &QAction::triggered, this, [this, rain] { setRainMode(rain); });
+            }
+            menu->popup(mapToGlobal(QPoint(spectrumWidth(), headerHeight)));
+        }
         return;
     }
     if (e->button() == Qt::LeftButton && (e->modifiers() & Qt::ShiftModifier))
@@ -507,7 +575,7 @@ void AnalysisCanvas::mouseMoveEvent(QMouseEvent *e)
 {
     if (m_resizeDivider)
     {
-        setSpectrumFraction(e->position().x() / qMax(1, width()));
+        setNoteLaneWidth(qBound(42, width() - qRound(e->position().x()), qMax(42, width() - 80)));
         return;
     }
     if (m_selectingRange)
