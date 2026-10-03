@@ -458,6 +458,7 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
         disconnect(m_playbackController, &PlaybackController::positionChanged, this, &ChartCanvas::playbackPositionChanged);
         disconnect(m_playbackController, &PlaybackController::playbackFrameTick, this, &ChartCanvas::onPlaybackFrameTick);
         disconnect(m_playbackController, &PlaybackController::stateChanged, this, nullptr);
+        disconnect(m_playbackController, &PlaybackController::loopRangeChanged, this, nullptr);
     }
 
     m_playbackController = controller;
@@ -465,6 +466,7 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
 
     if (m_playbackController)
     {
+        connect(m_playbackController, &PlaybackController::loopRangeChanged, this, [this] { update(); });
         attachDisplayFrameWindow();
         if (m_displayFrameScreen)
             m_playbackController->setDisplayRefreshRate(m_displayFrameScreen->refreshRate());
@@ -658,6 +660,7 @@ void ChartCanvas::setScrollPos(double timeMs)
 
     m_scrollBeat = newScrollBeat;
     m_currentPlayTime = clampedTimeMs;
+    if (timeChanged) emit currentTimeChanged(m_currentPlayTime);
     update();
     if (scrollChanged)
         emit scrollPositionChanged(m_scrollBeat);
@@ -680,6 +683,7 @@ void ChartCanvas::syncCurrentPlayTimeToReferenceLine()
     int denominator = 1;
     MathUtils::floatToBeat(baselineBeat, beatNum, numerator, denominator);
     m_currentPlayTime = MathUtils::beatToMs(beatNum, numerator, denominator, bpmList, offset);
+    emit currentTimeChanged(m_currentPlayTime);
 }
 
 void ChartCanvas::setNoteSize(int size)

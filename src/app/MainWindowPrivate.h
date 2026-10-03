@@ -42,6 +42,7 @@ class ChartStatsPanel;
 class DetailedStatsDialog;
 class WorkbenchLayout;
 class CommandRouter;
+class AnalysisEditor;
 
 namespace ads
 {
@@ -52,6 +53,7 @@ class CDockWidget;
 class MainWindow::Private
 {
 public:
+    AnalysisEditor *analysisEditor = nullptr;
     ChartController *chartController = nullptr;
     SelectionController *selectionController = nullptr;
     PlaybackController *playbackController = nullptr;

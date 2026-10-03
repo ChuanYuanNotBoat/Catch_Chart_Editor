@@ -28,6 +28,11 @@ set(SOURCES
     file/ProjectIO.cpp
     file/PluginLoader.cpp
     file/ChartFileSystem.cpp
+    analysis/SpectrumAnalysis.cpp
+    analysis/AutoTimingDiagnostics.cpp
+    audio/SpectrumService.cpp
+    ui/analysis/AnalysisCanvas.cpp
+    ui/analysis/AnalysisEditor.cpp
     audio/AudioPlayer.cpp
     audio/NoteSoundPlayer.cpp
     audio/BpmDetector.cpp
@@ -81,15 +86,15 @@ set(SOURCES
     editor/NoteChain/NoteChainPersistence.cpp
 )
 
-# These two translation units contain user-facing Chinese error literals; they
-# are written as UTF-8 and must be compiled with /utf-8 so the literals do not
-# depend on the system code page. /utf-8 is safe for the remaining (ASCII)
-# content of both files. AutoTimingBridgeTests compiles the same files and
-# applies /utf-8 at target level (root CMakeLists.txt) to stay identical.
+# Explicit UTF-8 for bridge error messages and Analysis Editor labels.
+# AutoTimingBridgeTests applies the same encoding to its shared bridge sources
+# at target level in the root CMakeLists.txt.
 if(MSVC)
     set_source_files_properties(
         audio/BpmDetector.cpp
         audio/AutoTiming2Bridge.cpp
+        ui/analysis/AnalysisCanvas.cpp
+        ui/analysis/AnalysisEditor.cpp
         PROPERTIES COMPILE_OPTIONS "/utf-8"
     )
 endif()

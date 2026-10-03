@@ -130,6 +130,7 @@ public slots:
 
 signals:
     void verticalFlipChanged(bool flipped);
+    void currentTimeChanged(double timeMs);
     void scrollPositionChanged(double beat);
     void timeScaleChanged(double scale);
     void modeCycleRequested(int direction);
