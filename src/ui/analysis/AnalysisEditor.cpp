@@ -17,6 +17,7 @@
 #include <QTabWidget>
 #include <QStackedWidget>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QLabel>
 #include <QPushButton>
 #include <QCheckBox>
@@ -529,7 +530,7 @@ QWidget *AnalysisEditor::createTimingPanel()
         t->setAlternatingRowColors(true);
         for (int i = 0; i < fields.size(); ++i)
             t->horizontalHeaderItem(i)->setData(Qt::UserRole, fields[i]);
-        connect(t, &QTableWidget::currentCellChanged, this, [this, t, id](int row, int, int, int) {
+        const auto inspectRow = [this, t, id](int row) {
             const auto *item = t->item(row, 0);
             if (!item)
                 return;
@@ -538,8 +539,17 @@ QWidget *AnalysisEditor::createTimingPanel()
                 selectDiagnosticWindow(object);
             else if (id == QLatin1String("tempoCandidates") || id == QLatin1String("windowCandidates"))
                 selectTimingCandidate(object);
+        };
+        connect(t, &QTableWidget::currentCellChanged, this, [inspectRow](int row, int, int, int) {
+            inspectRow(row);
         });
-        connect(t, &QTableWidget::cellDoubleClicked, this, [this, t, id, tabs](int row, int) {
+        // Re-selecting a row after inspecting another table must restore its
+        // candidate too; the current cell need not have changed.
+        connect(t, &QTableWidget::cellClicked, this, [inspectRow](int row, int) {
+            inspectRow(row);
+        });
+        connect(t, &QTableWidget::cellDoubleClicked, this, [this, t, id, tabs, inspectRow](int row, int) {
+            inspectRow(row);
             if (!t->item(row, 0))
                 return;
             const auto o = t->item(row, 0)->data(Qt::UserRole).toJsonObject();
@@ -615,8 +625,9 @@ QWidget *AnalysisEditor::createTimingPanel()
         m_zoom->setValue(1);
         seek(pulse.toDouble() * 1000);
     });
-    auto *hint = new QLabel(tr("Double-click a window to inspect its local candidates and audio. Global "
-                               "candidates currently carry tempo only. Scores/costs are diagnostics, not probabilities."));
+    auto *hint =
+        new QLabel(tr("Double-click a window to inspect its local candidates and audio. Global "
+                      "candidates currently carry tempo only. Scores/costs are diagnostics, not probabilities."));
     hint->setWordWrap(true);
     layout->addWidget(hint);
     return panel;
@@ -671,7 +682,14 @@ void AnalysisEditor::selectDiagnosticWindow(const QJsonObject &window)
     }
     fillTable("windowCandidates", rows);
     if (!rows.isEmpty())
-        m_tables.value("windowCandidates")->setCurrentCell(0, 0);
+    {
+        auto *locals = m_tables.value("windowCandidates");
+        locals->setCurrentCell(0, 0);
+        // A hidden table can have a narrow provisional viewport when selection
+        // scrolls the first cell into view. Keep the BPM column fully visible.
+        locals->horizontalScrollBar()->setValue(0);
+        selectTimingCandidate(rows.first().toObject());
+    }
     else
     {
         selectTimingCandidate({});
@@ -682,14 +700,16 @@ void AnalysisEditor::selectTimingCandidate(const QJsonObject &candidate)
 {
     m_selectedCandidate = candidate;
     const auto pulse = candidate.value("pulseTimeSeconds");
-    const bool hasPulse = candidate.value("hasPulseTime").toBool() && pulse.isDouble() &&
-                          std::isfinite(pulse.toDouble());
+    const bool hasPulse =
+        candidate.value("hasPulseTime").toBool() && pulse.isDouble() && std::isfinite(pulse.toDouble());
     m_candidateSeek->setEnabled(hasPulse);
     const double bpm = candidate.value("bpm").toDouble();
-    const double start = candidate.value("previewStartSeconds").toDouble(m_diagnostics.value("analysisStartMs").toDouble() / 1000);
-    const double end = candidate.value("previewEndSeconds").toDouble(start + m_diagnostics.value("durationSeconds").toDouble());
-    const bool canPreview = hasPulse && std::isfinite(bpm) && bpm > 0 && bpm <= 10000 &&
-                            std::isfinite(start) && std::isfinite(end) && start >= 0 && end > start;
+    const double start =
+        candidate.value("previewStartSeconds").toDouble(m_diagnostics.value("analysisStartMs").toDouble() / 1000);
+    const double end =
+        candidate.value("previewEndSeconds").toDouble(start + m_diagnostics.value("durationSeconds").toDouble());
+    const bool canPreview = hasPulse && std::isfinite(bpm) && bpm > 0 && bpm <= 10000 && std::isfinite(start)
+                            && std::isfinite(end) && start >= 0 && end > start;
     m_candidateGrid->setEnabled(canPreview);
     if (!canPreview)
         m_candidateGrid->setChecked(false);
@@ -697,13 +717,15 @@ void AnalysisEditor::selectTimingCandidate(const QJsonObject &candidate)
         m_candidateDetails->setText(tr("Select a candidate or an analysis window to inspect its phase."));
     else
     {
-        const QString scope = candidate.contains("windowId")
-                                  ? tr("Window #%1 · %2–%3 s").arg(cellText(candidate.value("windowId")))
-                                        .arg(start, 0, 'f', 3).arg(end, 0, 'f', 3)
-                                  : tr("Global candidate");
+        const QString scope = candidate.contains("windowId") ? tr("Window #%1 · %2–%3 s")
+                                                                   .arg(cellText(candidate.value("windowId")))
+                                                                   .arg(start, 0, 'f', 3)
+                                                                   .arg(end, 0, 'f', 3)
+                                                             : tr("Global candidate");
         m_candidateDetails->setText(
             tr("%1\n%2 BPM · pulse %3\nPhase confidence %4 · legacy offset %5 ms")
-                .arg(scope).arg(bpm, 0, 'f', 5)
+                .arg(scope)
+                .arg(bpm, 0, 'f', 5)
                 .arg(hasPulse ? tr("%1 s").arg(pulse.toDouble(), 0, 'f', 6) : tr("unavailable (tempo only)"))
                 .arg(cellText(candidate.value("phaseConfidence")))
                 .arg(cellText(candidate.value("legacyOffsetMilliseconds"))));
@@ -717,13 +739,13 @@ void AnalysisEditor::updateTimingPreview()
         m_canvas->clearTimingPreview();
         return;
     }
-    const double start = m_selectedCandidate.value("previewStartSeconds").toDouble(
-        m_diagnostics.value("analysisStartMs").toDouble() / 1000);
-    const double end = m_selectedCandidate.value("previewEndSeconds").toDouble(
-        start + m_diagnostics.value("durationSeconds").toDouble());
+    const double start = m_selectedCandidate.value("previewStartSeconds")
+                             .toDouble(m_diagnostics.value("analysisStartMs").toDouble() / 1000);
+    const double end = m_selectedCandidate.value("previewEndSeconds")
+                           .toDouble(start + m_diagnostics.value("durationSeconds").toDouble());
     m_canvas->setTimingPreview(m_selectedCandidate.value("bpm").toDouble(),
-                               m_selectedCandidate.value("pulseTimeSeconds").toDouble() * 1000,
-                               start * 1000, end * 1000);
+                               m_selectedCandidate.value("pulseTimeSeconds").toDouble() * 1000, start * 1000,
+                               end * 1000);
 }
 void AnalysisEditor::showTimingResult(const BpmDetector::DetectionResult &result,
                                       const QString &pipelineError)
@@ -801,7 +823,10 @@ void AnalysisEditor::showTimingResult(const BpmDetector::DetectionResult &result
     m_timingSummary->setText(summary);
     m_raw->setPlainText(QString::fromUtf8(QJsonDocument(m_diagnostics).toJson()));
     if (m_tables.value("tempoCandidates")->rowCount() > 0)
+    {
         m_tables.value("tempoCandidates")->setCurrentCell(0, 0);
+        selectTimingCandidate(m_diagnostics.value("tempoCandidates").toArray().first().toObject());
+    }
 }
 void AnalysisEditor::runTiming()
 {

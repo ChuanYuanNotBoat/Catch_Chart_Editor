@@ -69,6 +69,17 @@ Transient, Timbre, Tracks and Generation are explicitly marked future panels. Th
 
 The normal CCE tests remain enabled. Native Windows/macOS appearance and hardware audio latency require platform validation; the first implementation is validated with Qt 6.4 on Linux.
 
+The compact-lane and candidate-preview iteration built with Qt 6.4.2 / GCC 13 on Linux and passed all 15 CTest targets. Its UI checks include returning to the same selected row in another table, empty-window handling and clearing old previews after an audio source change.
+
+To reproduce the five runtime screenshots, run the real audio/timing integration case with an output directory:
+
+```sh
+QT_QPA_PLATFORM=offscreen CCE_ANALYSIS_SCREENSHOT_DIR=/tmp/cce-analysis-screenshots \
+  ./build/AnalysisEditorTests realAudioAndTimingPipeline
+```
+
+The fixture creates 12 seconds of synthetic stereo pulses, decodes and analyzes that WAV through the production pipeline, and temporarily adds Notes and Rain through the chart controller. It captures the collapsed layout, a close view, global timing candidates, a window candidate's grid preview and raw diagnostics. Fixture chart edits are undone after capture.
+
 ## Original implementation patch
 
 The original standalone `CCE-Analysis-Editor.patch` is based on the existing CCE iteration commit `2f082668ee23373def420052ee1cdb652a83dc48` (the `codex/cce-iteration-20261003` branch). Apply it to that base or review the local `codex/analysis-editor-20261003` branch. The patch leaves the AutoTimingCore submodule pin unchanged.
@@ -82,4 +93,4 @@ cmake --build build
 QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 ```
 
-Final verification: the application and all test binaries built with Qt 6.4.2 / GCC 13 on Linux. All 15 CTest targets passed across the full regression run and the final focused rerun of the two Analysis targets after UI fixes. Actual offscreen screenshots were inspected for compact default width, full canvas height, timing labels, stereo separation, readable diagnostic text and minimal bottom controls.
+Original implementation verification: the application and all test binaries built with Qt 6.4.2 / GCC 13 on Linux. All 15 CTest targets passed across the full regression run and the final focused rerun of the two Analysis targets after UI fixes. Actual offscreen screenshots were inspected for compact default width, full canvas height, timing labels, stereo separation, readable diagnostic text and minimal bottom controls.

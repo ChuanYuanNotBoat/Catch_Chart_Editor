@@ -333,6 +333,7 @@ class AnalysisEditorTests : public QObject
     }
     void diagnosticWindowPreviewAndNavigation()
     {
+        const auto originalBpms = m_chart.chart()->bpmList();
         BpmDetector::DetectionResult result;
         result.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
         result.analysis.valid = true;
@@ -396,9 +397,23 @@ class AnalysisEditorTests : public QObject
         QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(0).center());
         auto *tables = m_editor->findChild<QTabWidget *>("analysis.timingTables");
         tables->setCurrentWidget(windows);
-        QTest::mouseDClick(windows->viewport(), Qt::LeftButton, {}, windows->visualItemRect(windows->item(0, 0)).center());
+        QTest::mouseClick(windows->viewport(), Qt::LeftButton, {},
+                          windows->visualItemRect(windows->item(0, 0)).center());
+        QTest::mouseDClick(windows->viewport(), Qt::LeftButton, {},
+                           windows->visualItemRect(windows->item(0, 0)).center());
         QCOMPARE(tables->currentWidget(), locals);
         QVERIFY(qAbs(m_mainCanvas->currentPlayTime() - 10000) < .01);
+        auto *globalTable = m_editor->findChild<QTableWidget *>("analysis.table.tempoCandidates");
+        tables->setCurrentWidget(globalTable);
+        QTest::mouseClick(globalTable->viewport(), Qt::LeftButton, {},
+                          globalTable->visualItemRect(globalTable->item(0, 0)).center());
+        QVERIFY(!preview->isEnabled());
+        QVERIFY(!canvas()->timingPreviewVisible());
+        tables->setCurrentWidget(windows);
+        QTest::mouseClick(windows->viewport(), Qt::LeftButton, {},
+                          windows->visualItemRect(windows->item(0, 0)).center());
+        QVERIFY(preview->isEnabled());
+        preview->setChecked(true);
         windows->setCurrentCell(1, 0);
         QCOMPARE(locals->rowCount(), 0);
         QVERIFY(!preview->isEnabled());
@@ -408,7 +423,15 @@ class AnalysisEditorTests : public QObject
         QCOMPARE(m_chart.chart()->notes().size(), 0);
         QVERIFY(!m_chart.canUndo());
         QCOMPARE(m_chart.chart()->meta().offset, 125.);
-        QCOMPARE(m_chart.chart()->bpmList().size(), 2);
+        const auto &bpms = m_chart.chart()->bpmList();
+        QCOMPARE(bpms.size(), originalBpms.size());
+        for (int i = 0; i < bpms.size(); ++i)
+        {
+            QCOMPARE(bpms[i].beatNum, originalBpms[i].beatNum);
+            QCOMPARE(bpms[i].numerator, originalBpms[i].numerator);
+            QCOMPARE(bpms[i].denominator, originalBpms[i].denominator);
+            QCOMPARE(bpms[i].bpm, originalBpms[i].bpm);
+        }
     }
     void realAudioAndTimingPipeline()
     {
@@ -448,10 +471,56 @@ class AnalysisEditorTests : public QObject
         if (!screenshots.isEmpty())
         {
             QDir().mkpath(screenshots);
-            m_editor->grab().save(screenshots + "/timing.png");
+            preview->setChecked(false);
+            m_chart.addNotes({Note(2, 0, 1, 32), Note(3, 1, 2, 470), Note(4, 1, 2, 128), Note(4, 0, 1, 5, 1, 2, 320)});
+            m_selection.select(2);
             QTest::mouseClick(tabs, Qt::LeftButton, {}, tabs->tabRect(0).center());
-            QTest::qWait(30);
-            m_editor->grab().save(screenshots + "/compact.png");
+            QTest::qWait(60);
+            QVERIFY(m_editor->grab().save(screenshots + "/01-default.png"));
+            canvas()->setMillisecondsPerPixel(2);
+            m_mainCanvas->setScrollPos(2800);
+            m_range->setStartBeat(4);
+            m_range->setEndBeat(5.5);
+            m_range->setRangeVisible(true);
+            m_playback.setLoopRange(canvas()->timeAtBeat(4), canvas()->timeAtBeat(5.5), true);
+            QTest::qWait(60);
+            QVERIFY(m_editor->grab().save(screenshots + "/02-closeup.png"));
+            m_playback.setLoopRange(0, 0, false);
+            m_range->setRangeVisible(false);
+            canvas()->setMillisecondsPerPixel(6);
+            m_mainCanvas->setScrollPos(2000);
+            QTest::mouseClick(tabs, Qt::LeftButton, {}, tabs->tabRect(0).center());
+            auto *tables = m_editor->findChild<QTabWidget *>("analysis.timingTables");
+            auto *global = m_editor->findChild<QTableWidget *>("analysis.table.tempoCandidates");
+            tables->setCurrentWidget(global);
+            QTest::mouseClick(global->viewport(), Qt::LeftButton, {},
+                              global->visualItemRect(global->item(0, 0)).center());
+            QTest::qWait(60);
+            QVERIFY(m_editor->grab().save(screenshots + "/03-timing.png"));
+            tables->setCurrentWidget(windows);
+            QTest::mouseClick(windows->viewport(), Qt::LeftButton, {},
+                              windows->visualItemRect(windows->item(0, 0)).center());
+            QTest::mouseDClick(windows->viewport(), Qt::LeftButton, {},
+                               windows->visualItemRect(windows->item(0, 0)).center());
+            preview->setChecked(true);
+            QVERIFY(canvas()->timingPreviewVisible());
+            canvas()->setMillisecondsPerPixel(5);
+            m_mainCanvas->setScrollPos(2000);
+            QTest::qWait(60);
+            QVERIFY(m_editor->grab().save(screenshots + "/04-window-preview.png"));
+            preview->setChecked(false);
+            QTest::mouseClick(tabs, Qt::LeftButton, {}, tabs->tabRect(0).center());
+            canvas()->setMillisecondsPerPixel(6);
+            m_editor->resize(1460, 860);
+            auto *right = m_editor->findChild<QTabBar *>("analysis.rightTabs");
+            QTest::mouseClick(right, Qt::LeftButton, {}, right->tabRect(2).center());
+            m_editor->findChild<QSplitter *>("analysis.panels")->setSizes({0, 800, 600});
+            m_editor->findChild<QSplitter *>("analysis.work")->setSizes({620, 180});
+            QTest::qWait(60);
+            QVERIFY(m_editor->grab().save(screenshots + "/05-diagnostics.png"));
+            while (m_chart.canUndo())
+                m_chart.undo();
+            QCOMPARE(m_chart.chart()->notes().size(), 0);
         }
         run->click();
         QVERIFY(!run->isEnabled());

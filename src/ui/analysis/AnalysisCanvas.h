@@ -21,7 +21,10 @@ class AnalysisCanvas : public QWidget
     double timeAtBeat(double beat) const;
     double currentTime() const { return m_current; }
     double millisecondsPerPixel() const { return m_msPerPixel; }
-    int noteLaneWidth() const { return m_noteLaneWidth; }
+    int noteLaneWidth() const
+    {
+        return m_noteLaneWidth;
+    }
     int spectrumWidth() const;
     bool viewSynchronized() const { return m_syncView; }
     const analysis::StereoSpectrum &spectrum() const { return m_spectrum; }
@@ -37,7 +40,10 @@ class AnalysisCanvas : public QWidget
     void setLoop(double startMs, double endMs, bool enabled);
     void setTimingPreview(double bpm, double pulseMs, double startMs, double endMs);
     void clearTimingPreview();
-    bool timingPreviewVisible() const { return m_timingPreview.has_value(); }
+    bool timingPreviewVisible() const
+    {
+        return m_timingPreview.has_value();
+    }
     void cancelGesture();
     void setStatus(const QString &text);
   signals:

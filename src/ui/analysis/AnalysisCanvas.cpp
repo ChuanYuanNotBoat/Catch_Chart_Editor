@@ -157,8 +157,8 @@ void AnalysisCanvas::setStatus(const QString &text)
 }
 void AnalysisCanvas::setTimingPreview(double bpm, double pulseMs, double startMs, double endMs)
 {
-    if (!std::isfinite(bpm) || bpm <= 0 || bpm > 10000 || !std::isfinite(pulseMs) ||
-        !std::isfinite(startMs) || !std::isfinite(endMs) || startMs < 0 || endMs <= startMs)
+    if (!std::isfinite(bpm) || bpm <= 0 || bpm > 10000 || !std::isfinite(pulseMs) || !std::isfinite(startMs)
+        || !std::isfinite(endMs) || startMs < 0 || endMs <= startMs)
     {
         clearTimingPreview();
         return;
@@ -352,32 +352,31 @@ void AnalysisCanvas::drawNotes(QPainter &p)
     const double x = (spectrumWidth() + width()) / 2.0;
     // Paint Rain first so ordinary Notes remain visible inside its rectangle.
     for (bool rainPass : {true, false})
-    for (auto i = visible.begin; i < visible.end; ++i)
-    {
-        const auto e = m_noteIndex.entryAt(i);
-        if (e.end < low || e.start > high)
-            continue;
-        const Note &n = m_tailPreview && m_tailOriginal && notes[e.index].id == m_tailOriginal->id
-                            ? *m_tailPreview
-                            : notes[e.index];
-        if (n.isRainNote() != rainPass)
-            continue;
-        const double y = yAtTime(timeAtBeat(n.getStartBeat()));
-        const QColor color = selected.contains(e.index) ? QColor(255, 217, 113)
-                             : n.isRainNote()           ? QColor(105, 169, 255)
-                                                        : QColor(170, 216, 236);
-        p.setPen(QPen(color, 2));
-        p.setBrush(color);
-        if (n.isRainNote())
+        for (auto i = visible.begin; i < visible.end; ++i)
         {
-            const double tail = yAtTime(timeAtBeat(n.getEndBeat()));
-            p.setBrush(QColor(color.red(), color.green(), color.blue(), 75));
-            p.drawRect(QRectF(spectrumWidth() + 6, qMin(y, tail), width() - spectrumWidth() - 12,
-                             qMax(1.0, qAbs(tail - y))));
+            const auto e = m_noteIndex.entryAt(i);
+            if (e.end < low || e.start > high)
+                continue;
+            const Note &n = m_tailPreview && m_tailOriginal && notes[e.index].id == m_tailOriginal->id ? *m_tailPreview
+                                                                                                       : notes[e.index];
+            if (n.isRainNote() != rainPass)
+                continue;
+            const double y = yAtTime(timeAtBeat(n.getStartBeat()));
+            const QColor color = selected.contains(e.index) ? QColor(255, 217, 113)
+                                 : n.isRainNote()           ? QColor(105, 169, 255)
+                                                            : QColor(170, 216, 236);
+            p.setPen(QPen(color, 2));
+            p.setBrush(color);
+            if (n.isRainNote())
+            {
+                const double tail = yAtTime(timeAtBeat(n.getEndBeat()));
+                p.setBrush(QColor(color.red(), color.green(), color.blue(), 75));
+                p.drawRect(QRectF(spectrumWidth() + 6, qMin(y, tail), width() - spectrumWidth() - 12,
+                                  qMax(1.0, qAbs(tail - y))));
+            }
+            else
+                p.drawRoundedRect(QRectF(x - 14, y - 4, 28, 8), 3, 3);
         }
-        else
-            p.drawRoundedRect(QRectF(x - 14, y - 4, 28, 8), 3, 3);
-    }
     if (m_rainAnchor)
     {
         const double y = yAtTime(timeAtBeat(m_rainAnchor->getStartBeat()));
@@ -415,8 +414,7 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
     p.setClipping(false);
     p.fillRect(QRect(0, 0, width(), headerHeight), QColor(30, 38, 50));
     p.setPen(QColor(201, 215, 231));
-    QString spectrumTitle =
-        m_spectrum.sourceChannels == 1 ? tr("Spectrum · Mono → L / R") : tr("Spectrum · L / R");
+    QString spectrumTitle = m_spectrum.sourceChannels == 1 ? tr("Spectrum · Mono → L / R") : tr("Spectrum · L / R");
     if (m_timingPreview)
     {
         spectrumTitle += tr(" · Preview %1 BPM").arg(m_timingPreview->bpm, 0, 'f', 3);
@@ -496,7 +494,9 @@ void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
                 auto *action = menu->addAction(rain ? tr("Rain") : tr("Note"));
                 action->setCheckable(true);
                 action->setChecked(rain == m_rainMode);
-                connect(action, &QAction::triggered, this, [this, rain] { setRainMode(rain); });
+                connect(action, &QAction::triggered, this, [this, rain] {
+                    setRainMode(rain);
+                });
             }
             menu->popup(mapToGlobal(QPoint(spectrumWidth(), headerHeight)));
         }
