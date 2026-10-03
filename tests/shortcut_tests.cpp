@@ -7,6 +7,7 @@
 #include "model/Skin.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "ui/NoteEditPanel.h"
+#include "ui/LongRangeSelector.h"
 #include "ui/dialogs/BpmMeasureDialog.h"
 #include "utils/Settings.h"
 
@@ -29,6 +30,7 @@
 #include <QTimer>
 #include <QWheelEvent>
 #include <memory>
+#include <limits>
 
 class ShortcutTests : public QObject
 {
@@ -200,6 +202,35 @@ private slots:
         QCOMPARE(m_canvas->scrollBeat(), before);
         QTest::keyClick(m_canvas, Qt::Key_J, Qt::ControlModifier);
         QVERIFY(m_canvas->scrollBeat() > before);
+    }
+
+    void longRangeSelectorPreservesExactInput()
+    {
+        const int limit = std::numeric_limits<int>::max();
+        Chart chart;
+        chart.addBpm(BpmEntry(0, 0, 1, 120));
+        chart.setNotes({Note(0, limit - 2, limit - 1, 400),
+                        Note(0, limit - 1, limit, 10),
+                        Note(0, limit - 2, limit - 1, 0, limit - 1, limit, 256)});
+        QVERIFY(m_chart.loadChartFromData({}, chart));
+        LongRangeSelector selector;
+        selector.setChartController(&m_chart);
+        selector.setSelectionController(&m_selection);
+        const auto inputs = selector.findChildren<QLineEdit *>();
+        QCOMPARE(inputs.size(), 2);
+        const QString earlier = QString("0 %1/%2").arg(limit - 2).arg(limit - 1);
+        const QString later = QString("0 %1/%2").arg(limit - 1).arg(limit);
+        inputs[0]->setText(earlier);
+        inputs[1]->setText(earlier);
+        QVERIFY(QMetaObject::invokeMethod(&selector, "onSelectClicked", Qt::DirectConnection));
+        QCOMPARE(m_selection.selectedIndices(), QSet<int>({1}));
+        // Reversed inputs must swap even when both project to the same double.
+        inputs[0]->setText(later);
+        inputs[1]->setText(earlier);
+        QVERIFY(QMetaObject::invokeMethod(&selector, "onSelectClicked", Qt::DirectConnection));
+        QCOMPARE(inputs[0]->text(), earlier);
+        QCOMPARE(inputs[1]->text(), later);
+        QCOMPARE(m_selection.selectedIndices(), QSet<int>({0, 1, 2}));
     }
 
     void textInputsDialogsAndPopupsKeepTheirKeys()

@@ -178,7 +178,12 @@ private:
     static QStringList s_qtMessageFilterPrefixes;
 
     // 控制台颜色支持成员
+#ifdef _WIN32
     static HANDLE hConsole;
     static WORD defaultColor;
+#else
+    static void *hConsole;
+    static unsigned short defaultColor;
+#endif
 
 };

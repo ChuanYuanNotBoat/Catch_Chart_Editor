@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -444,6 +445,222 @@ namespace
                 return false;
         }
         return true;
+    }
+
+    bool testChartOrdersEquivalentAndImproperBeats()
+    {
+        Chart chart;
+        chart.setNotes({makeNormalNote(0, 3, 2, 400, "late"),
+                        makeNormalNote(1, 0, 1, 256, "early"),
+                        makeNormalNote(1, 2, 4, 128, "same-time")});
+        const auto &notes = chart.notes();
+        if (notes[0].id != "early" || notes[1].id != "same-time" || notes[2].id != "late")
+            return false;
+        // Comparison must not rewrite denominators: they also control note colour.
+        if (notes[1].denominator != 4 || notes[2].beatNum != 0 || notes[2].numerator != 3)
+            return false;
+        Note sound(0, 6, 4, "hit.wav", 100, 0);
+        sound.id = "sound";
+        chart.addNote(sound);
+        if (chart.notes().last().id != "sound")
+            return false;
+        chart.addNote(makeNormalNote(1, 1, 2, 400, "inserted"));
+        return chart.notes()[2].id == "late" && chart.notes()[3].id == "inserted" &&
+               chart.notes().last().id == "sound";
+    }
+
+    bool testChartOrdersBeatsBeyondDoublePrecision()
+    {
+        const int limit = std::numeric_limits<int>::max();
+        // These fractions differ by 1/((limit-1)*limit), below double precision.
+        const Note earlier = makeNormalNote(0, limit - 2, limit - 1, 400, "earlier");
+        const Note later = makeNormalNote(0, limit - 1, limit, 10, "later");
+        Chart chart;
+        chart.setNotes({later, earlier});
+        if (chart.notes().first().id != "earlier")
+            return false;
+        SelectionController selection;
+        selection.setNotes(&chart.notes());
+        if (selection.noteIndicesInBeatRange(0.0, 1.0) != QVector<int>({0, 1}))
+            return false;
+        // Adding a large whole beat also rounds distinct fractional positions alike.
+        chart.setNotes({makeNormalNote(limit, 1, limit, 10, "large-later"),
+                        makeNormalNote(limit, 0, 1, 400, "large-earlier")});
+        return chart.notes().first().id == "large-earlier";
+    }
+
+    bool testBpmImproperBeatsSurviveUndoAndTiming()
+    {
+        Chart seed;
+        seed.bpmList().clear();
+        seed.addBpm(BpmEntry(0, 3, 2, 240.0));
+        seed.addBpm(BpmEntry(1, 0, 1, 180.0));
+        seed.addBpm(BpmEntry(0, 0, 1, 120.0));
+        if (seed.bpmList()[1].bpm != 180.0 || seed.bpmList()[2].bpm != 240.0)
+            return false;
+        const auto cache = MathUtils::buildBpmTimeCache(seed.bpmList(), 0);
+        if (!nearlyEqual(MathUtils::beatToMs(2, 0, 1, cache), 500.0 + 500.0 / 3.0 + 125.0))
+            return false;
+        ChartController controller;
+        if (!controller.loadChartFromData({}, seed))
+            return false;
+        controller.updateBpm(0, BpmEntry(0, 5, 4, 150.0));
+        if (controller.chart()->bpmList()[0].bpm != 180.0 ||
+            controller.chart()->bpmList()[1].bpm != 150.0)
+            return false;
+        controller.undo();
+        if (controller.chart()->bpmList()[0].bpm != 120.0 ||
+            !hasBpmEntry(controller.chart()->bpmList(), 0, 3, 2, 240.0))
+            return false;
+        controller.redo();
+        controller.removeBpm(1);
+        controller.undo();
+        return controller.chart()->bpmList()[1].bpm == 150.0 &&
+               hasBpmEntry(controller.chart()->bpmList(), 0, 5, 4, 150.0);
+    }
+
+    bool testRainUsesExactFullBeatDuration()
+    {
+        // The integer part alone does not determine chronological order.
+        const Note valid(1, 0, 1, 0, 3, 2, 256);
+        const Note invalid(0, 3, 2, 1, 0, 1, 256);
+        if (!valid.isValidRain() || !valid.isTimeValid() || !valid.isValid() ||
+            invalid.isValidRain() || invalid.isTimeValid() || invalid.isValid())
+            return false;
+        const int limit = std::numeric_limits<int>::max();
+        const Note tinyBackward(0, limit - 1, limit, 0, limit - 2, limit - 1, 256);
+        if (tinyBackward.isValidRain() || tinyBackward.isTimeValid())
+            return false;
+        const Note zeroLength(0, 3, 2, 1, 2, 4, 256);
+        if (!zeroLength.isValidRain())
+            return false;
+        return !Note(0, 1, 0, 256).isValid() &&
+               !Note(0, 1, -1, 256).isValid() &&
+               !Note(0, -1, 2, 256).isValid() &&
+               !Note(0, 0, 1, 1, 1, 0, 256).isValidRain();
+    }
+
+    bool testEqualBeatOrderingIsStable()
+    {
+        QVector<Note> notes;
+        for (int i = 0; i < 64; ++i)
+            notes.append(makeNormalNote(i % 2 == 0 ? 0 : 1,
+                                        i % 2 == 0 ? 3 : 1, 2, 256,
+                                        QString::number(i)));
+        Chart chart;
+        chart.setNotes(notes);
+        chart.sortNotes();
+        for (int i = 0; i < notes.size(); ++i)
+            if (chart.notes()[i].id != notes[i].id)
+                return false;
+        chart.bpmList().clear();
+        chart.addBpm(BpmEntry(0, 3, 2, 120));
+        chart.addBpm(BpmEntry(1, 1, 2, 240));
+        return chart.bpmList()[0].bpm == 120 && chart.bpmList()[1].bpm == 240;
+    }
+
+    bool testExactBeatValueBoundsAndMalformedOrdering()
+    {
+        const int high = std::numeric_limits<int>::max();
+        const int low = std::numeric_limits<int>::min();
+        if (BeatPosition(4, 7, 3).toDouble() != BeatPosition(6, 1, 3).toDouble() ||
+            BeatPosition(-1, 4, 3).toDouble() != BeatPosition(0, 1, 3).toDouble())
+            return false;
+        if (BeatPosition(0, 3, 2) != BeatPosition(1, 2, 4) ||
+            BeatPosition(0, -1, 2) != BeatPosition(-1, 1, 2) ||
+            BeatPosition(high, high, 1) <= BeatPosition(high, high, 2) ||
+            BeatPosition(low, low, 1) >= BeatPosition(low, low, 2) ||
+            BeatPosition(0, 1, 0).isValid() || BeatPosition(0, 1, low).isValid())
+            return false;
+        const QVector<BeatPosition> positions = {
+            BeatPosition(0, 1, 0), BeatPosition(0, 2, 0), BeatPosition(0, 1, -1),
+            BeatPosition(low, low, 1), BeatPosition(0, 3, 2), BeatPosition(1, 2, 4),
+            BeatPosition(high, high, 1)};
+        for (const auto &a : positions)
+            for (const auto &b : positions)
+                for (const auto &c : positions)
+                    if ((a < b && b < c && !(a < c)) || (a < b && b < a) ||
+                        (!(a < b) && !(b < a) && !(b < c) && !(c < b) &&
+                         ((a < c) || (c < a))))
+                        return false;
+        return true;
+    }
+
+    bool testExactBeatRangeDistinguishesRoundedNeighbors()
+    {
+        const int high = std::numeric_limits<int>::max();
+        QVector<Note> notes = {
+            makeNormalNote(0, high - 1, high, 10, "later"),
+            makeNormalNote(0, high - 2, high - 1, 400, "earlier"),
+            Note(0, high - 2, high - 1, 0, high - 1, high, 256)};
+        SelectionController selection;
+        selection.setNotes(&notes);
+        const auto point = notes[1].startPosition();
+        if (selection.noteIndicesInBeatRange(point, point) != QVector<int>({2, 1}))
+            return false;
+        selection.selectInBeatRange(point, point);
+        if (selection.selectedIndices() != QSet<int>({1}))
+            return false; // Rain starting here but ending later is not contained.
+        selection.selectInBeatRange(notes[0].startPosition(), point);
+        if (selection.selectedIndices() != QSet<int>({0, 1, 2}))
+            return false;
+        selection.selectInBeatRange(BeatPosition(0, 1, 0), point);
+        return selection.selectedIndices() == QSet<int>({0, 1, 2});
+    }
+
+    bool testProjectedRangeEquivalentTripletsStayMonotonic()
+    {
+        QVector<Note> notes = {makeNormalNote(4, 7, 3, 100, "improper"),
+                               makeNormalNote(6, 1, 3, 400, "proper")};
+        SelectionController selection;
+        selection.setNotes(&notes);
+        const double position = notes[1].getStartBeat();
+        if (notes[0].getStartBeat() != position ||
+            MathUtils::beatToFloat(4, 7, 3) != position ||
+            selection.noteIndicesInBeatRange(position, position) != QVector<int>({0, 1}))
+            return false;
+        const QVector<BpmEntry> bpms = {BpmEntry(0, 0, 1, 120), BpmEntry(4, 7, 3, 180)};
+        const auto cache = MathUtils::buildBpmTimeCache(bpms, 0);
+        return cache.last().beatPos == position &&
+               MathUtils::beatToMs(4, 7, 3, cache) == MathUtils::beatToMs(6, 1, 3, cache) &&
+               MathUtils::beatToMs(4, 7, 3, bpms, 0) == MathUtils::beatToMs(6, 1, 3, bpms, 0);
+    }
+
+    bool testExactOrderingPreservesTripletsThroughSaveAndUndo()
+    {
+        Chart seed;
+        seed.bpmList().clear();
+        seed.addBpm(BpmEntry(0, 0, 1, 120));
+        seed.addBpm(BpmEntry(0, 3, 2, 240));
+        const Note original = makeNormalNote(1, 2, 4, 128, "normal");
+        seed.setNotes({original, Note(1, 0, 1, 0, 3, 2, 256)});
+        ChartController controller;
+        if (!controller.loadChartFromData({}, seed))
+            return false;
+        Note moved = original;
+        moved.beatNum = 0;
+        moved.numerator = 3;
+        moved.denominator = 4;
+        controller.moveNote(original, moved);
+        if (controller.chart()->notes().first().id != "normal")
+            return false;
+        controller.undo();
+        if (controller.chart()->notes().last() != original ||
+            controller.chart()->notes().last().id != original.id)
+            return false;
+        controller.redo();
+        controller.undo();
+        QTemporaryDir dir;
+        if (!dir.isValid())
+            return false;
+        const QString path = dir.filePath("exact.mc");
+        if (!ChartIO::save(path, *controller.chart()))
+            return false;
+        Chart reloaded;
+        if (!ChartIO::load(path, reloaded, false) || reloaded.notes() != controller.chart()->notes())
+            return false;
+        return hasBpmEntry(reloaded.bpmList(), 0, 3, 2, 240) &&
+               reloaded.notes().last().denominator == 4;
     }
 
     bool testChartRemoveById()
@@ -3754,6 +3971,34 @@ namespace
         return true;
     }
 
+    bool testAudioConverterFailureAndCancellationFinish()
+    {
+        QTemporaryDir dir;
+        if (!dir.isValid())
+            return false;
+        const QString corrupt = dir.filePath("corrupt.wav");
+        const QString output = dir.filePath("output.ogg");
+        if (!writeTextFile(corrupt, QByteArray("This is not audio.")))
+            return false;
+        QString error;
+        if (AudioConverter::convertToOgg(corrupt, output, &error) ||
+            error.isEmpty() || QFileInfo::exists(output))
+            return false;
+        const QString wav = dir.filePath("tone.wav");
+        if (!makeTestWav(wav, 8000, 1))
+            return false;
+        bool callbackCalled = false;
+        error.clear();
+        const bool converted = AudioConverter::convertToOgg(wav, output, &error,
+            [&callbackCalled](float) { callbackCalled = true; return false; });
+        const bool ok = !converted && callbackCalled && error.contains("cancelled") &&
+                        !QFileInfo::exists(output);
+        if (!ok)
+            std::fprintf(stderr, "Cancellation details: converted=%d callback=%d output=%d error=%s\n",
+                         converted, callbackCalled, QFileInfo::exists(output), qPrintable(error));
+        return ok;
+    }
+
     bool testAudioConverterConvertsWavToOgg()
     {
         QTemporaryDir dir;
@@ -3827,6 +4072,15 @@ int main(int argc, char **argv)
         {"MathUtils cross-segment round-trip boundary", &testMathUtilsCrossSegmentRoundTripBoundary},
         {"Chart removeNote by id", &testChartRemoveById},
         {"Chart BPM sorting", &testChartBpmSort},
+        {"Chart exact mixed-fraction ordering", &testChartOrdersEquivalentAndImproperBeats},
+        {"Chart/selection ordering beyond double precision", &testChartOrdersBeatsBeyondDoublePrecision},
+        {"BPM improper beats undo + timing", &testBpmImproperBeatsSurviveUndoAndTiming},
+        {"Rain exact full-beat duration", &testRainUsesExactFullBeatDuration},
+        {"Equal beat stable ordering", &testEqualBeatOrderingIsStable},
+        {"Exact beat int bounds + malformed ordering", &testExactBeatValueBoundsAndMalformedOrdering},
+        {"Exact beat range rounded neighbors + Rain containment", &testExactBeatRangeDistinguishesRoundedNeighbors},
+        {"Projected range equivalent triplets stay monotonic", &testProjectedRangeEquivalentTripletsStayMonotonic},
+        {"Exact ordering preserves saved triplets + note undo", &testExactOrderingPreservesTripletsThroughSaveAndUndo},
         {"SelectionController cached indices refresh", &testSelectionControllerRefreshesCachedIndices},
         {"SelectionController maintained beat index", &testSelectionControllerMaintainsBeatIndex},
         {"SelectionController revision skips duplicate refresh", &testSelectionControllerRevisionSkipsDuplicateRefresh},
@@ -3945,6 +4199,7 @@ int main(int argc, char **argv)
         {"ChartStats empty chart yields zeros", &testChartStatsCalculatorEmptyChart},
         {"AudioConverter isOggFile content sniffing", &testAudioConverterIsOggFile},
         {"AudioConverter WAV to OGG roundtrip", &testAudioConverterConvertsWavToOgg},
+        {"AudioConverter decoder failure + cancellation finish", &testAudioConverterFailureAndCancellationFinish},
     };
 
     int failed = 0;
@@ -3960,6 +4215,7 @@ int main(int argc, char **argv)
         {
             std::fprintf(stdout, "PASSED: %s\n", c.name);
         }
+        std::fflush(stdout);
     }
 
     return failed == 0 ? 0 : 1;

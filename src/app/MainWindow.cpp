@@ -1,5 +1,6 @@
 // MainWindow.cpp - Main window implementation.
 #include "MainWindow.h"
+#include "ui/analysis/AnalysisEditor.h"
 #include "MainWindowPrivate.h"
 #include "app/Application.h"
 #include "app/SessionPathUtils.h"
@@ -1569,6 +1570,9 @@ MainWindow::MainWindow(ChartController *chartCtrl,
 
     setupUi();
     createCentralArea();
+    connect(d->chartController, &ChartController::chartLoaded, this, [this] {
+        d->playbackController->setLoopRange(0, 0, false);
+    });
     d->commandRouter = new CommandRouter(this);
     connect(d->commandRouter, &CommandRouter::modifierReleased, d->canvas, [this](int key) {
         if (key == Qt::Key_Alt || key == Qt::Key_AltGr)
@@ -1979,6 +1983,14 @@ void MainWindow::createEditMenu()
 void MainWindow::createViewMenu()
 {
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+    auto *analysisAction = viewMenu->addAction(tr("Analysis Editor…"));
+    analysisAction->setObjectName(QStringLiteral("action.analysis_editor"));
+    connect(analysisAction, &QAction::triggered, this, [this] {
+        if (!d->analysisEditor) d->analysisEditor = new AnalysisEditor(d->chartController, d->selectionController,
+            d->playbackController, d->canvas, d->notePanel->longRangeSelector(), this);
+        d->analysisEditor->show(); d->analysisEditor->raise(); d->analysisEditor->activateWindow();
+    });
+    viewMenu->addSeparator();
     if (d->dockManager)
     {
         if (!d->floatingToolWindowsAction)

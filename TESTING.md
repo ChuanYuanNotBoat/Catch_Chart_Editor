@@ -1,7 +1,7 @@
 # Testing Guide
 
 > 适用版本：Beta v1.11.2 + Unreleased maintenance
-> 最后核对：2026-10-01
+> 最后核对：2026-10-03
 
 ## 测试目标
 
@@ -21,6 +21,8 @@ CTest 名称：`core_minimal_tests`
 
 - `MathUtils` beat/ms、BPM cache、吸附与边界；
 - Chart、Note、BPM、MetaData 的排序、增删改和信号；
+- `BeatPosition` 整数边界、等价/假分数、极大分母与损坏分母的严格排序；Note/BPM 同拍稳定排序、Rain 精确时长、精确/投影选区边界、保存三元组和 Undo/Redo 保留原分度；
+- 音频转换正常 WAV→OGG、损坏输入与取消结束、失败后删除未完成输出；`core_minimal_tests` 有 60 秒超时，避免解码错误导致整套测试无期限等待；
 - `ChartController` 批量编辑、撤销/重做及细分变更信号；每次图表变更还携带单调 revision 和 `notes/timing/metadata/resources` 类型化变更集；统计、画布、密度、选择、预览与奖励缓存按相关 revision 失效；
 - 5,000 Note 批量增删移动后的稳定身份、数量与排序；
 - `ChartIO` / `ProjectIO` / `ChartFileSystem` 路径、扫描、资源和格式行为；
@@ -66,6 +68,7 @@ CTest 名称：`ui_shortcut_tests`；入口：[tests/shortcut_tests.cpp](tests/s
 - 原生曲线删除/撤销、进程工具宿主撤销，以及实际浮动面板的命令派发。
 - 语言切换重建菜单保留绑定且不重复注册；冲突后设置窗口不丢失编辑内容。
 - 在其他面板释放 Alt 会清除高精度滚轮的模式切换累积量。
+- Range Select 文本范围可区分被 `double` 舍入为同值的邻近拍点，反向输入按精确比较自动交换，Rain 仍要求尾部完全包含。
 
 进程插件的真实通信由现有核心回归覆盖；此窗口套件验证宿主工具模式的路由。
 当前 CTest 共 13 组（CCE 8 组、AutoTimingCore 5 组）。

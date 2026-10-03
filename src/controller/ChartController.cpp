@@ -16,12 +16,7 @@ namespace
 {
     bool bpmLess(const BpmEntry &a, const BpmEntry &b)
     {
-        if (a.beatNum != b.beatNum)
-            return a.beatNum < b.beatNum;
-
-        const double aPos = static_cast<double>(a.numerator) / a.denominator;
-        const double bPos = static_cast<double>(b.numerator) / b.denominator;
-        return aPos < bPos;
+        return a.position() < b.position();
     }
 
     bool bpmExactEqual(const BpmEntry &a, const BpmEntry &b)
@@ -34,9 +29,7 @@ namespace
 
     bool bpmPositionEqual(const BpmEntry &a, const BpmEntry &b)
     {
-        return a.beatNum == b.beatNum &&
-               a.numerator == b.numerator &&
-               a.denominator == b.denominator;
+        return a.position() == b.position();
     }
 
     int findBpmExactIndex(const QVector<BpmEntry> &list, const BpmEntry &target)
@@ -69,7 +62,7 @@ namespace
 
     void sortBpmList(QVector<BpmEntry> &list)
     {
-        std::sort(list.begin(), list.end(), bpmLess);
+        std::stable_sort(list.begin(), list.end(), bpmLess);
     }
 
     bool removeBpmByValue(Chart &chart, const BpmEntry &entry, int fallbackIndex)
@@ -736,6 +729,7 @@ ChartController::ChartController(QObject *parent) : QObject(parent)
 {
     qRegisterMetaType<ChartChange>();
     m_undoStack = new QUndoStack(this);
+    connect(m_undoStack, &QUndoStack::indexChanged, this, [this] { emit undoStateChanged(); });
 }
 
 ChartController::~ChartController()

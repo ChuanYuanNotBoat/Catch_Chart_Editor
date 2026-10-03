@@ -40,6 +40,11 @@ public:
     void seekTo(double timeMs);
     void seekToBeat(int beat, int num, int den);
 
+    void setLoopRange(double startMs, double endMs, bool enabled);
+    double loopStartMs() const { return m_loopStartMs; }
+    double loopEndMs() const { return m_loopEndMs; }
+    bool loopEnabled() const { return m_loopEnabled; }
+
     double currentTime() const;
     double visualTime() const;
     void acknowledgeFramePainted(qint64 frameSeq);
@@ -48,6 +53,7 @@ public:
     bool autoPausedAtEnd() const;
 
 signals:
+    void loopRangeChanged(double startMs, double endMs, bool enabled);
     void stateChanged(State newState);
     void positionChanged(double timeMs);
     void playbackFrameTick(double predictedTimeMs, qint64 frameSeq);
@@ -79,6 +85,8 @@ private:
                                    qint64 nowNs,
                                    bool allowHardResync = true);
 
+    double m_loopStartMs = 0, m_loopEndMs = 0;
+    bool m_loopEnabled = false;
     AudioPlayer *m_audioPlayer;
     State m_state;
     double m_speed;

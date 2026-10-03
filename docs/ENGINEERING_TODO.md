@@ -106,7 +106,7 @@ CCE remains the source of truth while these boundaries mature; repository-level
 core extraction comes later.
 
 - [ ] Introduce strong persistent IDs for document, difficulty, timeline, layer, and note entities.
-- [ ] Replace floating-point beat ordering with normalized rational comparison.
+- [x] Replace legacy Note/BPM floating-point ordering with normalized rational comparison (`BeatPosition`); preserve source triplets and use exact text-input range boundaries. Audio time caches and continuous curve geometry remain floating-point projections.
 - [ ] Migrate selection identity from note indices to note IDs while retaining fast render indices.
 - [ ] Add a read-only versioned document snapshot and remove UI access to unrestricted mutable Chart state.
 - [ ] Replace whole-Chart command snapshots with validated serializable deltas and inverse operations.

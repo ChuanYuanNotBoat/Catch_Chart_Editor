@@ -278,10 +278,9 @@ void ChartCanvas::rebuildNoteTimesCache()
               m_sortedSelectionNoteIndicesByBeat.end(),
               [&notes](int a, int b)
               {
-                  const double aBeat = notes[a].getStartBeat();
-                  const double bBeat = notes[b].getStartBeat();
-                  if (aBeat != bBeat)
-                      return aBeat < bBeat;
+                  const int positionOrder = notes[a].startPosition().compare(notes[b].startPosition());
+                  if (positionOrder != 0)
+                      return positionOrder < 0;
                   if (notes[a].x != notes[b].x)
                       return notes[a].x < notes[b].x;
                   return a < b;
@@ -374,15 +373,15 @@ void ChartCanvas::rebuildNoteTimesCache()
 
     std::sort(m_sortedNormalNoteIndicesByBeat.begin(),
               m_sortedNormalNoteIndicesByBeat.end(),
-              [this](int a, int b)
+              [&notes](int a, int b)
               {
-                  return m_noteBeatPositions[a] < m_noteBeatPositions[b];
+                  return notes[a].startPosition() < notes[b].startPosition();
               });
     std::sort(m_sortedRainNoteIndicesByBeat.begin(),
               m_sortedRainNoteIndicesByBeat.end(),
-              [this](int a, int b)
+              [&notes](int a, int b)
               {
-                  return m_noteBeatPositions[a] < m_noteBeatPositions[b];
+                  return notes[a].startPosition() < notes[b].startPosition();
               });
     m_rainIntervalIndex.build(
         m_sortedRainNoteIndicesByBeat, m_noteBeatPositions, m_noteEndBeatPositions);
@@ -459,6 +458,7 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
         disconnect(m_playbackController, &PlaybackController::positionChanged, this, &ChartCanvas::playbackPositionChanged);
         disconnect(m_playbackController, &PlaybackController::playbackFrameTick, this, &ChartCanvas::onPlaybackFrameTick);
         disconnect(m_playbackController, &PlaybackController::stateChanged, this, nullptr);
+        disconnect(m_playbackController, &PlaybackController::loopRangeChanged, this, nullptr);
     }
 
     m_playbackController = controller;
@@ -466,6 +466,7 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
 
     if (m_playbackController)
     {
+        connect(m_playbackController, &PlaybackController::loopRangeChanged, this, [this] { update(); });
         attachDisplayFrameWindow();
         if (m_displayFrameScreen)
             m_playbackController->setDisplayRefreshRate(m_displayFrameScreen->refreshRate());
@@ -659,6 +660,7 @@ void ChartCanvas::setScrollPos(double timeMs)
 
     m_scrollBeat = newScrollBeat;
     m_currentPlayTime = clampedTimeMs;
+    if (timeChanged) emit currentTimeChanged(m_currentPlayTime);
     update();
     if (scrollChanged)
         emit scrollPositionChanged(m_scrollBeat);
@@ -681,6 +683,7 @@ void ChartCanvas::syncCurrentPlayTimeToReferenceLine()
     int denominator = 1;
     MathUtils::floatToBeat(baselineBeat, beatNum, numerator, denominator);
     m_currentPlayTime = MathUtils::beatToMs(beatNum, numerator, denominator, bpmList, offset);
+    emit currentTimeChanged(m_currentPlayTime);
 }
 
 void ChartCanvas::setNoteSize(int size)

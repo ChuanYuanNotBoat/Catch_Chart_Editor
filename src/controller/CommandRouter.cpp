@@ -206,6 +206,8 @@ bool CommandRouter::allows(Scope scope, QWidget *target) const
 {
     if (!ownsWidget(target) || QApplication::activeModalWidget() || QApplication::activePopupWidget())
         return false;
+    if (target->window() != m_window && target->window()->property("cceOwnCommandRouter").toBool())
+        return false;
     for (QWidget *current = target; current && current != m_window; current = current->parentWidget())
         if (qobject_cast<QDialog *>(current))
             return false;

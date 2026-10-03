@@ -69,6 +69,7 @@ public:
 
 signals:
     void chartChangeCommitted(const ChartChange &change);
+    void undoStateChanged(); // stack state is settled, after command notifications
     void chartChanged(); // 任何数据变化
     void chartLoaded();  // 加载新谱面
     void notesChanged();   // 音符增删改

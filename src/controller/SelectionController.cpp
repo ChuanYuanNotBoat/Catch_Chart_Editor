@@ -199,6 +199,45 @@ QVector<int> SelectionController::noteIndicesInBeatRange(double startBeat, doubl
     return QVector<int>(lower, upper);
 }
 
+void SelectionController::selectInBeatRange(const BeatPosition &startBeat,
+                                           const BeatPosition &endBeat)
+{
+    if (!m_notes || !startBeat.isValid() || !endBeat.isValid())
+        return;
+    const BeatPosition rangeEnd = std::max(startBeat, endBeat);
+    QSet<int> newSelection;
+    for (int index : noteIndicesInBeatRange(startBeat, endBeat))
+    {
+        const Note &note = m_notes->at(index);
+        if (note.isRainNote() && (!note.isTimeValid() || note.endPosition() > rangeEnd))
+            continue;
+        newSelection.insert(index);
+    }
+    select(newSelection);
+}
+
+QVector<int> SelectionController::noteIndicesInBeatRange(const BeatPosition &startBeat,
+                                                       const BeatPosition &endBeat) const
+{
+    if (!m_notes || !startBeat.isValid() || !endBeat.isValid())
+        return {};
+    if (m_noteIndexDirty)
+        rebuildNoteIndex();
+    const BeatPosition rangeStart = std::min(startBeat, endBeat);
+    const BeatPosition rangeEnd = std::max(startBeat, endBeat);
+    const auto lower = std::lower_bound(
+        m_sortedNoteIndicesByBeat.cbegin(), m_sortedNoteIndicesByBeat.cend(), rangeStart,
+        [this](int index, const BeatPosition &beat) {
+            return m_notes->at(index).startPosition() < beat;
+        });
+    const auto upper = std::upper_bound(
+        lower, m_sortedNoteIndicesByBeat.cend(), rangeEnd,
+        [this](const BeatPosition &beat, int index) {
+            return beat < m_notes->at(index).startPosition();
+        });
+    return QVector<int>(lower, upper);
+}
+
 void SelectionController::rebuildNoteIndex() const
 {
     m_sortedNoteIndicesByBeat.clear();
@@ -219,8 +258,9 @@ void SelectionController::rebuildNoteIndex() const
               [this](int left, int right) {
         const Note &leftNote = m_notes->at(left);
         const Note &rightNote = m_notes->at(right);
-        if (leftNote.getStartBeat() != rightNote.getStartBeat())
-            return leftNote.getStartBeat() < rightNote.getStartBeat();
+        const int positionOrder = leftNote.startPosition().compare(rightNote.startPosition());
+        if (positionOrder != 0)
+            return positionOrder < 0;
         if (leftNote.x != rightNote.x)
             return leftNote.x < rightNote.x;
         return left < right;

@@ -17,7 +17,7 @@ QVector<MathUtils::BpmCacheEntry> MathUtils::buildBpmTimeCache(const QVector<Bpm
     for (int i = 0; i < bpmList.size(); ++i)
     {
         const BpmEntry &entry = bpmList[i];
-        double beatPos = entry.beatNum + static_cast<double>(entry.numerator) / entry.denominator;
+        double beatPos = beatToFloat(entry.beatNum, entry.numerator, entry.denominator);
 
         BpmCacheEntry cacheEntry;
         cacheEntry.beatPos = beatPos;
@@ -29,7 +29,7 @@ QVector<MathUtils::BpmCacheEntry> MathUtils::buildBpmTimeCache(const QVector<Bpm
         if (i + 1 < bpmList.size())
         {
             const BpmEntry &next = bpmList[i + 1];
-            double nextBeatPos = next.beatNum + static_cast<double>(next.numerator) / next.denominator;
+            double nextBeatPos = beatToFloat(next.beatNum, next.numerator, next.denominator);
             double beatLen = nextBeatPos - beatPos;
             if (entry.bpm > 0)
                 accumulated += beatLen * (60000.0 / entry.bpm);
@@ -45,7 +45,7 @@ double MathUtils::beatToMs(int beatNum, int numerator, int denominator,
     if (cache.isEmpty())
         return 0.0;
 
-    double targetBeat = beatNum + static_cast<double>(numerator) / denominator;
+    double targetBeat = beatToFloat(beatNum, numerator, denominator);
 
     // 二分查找最后一个 beatPos <= targetBeat 的段
     int lo = 0, hi = cache.size() - 1;
@@ -76,21 +76,21 @@ double MathUtils::beatToMs(int beatNum, int numerator, int denominator,
         if (bpmList.isEmpty())
             return -offsetMs;
 
-        double targetBeat = beatNum + static_cast<double>(numerator) / denominator;
+        double targetBeat = beatToFloat(beatNum, numerator, denominator);
 
         // 找到第一个 BPM 变化点之前的 BPM
         int idx = 0;
         while (idx + 1 < bpmList.size())
         {
-            double nextBeat = bpmList[idx + 1].beatNum +
-                              static_cast<double>(bpmList[idx + 1].numerator) / bpmList[idx + 1].denominator;
+            const BpmEntry &next = bpmList[idx + 1];
+            double nextBeat = beatToFloat(next.beatNum, next.numerator, next.denominator);
             if (targetBeat < nextBeat)
                 break;
             idx++;
         }
 
         const BpmEntry &cur = bpmList[idx];
-        double curBeat = cur.beatNum + static_cast<double>(cur.numerator) / cur.denominator;
+        double curBeat = beatToFloat(cur.beatNum, cur.numerator, cur.denominator);
 
         // 计算从 curBeat 到 targetBeat 的毫秒数
         double beatDelta = targetBeat - curBeat;
@@ -107,14 +107,14 @@ double MathUtils::beatToMs(int beatNum, int numerator, int denominator,
         for (int i = 0; i < idx; ++i)
         {
             const BpmEntry &prev = bpmList[i];
-            double prevBeat = prev.beatNum + static_cast<double>(prev.numerator) / prev.denominator;
+            double prevBeat = beatToFloat(prev.beatNum, prev.numerator, prev.denominator);
 
             // 下一段的开始beat
             double nextBeat;
             if (i + 1 < bpmList.size())
             {
                 const BpmEntry &next = bpmList[i + 1];
-                nextBeat = next.beatNum + static_cast<double>(next.numerator) / next.denominator;
+                nextBeat = beatToFloat(next.beatNum, next.numerator, next.denominator);
             }
             else
             {
@@ -270,6 +270,8 @@ double MathUtils::beatToFloat(int beatNum, int numerator, int denominator)
 {
     if (denominator == 0)
         return static_cast<double>(beatNum); // 防止除零
+    if (denominator > 0)
+        return BeatPosition(beatNum, numerator, denominator).toDouble();
     return static_cast<double>(beatNum) + static_cast<double>(numerator) / denominator;
 }
 

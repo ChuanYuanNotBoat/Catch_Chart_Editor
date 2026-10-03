@@ -4,7 +4,7 @@
 > 当前版本：**Beta v1.11.2（2026-09-19）**
 > 仓库状态：**v1.11.2 后续维护（Unreleased）**
 > Git 标签：`v1.11.2`
-> 最后核对：2026-10-01
+> 最后核对：2026-10-03
 
 ## 1. 项目边界
 
@@ -111,6 +111,7 @@ MainWindow
 - `ChartController` 保留粗粒度 `chartChanged` 兼容信号，并通过 `chartChangeCommitted` 提供单调 revision 与 `notes/timing/metadata/resources` 类型化变更集；新增缓存监听时选最小范围。
 - 统计 stale-result 直接比较 `ChartController::revision()`；画布、预览、密度、选择和 Rain Reward 只在其依赖的 typed change 到达时失效，不要重新连接粗粒度信号。
 - 大批量 Note 修改使用 `Chart::addNotes/removeNotes/replaceNotes/applyNoteBatch`，只在变更边界排序一次。
+- Note/BPM 时间顺序使用 `BeatPosition`（`Note::startPosition/endPosition`、`BpmEntry::position`），不以浮点差或 epsilon 决定实体顺序。该值局部规范化，不能为比较而改写原始三元组/分母；范围文本输入使用 SelectionController 的精确拍点重载。显示、音频时间缓存与连续曲线几何仍使用浮点投影。
 - Note/Rain 拖动期间只维护绘制预览，松手后经 Controller 提交一次；不要恢复每个 pointer event 修改模型的做法。
 - 播放态视觉刷新由 `PlaybackController` 帧信号驱动，不要再增加独立高频定时器。
 - 全谱统计复制 Chart 快照后通过 Qt Concurrent 执行，并以 `chartRevision` 拒绝切谱/继续编辑后返回的旧结果。

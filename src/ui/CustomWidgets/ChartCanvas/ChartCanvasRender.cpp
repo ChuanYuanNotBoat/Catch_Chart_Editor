@@ -398,6 +398,16 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         drawRangeOverlay(painter, lmargin, rmargin, canvasHeight);
     }
 
+    if (m_playbackController && m_playbackController->loopEnabled())
+    {
+        const double a = beatToY(beatFromTimeMs(m_playbackController->loopStartMs()));
+        const double b = beatToY(beatFromTimeMs(m_playbackController->loopEndMs()));
+        painter.fillRect(QRectF(lmargin, qMin(a, b), availableWidth, std::abs(b - a)), QColor(86, 217, 172, 23));
+        painter.setPen(QPen(QColor(86, 217, 172, 180), 1, Qt::DashLine));
+        painter.drawLine(QPointF(lmargin, a), QPointF(canvasWidth - rmargin, a));
+        painter.drawLine(QPointF(lmargin, b), QPointF(canvasWidth - rmargin, b));
+    }
+
     double baselineY = canvasHeight * kReferenceLineRatio;
     painter.setPen(QPen(QColor(0, 0, 255), 3));
     painter.drawLine(lmargin, baselineY, canvasWidth - rmargin, baselineY);
