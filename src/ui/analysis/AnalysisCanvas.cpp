@@ -171,6 +171,21 @@ void AnalysisCanvas::clearTimingPreview()
     m_timingPreview.reset();
     update();
 }
+void AnalysisCanvas::setMeasurementPicking(bool enabled)
+{
+    cancelGesture();
+    m_measurePicking = enabled;
+    update();
+}
+void AnalysisCanvas::setMeasurementOverlay(std::optional<double> start, std::optional<double> end,
+                                         double bpm, const QString &label)
+{
+    m_measureStart = start;
+    m_measureEnd = end;
+    m_measureBpm = bpm;
+    m_measureStartLabel = label;
+    update();
+}
 void AnalysisCanvas::clearSpectrum()
 {
     m_spectrum = {};
@@ -342,6 +357,48 @@ void AnalysisCanvas::drawTimingPreview(QPainter &p)
         if (time >= qMin(a, b) && time <= qMax(a, b))
             p.drawLine(QPointF(0, yAtTime(time)), QPointF(width(), yAtTime(time)));
 }
+void AnalysisCanvas::drawMeasurement(QPainter &p)
+{
+    if (!m_measureStart)
+        return;
+    const int sw = spectrumWidth();
+    if (m_measureEnd && m_measureBpm > 0)
+    {
+        const double a = timeAtY(headerHeight), b = timeAtY(height());
+        const double low = qMax(*m_measureStart, qMin(a, b)), high = qMin(*m_measureEnd, qMax(a, b));
+        const double period = 60000 / m_measureBpm;
+        const int limit = qBound(1, (height() - headerHeight) / 6, 1024);
+        const double stride = qMax(1.0, std::ceil((high - low) / (period * limit)));
+        const double first = std::ceil((low - *m_measureStart) / (period * stride));
+        p.setPen(QPen(QColor(182, 151, 255, 210), 1, Qt::DashDotLine));
+        for (int i = 0; i <= limit && high > low; ++i)
+        {
+            const double time = *m_measureStart + (first + i) * stride * period;
+            if (time > high)
+                break;
+            p.drawLine(QPointF(0, yAtTime(time)), QPointF(sw, yAtTime(time)));
+        }
+    }
+    auto marker = [&](double ms, bool start) {
+        const double y = yAtTime(ms);
+        if (y < headerHeight || y > height())
+            return;
+        const QColor color = start ? QColor(255, 205, 96) : QColor(221, 172, 255);
+        p.setPen(QPen(color, 2));
+        p.drawLine(QPointF(0, y), QPointF(sw, y));
+        const QString label = start ? m_measureStartLabel : tr("End %1 ms").arg(ms, 0, 'f', 3);
+        const int textWidth = qMin(sw - 12, p.fontMetrics().horizontalAdvance(label) + 12);
+        const QRect box(start ? 4 : sw - textWidth - 4, qRound(y) - (start ? 22 : -3), textWidth, 20);
+        p.fillRect(box, QColor(24, 27, 39, 235));
+        p.drawText(box.adjusted(4, 0, -4, 0), Qt::AlignCenter,
+                   p.fontMetrics().elidedText(label, Qt::ElideRight, textWidth - 8));
+        p.setBrush(color);
+        p.drawEllipse(QPointF(start ? 7 : sw - 7, y), 4, 4);
+    };
+    marker(*m_measureStart, true);
+    if (m_measureEnd)
+        marker(*m_measureEnd, false);
+}
 void AnalysisCanvas::drawNotes(QPainter &p)
 {
     const double low = qMin(timeAtY(headerHeight - 12), timeAtY(height() + 12)),
@@ -404,6 +461,7 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
     drawNotes(p);
     p.setPen(QPen(QColor(255, 119, 113), 1.5));
     p.drawLine(QPointF(0, yAtTime(m_current)), QPointF(width(), yAtTime(m_current)));
+    drawMeasurement(p);
     if (!m_status.isEmpty() && !m_leftImage.isNull())
     {
         const QRect status(8, headerHeight + 6, spectrumWidth() - 16, 42);
@@ -420,6 +478,8 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
         spectrumTitle += tr(" · Preview %1 BPM").arg(m_timingPreview->bpm, 0, 'f', 3);
         p.setPen(QColor(85, 211, 239));
     }
+    if (m_measurePicking)
+        spectrumTitle = m_measureStart ? tr("Measure · End / drag markers") : tr("Measure · pick Start (snap)");
     p.drawText(QRect(2, 0, spectrumWidth() - 4, headerHeight), Qt::AlignCenter,
                p.fontMetrics().elidedText(spectrumTitle, Qt::ElideRight, spectrumWidth() - 8));
     p.setPen(QColor(201, 215, 231));
@@ -471,7 +531,40 @@ void AnalysisCanvas::cancelGesture()
     m_tailPreview.reset();
     m_resizeDivider = false;
     m_selectingRange = false;
+    m_measureDragging = 0;
     update();
+}
+void AnalysisCanvas::pickMeasurementStart(double y)
+{
+    const auto &timing = m_chart->chart()->bpmList();
+    // A clicked existing timing line retains even a non-canonical triplet.
+    const BpmEntry *nearest = nullptr;
+    double distance = 5;
+    for (const auto &point : timing)
+    {
+        const double delta = qAbs(yAtTime(timeAtBeat(point.position().toDouble())) - y);
+        if (delta < distance)
+        {
+            nearest = &point;
+            distance = delta;
+        }
+    }
+    if (nearest)
+    {
+        emit measurementStartRequested(nearest->beatNum, nearest->numerator, nearest->denominator);
+        return;
+    }
+    int b, n, d;
+    if (!MathUtils::quantizeBeatToDivision(qMax(0.0, beatAtTime(timeAtY(y))), m_main->timeDivision(), b, n, d))
+        return;
+    const BeatPosition position(b, n, d);
+    for (const auto &point : timing)
+        if (point.position() == position)
+        {
+            emit measurementStartRequested(point.beatNum, point.numerator, point.denominator);
+            return;
+        }
+    emit measurementStartRequested(b, n, d);
 }
 void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
 {
@@ -500,6 +593,18 @@ void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
             }
             menu->popup(mapToGlobal(QPoint(spectrumWidth(), headerHeight)));
         }
+        return;
+    }
+    if (m_measurePicking && pos.x() < spectrumWidth() - 5 && e->button() == Qt::LeftButton
+        && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)))
+    {
+        const double startDistance = m_measureStart ? qAbs(yAtTime(*m_measureStart) - pos.y()) : 1e12;
+        const double endDistance = m_measureEnd ? qAbs(yAtTime(*m_measureEnd) - pos.y()) : 1e12;
+        m_measureDragging = !m_measureStart || (startDistance <= 8 && startDistance <= endDistance) ? 1 : 2;
+        if (m_measureDragging == 1)
+            pickMeasurementStart(pos.y());
+        else
+            emit measurementEndRequested(qMax(0.0, timeAtY(pos.y())));
         return;
     }
     if (e->button() == Qt::LeftButton && (e->modifiers() & Qt::ShiftModifier))
@@ -573,6 +678,14 @@ void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
 }
 void AnalysisCanvas::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_measureDragging)
+    {
+        if (m_measureDragging == 1)
+            pickMeasurementStart(e->position().y());
+        else
+            emit measurementEndRequested(qMax(0.0, timeAtY(e->position().y())));
+        return;
+    }
     if (m_resizeDivider)
     {
         setNoteLaneWidth(qBound(42, width() - qRound(e->position().x()), qMax(42, width() - 80)));
@@ -605,6 +718,7 @@ void AnalysisCanvas::mouseReleaseEvent(QMouseEvent *e)
     if (e->button() != Qt::LeftButton)
         return;
     m_resizeDivider = false;
+    m_measureDragging = 0;
     if (m_selectingRange)
     {
         m_selectingRange = false;
@@ -638,10 +752,26 @@ void AnalysisCanvas::keyPressEvent(QKeyEvent *e)
     if (e->key() == Qt::Key_Escape)
     {
         cancelGesture();
+        if (m_measurePicking)
+            emit measurementCancelRequested();
         e->accept();
     }
     else
         QWidget::keyPressEvent(e);
+}
+bool AnalysisCanvas::event(QEvent *event)
+{
+    if (event->type() == QEvent::KeyPress && m_measurePicking)
+    {
+        const auto *key = static_cast<QKeyEvent *>(event);
+        if (key->key() == Qt::Key_Tab && key->modifiers() == Qt::NoModifier)
+        {
+            emit measurementDetailsRequested();
+            event->accept();
+            return true;
+        }
+    }
+    return QWidget::event(event);
 }
 void AnalysisCanvas::resizeEvent(QResizeEvent *)
 {

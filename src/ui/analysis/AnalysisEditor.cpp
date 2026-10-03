@@ -1,6 +1,7 @@
 #include "AnalysisEditor.h"
 #include "AnalysisCanvas.h"
 #include "TransientPanel.h"
+#include "TimingToolsPanel.h"
 #include "analysis/AutoTimingDiagnostics.h"
 #include "audio/SpectrumService.h"
 #include "controller/ChartController.h"
@@ -144,7 +145,22 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     m_panels->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_work->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     root->addLayout(body, 1);
-    addAnalysisPanel(tr("Timing"), createTimingPanel());
+    auto *timingTabs = new QTabWidget;
+    timingTabs->setObjectName("analysis.timingModes");
+    m_timingTools = new TimingToolsPanel(chart, m_canvas);
+    timingTabs->addTab(m_timingTools, tr("Measure"));
+    timingTabs->addTab(createTimingPanel(), tr("AutoTiming"));
+    timingTabs->setCurrentIndex(1);
+    addAnalysisPanel(tr("Timing"), timingTabs);
+    connect(timingTabs, &QTabWidget::currentChanged, this, [this](int index) {
+        m_timingTools->stopPicking();
+        if (index == 0)
+            m_candidateGrid->setChecked(false);
+    });
+    connect(m_timingTools, &TimingToolsPanel::pickingStarted, this, [this] {
+        m_playback->pause();
+        m_candidateGrid->setChecked(false);
+    });
     m_transient = new TransientPanel(m_canvas);
     addAnalysisPanel(tr("Transient"), m_transient);
     connect(m_transient, &TransientPanel::seekRequested, this, [this](double ms) {
@@ -310,6 +326,7 @@ void AnalysisEditor::togglePanel(bool right, int index)
     int &open = right ? m_rightOpen : m_leftOpen;
     if (index < 0 || index >= stack->count())
         return;
+    m_timingTools->stopPicking();
     if (open == index && stack->isVisible())
     {
         stack->hide();
@@ -980,6 +997,7 @@ void AnalysisEditor::hideEvent(QHideEvent *event)
 {
     saveLayout();
     m_canvas->cancelGesture();
+    m_timingTools->stopPicking();
     cancelTiming();
     if (m_spectrumCancel)
         *m_spectrumCancel = true;
