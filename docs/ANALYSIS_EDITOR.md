@@ -31,7 +31,7 @@ The bottom controls are limited to playback, current time, loop range, undo/redo
 
 ## Timing debugging
 
-The Timing tab can analyze a specified audio range, the selection, or the visible interval. It exposes:
+**Timing → AutoTiming** can analyze a specified audio range, the selection, or the visible interval. It exposes:
 
 - Global BPM candidates, raw estimates, uncertainty, harmonic family support and phase confidence.
 - Multiscale windows, reliability, evidence, anchor selection and estimator messages.
@@ -60,6 +60,18 @@ These diagnostics never modify the chart or populate a BPM list. Uncertain evide
 Only one timing worker runs per window. Cancel discards its result and cooperatively stops preparation. The pinned AutoTiming core has no mid-analysis cancellation hook, so a running core calculation must finish before another timing job can start. Source/chart generations and audio file identity reject stale asynchronous results. Hiding the editor cancels spectrum work and discards outstanding timing work.
 
 Timbre, Tracks and Generation are explicitly marked future panels. The current extension point is only `addAnalysisPanel`; no speculative algorithm framework, machine learning, pseudo tracks or automatic chart generation is introduced. Future audio events can remain plain input/output data. Future chart candidates must enter an explicit ghost preview and then a separate undoable commit before reaching the real chart.
+
+## Manual timing measurement
+
+Open **Timing → Measure** and enable **Pick Start → End**. The first spectrum click snaps Start to the Catch editor's current beat subdivision. Clicking an existing timing line (within 5 logical pixels) reuses its original Malody `[whole, numerator, denominator]`, including a non-canonical fraction. Otherwise the triplet is created directly on the subdivision; it is never reconstructed from the displayed start milliseconds. The second click chooses an unsnapped absolute audio End. Drag a marker within 8 pixels to adjust it: Start continues to snap and End stays free. Middle-click still seeks; Shift-drag still selects the shared range. Picking pauses playback. Closing/hiding the panel or switching tabs stops picking; Escape clears the draft. Tab on the spectrum focuses **Beat span**.
+
+The default span is **1 beat**, restored for each cleared/new measurement. Decimal and fractional input such as `0.5`, `1/3` and `4` retain their exact rational span (up to nine decimal places). `BPM = 60000 × span / (End − Start)` uses unrounded measurements; the UI offers numeric End adjustment, full-precision BPM copying and a purple reference grid inside the measured interval. The Start label reports its authoritative beat triplet plus a derived audio time. Preview and dragging leave the chart, snap, selection, offset and undo history unchanged.
+
+**Apply BPM at Start** updates an existing timing at the exact same rational position or adds one new timing point through the shared `ChartController`. Existing triplets, note beat coordinates, offset and later timing points are preserved. The BPM applies until the next timing point and affects later audio times. The panel blocks applying across another timing inside the chosen beat span, before the first chart timing, at duplicate timing positions, or with invalid/reversed input; it also avoids a no-op update. A chart containing notes asks for confirmation, defaulting to No. The edit is one shared undo/redo command. Timing/metadata/source changes clear the draft to prevent applying stale measurements.
+
+Manual markers are only displayed while Measure is visible. AutoTiming's cyan candidate preview remains a separate diagnostic and is disabled when entering Measure. This iteration implements the constant-BPM Measure → Preview → Apply flow; adaptive BPM interpolation remains the next tool. STFT hop and screen zoom limit visual alignment: three decimal places in the End field do not imply matching audio accuracy or a certified song tempo.
+
+`analysis/TimingMeasurement` uses only the standard library. Its standalone tests cover exact decimal/fraction parsing, the default beat, absolute-time BPM calculation and malformed/non-finite/reversed inputs. Editor tests drive real mouse clicks and both marker drags, Tab focus, copy, existing non-canonical timing preservation, crossing rejection, both note-confirmation responses, and shared undo/redo.
 
 ## Transient debugging
 
@@ -106,9 +118,15 @@ QT_QPA_PLATFORM=offscreen CCE_ANALYSIS_AUDIO_FILE=/absolute/path/music.flac \
   ./build/AnalysisEditorTests externalAudioInspection
 ```
 
-The case checks the opening eight seconds, an eight-second range at 40% of the file, a late eight-second range and a cropped EOF range. It validates finite stereo magnitudes, absolute event locations and page boundaries. Equal channels and silent ranges are valid audio, not failures. In the real editor it checks parameter restoration, peak double-click navigation, 16 seconds of timing analysis, local candidate preview, loop wraparound, unchanged chart/undo history and clearing results after source removal. It captures five views and exports transient/timing JSON plus an inspection report. The preview screenshot selects the available local candidate with the highest reported phase confidence; that selection is only test setup, not an automatic timing recommendation.
+The case checks the opening eight seconds, an eight-second range at 40% of the file, a late eight-second range and a cropped EOF range. It validates finite stereo magnitudes, absolute event locations and page boundaries. Equal channels and silent ranges are valid audio, not failures. In the real editor it checks parameter restoration, peak double-click navigation, 16 seconds of timing analysis, local candidate preview, loop wraparound, unchanged chart/undo history before editing, and clearing results after source removal. It then drives manual Start/End clicks on the real spectrum, drags End, verifies `1/3` span scaling, applies one BPM point, and undoes/redoes it before restoring the reference chart. It captures nine views and exports transient/timing/manual JSON plus an inspection report. The candidate preview screenshot selects the available local candidate with the highest reported phase confidence; that selection is only test setup, not an automatic timing recommendation.
 
 On 2026-10-03 the case was run directly on user-supplied **II-L – SPUTNIK-1** (173.647 s) and **Horror Gamer Nikson – Old dog,New tricks** (307.622 s), both original 44.1 kHz stereo FLACs. All four decode ranges and GUI interactions passed for both tracks. The 60–90 s SPUTNIK spectrum page yielded 247 detected / 408 rejected peaks, and the 120–150 s Old dog page yielded 216 / 621 with the default threshold 0.12 and 60 ms interval. SPUTNIK's final two seconds were silent and correctly yielded no peaks. These are detector outputs, not counts of manually annotated musical attacks. Timing analysis completed and exposed absolute-phase candidates on both tracks; candidate accuracy and hardware audio latency were not certified by this inspection.
+
+### Manual measurement iteration validation
+
+On 2026-10-04 the extended case passed for five original user-uploaded stereo FLAC files: **II-L – SPUTNIK-1, SPUTNIK-2, SPUTNIK-7, SPUTNIK-9** (each 173.647 s) and **Horror Gamer Nikson – Old dog,New tricks** (307.622 s). This includes 20 decoded ranges and five complete mouse-driven measurement/apply/undo/redo runs, with 45 actual Qt screenshots and 20 JSON outputs. Every manual End was initially chosen from an available detected transient 200–600 ms after a Start on the fixture's 120 BPM reference grid, then dragged three pixels. These points exercise the editing pipeline; they do not establish the tracks' real BPM or correct beat interpretation.
+
+All 17 CTest targets passed across the full run and a final five-target rerun (13.43 s). The initial restored environment lacked GStreamer decoding plugins, causing the audio UI and converter cases to fail/timeout; after installing the runtime plugins, all five Analysis/core targets passed. No source workaround or submodule pin change was needed. Linux Qt 6.4.2 / GCC 13 was used; audible output and native Windows/macOS appearance were not checked.
 
 ## Original implementation patch
 

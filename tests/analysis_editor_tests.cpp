@@ -2,6 +2,7 @@
 #include "ui/analysis/AnalysisEditor.h"
 #include "ui/analysis/AnalysisCanvas.h"
 #include "ui/analysis/TransientPanel.h"
+#include "ui/analysis/TimingToolsPanel.h"
 #include "analysis/AutoTimingDiagnostics.h"
 #include "audio/SpectrumService.h"
 #include "audio/AudioPlayer.h"
@@ -35,6 +36,11 @@
 #include <QTabWidget>
 #include <QLabel>
 #include <QElapsedTimer>
+#include <QLineEdit>
+#include <QTimer>
+#include <QMessageBox>
+#include <QClipboard>
+#include <QAbstractButton>
 #include <QFileInfo>
 #include <memory>
 #include <cmath>
@@ -86,6 +92,7 @@ class AnalysisEditorTests : public QObject
     void loadChart(bool audio = false)
     {
         Chart chart;
+        chart.bpmList().clear();
         chart.addBpm(BpmEntry(0, 0, 1, 120));
         chart.addBpm(BpmEntry(8, 0, 1, 180));
         chart.meta().offset = 125;
@@ -174,6 +181,140 @@ private slots:
         QCOMPARE(canvas()->noteLaneWidth(), 84);
         QCOMPARE(canvas()->millisecondsPerPixel(), 2.5);
         QVERIFY(qAbs(canvas()->width() - width) <= 3);
+    }
+    void manualMeasurementGesturesAndUndo()
+    {
+        auto *side = m_editor->findChild<QTabBar *>("analysis.leftTabs");
+        QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(0).center());
+        m_editor->findChild<QTabWidget *>("analysis.timingModes")->setCurrentIndex(0);
+        auto *panel = m_editor->findChild<TimingToolsPanel *>();
+        auto *pick = m_editor->findChild<QCheckBox *>("analysis.measurePick");
+        auto *span = m_editor->findChild<QLineEdit *>("analysis.measureSpan");
+        auto *apply = m_editor->findChild<QPushButton *>("analysis.measureApply");
+        QVERIFY(panel && pick && span && apply);
+        QCOMPARE(span->text(), QString("1"));
+        canvas()->setMillisecondsPerPixel(2);
+        pick->setChecked(true);
+        const auto revision = m_chart.revision();
+        auto at = [&](double ms) { return QPoint(80, qRound(canvas()->yAtTime(ms))); };
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, at(canvas()->timeAtBeat(4.07)));
+        QCOMPARE(panel->diagnostics().value("startBeat").toArray(), QJsonArray({4, 0, 4}));
+        const QPoint end = at(canvas()->timeAtBeat(4) + 310.25);
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, end);
+        double endMs = canvas()->timeAtY(end.y());
+        QCOMPARE(panel->diagnostics().value("endAudioMilliseconds").toDouble(), endMs);
+        QVERIFY(apply->isEnabled());
+        QVERIFY(qAbs(panel->diagnostics().value("bpm").toDouble() - 60000 / (endMs - 1875)) < 1e-9);
+        QCOMPARE(m_chart.revision(), revision);
+        QVERIFY(!m_chart.canUndo());
+        // End remains free even when dragged between reference grid lines.
+        QTest::mousePress(canvas(), Qt::LeftButton, {}, end);
+        QTest::mouseMove(canvas(), end + QPoint(0, 13));
+        QTest::mouseRelease(canvas(), Qt::LeftButton, {}, end + QPoint(0, 13));
+        endMs = canvas()->timeAtY(end.y() + 13);
+        QCOMPARE(panel->diagnostics().value("endAudioMilliseconds").toDouble(), endMs);
+        const QPoint start = at(canvas()->timeAtBeat(4));
+        QTest::mousePress(canvas(), Qt::LeftButton, {}, start);
+        const QPoint newStart = at(canvas()->timeAtBeat(4.52));
+        QTest::mouseMove(canvas(), newStart);
+        QTest::mouseRelease(canvas(), Qt::LeftButton, {}, newStart);
+        QCOMPARE(panel->diagnostics().value("startBeat").toArray(), QJsonArray({4, 2, 4}));
+        QTest::keyClick(canvas(), Qt::Key_Tab);
+        QCOMPARE(QApplication::focusWidget(), span);
+        span->setText("1/3");
+        QVERIFY(panel->diagnostics().value("valid").toBool());
+        const double fractionalBpm = 20000 / (endMs - 2125);
+        QVERIFY(qAbs(panel->diagnostics().value("bpm").toDouble() - fractionalBpm) < 1e-8);
+        m_editor->findChild<QPushButton *>("analysis.measureCopy")->click();
+        QVERIFY(qAbs(QApplication::clipboard()->text().toDouble() - fractionalBpm) < 1e-8);
+        span->setText("1/0");
+        QVERIFY(!apply->isEnabled());
+        span->setText("1");
+        const double bpm = panel->diagnostics().value("bpm").toDouble();
+        QVERIFY(apply->isEnabled());
+        apply->click();
+        QCOMPARE(m_chart.chart()->bpmList().size(), 3);
+        const auto inserted = m_chart.chart()->bpmList()[1];
+        QCOMPARE(inserted.beatNum, 4);
+        QCOMPARE(inserted.numerator, 2);
+        QCOMPARE(inserted.denominator, 4);
+        QCOMPARE(inserted.bpm, bpm);
+        QVERIFY(!panel->diagnostics().contains("startBeat"));
+        QVERIFY(!canvas()->measurementPicking());
+        QCOMPARE(m_chart.chart()->meta().offset, 125);
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->bpmList().size(), 2);
+        m_chart.redo();
+        QCOMPARE(m_chart.chart()->bpmList().size(), 3);
+        QCOMPARE(m_chart.chart()->bpmList()[1].bpm, bpm);
+        pick->setChecked(true);
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, at(2500));
+        QTest::keyClick(canvas(), Qt::Key_Escape);
+        QVERIFY(!canvas()->measurementPicking());
+        QVERIFY(!panel->diagnostics().contains("startBeat"));
+    }
+    void manualMeasurementPreservesExistingTripletAndConfirmsNotes()
+    {
+        Chart chart;
+        chart.bpmList().clear();
+        chart.addBpm(BpmEntry(0, 0, 1, 120));
+        chart.addBpm(BpmEntry(2, 2, 6, 120));
+        chart.addBpm(BpmEntry(8, 0, 1, 180));
+        chart.addNote(Note(5, 1, 3, 100));
+        chart.meta().offset = 125;
+        QVERIFY(m_chart.loadChartFromData(m_temp.filePath("exact.mc"), chart));
+        auto *side = m_editor->findChild<QTabBar *>("analysis.leftTabs");
+        QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(0).center());
+        m_editor->findChild<QTabWidget *>("analysis.timingModes")->setCurrentIndex(0);
+        m_mainCanvas->setScrollPos(1800);
+        canvas()->setMillisecondsPerPixel(2);
+        auto *panel = m_editor->findChild<TimingToolsPanel *>();
+        auto *pick = m_editor->findChild<QCheckBox *>("analysis.measurePick");
+        auto *span = m_editor->findChild<QLineEdit *>("analysis.measureSpan");
+        auto *apply = m_editor->findChild<QPushButton *>("analysis.measureApply");
+        pick->setChecked(true);
+        auto at = [&](double ms) { return QPoint(80, qRound(canvas()->yAtTime(ms))); };
+        const double startMs = canvas()->timeAtBeat(BeatPosition(2, 2, 6).toDouble());
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, at(startMs));
+        QCOMPARE(panel->diagnostics().value("startBeat").toArray(), QJsonArray({2, 2, 6}));
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, at(startMs + 400.5));
+        const double bpm = panel->diagnostics().value("bpm").toDouble();
+        span->setText("8"); // cannot replace an interval containing another timing point
+        QVERIFY(!apply->isEnabled());
+        span->setText("1");
+        auto answer = [&](QMessageBox::StandardButton button) {
+            QTimer::singleShot(30, this, [button] {
+                auto *dialog = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                if (dialog)
+                    dialog->button(button)->click();
+            });
+            apply->click();
+        };
+        answer(QMessageBox::No);
+        QCOMPARE(m_chart.chart()->bpmList()[1].bpm, 120.);
+        QVERIFY(!m_chart.canUndo());
+        answer(QMessageBox::Yes);
+        const auto updated = m_chart.chart()->bpmList()[1];
+        QCOMPARE(updated.beatNum, 2);
+        QCOMPARE(updated.numerator, 2);
+        QCOMPARE(updated.denominator, 6);
+        QCOMPARE(updated.bpm, bpm);
+        QCOMPARE(m_chart.chart()->notes().size(), 1);
+        QCOMPARE(m_chart.chart()->notes()[0], chart.notes()[0]);
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->bpmList()[1].bpm, 120.);
+        m_chart.redo();
+        QCOMPARE(m_chart.chart()->bpmList()[1].bpm, bpm);
+        // Timing edits, source replacement, vertical flip and hiding invalidate/stop picking.
+        pick->setChecked(true);
+        m_mainCanvas->setVerticalFlip(true);
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, at(startMs));
+        QCOMPARE(panel->diagnostics().value("startBeat").toArray(), QJsonArray({2, 2, 6}));
+        m_chart.setMetaData(chart.meta());
+        QVERIFY(!panel->diagnostics().contains("startBeat"));
+        pick->setChecked(true);
+        m_editor->hide();
+        QVERIFY(!canvas()->measurementPicking());
     }
     void coordinatesZoomAndSharedTime()
     {
@@ -673,6 +814,7 @@ private slots:
         if (!output.isEmpty())
             QVERIFY(QDir().mkpath(output));
         Chart chart;
+        chart.bpmList().clear();
         chart.addBpm(BpmEntry(0, 0, 1, 120)); // blank test chart, not inferred song timing
         chart.meta().offset = 0;
         chart.meta().audioFile = path;
@@ -882,6 +1024,73 @@ private slots:
         QVERIFY(!m_chart.canUndo());
         report["playbackLoopWrapped"] = wrapped;
         report["chartUnchanged"] = true;
+        // Manual edits use the actual decoded spectrum and production mouse
+        // handlers. These chosen points test editing, not annotated song BPM.
+        m_editor->findChild<QTabWidget *>("analysis.timingModes")->setCurrentIndex(0);
+        auto *measure = m_editor->findChild<TimingToolsPanel *>();
+        auto *pick = m_editor->findChild<QCheckBox *>("analysis.measurePick");
+        auto *span = m_editor->findChild<QLineEdit *>("analysis.measureSpan");
+        auto *apply = m_editor->findChild<QPushButton *>("analysis.measureApply");
+        canvas()->setMillisecondsPerPixel(1);
+        m_mainCanvas->setScrollPos((center + .45) * 1000);
+        double chosenEnd = center + .35;
+        bool chosenTransient = false;
+        for (const auto &peak : panel->result().peaks)
+            if (peak.disposition == analysis::PeakDisposition::Detected
+                && peak.timeSeconds >= center + .2 && peak.timeSeconds <= center + .6)
+            {
+                chosenEnd = peak.timeSeconds;
+                chosenTransient = true;
+                break;
+            }
+        auto atSpectrum = [&](double ms) { return QPoint(80, qRound(canvas()->yAtTime(ms))); };
+        pick->setChecked(true);
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, atSpectrum(center * 1000));
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, atSpectrum(chosenEnd * 1000));
+        auto measured = measure->diagnostics();
+        QVERIFY(measured.value("valid").toBool());
+        QVERIFY(apply->isEnabled());
+        QCOMPARE(measured.value("startBeat").toArray(), QJsonArray({int(center * 2), 0, 4}));
+        const auto revision = m_chart.revision();
+        capture("06-manual-measure.png");
+        const QPoint endMarker = atSpectrum(measured.value("endAudioMilliseconds").toDouble());
+        QTest::mousePress(canvas(), Qt::LeftButton, {}, endMarker);
+        QTest::mouseMove(canvas(), endMarker + QPoint(0, 3));
+        QTest::mouseRelease(canvas(), Qt::LeftButton, {}, endMarker + QPoint(0, 3));
+        measured = measure->diagnostics();
+        span->setText("1/3");
+        const auto fractional = measure->diagnostics();
+        QVERIFY(fractional.value("valid").toBool());
+        QVERIFY(qAbs(fractional.value("bpm").toDouble() * 3 - measured.value("bpm").toDouble()) < 1e-8);
+        capture("07-manual-fraction.png");
+        span->setText("1");
+        QCOMPARE(m_chart.revision(), revision);
+        measured = measure->diagnostics();
+        const double measuredBpm = measured.value("bpm").toDouble();
+        apply->click();
+        QCOMPARE(m_chart.chart()->bpmList().size(), 2);
+        const auto applied = m_chart.chart()->bpmList().last();
+        QCOMPARE(applied.position(), BeatPosition(int(center * 2), 0, 4));
+        QCOMPARE(applied.denominator, 4);
+        QCOMPARE(applied.bpm, measuredBpm);
+        QCOMPARE(m_chart.chart()->meta().offset, 0);
+        QCOMPARE(m_chart.chart()->notes().size(), 0);
+        capture("08-manual-applied.png");
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->bpmList().size(), 1);
+        QCOMPARE(m_chart.chart()->bpmList().first().bpm, 120.);
+        QVERIFY(!m_chart.canUndo());
+        capture("09-manual-undone.png");
+        m_chart.redo();
+        QCOMPARE(m_chart.chart()->bpmList().last().bpm, measuredBpm);
+        m_chart.undo();
+        report["manualMeasurement"] = QJsonObject{
+            {"selection", "Start on the 120 BPM reference grid; End from a detected transient if available"},
+            {"endChosenFromTransient", chosenTransient},
+            {"accuracyClaim", "interaction validation only; no manually annotated song ground truth"},
+            {"oneBeat", measured}, {"fractionalBeat", fractional},
+            {"appliedBpm", measuredBpm}, {"undoRedoVerified", true}, {"chartRestored", true}};
+        saveJson("manual-measurement.json", report.value("manualMeasurement").toObject());
         saveJson("inspection-report.json", report);
         loadChart();
         QTRY_VERIFY_WITH_TIMEOUT(!panel->busy(), 10000);

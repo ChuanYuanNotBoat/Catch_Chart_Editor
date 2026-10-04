@@ -40,6 +40,10 @@ class AnalysisCanvas : public QWidget
     void setLoop(double startMs, double endMs, bool enabled);
     void setTimingPreview(double bpm, double pulseMs, double startMs, double endMs);
     void clearTimingPreview();
+    void setMeasurementPicking(bool enabled);
+    void setMeasurementOverlay(std::optional<double> startMs, std::optional<double> endMs, double bpm,
+                               const QString &startLabel);
+    bool measurementPicking() const { return m_measurePicking; }
     bool timingPreviewVisible() const
     {
         return m_timingPreview.has_value();
@@ -51,8 +55,13 @@ class AnalysisCanvas : public QWidget
     void rangeRequested(double startBeat, double endBeat);
     void viewportChanged();
     void statusMessage(const QString &text);
+    void measurementStartRequested(int whole, int numerator, int denominator);
+    void measurementEndRequested(double milliseconds);
+    void measurementCancelRequested();
+    void measurementDetailsRequested();
 
   protected:
+    bool event(QEvent *) override;
     void paintEvent(QPaintEvent *) override;
     void mousePressEvent(QMouseEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
@@ -68,6 +77,8 @@ class AnalysisCanvas : public QWidget
     void drawSpectrum(QPainter &);
     void drawTiming(QPainter &);
     void drawTimingPreview(QPainter &);
+    void drawMeasurement(QPainter &);
+    void pickMeasurementStart(double y);
     void drawNotes(QPainter &);
     ChartController *m_chart;
     SelectionController *m_selection;
@@ -88,6 +99,11 @@ class AnalysisCanvas : public QWidget
         double bpm, pulseMs, startMs, endMs;
     };
     std::optional<TimingPreview> m_timingPreview;
+    std::optional<double> m_measureStart, m_measureEnd;
+    double m_measureBpm = 0;
+    QString m_measureStartLabel;
+    bool m_measurePicking = false;
+    int m_measureDragging = 0;
     QString m_status;
     static constexpr int headerHeight = 28;
 };
