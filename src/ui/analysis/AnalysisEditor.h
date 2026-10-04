@@ -24,6 +24,7 @@ class QTimer;
 class CommandRouter;
 class TransientPanel;
 class TimingToolsPanel;
+class TimingInterpolationPanel;
 // A second workspace over the same chart/playback controllers, not a chart copy.
 class AnalysisEditor : public QWidget
 {
@@ -71,6 +72,7 @@ class AnalysisEditor : public QWidget
     AnalysisCanvas *m_canvas;
     TransientPanel *m_transient;
     TimingToolsPanel *m_timingTools;
+    TimingInterpolationPanel *m_interpolation;
     QSplitter *m_panels, *m_work;
     QTabBar *m_leftTabs, *m_rightTabs;
     QStackedWidget *m_leftPanels, *m_rightPanels;

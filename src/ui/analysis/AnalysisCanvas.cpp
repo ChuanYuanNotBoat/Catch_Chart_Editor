@@ -175,8 +175,20 @@ void AnalysisCanvas::setMeasurementPicking(bool enabled)
 {
     cancelGesture();
     m_measurePicking = enabled;
+    if (enabled) m_interpolationPicking = false;
     update();
 }
+void AnalysisCanvas::setInterpolationStartPicking(bool enabled)
+{
+    cancelGesture(); m_interpolationPicking = enabled;
+    if (enabled) m_measurePicking = false;
+    update();
+}
+void AnalysisCanvas::setInterpolationPreview(const analysis::TimingInterpolation &result, double startMs)
+{
+    m_interpolationPreview = result; m_interpolationStartMs = startMs; update();
+}
+void AnalysisCanvas::clearInterpolationPreview() { m_interpolationPreview = {}; update(); }
 void AnalysisCanvas::setMeasurementOverlay(std::optional<double> start, std::optional<double> end,
                                          double bpm, const QString &label)
 {
@@ -399,6 +411,33 @@ void AnalysisCanvas::drawMeasurement(QPainter &p)
     if (m_measureEnd)
         marker(*m_measureEnd, false);
 }
+void AnalysisCanvas::drawInterpolation(QPainter &p)
+{
+    if (!m_interpolationPreview.valid()) return;
+    const auto &nodes = m_interpolationPreview.nodes;
+    const double a = timeAtY(headerHeight), b = timeAtY(height()), low = qMin(a, b), high = qMax(a, b);
+    double previousY = -1e12;
+    for (std::size_t i = 0; i < nodes.size(); ++i)
+    {
+        const auto &node = nodes[i];
+        const double time = m_interpolationStartMs + node.idealMilliseconds;
+        if (time < low || time > high) continue;
+        const double y = yAtTime(time);
+        const bool endpoint = i == 0 || i + 1 == nodes.size();
+        if (!endpoint && std::abs(y - previousY) < 6) continue;
+        previousY = y;
+        p.setPen(QPen(QColor(105, 239, 178, endpoint ? 255 : 180), endpoint ? 2 : 1, Qt::DashDotLine));
+        p.drawLine(QPointF(0, y), QPointF(spectrumWidth(), y));
+        if (endpoint)
+        {
+            const QString label = tr("%1 [%2,%3,%4]").arg(i == 0 ? tr("Ramp Start") : tr("Ramp End"))
+                                      .arg(node.beat.whole).arg(node.beat.numerator).arg(node.beat.denominator);
+            const QRect rect(4, qRound(y) - 22, qMin(spectrumWidth() - 8, p.fontMetrics().horizontalAdvance(label) + 10), 20);
+            p.fillRect(rect, QColor(24, 27, 39, 235));
+            p.drawText(rect.adjusted(4, 0, -4, 0), Qt::AlignCenter, p.fontMetrics().elidedText(label, Qt::ElideRight, rect.width() - 8));
+        }
+    }
+}
 void AnalysisCanvas::drawNotes(QPainter &p)
 {
     const double low = qMin(timeAtY(headerHeight - 12), timeAtY(height() + 12)),
@@ -462,6 +501,7 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
     p.setPen(QPen(QColor(255, 119, 113), 1.5));
     p.drawLine(QPointF(0, yAtTime(m_current)), QPointF(width(), yAtTime(m_current)));
     drawMeasurement(p);
+    drawInterpolation(p);
     if (!m_status.isEmpty() && !m_leftImage.isNull())
     {
         const QRect status(8, headerHeight + 6, spectrumWidth() - 16, 42);
@@ -480,6 +520,8 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
     }
     if (m_measurePicking)
         spectrumTitle = m_measureStart ? tr("Measure · End / drag markers") : tr("Measure · pick Start (snap)");
+    if (m_interpolationPreview.valid()) spectrumTitle += tr(" · BPM interpolation");
+    if (m_interpolationPicking) spectrumTitle = tr("Interpolation · pick Start (snap)");
     p.drawText(QRect(2, 0, spectrumWidth() - 4, headerHeight), Qt::AlignCenter,
                p.fontMetrics().elidedText(spectrumTitle, Qt::ElideRight, spectrumWidth() - 8));
     p.setPen(QColor(201, 215, 231));
@@ -536,6 +578,10 @@ void AnalysisCanvas::cancelGesture()
 }
 void AnalysisCanvas::pickMeasurementStart(double y)
 {
+    auto picked = [this](int b, int n, int d) {
+        if (m_interpolationPicking) emit interpolationStartRequested(b, n, d);
+        else emit measurementStartRequested(b, n, d);
+    };
     const auto &timing = m_chart->chart()->bpmList();
     // A clicked existing timing line retains even a non-canonical triplet.
     const BpmEntry *nearest = nullptr;
@@ -551,7 +597,7 @@ void AnalysisCanvas::pickMeasurementStart(double y)
     }
     if (nearest)
     {
-        emit measurementStartRequested(nearest->beatNum, nearest->numerator, nearest->denominator);
+        picked(nearest->beatNum, nearest->numerator, nearest->denominator);
         return;
     }
     int b, n, d;
@@ -561,10 +607,10 @@ void AnalysisCanvas::pickMeasurementStart(double y)
     for (const auto &point : timing)
         if (point.position() == position)
         {
-            emit measurementStartRequested(point.beatNum, point.numerator, point.denominator);
+            picked(point.beatNum, point.numerator, point.denominator);
             return;
         }
-    emit measurementStartRequested(b, n, d);
+    picked(b, n, d);
 }
 void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
 {
@@ -594,6 +640,11 @@ void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
             menu->popup(mapToGlobal(QPoint(spectrumWidth(), headerHeight)));
         }
         return;
+    }
+    if (m_interpolationPicking && pos.x() < spectrumWidth() - 5 && e->button() == Qt::LeftButton
+        && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)))
+    {
+        pickMeasurementStart(pos.y()); return;
     }
     if (m_measurePicking && pos.x() < spectrumWidth() - 5 && e->button() == Qt::LeftButton
         && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)))
@@ -754,6 +805,7 @@ void AnalysisCanvas::keyPressEvent(QKeyEvent *e)
         cancelGesture();
         if (m_measurePicking)
             emit measurementCancelRequested();
+        if (m_interpolationPicking) emit interpolationPickCancelled();
         e->accept();
     }
     else

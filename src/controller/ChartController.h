@@ -44,6 +44,8 @@ public:
     void addBpm(const BpmEntry &bpm);
     void removeBpm(int index);
     void updateBpm(int index, const BpmEntry &bpm);
+    // Timing-only transaction; stores BPM lists, never a full note snapshot.
+    bool replaceBpmList(const QString &actionName, const QVector<BpmEntry> &entries);
     void setMetaData(const MetaData &meta);
 
     // 撤销/重做
@@ -88,6 +90,7 @@ private:
     class AddBpmCommand;
     class RemoveBpmCommand;
     class UpdateBpmCommand;
+    class ReplaceBpmListCommand;
     class SetMetaCommand;
     class ExternalMutationCommand;
     class UndoMarkerCommand;

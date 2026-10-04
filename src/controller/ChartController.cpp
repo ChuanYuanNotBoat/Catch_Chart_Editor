@@ -647,6 +647,24 @@ private:
     BpmEntry m_old, m_new;
 };
 
+// Replace timing as one undoable edit without retaining note snapshots.
+class ChartController::ReplaceBpmListCommand : public ChartController::ChartCommand
+{
+public:
+    ReplaceBpmListCommand(ChartController *controller, const QString &name, const QVector<BpmEntry> &after)
+        : ChartCommand(controller, name), m_before(controller->m_chart.bpmList()), m_after(after) {}
+    void undo() override { set(m_before); }
+    void redo() override { set(m_after); }
+private:
+    void set(const QVector<BpmEntry> &entries)
+    {
+        m_controller->m_chart.bpmList() = entries;
+        m_controller->publishChange(ChartChangeType::Timing);
+        emit m_controller->bpmListChanged();
+    }
+    QVector<BpmEntry> m_before, m_after;
+};
+
 // 设置元数据命令
 class ChartController::SetMetaCommand : public ChartController::ChartCommand
 {
@@ -824,6 +842,22 @@ void ChartController::updateBpm(int index, const BpmEntry &bpm)
 void ChartController::setMetaData(const MetaData &meta)
 {
     m_undoStack->push(new SetMetaCommand(this, m_chart.meta(), meta));
+}
+bool ChartController::replaceBpmList(const QString &actionName, const QVector<BpmEntry> &entries)
+{
+    if (entries.isEmpty() || entries.size() > 100000 || bpmListsEqual(m_chart.bpmList(), entries))
+        return false;
+    for (int i = 0; i < entries.size(); ++i)
+    {
+        const auto &point = entries[i];
+        if (!point.position().isValid() || point.position() < BeatPosition(0, 0, 1)
+            || !std::isfinite(point.bpm) || point.bpm <= 0 || point.bpm > 10000
+            || (i && entries[i - 1].position() >= point.position()))
+            return false;
+    }
+    m_undoStack->push(new ReplaceBpmListCommand(this, actionName.isEmpty() ? tr("Replace BPM list") : actionName,
+                                               entries));
+    return true;
 }
 
 void ChartController::undo()

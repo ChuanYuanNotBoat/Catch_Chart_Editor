@@ -3,6 +3,7 @@
 #include <QImage>
 #include <optional>
 #include "analysis/SpectrumAnalysis.h"
+#include "analysis/TimingInterpolation.h"
 #include "model/Note.h"
 #include "render/RainVisibilityIndex.h"
 #include "utils/MathUtils.h"
@@ -44,6 +45,10 @@ class AnalysisCanvas : public QWidget
     void setMeasurementOverlay(std::optional<double> startMs, std::optional<double> endMs, double bpm,
                                const QString &startLabel);
     bool measurementPicking() const { return m_measurePicking; }
+    void setInterpolationStartPicking(bool enabled);
+    void setInterpolationPreview(const analysis::TimingInterpolation &, double startMs);
+    void clearInterpolationPreview();
+    bool interpolationPreviewVisible() const { return m_interpolationPreview.valid(); }
     bool timingPreviewVisible() const
     {
         return m_timingPreview.has_value();
@@ -59,6 +64,8 @@ class AnalysisCanvas : public QWidget
     void measurementEndRequested(double milliseconds);
     void measurementCancelRequested();
     void measurementDetailsRequested();
+    void interpolationStartRequested(int whole, int numerator, int denominator);
+    void interpolationPickCancelled();
 
   protected:
     bool event(QEvent *) override;
@@ -78,6 +85,7 @@ class AnalysisCanvas : public QWidget
     void drawTiming(QPainter &);
     void drawTimingPreview(QPainter &);
     void drawMeasurement(QPainter &);
+    void drawInterpolation(QPainter &);
     void pickMeasurementStart(double y);
     void drawNotes(QPainter &);
     ChartController *m_chart;
@@ -104,6 +112,9 @@ class AnalysisCanvas : public QWidget
     QString m_measureStartLabel;
     bool m_measurePicking = false;
     int m_measureDragging = 0;
+    bool m_interpolationPicking = false;
+    analysis::TimingInterpolation m_interpolationPreview;
+    double m_interpolationStartMs = 0;
     QString m_status;
     static constexpr int headerHeight = 28;
 };

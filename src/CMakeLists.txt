@@ -31,12 +31,14 @@ set(SOURCES
     analysis/SpectrumAnalysis.cpp
     analysis/TransientAnalysis.cpp
     analysis/TimingMeasurement.cpp
+    analysis/TimingInterpolation.cpp
     analysis/AutoTimingDiagnostics.cpp
     audio/SpectrumService.cpp
     ui/analysis/AnalysisCanvas.cpp
     ui/analysis/AnalysisEditor.cpp
     ui/analysis/TransientPanel.cpp
     ui/analysis/TimingToolsPanel.cpp
+    ui/analysis/TimingInterpolationPanel.cpp
     audio/AudioPlayer.cpp
     audio/NoteSoundPlayer.cpp
     audio/BpmDetector.cpp
@@ -101,6 +103,7 @@ if(MSVC)
         ui/analysis/AnalysisEditor.cpp
         ui/analysis/TransientPanel.cpp
         ui/analysis/TimingToolsPanel.cpp
+        ui/analysis/TimingInterpolationPanel.cpp
         PROPERTIES COMPILE_OPTIONS "/utf-8"
     )
 endif()
