@@ -80,6 +80,11 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/plugins")
 endif()
 
 if(BUILD_TESTING)
+    add_executable(TimingInterpolationTests tests/timing_interpolation_tests.cpp src/analysis/TimingInterpolation.cpp)
+    set_target_properties(TimingInterpolationTests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+    target_include_directories(TimingInterpolationTests PRIVATE src)
+    add_test(NAME analysis_timing_interpolation_tests COMMAND TimingInterpolationTests)
+
     add_executable(TimingMeasurementTests tests/timing_measurement_tests.cpp src/analysis/TimingMeasurement.cpp)
     set_target_properties(TimingMeasurementTests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
     target_include_directories(TimingMeasurementTests PRIVATE src)

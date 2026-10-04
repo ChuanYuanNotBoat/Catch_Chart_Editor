@@ -2,6 +2,7 @@
 #include "AnalysisCanvas.h"
 #include "TransientPanel.h"
 #include "TimingToolsPanel.h"
+#include "TimingInterpolationPanel.h"
 #include "analysis/AutoTimingDiagnostics.h"
 #include "audio/SpectrumService.h"
 #include "controller/ChartController.h"
@@ -150,16 +151,22 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     m_timingTools = new TimingToolsPanel(chart, m_canvas);
     timingTabs->addTab(m_timingTools, tr("Measure"));
     timingTabs->addTab(createTimingPanel(), tr("AutoTiming"));
+    m_interpolation = new TimingInterpolationPanel(chart, m_canvas);
+    timingTabs->addTab(m_interpolation, tr("Interpolate"));
     timingTabs->setCurrentIndex(1);
     addAnalysisPanel(tr("Timing"), timingTabs);
     connect(timingTabs, &QTabWidget::currentChanged, this, [this](int index) {
         m_timingTools->stopPicking();
-        if (index == 0)
+        m_interpolation->stopPicking();
+        if (index != 1)
             m_candidateGrid->setChecked(false);
     });
     connect(m_timingTools, &TimingToolsPanel::pickingStarted, this, [this] {
         m_playback->pause();
         m_candidateGrid->setChecked(false);
+    });
+    connect(m_interpolation, &TimingInterpolationPanel::pickingStarted, this, [this] {
+        m_playback->pause(); m_candidateGrid->setChecked(false);
     });
     m_transient = new TransientPanel(m_canvas);
     addAnalysisPanel(tr("Transient"), m_transient);
@@ -327,6 +334,7 @@ void AnalysisEditor::togglePanel(bool right, int index)
     if (index < 0 || index >= stack->count())
         return;
     m_timingTools->stopPicking();
+    m_interpolation->stopPicking();
     if (open == index && stack->isVisible())
     {
         stack->hide();
@@ -998,6 +1006,7 @@ void AnalysisEditor::hideEvent(QHideEvent *event)
     saveLayout();
     m_canvas->cancelGesture();
     m_timingTools->stopPicking();
+    m_interpolation->stopPicking();
     cancelTiming();
     if (m_spectrumCancel)
         *m_spectrumCancel = true;

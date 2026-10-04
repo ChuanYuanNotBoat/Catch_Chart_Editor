@@ -3,6 +3,7 @@
 #include "ui/analysis/AnalysisCanvas.h"
 #include "ui/analysis/TransientPanel.h"
 #include "ui/analysis/TimingToolsPanel.h"
+#include "ui/analysis/TimingInterpolationPanel.h"
 #include "analysis/AutoTimingDiagnostics.h"
 #include "audio/SpectrumService.h"
 #include "audio/AudioPlayer.h"
@@ -42,6 +43,8 @@
 #include <QClipboard>
 #include <QAbstractButton>
 #include <QFileInfo>
+#include <QSpinBox>
+#include <QComboBox>
 #include <memory>
 #include <cmath>
 class AnalysisEditorTests : public QObject
@@ -802,6 +805,184 @@ private slots:
         QVERIFY(wrapped);
         QVERIFY(qAbs(canvas()->currentTime() - m_mainCanvas->currentPlayTime()) < 25);
     }
+    void interpolationPreservesTripletsAndUsesOneTimingUndo()
+    {
+        Chart fixture;
+        fixture.bpmList().clear();
+        fixture.addBpm(BpmEntry(0, 0, 1, 120));
+        fixture.addBpm(BpmEntry(2, 2, 6, 120));
+        fixture.addBpm(BpmEntry(10, 2, 6, 155));
+        fixture.addBpm(BpmEntry(12, 0, 1, 220));
+        fixture.meta().offset = 125;
+        fixture.addNote(Note(3, 1, 7, 200));
+        QVERIFY(m_chart.loadChartFromData(m_temp.filePath("interpolation.mc"), fixture));
+        const auto before = m_chart.chart()->bpmList();
+        const auto notes = m_chart.chart()->notes();
+        auto *side = m_editor->findChild<QTabBar *>("analysis.leftTabs");
+        QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(0).center());
+        auto *modes = m_editor->findChild<QTabWidget *>("analysis.timingModes");
+        modes->setCurrentIndex(2);
+        auto *panel = m_editor->findChild<TimingInterpolationPanel *>();
+        auto *apply = panel->findChild<QPushButton *>("analysis.interpolationApply");
+        auto *pick = panel->findChild<QCheckBox *>("analysis.interpolationPick");
+        QVERIFY(panel && apply && pick);
+        canvas()->setMillisecondsPerPixel(4);
+        m_mainCanvas->setScrollPos(1400);
+        pick->setChecked(true);
+        const double startMs = canvas()->timeAtBeat(2. + 1. / 3);
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, QPoint(80, qRound(canvas()->yAtTime(startMs))));
+        QVERIFY(!pick->isChecked());
+        QCOMPARE(panel->findChild<QSpinBox *>("analysis.interpolationStartWhole")->value(), 2);
+        QCOMPARE(panel->findChild<QSpinBox *>("analysis.interpolationStartNumerator")->value(), 2);
+        QCOMPARE(panel->findChild<QSpinBox *>("analysis.interpolationStartDenominator")->value(), 6);
+        panel->findChild<QComboBox *>("analysis.interpolationRangeMode")->setCurrentIndex(1);
+        panel->findChild<QSpinBox *>("analysis.interpolationEndWhole")->setValue(10);
+        panel->findChild<QSpinBox *>("analysis.interpolationEndNumerator")->setValue(2);
+        panel->findChild<QSpinBox *>("analysis.interpolationEndDenominator")->setValue(6);
+        panel->findChild<QDoubleSpinBox *>("analysis.interpolationStartBpm")->setValue(120);
+        panel->findChild<QDoubleSpinBox *>("analysis.interpolationEndBpm")->setValue(240);
+        QTRY_VERIFY(apply->isEnabled());
+        QVERIFY(canvas()->interpolationPreviewVisible());
+        const auto diagnostic = panel->diagnostics();
+        const auto nodes = diagnostic.value("nodes").toArray();
+        QCOMPARE(nodes.first().toObject().value("beat").toArray(), QJsonArray({2, 2, 6}));
+        QCOMPARE(nodes.last().toObject().value("beat").toArray(), QJsonArray({10, 2, 6}));
+        QCOMPARE(nodes.last().toObject().value("storedBpm").toDouble(), 155.);
+        QVERIFY(diagnostic.value("maximumInteriorErrorMilliseconds").toDouble() < 10);
+        QCOMPARE(diagnostic.value("replacedTimingPoints").toInt(), 2);
+        const auto revision = m_chart.revision();
+        auto answer = [&](QMessageBox::StandardButton choice) {
+            QTimer::singleShot(30, [choice] {
+                auto *dialog = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                QVERIFY(dialog);
+                QCOMPARE(dialog->defaultButton(), qobject_cast<QPushButton *>(dialog->button(QMessageBox::No)));
+                dialog->button(choice)->click();
+            });
+            apply->click();
+        };
+        answer(QMessageBox::No);
+        QCOMPARE(m_chart.revision(), revision);
+        QVERIFY(!m_chart.canUndo());
+        QSignalSpy changes(&m_chart, &ChartController::chartChangeCommitted);
+        QSignalSpy noteChanges(&m_chart, &ChartController::notesChanged);
+        answer(QMessageBox::Yes);
+        QCOMPARE(changes.size(), 1);
+        const auto change = qvariant_cast<ChartChange>(changes.first().first());
+        QCOMPARE(change.types, ChartChangeSet(ChartChangeType::Timing));
+        QCOMPARE(noteChanges.size(), 0);
+        QCOMPARE(m_chart.chart()->bpmList().size(), nodes.size() + 2);
+        const auto &after = m_chart.chart()->bpmList();
+        QCOMPARE(after.first().bpm, 120.);
+        QCOMPARE(after.last().position(), before.last().position());
+        QCOMPARE(after.last().bpm, 220.);
+        QCOMPARE(after[1].beatNum, 2);
+        QCOMPARE(after[1].numerator, 2);
+        QCOMPARE(after[1].denominator, 6);
+        QCOMPARE(m_chart.chart()->notes(), notes);
+        QCOMPARE(m_chart.chart()->meta().offset, 125.);
+        QVERIFY(qAbs(canvas()->timeAtBeat(10. + 1. / 3) - startMs
+                     - diagnostic.value("durationMilliseconds").toDouble()) < 1e-6);
+        QVERIFY(!apply->isEnabled());
+        QVERIFY(!canvas()->interpolationPreviewVisible());
+        m_chart.undo();
+        QVERIFY(!m_chart.canUndo());
+        QCOMPARE(m_chart.chart()->bpmList().size(), before.size());
+        for (int i = 0; i < before.size(); ++i)
+        {
+            const auto &point = m_chart.chart()->bpmList()[i];
+            QCOMPARE(point.beatNum, before[i].beatNum);
+            QCOMPARE(point.numerator, before[i].numerator);
+            QCOMPARE(point.denominator, before[i].denominator);
+            QCOMPARE(point.bpm, before[i].bpm);
+        }
+        m_chart.redo();
+        QCOMPARE(m_chart.chart()->bpmList().size(), nodes.size() + 2);
+        QCOMPARE(m_chart.chart()->notes(), notes);
+    }
+    void interpolationRangesAndStaleProposal()
+    {
+        auto *side = m_editor->findChild<QTabBar *>("analysis.leftTabs");
+        QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(0).center());
+        m_editor->findChild<QTabWidget *>("analysis.timingModes")->setCurrentIndex(2);
+        auto *panel = m_editor->findChild<TimingInterpolationPanel *>();
+        auto *apply = panel->findChild<QPushButton *>("analysis.interpolationApply");
+        auto *mode = panel->findChild<QComboBox *>("analysis.interpolationRangeMode");
+        auto *resume = panel->findChild<QCheckBox *>("analysis.interpolationResume");
+        auto *gap = panel->findChild<QLineEdit *>("analysis.interpolationGap");
+        auto *length = panel->findChild<QLineEdit *>("analysis.interpolationLength");
+        panel->findChild<QDoubleSpinBox *>("analysis.interpolationStartBpm")->setValue(120);
+        panel->findChild<QDoubleSpinBox *>("analysis.interpolationEndBpm")->setValue(240);
+        length->setText("8");
+        QTRY_VERIFY(apply->isEnabled());
+        const double duration = panel->diagnostics().value("durationMilliseconds").toDouble();
+        mode->setCurrentIndex(2);
+        panel->findChild<QDoubleSpinBox *>("analysis.interpolationDuration")->setValue(duration);
+        resume->setChecked(false);
+        QTRY_VERIFY(apply->isEnabled());
+        const auto diagnostic = panel->diagnostics();
+        QVERIFY(qAbs(diagnostic.value("durationResidualMilliseconds").toDouble()) < .001);
+        QCOMPARE(diagnostic.value("nodes").toArray().last().toObject().value("storedBpm").toDouble(), 240.);
+        gap->setText("0");
+        QVERIFY(!apply->isEnabled());
+        QTRY_VERIFY(!panel->diagnostics().value("failure").toString().isEmpty());
+        QVERIFY(!canvas()->interpolationPreviewVisible());
+        gap->setText("1");
+        QTRY_VERIFY(apply->isEnabled());
+        // A note edit while the modal confirmation is open must supersede the
+        // pending proposal. Only the note edit enters the shared undo stack.
+        const auto before = m_chart.chart()->bpmList();
+        QTimer::singleShot(30, [this] {
+            auto *dialog = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            QVERIFY(dialog);
+            m_chart.addNote(Note(4, 1, 5, 300));
+            dialog->button(QMessageBox::Yes)->click();
+        });
+        apply->click();
+        QCOMPARE(m_chart.chart()->bpmList().size(), before.size());
+        QCOMPARE(m_chart.chart()->bpmList().first().bpm, before.first().bpm);
+        QCOMPARE(m_chart.chart()->notes().size(), 1);
+        QVERIFY(!apply->isEnabled());
+        QVERIFY(!canvas()->interpolationPreviewVisible());
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->notes().size(), 0);
+        QVERIFY(!m_chart.canUndo());
+        // Duplicate source points inside the replacement range still require
+        // repair; preview must not silently guess their active BPM.
+        Chart duplicate;
+        duplicate.bpmList() = {BpmEntry(0, 0, 1, 120), BpmEntry(2, 1, 3, 160), BpmEntry(2, 2, 6, 180)};
+        QVERIFY(m_chart.loadChartFromData(m_temp.filePath("duplicate-timing.mc"), duplicate));
+        QTRY_VERIFY(panel->diagnostics().value("failure").toString().contains("duplicate"));
+        QVERIFY(!apply->isEnabled());
+        QVERIFY(!canvas()->interpolationPreviewVisible());
+        QVERIFY(!m_chart.canUndo());
+    }
+    void timingReplacementRejectsInvalidListsAndKeepsNoteHistory()
+    {
+        const auto revision = m_chart.revision();
+        const auto before = m_chart.chart()->bpmList();
+        QVERIFY(!m_chart.replaceBpmList("Invalid", {}));
+        QVERIFY(!m_chart.replaceBpmList("No-op", before));
+        QVERIFY(!m_chart.replaceBpmList("Duplicate", {BpmEntry(0, 0, 1, 120), BpmEntry(0, 0, 2, 180)}));
+        QVERIFY(!m_chart.replaceBpmList("Negative", {BpmEntry(-1, 0, 1, 120)}));
+        QVERIFY(!m_chart.replaceBpmList("NaN", {BpmEntry(0, 0, 1, std::nan(""))}));
+        QCOMPARE(m_chart.revision(), revision);
+        QVERIFY(!m_chart.canUndo());
+        const QVector<BpmEntry> proposed{BpmEntry(0, 0, 1, 130), BpmEntry(4, 2, 6, 200)};
+        QVERIFY(m_chart.replaceBpmList("Interpolate BPM", proposed));
+        const Note note(4, 2, 6, 240);
+        m_chart.addNote(note);
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->notes().size(), 0);
+        QCOMPARE(m_chart.chart()->bpmList().first().bpm, 130.);
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->bpmList().first().bpm, 120.);
+        QVERIFY(!m_chart.canUndo());
+        m_chart.redo();
+        m_chart.redo();
+        QCOMPARE(m_chart.chart()->notes().first(), note);
+        QCOMPARE(m_chart.chart()->bpmList().last().denominator, 6);
+        QCOMPARE(m_chart.chart()->bpmList().last().bpm, 200.);
+    }
     // Optional integration case: no copyrighted audio is included in the repository.
     // Set CCE_ANALYSIS_AUDIO_FILE to inspect an actual audio file through production Qt APIs.
     void externalAudioInspection()
@@ -1091,12 +1272,88 @@ private slots:
             {"oneBeat", measured}, {"fractionalBeat", fractional},
             {"appliedBpm", measuredBpm}, {"undoRedoVerified", true}, {"chartRestored", true}};
         saveJson("manual-measurement.json", report.value("manualMeasurement").toObject());
+        // Interpolation runs over the same real spectrum. The curve parameters
+        // are explicit editing fixtures, not estimates of the song's tempo.
+        m_editor->resize(1460, 1020);
+        m_editor->findChild<QSplitter *>("analysis.panels")->setSizes({545, 900, 0});
+        m_editor->findChild<QTabWidget *>("analysis.timingModes")->setCurrentIndex(2);
+        auto *interpolation = m_editor->findChild<TimingInterpolationPanel *>();
+        auto *interpolationApply = interpolation->findChild<QPushButton *>("analysis.interpolationApply");
+        auto *interpolationPick = interpolation->findChild<QCheckBox *>("analysis.interpolationPick");
+        auto *interpolationStartBpm = interpolation->findChild<QDoubleSpinBox *>("analysis.interpolationStartBpm");
+        auto *interpolationEndBpm = interpolation->findChild<QDoubleSpinBox *>("analysis.interpolationEndBpm");
+        auto *interpolationLength = interpolation->findChild<QLineEdit *>("analysis.interpolationLength");
+        interpolationStartBpm->setValue(120);
+        interpolationEndBpm->setValue(240);
+        interpolationLength->setText("8");
+        canvas()->setMillisecondsPerPixel(4);
+        m_mainCanvas->setScrollPos((center + 1.4) * 1000);
+        interpolationPick->setChecked(true);
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, atSpectrum(center * 1000));
+        QTRY_VERIFY(interpolationApply->isEnabled());
+        QTRY_VERIFY_WITH_TIMEOUT(canvas()->spectrum().valid()
+                                    && canvas()->spectrum().startSeconds <= center
+                                    && canvas()->spectrum().startSeconds + canvas()->spectrum().durationSeconds > center + 2.8,
+                                30000);
+        const auto interpolationJson = interpolation->diagnostics();
+        m_mainCanvas->setScrollPos(center * 1000 + interpolationJson.value("durationMilliseconds").toDouble() * .8);
+        QCOMPARE(interpolationJson.value("startBeat").toArray(), QJsonArray({int(center * 2), 0, 4}));
+        QVERIFY(canvas()->interpolationPreviewVisible());
+        QVERIFY(interpolationJson.value("maximumInteriorErrorMilliseconds").toDouble() < 10);
+        capture("10-interpolation-preview.png");
+        const auto interpolationRevision = m_chart.revision();
+        QTimer::singleShot(30, [&] {
+            auto *dialog = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            QVERIFY(dialog);
+            if (!output.isEmpty())
+                QVERIFY(dialog->grab().save(output + "/11-interpolation-confirmation.png"));
+            dialog->button(QMessageBox::Yes)->click();
+        });
+        interpolationApply->click();
+        QCOMPARE(m_chart.revision(), interpolationRevision + 1);
+        const int pointCount = interpolationJson.value("nodes").toArray().size();
+        QCOMPARE(m_chart.chart()->bpmList().size(), pointCount + 1);
+        QCOMPARE(m_chart.chart()->bpmList()[1].denominator, 4);
+        QCOMPARE(m_chart.chart()->bpmList().last().bpm, 120.);
+        QVERIFY(!canvas()->interpolationPreviewVisible());
+        const double interpolationDuration = interpolationJson.value("durationMilliseconds").toDouble();
+        QVERIFY(qAbs(canvas()->timeAtBeat(center * 2 + 8) - center * 1000 - interpolationDuration) < 1e-6);
+        capture("12-interpolation-applied.png");
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->bpmList().size(), 1);
+        QVERIFY(!m_chart.canUndo());
+        capture("13-interpolation-undone.png");
+        m_chart.redo();
+        QCOMPARE(m_chart.chart()->bpmList().size(), pointCount + 1);
+        m_chart.undo();
+        interpolationStartBpm->setValue(12);
+        interpolationEndBpm->setValue(480);
+        interpolationLength->setText("16");
+        QTRY_VERIFY(interpolationApply->isEnabled());
+        const auto adaptiveJson = interpolation->diagnostics();
+        QVERIFY(adaptiveJson.value("nodes").toArray().size() > 17);
+        QVERIFY(adaptiveJson.value("maximumInteriorErrorMilliseconds").toDouble() < 10);
+        const double adaptiveDuration = adaptiveJson.value("durationMilliseconds").toDouble();
+        canvas()->setMillisecondsPerPixel(12);
+        m_mainCanvas->setScrollPos(center * 1000 + adaptiveDuration * .8);
+        QTRY_VERIFY_WITH_TIMEOUT(canvas()->spectrum().valid()
+                                    && canvas()->spectrum().startSeconds <= center
+                                    && canvas()->spectrum().startSeconds + canvas()->spectrum().durationSeconds
+                                        > center + adaptiveDuration / 1000,
+                                30000);
+        capture("14-interpolation-adaptive.png");
+        report["bpmInterpolation"] = QJsonObject{
+            {"accuracyClaim", "editing validation only; explicit BPM curve, not annotated song tempo"},
+            {"beatLinearRamp", interpolationJson}, {"steepAdaptiveRamp", adaptiveJson},
+            {"undoRedoVerified", true}, {"chartRestored", true}, {"notesUnchanged", true}};
+        saveJson("bpm-interpolation.json", report.value("bpmInterpolation").toObject());
         saveJson("inspection-report.json", report);
         loadChart();
         QTRY_VERIFY_WITH_TIMEOUT(!panel->busy(), 10000);
         QVERIFY(!panel->result().valid());
         QVERIFY(!canvas()->spectrum().valid());
         QVERIFY(!canvas()->timingPreviewVisible());
+        QVERIFY(!canvas()->interpolationPreviewVisible());
     }
 };
 int main(int argc, char **argv)
