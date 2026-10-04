@@ -45,6 +45,8 @@
 #include <QFileInfo>
 #include <QSpinBox>
 #include <QComboBox>
+#include <QBuffer>
+#include <QSaveFile>
 #include <memory>
 #include <cmath>
 class AnalysisEditorTests : public QObject
@@ -1061,16 +1063,31 @@ private slots:
         auto saveJson = [&](const QString &name, const QJsonObject &object) {
             if (output.isEmpty())
                 return;
-            QFile file(output + '/' + name);
+            QSaveFile file(output + '/' + name);
             QVERIFY(file.open(QIODevice::WriteOnly));
             const auto data = QJsonDocument(object).toJson();
             QCOMPARE(file.write(data), qint64(data.size()));
+            QVERIFY(file.commit());
+        };
+        auto savePixmap = [&](const QPixmap &pixmap, const QString &name) {
+            if (output.isEmpty())
+                return true;
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            if (!buffer.open(QIODevice::WriteOnly) || !pixmap.save(&buffer, "PNG")
+                || !bytes.endsWith(QByteArray::fromHex("0000000049454e44ae426082")))
+                return false;
+            QSaveFile file(output + '/' + name);
+            if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())
+                return false;
+            QFile persisted(output + '/' + name);
+            return persisted.open(QIODevice::ReadOnly) && persisted.readAll() == bytes;
         };
         auto capture = [&](const QString &name) {
             if (output.isEmpty())
                 return;
             QTest::qWait(80);
-            QVERIFY(m_editor->grab().save(output + '/' + name));
+            QVERIFY(savePixmap(m_editor->grab(), name));
         };
         capture("01-spectrum.png");
         auto *side = m_editor->findChild<QTabBar *>("analysis.leftTabs");
@@ -1305,9 +1322,9 @@ private slots:
         QTimer::singleShot(30, [&] {
             auto *dialog = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
             QVERIFY(dialog);
-            if (!output.isEmpty())
-                QVERIFY(dialog->grab().save(output + "/11-interpolation-confirmation.png"));
+            const bool saved = savePixmap(dialog->grab(), "11-interpolation-confirmation.png");
             dialog->button(QMessageBox::Yes)->click();
+            QVERIFY(saved);
         });
         interpolationApply->click();
         QCOMPARE(m_chart.revision(), interpolationRevision + 1);
