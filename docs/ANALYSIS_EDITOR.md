@@ -146,6 +146,12 @@ On 2026-10-04 all five FLAC files above passed the extended interpolation workfl
 
 All **18 CTest targets passed** in 353.08 s. After the final source-validation and screenshot-framing changes, all five Analysis targets passed again in 35.11 s and the five real-audio cases passed on the final build. GUI regressions cover exact unreduced Start/End triplets, all three range modes, End join behavior, default-No cancellation, timing-only change notifications, atomic undo/redo, note history, stale modal proposals and duplicate source timing rejection. The standard-library core also passed AddressSanitizer and UndefinedBehaviorSanitizer; LeakSanitizer was disabled because this environment cannot inspect process tasks. Linux Qt 6.4.2 / GCC 13 was used. Native Windows/macOS appearance and audible hardware output remain unverified.
 
+### Screenshot integrity follow-up
+
+The optional real-audio harness now encodes PNGs in memory, checks the complete IEND trailer, commits with `QSaveFile` and verifies persisted bytes before accepting a capture. JSON reports also use atomic commits. A capture failure in the confirmation callback still closes the modal dialog, allowing the failure to be reported without hanging the run. This follows an artifact audit that found four truncated PNGs despite successful direct-path saves.
+
+After restoring the build environment, all five original FLACs passed again and all **70 PNGs** passed independent decoding/integrity checks; all **25 track JSON files** parsed. The full regression passed 17 targets in 86.93 s; its remaining BPM-dialog target initially could not launch because a generated executable was empty. Rebuilding that artifact made the target pass in 18.60 s, completing all 18 targets without a product-source workaround. AddressSanitizer and UndefinedBehaviorSanitizer passed again with LeakSanitizer disabled as described above.
+
 ## Original implementation patch
 
 The original standalone `CCE-Analysis-Editor.patch` is based on the existing CCE iteration commit `2f082668ee23373def420052ee1cdb652a83dc48` (the `codex/cce-iteration-20261003` branch). Apply it to that base or review the local `codex/analysis-editor-20261003` branch. The patch leaves the AutoTimingCore submodule pin unchanged.
