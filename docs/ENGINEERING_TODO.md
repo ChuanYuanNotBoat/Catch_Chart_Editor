@@ -105,9 +105,9 @@ The product direction is decided in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md):
 CCE remains the source of truth while these boundaries mature; repository-level
 core extraction comes later.
 
-- [ ] Introduce strong persistent IDs for document, difficulty, timeline, layer, and note entities.
+- [ ] Introduce strong persistent IDs for document, difficulty, timeline, and layer entities. Do **not** require blanket persistent IDs for every Note: ordinary Note identity is semantic/content-based across saved states, while runtime handles or opt-in tracking identities may be used only when a long-lived external reference actually needs to follow a specific object.
 - [x] Replace legacy Note/BPM floating-point ordering with normalized rational comparison (`BeatPosition`); preserve source triplets and use exact text-input range boundaries. Audio time caches and continuous curve geometry remain floating-point projections.
-- [ ] Migrate selection identity from note indices to note IDs while retaining fast render indices.
+- [ ] Migrate selection away from fragile note-array indices while retaining fast render indices; use session/runtime object handles or equivalent stable-in-memory keys rather than making persistent Note IDs a prerequisite.
 - [ ] Add a read-only versioned document snapshot and remove UI access to unrestricted mutable Chart state.
 - [ ] Replace whole-Chart command snapshots with validated serializable deltas and inverse operations.
 - [ ] Split `MainWindow` incrementally into session, workspace, document, command, resource, diagnostics, and plugin-UI coordinators.
@@ -130,6 +130,35 @@ track, eventual core extraction, and optional real-time collaboration are sequen
 with explicit entry/exit gates in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md). They are
 not duplicated as unchecked implementation items here until their prerequisite
 milestone becomes active.
+
+Recorded review/comment design constraints for that later milestone:
+
+- Comments are position/range-first annotations. A comment may anchor to a time point,
+  time range, time+X region, BPM/timing position, or empty space without requiring a
+  Note to exist.
+- Object references are optional attachments to an anchor, not the identity of the
+  comment itself. A referenced Note/timing object may move with the comment while the
+  reference is active; deleting or detaching the object must preserve the comment at
+  a meaningful last-known anchor and mark the reference as changed/removed rather
+  than silently deleting the thread.
+- `CommentThread` and review-author identities require stable UUIDs. Ordinary Notes do
+  not gain persistent identity merely to support comments; if a long-lived reference
+  truly needs object continuity, use an explicit tracking identity only for that
+  referenced object.
+- Review author profiles are local-first: randomly generated stable author UUID plus
+  display name, with optional exported/imported identity metadata for multi-device
+  continuity. Do not derive identity from BIOS UUID, MAC address, machine GUID, or
+  other hardware fingerprints.
+- Review history is event-based rather than storing only the latest text. Preserve
+  create/edit/reply/resolve/reopen plus anchor/reference changes as ordered events so
+  imported review packages retain provenance and can show how a thread evolved.
+- Event logs may use a hash chain for tamper evidence and local-history comparison.
+  A hash chain proves internal log continuity, not cryptographic authorship; signatures
+  or a server-backed account system are deferred until a real authentication need
+  exists.
+- Exported/imported review packages should carry author UUID + display-name metadata,
+  thread UUIDs, and the relevant event history so comments from the same author can be
+  grouped without requiring an online account.
 
 ## Acceptance gates
 
