@@ -122,6 +122,19 @@ core extraction comes later.
 - [ ] Keep QWidget/QPainter unless measured multi-layer workloads demonstrate a rendering-backend limitation.
 - [ ] Redesign the process-plugin protocol around async requests, cancellation, capability scopes, bounded payloads, and layer-aware deltas.
 
+### P2 product/UX constraints — multi-document workspace
+
+- [ ] Add multi-document chart tabs while preserving the current single-chart editing layout and interaction feel as the default baseline. Opening one chart should behave essentially like current CCE; the feature must not force a new multi-pane layout.
+- [ ] Keep one primary editor view per chart. Do not introduce duplicate main views for the same chart as part of this feature. The Analysis Editor remains its separately designed window and follows the active main chart tab instead of becoming another document tab.
+- [ ] Preserve explicit Replace Current behavior alongside Open in New Tab. Opening a second chart must not make every future Open action accumulate tabs by default.
+- [ ] Audit current chart-open initialization behavior and classify editor state as window/global, per-document-restored, reset-on-open, or transient/cancelled. Reuse current open-new-chart behavior as the baseline rather than inventing a second set of defaults.
+- [ ] Keep classic/ADS layout state independent from document workspace state. Existing splitter sizes, panel locations, visibility, and other established layout behavior must remain compatible; document switching must not silently replace the user's preferred layout.
+- [ ] Preserve per-chart working state where useful (for example current time/scroll position, selection, undo/redo and dirty state), while cancelling unsafe transient interactions such as active drags, paste previews, or incomplete gestures on chart switch.
+- [ ] Keep the clipboard workspace-wide so copy/paste works across open chart tabs; default paste timing semantics remain relative beat/subdivision, and SOUND notes remain excluded by existing paste behavior.
+- [ ] Support temporary multi-editor presentation only on demand: Open Beside / split for comparison and Move to New Window / detachable editor windows within the same CCE instance. These are secondary presentation modes, not the default layout.
+- [ ] Add file-entry UX for the multi-document model: Open/Replace Current, Open in New Tab, multi-file Open as Tabs, and drag/drop of .mc/.mcz with an explicit Replace Current vs Open in New Tab choice.
+- [ ] For .mcz imports containing multiple .mc difficulties, allow selecting/importing multiple difficulties as tabs in one operation without requiring all imported difficulties to remain open.
+
 ## Later milestones
 
 Multi-difficulty projects, reusable/shared layers, layer groups, cross-difficulty
@@ -159,6 +172,20 @@ Recorded review/comment design constraints for that later milestone:
 - Exported/imported review packages should carry author UUID + display-name metadata,
   thread UUIDs, and the relevant event history so comments from the same author can be
   grouped without requiring an online account.
+
+Recorded persistent difficulty-group design constraints:
+
+- A persistent chart/difficulty group is a relationship between difficulties of the same song, surfaced with browser-like tab grouping when members are open. Group membership is independent from open-tab state: opening one member must not automatically open all members.
+- Importing multiple .mc files from one .mcz creates one group by default. Closing every member tab does not delete the group.
+- .ccepr export defaults to the entire group, with an explicit option to export only the current/specified difficulty. Importing a group package restores group membership without forcing every difficulty open.
+- Group-aware controls are optional and hidden when the active chart has no group. Per-group policy may override Settings defaults; Settings should define defaults for newly created/imported groups rather than silently rewriting existing group behavior.
+- Group synchronization is opt-in. Title/artist and similar safe metadata plus background resources may support Off / Manual / Auto policies. Creator and Difficulty remain difficulty-local and are never group-synchronized.
+- A local user profile supplies a default Creator value only when creating a new chart/difficulty. The resulting Creator field is ordinary editable chart metadata and is not dynamically bound to the profile or group.
+- Offset synchronization is available only after source/target audio timelines pass compatibility validation. Initial automatic compatibility may be conservative (for example identical audio-content hashes); future explicit audio alignment may widen compatibility.
+- BPM/Timing synchronization is manual-only; do not provide automatic BPM/Timing propagation. Conflicting target timing requires explicit confirmation, and synchronizing into a target that already contains notes requires a second high-risk confirmation because beat positions may map to different audio times.
+- Timing-sync UX should support impact preview where practical (affected note count and representative/max audio-time shifts) so the second confirmation communicates actual consequences rather than only asking 'Are you sure?'.
+- Different audio files are allowed inside one group. Audio-incompatible members still participate in group metadata/background/.ccepr workflows, but cannot use direct difficulty overlay or synchronized audio-position features.
+- Audio-compatible members may later opt into preserving playback position when switching difficulty, difficulty overlays, linked navigation, compare tools, and related cross-difficulty features. None of these should become mandatory merely because charts share a group.
 
 ## Acceptance gates
 
