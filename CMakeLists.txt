@@ -104,6 +104,30 @@ if(BUILD_TESTING)
     target_link_libraries(AnalysisEditorTests PRIVATE CatchChartEditorRuntime Qt6::Test)
     add_test(NAME analysis_editor_tests COMMAND AnalysisEditorTests)
     set_tests_properties(analysis_editor_tests PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        get_target_property(_ae_qmake Qt6::qmake IMPORTED_LOCATION)
+        get_filename_component(_ae_qt_bin "${_ae_qmake}" DIRECTORY)
+        if(CATCHEDITOR_ENABLE_WINDEPLOYQT AND EXISTS "${_ae_qt_bin}/windeployqt.exe")
+            add_custom_command(TARGET AnalysisEditorTests POST_BUILD
+                COMMAND "${_ae_qt_bin}/windeployqt.exe" --no-translations "$<TARGET_FILE:AnalysisEditorTests>"
+                COMMENT "Deploying the AE test runtime"
+            )
+        endif()
+        add_custom_command(TARGET AnalysisEditorTests POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:AnalysisEditorTests>"
+        )
+        if(TARGET Qt6::QOffscreenIntegrationPlugin)
+            add_custom_command(TARGET AnalysisEditorTests POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:AnalysisEditorTests>/platforms"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+                    "$<TARGET_FILE_DIR:AnalysisEditorTests>/platforms"
+            )
+            set_tests_properties(analysis_editor_tests PROPERTIES ENVIRONMENT
+                "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:AnalysisEditorTests>/platforms"
+            )
+        endif()
+    endif()
 
     add_executable(ShortcutTests tests/shortcut_tests.cpp)
     target_link_libraries(ShortcutTests PRIVATE CatchChartEditorRuntime Qt6::Test)
@@ -283,8 +307,6 @@ if(BUILD_TESTING)
 
     if(WIN32)
         target_link_libraries(DockingLayoutTests PRIVATE dwmapi)
-        set_tests_properties(analysis_editor_tests PROPERTIES
-            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
         set_tests_properties(core_minimal_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
         set_tests_properties(ui_docking_layout_tests PROPERTIES

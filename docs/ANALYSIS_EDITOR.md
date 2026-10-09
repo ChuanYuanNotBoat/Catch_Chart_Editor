@@ -1,4 +1,4 @@
-# Analysis Editor — first implementation
+# Analysis Editor
 
 Analysis Editor is a second top-level CCE workspace, opened from **View → Analysis Editor**. It edits the same `ChartController` as the Catch workspace. The Catch canvas keeps responsibility for x layout, flow and playability.
 
@@ -49,7 +49,53 @@ Double-click a timed result row to seek to it and switch to a close independent 
 
 The Diagnostics tab shows and exports full JSON, including nested local candidates, families, hypotheses, objective costs, phase/tempo models, rhythm profiles, support IDs, options and source provenance. `pulseTimeSeconds` is an absolute audio location and is null when absent. `legacyOffsetMilliseconds` retains its separate delay-style meaning. Objective costs and raw scores are not presented as calibrated probabilities. Pulse indices are serialized as decimal strings to preserve integer precision.
 
-These diagnostics never modify the chart or populate a BPM list. Uncertain evidence and unavailable model results remain visible as such.
+Browsing diagnostics never modifies the chart. **Preview and apply reliable tempo changes…** builds a separate proposal from the published map and requires explicit confirmation. Uncertain evidence and unavailable model results remain visible as such.
+
+## Three interface levels (2026-10-08)
+
+The header selects **Normal**, **Advanced** or **Debug**. Switching levels preserves the current configuration and analysis, stops unfinished editing gestures and never starts an analysis.
+
+| Level | Visible tools |
+| --- | --- |
+| Normal | Spectrum, Note/Rain, playback/range, manual measurement/interpolation, exact AutoTiming request, cancellation and a short tempo/evidence explanation |
+| Advanced | Stable configuration fields, local-evidence and experimental-subdivision switches, candidates, fitted grid, independent tempo/confidence/phase/residual/periodicity tracks and uncertainty regions |
+| Debug | Version-bound Core fields and full window evidence, raw diagnostics, same-input comparison and local reference/test records |
+
+**Musical time** is the default independent view. Zoom is beat/pixel; **Audio time** keeps a separate millisecond/pixel zoom. Both use the same chart BPM cache and preserve the visible audio center when switching. Chart offset is included exactly once in audio↔beat conversion, including AutoTiming BPM-map projection. Spectrum frames, pulses and measured endpoints retain absolute audio coordinates; displaying them in beats never rewrites Note/BPM triplets. Viewing an alternative hypothesis changes only the analysis overlay, leaving placement snap on the chart's timing.
+
+The narrow **Audio energy** strip replaces the previous blank workspace placeholder while retaining the adjustable core width. It displays whole-file relative RMS/peak energy, the viewport, playback head, selected range and loop range. Click/drag seeks without starting playback. Decode runs in the background, aggregates at most 4,096 buckets and caches by source identity. Source changes invalidate it. This is relative energy, not calibrated LUFS or Note density.
+
+Dragging a Note head moves it only in time. Dragging a Rain head preserves its exact rational duration and stored x; tail dragging changes only the tail. The gesture previews before one shared undo command. Delete applies to the AE selection only while its canvas has focus. Input controls and the Catch canvas keep their own command scope.
+
+### Profiles and reproducibility
+
+**Configuration** contains a read-only **Default**, editable current values, **Save As**, **Copy preset**, field/section/full reset and JSON import/export. A save uses a new name. Copy copies the selected saved preset, while Save As saves the effective current values. Import validates before replacement and shows changed fields and a compatibility report. Invalid input prevents analysis and leaves saved data intact. A malformed global store is preserved and disables writes to that store.
+
+Stable fields use schema version 1. Unsupported future schemas are rejected transactionally. Debug fields are bound to the exact Core version; values from a different build are retained as inactive imported metadata and reported, while current-build defaults are used. CCE Default has experimental subdivision disabled, unlike the upstream default. The difference view and reset tooltips use CCE Default values.
+
+Global presets are atomically stored in `QStandardPaths::AppConfigLocation/analysis-profiles.json`. **Save project override** writes differences plus the selected base preset's full snapshot/name/hash to `<chart path>.analysis-config.json`; it does not edit `.mc`. Sparse overrides are validated against that base, including ranges that exceed product Default. Reopening restores the same effective values even when the global preset is absent or different, using a read-only Project base entry. A mismatched snapshot hash or unreadable sidecar blocks analysis until explicitly restored/cleared. Effective values combine Default, selected global/project base, project override and current unsaved edits. Layout, level, zoom, selected global preset name and track visibility remain workspace settings. Each analysis freezes the complete effective snapshot/hash, request ID/revision, source identity and exact interval. A future `.ccepr` implementation can embed this existing record; this change does not implement that file format.
+
+Requests preserve six decimal places in seconds and no longer silently clamp duration to 4–300 seconds. Shorter-than-configured windows, intervals beyond EOF, over 20,000 scheduled windows, a preparation timeout or over 128 MiB of decoded/resampled mono PCM are rejected explicitly. A failed preparation cannot become a partial successful analysis. Only one timing worker runs per editor. Configuration changes, cancellation, source changes and same-path content replacement reject obsolete results; previously displayed results become **OldConfiguration** and lose preview/apply actions. Cancel interrupts preparation and discards results; an already-running upstream Core calculation still finishes in the background.
+
+### Debug workbench
+
+The four groups are **Overview / Compare**, **Tempo / Phase**, **Rhythm / Evidence** and **Reference / Tests**. The compact tab labels are Overview, Tempo, Rhythm and Reference; tooltips show their full names. Existing diagnostic tables are reused. Window details expose signal RMS/peak/silence/clipping/dynamic range, signal/transient scores, evidence reasons and raw rhythm candidates. Crop translation changes absolute locations only; missing values remain null. Raw periodicity, semantic rhythm, tempo observations and phase models retain distinct meanings.
+
+Tempo/Phase provides independent track switches and a green grid derived from the published continuous/segmented model. Orange regions show uncertainty. Observation/model residual P50/P90/max, BPM-list/model error and recorded reference accuracy are separately labeled. Tempo-only candidates have no phase action. Missing alternative models are not synthesized by the GUI.
+
+Load existing diagnostics, comparison JSON or corpus/benchmark records with **Load record…**. Comparison overlays require matching decoded PCM hash, encoding, sample rate, frame count and actual crop origin. Options and Core versions may differ and remain visible. Input mismatch permits browsing but disables paired overlays. Current/baseline coverage and their common interval remain explicit. Comparison export includes both original records; the Reference page offers separate current and loaded JSON views.
+
+Reference statuses are existing PASS/FAIL/SKIP/MISSING/UNANNOTATED records, not new evaluation results. Case navigation additionally requires matching encoded audio hash. Opening/importing/exporting records never runs a benchmark, changes a chart or reports unannotated audio as an accuracy PASS.
+
+Manual measurement, interpolation and AutoTiming share `TimingProposal`: exact-list validation, a note-impact preview, default-No confirmation, revision/source recheck after the modal and one timing-only undo. The existing interpolation error checks and exact Start triplets are retained. Applying a map replaces only the credible intervals accepted by the existing host projection rules; it preserves offset and Note coordinates.
+
+### Implementation ownership
+
+`AnalysisConfig` owns descriptors, schema validation, effective options and hashes; `AnalysisSession` owns serialized task identity/cancellation and frozen completion metadata; `MusicalTimeTransform` owns chart/model projection and a stable transform hash. `AnalysisTracks` adapts Spectrum envelopes, Transient curves/accepted/rejected events, Core curves/uncertain regions and phase-bearing/tempo-only candidates to the same pure data interface. Source/provenance, raw optional confidence, disposition, audio/sample references, jump target, visibility, z-order and interaction flags remain explicit. `AnalysisTrackScene` clips, draws and hits these records through a shared time projection; curve/peak/candidate/region selection coordinates the diagnostic table and audio navigation without chart edits. Unknown pulse/confidence does not become zero. Baseline/current tempo share one value axis. Hidden optional Spectrum/Transient overlays do not build display projections.
+
+`AnalysisConfigPanel`, `AnalysisWorkbench` and `AudioOverview` own their respective views. `TimingProposal` is shared by all three timing tools. This interface reuses standard-library DSP output; it does not add an estimator or a universal application framework.
+
+True Core cancellation checkpoints, the independent Core accuracy/candidate-retention fixes, random-access PCM caching and complete `.ccepr` packaging remain separate follow-ups. The production Core pin is unchanged. Screenshots are temporary QA artifacts, not a product feature or repository asset.
 
 ## Implementation boundaries
 
@@ -98,6 +144,14 @@ Relative threshold is a fraction of the strongest total flux in the loaded audio
 The panel debounces parameter edits and allows one background transient worker. A new spectrum page, new parameters or source changes cancel/supersede obsolete work. Source changes immediately clear results and export data, and stale callbacks cannot repopulate them. A shared immutable page keeps worker input alive safely after the panel is destroyed.
 
 ## Validation
+
+### Native host follow-up (2026-10-08)
+
+`vs2026-qt-msvc` built the application and AnalysisEditorTests with Qt 6.10.2 in both Debug and Release. The same **28 selected host cases passed in each configuration**: QtTest reports 30 passes including setup/cleanup, zero failures/skips, in 32.958 s and 5.719 s. They cover Profile storage/default protection and portable base inheritance, request identity and injected completion lifecycle, common track provenance/transform/interaction, musical/audio/model domains, bridge JSON semantics, paired-record and interpolated-quantile guards, bounded synthetic-WAV overview, transient navigation/stale results, Note/Rain commands and all three timing proposal/apply/undo boundaries, including nonzero-offset map projection. The injected analysis runner never calls Core.
+
+The test target independently deploys Qt runtime/Test and the offscreen platform plugin on Windows, with the platform directory declared in CTest. System fonts make the offscreen fixture captures readable. Five temporary synthetic views were inspected for Normal/Advanced/Debug, compact sidebar tabs, Tempo/Phase tracks and Configuration scrolling. The global checkbox theme is reused. Native Release initially encountered a compiler crash; retry and the final builds passed without an optimization workaround.
+
+Real-audio AutoTiming, accuracy/corpus, upstream smoke and full CTest were **not run**. The production Core pin remains `e47016d`; its separate candidate worktree is unchanged by this iteration. The historical validation entries below describe earlier builds and are not fresh evidence for this change.
 
 `SpectrumAnalysisTests` builds the core without Qt and checks stereo tone separation, audio origin, RMS/peak, mono duplication, silence, invalid samples and cancellation.
 

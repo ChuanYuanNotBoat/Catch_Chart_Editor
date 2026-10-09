@@ -7,11 +7,22 @@
 #include <QThread>
 #include <QUrl>
 #include <QtMath>
+#include <QFile>
+#include <QCryptographicHash>
+#include <QTimer>
 
 #include <memory>
 
 namespace
 {
+QString encodedHash(const QString &path)
+{
+    QFile file(path);
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    if (!file.open(QIODevice::ReadOnly) || !hash.addData(&file))
+        return {};
+    return QString::fromLatin1(hash.result().toHex());
+}
     static constexpr int kFmtPcmFloat = 5; // FMOD_SOUND_FORMAT_PCMFLOAT
 
     static float sampleToFloat(const QAudioBuffer &buffer, int frameIndex, int channelIndex)
@@ -65,12 +76,10 @@ namespace
         return out;
     }
 
-    static bool decodeMonoRange(const QString &audioFilePath,
-                                double startMs,
-                                double durationMs,
-                                QVector<float> &outMono,
-                                int &outSampleRate,
-                                QString *outError)
+    static bool decodeMonoRange(const QString &audioFilePath, double startMs, double durationMs,
+                                QVector<float> &outMono, int &outSampleRate, QString *outError,
+                                std::atomic<bool> *cancelFlag = nullptr, double *actualStartMs = nullptr,
+                                int *decodedChannels = nullptr)
     {
         outMono.clear();
         outSampleRate = 0;
@@ -81,35 +90,84 @@ namespace
         bool success = true;
         bool decoderDone = false;
         QString errorText;
-        QObject::connect(&decoder, &QAudioDecoder::bufferReady, &decoder, [&]()
-                         {
-        QAudioBuffer buffer = decoder.read();
-        if (!buffer.isValid())
-            return;
-        const QAudioFormat fmt = buffer.format();
-        if (fmt.sampleRate() <= 0 || fmt.channelCount() <= 0 || fmt.sampleFormat() == QAudioFormat::Unknown)
-            return;
-        outSampleRate = fmt.sampleRate();
-        const int channels = fmt.channelCount();
-        const qint64 startFrame = static_cast<qint64>(qFloor(qMax(0.0, startMs) * outSampleRate / 1000.0));
-        const qint64 endFrame = static_cast<qint64>(qCeil((qMax(0.0, startMs) + durationMs) * outSampleRate / 1000.0));
-        const qint64 bufStart = processedFrames;
-        const qint64 bufEnd = processedFrames + buffer.frameCount();
-        processedFrames = bufEnd;
-        const qint64 pickStart = qMax(bufStart, startFrame);
-        const qint64 pickEnd = qMin(bufEnd, endFrame);
-        if (pickStart >= pickEnd)
-            return;
-        const int localStart = static_cast<int>(pickStart - bufStart);
-        const int localEnd = static_cast<int>(pickEnd - bufStart);
-        outMono.reserve(outMono.size() + (localEnd - localStart));
-        for (int frame = localStart; frame < localEnd; ++frame)
-        {
-            float sum = 0.0f;
-            for (int ch = 0; ch < channels; ++ch)
-                sum += sampleToFloat(buffer, frame, ch);
-            outMono.append(sum / static_cast<float>(channels));
-        } });
+        QEventLoop loop;
+        QTimer deadline, cancelPoll;
+        deadline.setSingleShot(true);
+        deadline.setInterval(120000);
+        cancelPoll.setInterval(50);
+        QObject::connect(&deadline, &QTimer::timeout, &loop, [&] {
+            success = false;
+            decoderDone = true;
+            errorText = QStringLiteral("Audio preparation timed out");
+            loop.quit();
+        });
+        QObject::connect(&cancelPoll, &QTimer::timeout, &loop, [&] {
+            if (cancelFlag && cancelFlag->load())
+            {
+                success = false;
+                decoderDone = true;
+                errorText = QStringLiteral("Audio preparation cancelled");
+                loop.quit();
+            }
+        });
+        QObject::connect(&decoder, &QAudioDecoder::bufferReady, &decoder, [&]() {
+            if (decoderDone)
+                return;
+            QAudioBuffer buffer = decoder.read();
+            if (!buffer.isValid())
+                return;
+            const QAudioFormat fmt = buffer.format();
+            if (fmt.sampleRate() <= 0 || fmt.channelCount() <= 0 || fmt.sampleFormat() == QAudioFormat::Unknown)
+                return;
+            if (outSampleRate && outSampleRate != fmt.sampleRate())
+            {
+                success = false;
+                decoderDone = true;
+                errorText = QStringLiteral("Audio sample rate changed during decoding");
+                loop.quit();
+                return;
+            }
+            outSampleRate = fmt.sampleRate();
+            if (decodedChannels)
+                *decodedChannels = fmt.channelCount();
+            const int channels = fmt.channelCount();
+            const qint64 startFrame = static_cast<qint64>(qFloor(qMax(0.0, startMs) * outSampleRate / 1000.0));
+            const qint64 endFrame =
+                static_cast<qint64>(qCeil((qMax(0.0, startMs) + durationMs) * outSampleRate / 1000.0));
+            const qint64 bufStart = processedFrames;
+            const qint64 bufEnd = processedFrames + buffer.frameCount();
+            processedFrames = bufEnd;
+            const qint64 pickStart = qMax(bufStart, startFrame);
+            const qint64 pickEnd = qMin(bufEnd, endFrame);
+            if (pickStart >= pickEnd)
+                return;
+            const int localStart = static_cast<int>(pickStart - bufStart);
+            const int localEnd = static_cast<int>(pickEnd - bufStart);
+            if (outMono.isEmpty() && actualStartMs)
+                *actualStartMs = pickStart * 1000. / outSampleRate;
+            if (outMono.size() + localEnd - localStart > 32 * 1024 * 1024)
+            {
+                success = false;
+                decoderDone = true;
+                errorText = QStringLiteral("Analysis input exceeds the 128 MiB mono PCM budget. Select a smaller "
+                                           "interval; no partial result was analyzed.");
+                loop.quit();
+                return;
+            }
+            outMono.reserve(outMono.size() + (localEnd - localStart));
+            for (int frame = localStart; frame < localEnd; ++frame)
+            {
+                float sum = 0.0f;
+                for (int ch = 0; ch < channels; ++ch)
+                    sum += sampleToFloat(buffer, frame, ch);
+                outMono.append(sum / static_cast<float>(channels));
+            }
+            if (processedFrames >= endFrame)
+            {
+                decoderDone = true;
+                loop.quit();
+            }
+        });
 
         QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), &decoder, [&](QAudioDecoder::Error)
                          {
@@ -117,7 +175,6 @@ namespace
         decoderDone = true;
         errorText = decoder.errorString().isEmpty() ? QStringLiteral("QAudioDecoder failed.") : decoder.errorString(); });
 
-        QEventLoop loop;
         QObject::connect(&decoder, &QAudioDecoder::finished, &decoder, [&]()
                          {
         decoderDone = true;
@@ -125,12 +182,15 @@ namespace
         QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), &decoder, [&]()
                          {
         loop.quit(); });
+        deadline.start();
+        cancelPoll.start();
         decoder.start();
         // A backend may report the outcome synchronously from start() (e.g. a
         // missing or unreadable file). quit() on a not-yet-running loop is a
         // no-op, so only block while the decoder is still running.
         if (!decoderDone)
             loop.exec();
+        decoder.stop();
 
         if (!success)
         {
@@ -239,6 +299,16 @@ namespace
             return false;
         }
         outResult.analysisStartMs = qMax(0.0, analysisStartMs);
+        const double supportedFrames = sampleRate == 32000 || sampleRate == 44100 || sampleRate == 48000
+                                           ? double(mono.size())
+                                           : mono.size() * 44100. / sampleRate;
+        if (runAnalysis && (mono.size() > 32 * 1024 * 1024 || supportedFrames > 32 * 1024 * 1024))
+        {
+            if (outError)
+                *outError = QStringLiteral(
+                    "Decoded/resampled analysis input exceeds the 128 MiB mono PCM budget. Select a smaller interval.");
+            return false;
+        }
 
         if (cancelFlag && cancelFlag->load())
         {
@@ -289,6 +359,13 @@ namespace
 
         AutoTiming2Summary summary;
         QString analysisError;
+        QCryptographicHash pcmHash(QCryptographicHash::Sha256);
+        pcmHash.addData(QByteArray::number(useRate));
+        pcmHash.addData(
+            QByteArrayView(reinterpret_cast<const char *>(work.constData()), work.size() * qsizetype(sizeof(float))));
+        outResult.analysisPcmSha256 = QString::fromLatin1(pcmHash.result().toHex());
+        outResult.analysisFrameCount = work.size();
+        outResult.analysisSampleRate = useRate;
         if (AutoTiming2Bridge::analyzeMono(work, useRate, analysisOptions, summary, &analysisError))
         {
             AutoTiming2Bridge::translateTimeline(summary, outResult.analysisStartMs / 1000.0);
@@ -353,18 +430,44 @@ namespace
         }
 
         QVector<float> mono;
-        int sampleRate = 0;
-        if (!decodeMonoRange(audioFilePath, clampedStartMs, durationMs, mono, sampleRate, outError))
+        int sampleRate = 0, sourceChannels = 0;
+        const QString sourceHash = runAnalysis ? encodedHash(audioFilePath) : QString();
+        if (runAnalysis && sourceHash.isEmpty())
+        {
+            if (outError)
+                *outError = QStringLiteral("Cannot read audio identity");
             return false;
+        }
+        double actualStartMs = clampedStartMs;
+        if (!decodeMonoRange(audioFilePath, clampedStartMs, durationMs, mono, sampleRate, outError, cancelFlag,
+                             &actualStartMs, &sourceChannels))
+            return false;
+        if (runAnalysis && mono.size() * 1000. / sampleRate + 2000. / sampleRate < durationMs)
+        {
+            if (outError)
+                *outError = QStringLiteral("Requested interval exceeds the decoded audio; only %1 ms remained. No "
+                                           "partial interval was analyzed.")
+                                .arg(mono.size() * 1000. / sampleRate, 0, 'f', 3);
+            return false;
+        }
 
-        return runMonoPipeline(mono,
-                               sampleRate,
-                               clampedStartMs,
-                               outResult,
-                               runAnalysis,
-                               analysisOptions,
-                               outError,
-                               cancelFlag);
+        const bool completed = runMonoPipeline(mono, sampleRate, actualStartMs, outResult, runAnalysis, analysisOptions,
+                                               outError, cancelFlag);
+        if (runAnalysis)
+        {
+            outResult.encodedSha256 = sourceHash;
+            outResult.decodedFrameCount = mono.size();
+            outResult.decodedSampleRate = sampleRate;
+            outResult.decodedChannels = sourceChannels;
+            if (encodedHash(audioFilePath) != sourceHash)
+            {
+                outResult = BpmDetector::DetectionResult();
+                if (outError)
+                    *outError = QStringLiteral("Audio changed while analyzing; result discarded");
+                return false;
+            }
+        }
+        return completed;
     }
 } // namespace
 

@@ -23,6 +23,7 @@
 | [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md) | 统一快捷键命令清单、上下文和保留手势 |
 | [NOTE_CHAIN_EDITOR.md](NOTE_CHAIN_EDITOR.md) | 原生 C++ 曲线编辑器的状态、交互、持久化、撤销和性能约束 |
 | [Autotiming.md](Autotiming.md) | AutoTiming 自动节拍检测流程与公共接口 |
+| [AE_AC_GUI_BUGFIX_PLAN.md](AE_AC_GUI_BUGFIX_PLAN.md) | AE/AC 的 Normal、Advanced、Debug 三层界面、配置/Profile、时间与轨道基础、已知问题及实施顺序 |
 | [ENGINEERING_TODO.md](ENGINEERING_TODO.md) | 已审计的性能/可靠性事项、验收门槛与未来重构决策 |
 | [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) | 多难度、图层剪贴板/跨 MC 转移、Meta 同步、新建 MC、审图、版本、osu!ctb、移动端与通用核心的长期规划 |
 | [../TESTING.md](../TESTING.md) | 自动化测试目标、命令、覆盖范围和手工回归清单 |

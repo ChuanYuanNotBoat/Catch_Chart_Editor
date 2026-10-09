@@ -1,5 +1,15 @@
 # 历史更新
 
+## Unreleased（2026-10-08）
+
+- **Analysis Editor 三层界面**：新增 Normal / Advanced / Debug；谱面视图默认按 beat 缩放，音频视图保留独立 ms 缩放，两者切换保持可见中心。全曲相对 RMS/peak 导航显示视口、播放头、选区与 loop，保留频谱左侧、紧凑 Note/Rain 右侧布局。
+- **配置与调参**：新增只读 Default、Save As/复制、单项/分区/全量 reset、导入差异确认和 JSON 导出；稳定 Advanced 字段与版本绑定 Debug 参数分开。全局 preset、稀疏项目 sidecar、工作区布局及每次分析 snapshot/hash 分别保存；损坏全局配置不被覆盖。
+- **Debug 工作台**：复用四组诊断页，新增 tempo/confidence/phase/residual/periodicity 曲线、模型网格与不确定区间；bridge 透出 SignalMetrics、EvidenceReason 和 raw rhythm candidates。按实际 PCM 身份核对 baseline 对照，本地测试/参考记录只查看已有状态。
+- **AE 修复**：参数变化、取消和音频替换拒绝旧结果；请求保留精确范围，取消 4–300s 静默截断，显式检查最低窗口、EOF、任务与 PCM 预算。Note/Rain 时间拖动保留 x 和精确 Rain 时长，Delete 使用 AE 上下文与共享撤销。
+- **Timing 修复**：测量、插值和 AutoTiming 共用 proposal 验证、影响预览、确认后版本检查及一次 timing undo；修复 tempo-map 投影重复处理 offset，避免在错误拍点写入变速边界。
+- **共同轨道与恢复**：Spectrum 包络、Transient 曲线/峰值、Core 曲线/区间/候选共用纯数据轨道及显示/命中接口；保持来源、可缺失置信、音频/帧坐标与变换身份，点击只定位和关联诊断。项目 override 保存所依赖的预设 snapshot/hash，支持重开及缺少全局预设时恢复。
+- **原生验证**：修复 Windows 测试 Qt runtime/Test/offscreen 部署与字体环境；Debug/Release 构建及各 28 项宿主定向用例通过。Core 算法、生产 gitlink 及已停止的实曲/准确度/冒烟测试保持原状态，截图仅作本地验证材料。
+
 ## Unreleased（2026-10-03）
 
 - **拍点基础**：新增无 Qt 依赖的 `BeatPosition`，将 Note/BPM 排序、Rain 时间有效性、选择索引、曲线提交与 BPM map 合并排序统一为规范化有理数比较；正确处理跨整数拍的假分数、等价分度和 `double` 无法区分的相邻拍点。同拍同位置对象保持输入顺序，原始分母和 `.mc` 三元组不被改写。Range Select 保留文本输入的精确边界及 Rain 完全包含规则，等价三元组的显示投影保持一致。

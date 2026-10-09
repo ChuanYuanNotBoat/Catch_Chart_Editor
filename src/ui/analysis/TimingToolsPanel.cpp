@@ -1,5 +1,7 @@
 #include "TimingToolsPanel.h"
 #include "AnalysisCanvas.h"
+#include "TimingProposal.h"
+#include <algorithm>
 #include "controller/ChartController.h"
 #include <QVBoxLayout>
 #include <QFormLayout>
@@ -226,28 +228,24 @@ void TimingToolsPanel::apply()
     refresh();
     if (!m_apply->isEnabled())
         return;
-    if (!m_chart->chart()->notes().isEmpty())
-    {
-        const auto answer = QMessageBox::question(
-            this, tr("Apply measured BPM"),
-            tr("Set %1 BPM at [%2, %3, %4]?\n%5 notes keep their beat coordinates; their audio times may "
-               "change. This edit can be undone.")
-                .arg(m_result.bpm, 0, 'f', 6).arg(m_startBeat->beatNum).arg(m_startBeat->numerator)
-                .arg(m_startBeat->denominator).arg(m_chart->chart()->notes().size()),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-        if (answer != QMessageBox::Yes)
-            return;
-        refresh();
-        if (!m_apply->isEnabled())
-            return;
-    }
+    auto entries = m_chart->chart()->bpmList();
     const int match = matchingTiming();
-    auto point = match >= 0 ? m_chart->chart()->bpmList()[match] : *m_startBeat;
+    auto point = match >= 0 ? entries[match] : *m_startBeat;
     point.bpm = m_result.bpm;
     if (match >= 0)
-        m_chart->updateBpm(match, point);
+        entries[match] = point;
     else
-        m_chart->addBpm(point);
+        entries.append(point);
+    std::stable_sort(entries.begin(), entries.end(), [](const auto &a, const auto &b) {
+        return a.position() < b.position();
+    });
+    analysis::confirmTimingProposal(this, m_chart, tr("Apply measured BPM"),
+                                    tr("Set %1 BPM at [%2, %3, %4]?")
+                                        .arg(m_result.bpm, 0, 'f', 6)
+                                        .arg(point.beatNum)
+                                        .arg(point.numerator)
+                                        .arg(point.denominator),
+                                    entries, m_chart->revision(), {}, false);
 }
 QJsonObject TimingToolsPanel::diagnostics() const
 {

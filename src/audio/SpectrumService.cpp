@@ -8,6 +8,8 @@
 #include <QtConcurrentRun>
 #include <algorithm>
 #include <cmath>
+#include <QFileInfo>
+#include <QDateTime>
 namespace
 {
 float sample(const QAudioBuffer &b, int i)
@@ -156,4 +158,179 @@ void SpectrumService::analyzeFileRangeAsync(QObject *context, const QString &pat
                      });
     watcher->setFuture(QtConcurrent::run(
         [path, start, duration, cancel] { return analyzeFileRange(path, start, duration, cancel); }));
+}
+void SpectrumService::prepareFileRangeAsync(QObject *context, const QString &path, double start, double duration,
+                                            std::shared_ptr<std::atomic<bool>> cancel, PageCallback callback)
+{
+    auto *watcher = new QFutureWatcher<Page>(context);
+    QObject::connect(watcher, &QFutureWatcher<Page>::finished, context, [watcher, callback = std::move(callback)] {
+        auto result = watcher->result();
+        watcher->deleteLater();
+        callback(std::move(result));
+    });
+    watcher->setFuture(QtConcurrent::run([path, start, duration, cancel] {
+        Page page;
+        auto spectrum = analyzeFileRange(path, start, duration, cancel);
+        if (spectrum.valid())
+            page.raster = analysis::prepareSpectrumRaster(spectrum, cancel.get());
+        if (spectrum.valid() && !page.raster.valid())
+            spectrum.error = cancel && cancel->load() ? "Cancelled" : "Invalid spectrum raster";
+        page.spectrum = std::make_shared<const Result>(std::move(spectrum));
+        return page;
+    }));
+}
+SpectrumService::EnergyEnvelope SpectrumService::analyzeEnergy(const QString &path,
+                                                               const std::shared_ptr<std::atomic<bool>> &cancel)
+{
+    EnergyEnvelope out;
+    struct Bucket
+    {
+        double squares = 0, peak = 0;
+        qint64 frames = 0;
+    };
+    QVector<Bucket> buckets;
+    Bucket current;
+    int rate = 0, channels = 0;
+    qint64 stride = 1, processed = 0;
+    QFileInfo identity(path);
+    const auto initialSize = identity.size();
+    const auto initialTime = identity.lastModified();
+    QAudioDecoder decoder;
+    QEventLoop loop;
+    QTimer poll, deadline;
+    poll.setInterval(50);
+    deadline.setSingleShot(true);
+    deadline.setInterval(120000);
+    bool done = false;
+    auto finish = [&] {
+        done = true;
+        loop.quit();
+    };
+    QObject::connect(&poll, &QTimer::timeout, &loop, [&] {
+        if (cancel && cancel->load())
+        {
+            out.error = "Cancelled";
+            finish();
+        }
+    });
+    QObject::connect(&deadline, &QTimer::timeout, &loop, [&] {
+        out.error = "Whole-audio energy decode timed out";
+        finish();
+    });
+    auto store = [&] {
+        buckets.append(current);
+        current = {};
+        if (buckets.size() >= 4096)
+        {
+            QVector<Bucket> reduced;
+            reduced.reserve(2048);
+            for (int i = 0; i < buckets.size(); i += 2)
+                reduced.append({buckets[i].squares + buckets[i + 1].squares, qMax(buckets[i].peak, buckets[i + 1].peak),
+                                buckets[i].frames + buckets[i + 1].frames});
+            buckets = std::move(reduced);
+            stride *= 2;
+        }
+    };
+    QObject::connect(&decoder, &QAudioDecoder::bufferReady, &loop, [&] {
+        if (done)
+            return;
+        const auto buffer = decoder.read();
+        if (!buffer.isValid())
+            return;
+        auto format = buffer.format();
+        if (format.sampleRate() < 1000 || format.sampleRate() > 384000 || format.channelCount() < 1
+            || format.channelCount() > 32 || format.sampleFormat() == QAudioFormat::Unknown
+            || (rate && (rate != format.sampleRate() || channels != format.channelCount())))
+        {
+            out.error = "Unsupported/changing audio format";
+            finish();
+            return;
+        }
+        if (!rate)
+        {
+            rate = format.sampleRate();
+            channels = format.channelCount();
+            stride = qMax(1, rate / 8);
+        }
+        for (int frame = 0; frame < buffer.frameCount(); ++frame)
+        {
+            if ((frame & 4095) == 0 && cancel && cancel->load())
+            {
+                out.error = "Cancelled";
+                finish();
+                return;
+            }
+            double energy = 0, peak = 0;
+            for (int ch = 0; ch < channels; ++ch)
+            {
+                double v = sample(buffer, frame * channels + ch);
+                if (!std::isfinite(v))
+                {
+                    out.error = "Non-finite audio sample";
+                    finish();
+                    return;
+                }
+                energy += v * v;
+                peak = qMax(peak, qAbs(v));
+            }
+            current.squares += energy / channels;
+            current.peak = qMax(current.peak, peak);
+            ++current.frames;
+            ++processed;
+            if (current.frames >= stride)
+                store();
+        }
+        if (processed / double(rate) > 86400)
+        {
+            out.error = "Whole-audio overview exceeds 24 hours";
+            finish();
+        }
+    });
+    QObject::connect(&decoder, &QAudioDecoder::finished, &loop, finish);
+    QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), &loop, [&](auto) {
+        out.error = decoder.errorString();
+        finish();
+    });
+    decoder.setSource(QUrl::fromLocalFile(path));
+    poll.start();
+    deadline.start();
+    decoder.start();
+    if (!done)
+        loop.exec();
+    decoder.stop();
+    identity.refresh();
+    if (identity.size() != initialSize || identity.lastModified() != initialTime)
+        out.error = "Audio changed during overview decode";
+    if (!out.error.isEmpty())
+        return out;
+    if (current.frames)
+        store();
+    if (!rate || buckets.isEmpty())
+    {
+        out.error = "No audio for overview";
+        return out;
+    }
+    double time = 0;
+    for (const auto &b : buckets)
+    {
+        double end = time + b.frames / double(rate);
+        out.bins.append({time, end, std::sqrt(b.squares / b.frames), b.peak});
+        time = end;
+    }
+    out.durationSeconds = time;
+    return out;
+}
+void SpectrumService::analyzeEnergyAsync(QObject *context, const QString &path,
+                                         std::shared_ptr<std::atomic<bool>> cancel, EnergyCallback callback)
+{
+    auto *watcher = new QFutureWatcher<EnergyEnvelope>(context);
+    QObject::connect(watcher, &QFutureWatcher<EnergyEnvelope>::finished, context,
+                     [watcher, callback = std::move(callback)] {
+                         auto result = watcher->result();
+                         watcher->deleteLater();
+                         callback(std::move(result));
+                     });
+    watcher->setFuture(QtConcurrent::run([path, cancel] {
+        return analyzeEnergy(path, cancel);
+    }));
 }

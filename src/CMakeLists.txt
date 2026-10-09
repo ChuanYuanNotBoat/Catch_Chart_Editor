@@ -33,9 +33,20 @@ set(SOURCES
     analysis/TimingMeasurement.cpp
     analysis/TimingInterpolation.cpp
     analysis/AutoTimingDiagnostics.cpp
+    analysis/AnalysisConfig.cpp
+    analysis/AnalysisSession.cpp
+    analysis/AnalysisTracks.cpp
+    analysis/SpectrumRaster.cpp
+    analysis/MusicalTimeTransform.cpp
     audio/SpectrumService.cpp
     ui/analysis/AnalysisCanvas.cpp
     ui/analysis/AnalysisEditor.cpp
+    ui/analysis/AnalysisConfigPanel.cpp
+    ui/analysis/AnalysisTrackScene.cpp
+    ui/analysis/SpectrumViewport.cpp
+    ui/analysis/AnalysisWorkbench.cpp
+    ui/analysis/AudioOverview.cpp
+    ui/analysis/TimingProposal.cpp
     ui/analysis/TransientPanel.cpp
     ui/analysis/TimingToolsPanel.cpp
     ui/analysis/TimingInterpolationPanel.cpp
@@ -109,6 +120,32 @@ if(MSVC)
 endif()
 
 add_library(CatchChartEditorRuntime STATIC ${SOURCES})
+execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${AUTOTIMINGCORE_SOURCE_DIR}"
+    OUTPUT_VARIABLE CCE_CORE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+execute_process(COMMAND git diff HEAD -- . ":(exclude)tests" ":(exclude)docs" WORKING_DIRECTORY "${AUTOTIMINGCORE_SOURCE_DIR}"
+    OUTPUT_VARIABLE CCE_CORE_DIFF ERROR_QUIET)
+if(NOT CCE_CORE_REVISION)
+    set(CCE_CORE_REVISION "unverified-build")
+endif()
+if(CCE_CORE_DIFF)
+    string(SHA256 CCE_CORE_DIFF_HASH "${CCE_CORE_DIFF}")
+    string(SUBSTRING "${CCE_CORE_DIFF_HASH}" 0 12 CCE_CORE_DIFF_HASH)
+    string(APPEND CCE_CORE_REVISION "+modified-${CCE_CORE_DIFF_HASH}")
+endif()
+target_compile_definitions(CatchChartEditorRuntime PRIVATE CCE_AUTOTIMING_CORE_VERSION="${CCE_CORE_REVISION}")
+execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    OUTPUT_VARIABLE CCE_HOST_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+execute_process(COMMAND git status --porcelain --untracked-files=normal WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    OUTPUT_VARIABLE CCE_HOST_STATUS ERROR_QUIET)
+if(NOT CCE_HOST_REVISION)
+    set(CCE_HOST_REVISION "unverified-build")
+elseif(CCE_HOST_STATUS)
+    string(APPEND CCE_HOST_REVISION "+working-tree")
+endif()
+target_compile_definitions(CatchChartEditorRuntime PRIVATE CCE_HOST_SOURCE_VERSION="${CCE_HOST_REVISION}")
+if(MSVC)
+    target_compile_options(CatchChartEditorRuntime PRIVATE /utf-8)
+endif()
 qt_add_executable(CatchChartEditor MANUAL_FINALIZATION main.cpp)
 target_link_libraries(CatchChartEditor PRIVATE CatchChartEditorRuntime)
 

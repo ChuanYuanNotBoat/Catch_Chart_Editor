@@ -5,6 +5,16 @@
 #include "ui/analysis/TimingToolsPanel.h"
 #include "ui/analysis/TimingInterpolationPanel.h"
 #include "analysis/AutoTimingDiagnostics.h"
+#include "analysis/AnalysisConfig.h"
+#include "analysis/AnalysisSession.h"
+#include "analysis/MusicalTimeTransform.h"
+#include "analysis/SpectrumPaging.h"
+#include "utils/NativeWindowTheme.h"
+#include "ui/analysis/AnalysisConfigPanel.h"
+#include "ui/analysis/AnalysisWorkbench.h"
+#include "ui/analysis/AudioOverview.h"
+#include <QStandardPaths>
+#include <QFontDatabase>
 #include "audio/SpectrumService.h"
 #include "audio/AudioPlayer.h"
 #include "controller/ChartController.h"
@@ -47,6 +57,9 @@
 #include <QComboBox>
 #include <QBuffer>
 #include <QSaveFile>
+#include <QInputDialog>
+#include <QScopeGuard>
+#include <QtConcurrentRun>
 #include <memory>
 #include <cmath>
 class AnalysisEditorTests : public QObject
@@ -115,9 +128,26 @@ class AnalysisEditorTests : public QObject
         canvas()->setFocus();
         QTest::qWait(30);
     }
+    static SpectrumService::Page spectrumPage(double startMs, double durationMs, int frames = 120, int bins = 32)
+    {
+        analysis::StereoSpectrum s;
+        s.startSeconds = startMs / 1000;
+        s.durationSeconds = durationMs / 1000;
+        s.hopSeconds = s.durationSeconds / frames;
+        s.sourceChannels = 2;
+        s.sampleRate = 44100;
+        for (int i = 0; i < bins; ++i)
+            s.frequencies.push_back(float(30 * std::pow(20000. / 30, double(i) / qMax(1, bins - 1))));
+        s.frames.resize(frames, {.7f, .5f, .2f, .1f});
+        s.leftDb.resize(size_t(frames) * bins, -30);
+        s.rightDb.resize(size_t(frames) * bins, -60);
+        auto raster = analysis::prepareSpectrumRaster(s);
+        return {std::make_shared<const analysis::StereoSpectrum>(std::move(s)), std::move(raster)};
+    }
 private slots:
     void initTestCase()
     {
+        QStandardPaths::setTestModeEnabled(true);
         QVERIFY(m_temp.isValid());
         Settings::instance().setNoteSoundVolume(0);
         Settings::instance().setVerticalFlip(false);
@@ -152,6 +182,958 @@ private slots:
     {
         m_editor.reset();
         m_playback.setLoopRange(0, 0, false);
+    }
+    void spectrumPagingCoversEdgesAndBoundsWork()
+    {
+        const auto ordinary = analysis::spectrumPageRange(8000, 10000);
+        QVERIFY(ordinary.valid);
+        QVERIFY(ordinary.startMs < 8000 && ordinary.endMs > 10000);
+        QVERIFY(ordinary.durationMs() >= 12000 && ordinary.durationMs() < 30000);
+        const auto flipped = analysis::spectrumPageRange(10000, 8000);
+        QCOMPARE(flipped.startMs, ordinary.startMs);
+        QCOMPARE(flipped.endMs, ordinary.endMs);
+        // Previously the 20 s alignment plus the 120 s cap repeatedly missed
+        // the last edge of a 100 s viewport.
+        for (double low : {0., 19999., 21999., 99999.})
+        {
+            const auto r = analysis::spectrumPageRange(low, low + 100000);
+            QVERIFY(r.valid);
+            QVERIFY(r.startMs <= low && r.endMs >= low + 100000);
+            QVERIFY(r.durationMs() <= 120000);
+        }
+        const auto eof = analysis::spectrumPageRange(9500, 16000, 10000);
+        QVERIFY(eof.valid);
+        QCOMPARE(eof.requiredEndMs, 10000.);
+        QCOMPARE(eof.endMs, 10000.);
+        QVERIFY(!analysis::spectrumPageRange(10000, 16000, 10000).valid);
+        QVERIFY(!analysis::spectrumPageRange(0, 100001).valid);
+        QVERIFY(!analysis::spectrumPageRange(NAN, 1000).valid);
+    }
+    void spectrumPrefetchKeepsVisiblePageAndRejectsStaleCompletion()
+    {
+        m_editor.reset();
+        loadChart(true);
+        AudioPlayer localAudio;
+        PlaybackController localPlayback(&localAudio);
+        struct Pending
+        {
+            double start, duration;
+            std::shared_ptr<std::atomic<bool>> cancel;
+            SpectrumService::PageCallback callback;
+        };
+        QVector<Pending> pending;
+        m_editor = std::make_unique<AnalysisEditor>(
+            &m_chart, &m_selection, &localPlayback, m_mainCanvas, m_range, m_main.get(),
+            [&](QObject *, const QString &, double start, double duration, std::shared_ptr<std::atomic<bool>> cancel,
+                SpectrumService::PageCallback callback) {
+                pending.append({start, duration, std::move(cancel), std::move(callback)});
+            });
+        // Destruction must precede the local playback controller on all exits.
+        const auto destroyEditor = qScopeGuard([&] {
+            m_editor.reset();
+        });
+        m_editor->show();
+        canvas()->setViewSynchronized(false);
+        canvas()->setMillisecondsPerPixel(2000. / qMax(1, canvas()->height() - 28));
+        canvas()->setCurrentTime(0);
+        QTRY_COMPARE_WITH_TIMEOUT(pending.size(), 1, 2000);
+        QVERIFY(pending[0].duration < 30000);
+        const auto first = spectrumPage(pending[0].start, pending[0].duration);
+        pending[0].callback(first);
+        QCOMPARE(&canvas()->spectrum(), first.spectrum.get());
+        const double firstEnd = (first.spectrum->startSeconds + first.spectrum->durationSeconds) * 1000;
+        // Both edges still fit; entering the guard zone starts the next page.
+        canvas()->setCurrentTime(firstEnd - 1200);
+        const double visibleEnd = qMax(canvas()->timeAtY(28), canvas()->timeAtY(canvas()->height()));
+        QVERIFY(visibleEnd < firstEnd);
+        QTRY_COMPARE_WITH_TIMEOUT(pending.size(), 2, 2000);
+        QCOMPARE(&canvas()->spectrum(), first.spectrum.get());
+        QVERIFY(pending[1].start < visibleEnd && pending[1].start + pending[1].duration > firstEnd);
+        QTest::qWait(150);
+        QCOMPARE(pending.size(), 2); // no duplicate workers while prefetching
+        auto second = spectrumPage(pending[1].start, pending[1].duration);
+        canvas()->setCurrentTime(0);
+        pending[1].callback(second);
+        QCOMPARE(&canvas()->spectrum(), first.spectrum.get()); // a late prefetch cannot open a hole
+        canvas()->setCurrentTime(firstEnd - 1200);
+        QTest::qWait(180);
+        QCOMPARE(&canvas()->spectrum(), second.spectrum.get());
+        canvas()->setCurrentTime(0);
+        QTest::qWait(180);
+        QCOMPARE(&canvas()->spectrum(), first.spectrum.get());
+        QCOMPARE(pending.size(), 2); // reverse navigation reuses a neighbor
+        canvas()->setCurrentTime(50000);
+        QTRY_COMPARE_WITH_TIMEOUT(pending.size(), 3, 2000);
+        canvas()->setCurrentTime(80000);
+        QTRY_VERIFY_WITH_TIMEOUT(pending[2].cancel->load(), 2000);
+        pending[2].callback(spectrumPage(pending[2].start, pending[2].duration));
+        QCOMPARE(&canvas()->spectrum(), first.spectrum.get());
+        QTRY_COMPARE_WITH_TIMEOUT(pending.size(), 4, 2000);
+        auto last = spectrumPage(pending[3].start, pending[3].duration);
+        pending[3].callback(last);
+        QCOMPARE(&canvas()->spectrum(), last.spectrum.get());
+        QTest::qWait(180);
+        QCOMPARE(pending.size(), 4);
+        const double eof = (last.spectrum->startSeconds + last.spectrum->durationSeconds) * 1000;
+        canvas()->setCurrentTime(eof - 1200);
+        QTRY_COMPARE_WITH_TIMEOUT(pending.size(), 5, 2000);
+        QVERIFY(pending[4].start < eof);
+        pending[4].callback(spectrumPage(pending[4].start, eof - pending[4].start));
+        canvas()->setCurrentTime(eof + 5000);
+        QTest::qWait(180);
+        QCOMPARE(pending.size(), 5); // known EOF never decodes empty ranges
+    }
+    void spectrumViewportClipsCropAndCachesProjection()
+    {
+        auto page = spectrumPage(1000, 250, 3, 4);
+        // A final padded hop must not paint past the actual audio endpoint.
+        auto s = *page.spectrum;
+        s.hopSeconds = .1;
+        auto raster = page.raster;
+        for (int y = 0; y < 3; ++y)
+            for (int x = 0; x < 4; ++x)
+            {
+                raster.left.setPixel(x, y, qRgb(40 + y * 40, 0, 0));
+                raster.right.setPixel(x, y, qRgb(0, 0, 40 + y * 40));
+            }
+        SpectrumViewport view;
+        auto projection = [](double y) {
+            return 900 + 10 * y;
+        };
+        const auto image = view.image(s, raster, 1, {200, 50}, 1, "audio", 900, 1400, projection);
+        const auto rects = spectrumChannelRects(200, 50);
+        const int x = rects[0].left() + 5, right = rects[1].left() + 5;
+        QCOMPARE(qAlpha(image.pixel(x, 9)), 0);
+        QCOMPARE(image.pixel(x, 10), qRgb(40, 0, 0));
+        QCOMPARE(image.pixel(right, 20), qRgb(0, 0, 80));
+        QCOMPARE(image.pixel(x, 34), qRgb(120, 0, 0));
+        QCOMPARE(qAlpha(image.pixel(x, 35)), 0);
+        const auto count = view.rebuildCount();
+        view.image(s, raster, 1, {200, 50}, 1, "audio", 900, 1400, projection);
+        QCOMPARE(view.rebuildCount(), count);
+        auto flipped = view.image(s, raster, 1, {200, 50}, 2, "audio", 1400, 900, [](double y) {
+            return 1400 - 10 * y;
+        });
+        QCOMPARE(flipped.size(), QSize(400, 100));
+        QCOMPARE(flipped.devicePixelRatio(), 2.);
+        QCOMPARE(qAlpha(flipped.pixel(x * 2, 20)), 0);
+        QCOMPARE(flipped.pixel(x * 2, 31), qRgb(120, 0, 0));
+        QCOMPARE(view.rebuildCount(), count + 1);
+        view.image(s, raster, 1, {200, 50}, 2, "new timing map", 1400, 900, [](double y) {
+            return 1400 - 10 * y;
+        });
+        QCOMPARE(view.rebuildCount(), count + 2);
+    }
+    void preparedSpectrumAttachmentAndOverlayPaintStayBounded()
+    {
+        // Maximum-size page: rasterization runs off the GUI thread, attachment
+        // shares all large arrays, and unchanged-view paints reuse the raster.
+        auto future = QtConcurrent::run([] {
+            return spectrumPage(0, 120000, 12000, 128);
+        });
+        QTRY_VERIFY_WITH_TIMEOUT(future.isFinished(), 15000);
+        const auto page = future.result();
+        QVERIFY(page.valid());
+        QElapsedTimer timer;
+        timer.start();
+        canvas()->setSpectrumPage(page.spectrum, page.raster);
+        const auto attachNs = timer.nsecsElapsed();
+        QCOMPARE(&canvas()->spectrum(), page.spectrum.get());
+        canvas()->setViewSynchronized(false);
+        canvas()->setMillisecondsPerPixel(5);
+        canvas()->setCurrentTime(1000);
+        auto image = canvas()->grab();
+        QVERIFY(!image.isNull());
+        const auto count = canvas()->spectrumViewportBuildCount();
+        timer.restart();
+        for (int i = 0; i < 20; ++i)
+        {
+            canvas()->setRange(0, 1 + i * .01, true);
+            image = canvas()->grab();
+        }
+        const auto paintNs = timer.nsecsElapsed();
+        QCOMPARE(canvas()->spectrumViewportBuildCount(), count);
+        canvas()->setCurrentTime(10000);
+        image = canvas()->grab();
+        QCOMPARE(canvas()->spectrumViewportBuildCount(), count + 1);
+        std::atomic<bool> cancelled{true};
+        QVERIFY(!analysis::prepareSpectrumRaster(*page.spectrum, &cancelled).valid());
+        qInfo("Prepared-page attach: %.3f ms; 20 overlay paints: %.3f ms", attachNs / 1e6, paintNs / 1e6);
+    }
+    void nativeTabsFollowDarkLightAndThemeChanges()
+    {
+        const auto originalPalette = qApp->palette();
+        const auto originalStyle = qApp->styleSheet();
+        QVERIFY(originalStyle.contains("QTabBar::tab")); // actual MainWindow theme includes tabs
+        const auto restoreTheme = qScopeGuard([&] {
+            qApp->setStyleSheet(originalStyle);
+            qApp->setPalette(originalPalette);
+        });
+        QTabWidget tabs;
+        tabs.addTab(new QWidget, "Selected");
+        tabs.addTab(new QWidget, "Other");
+        tabs.resize(300, 180);
+        tabs.show();
+        const QString folder = QDir::current().filePath("artifacts/ae-spectrum-followup-20261008");
+        QVERIFY(QDir().mkpath(folder));
+        for (const QColor background : {QColor("#1e242d"), QColor("#e8eaee"), QColor("#1e242d")})
+        {
+            const auto theme = NativeWindowTheme::themeColorsFor(background);
+            qApp->setStyleSheet(NativeWindowTheme::applicationStyleSheet(background));
+            auto palette = originalPalette;
+            palette.setColor(QPalette::Window, theme.window);
+            palette.setColor(QPalette::WindowText, theme.text);
+            palette.setColor(QPalette::Base, theme.base);
+            palette.setColor(QPalette::Text, theme.text);
+            qApp->setPalette(palette);
+            QTest::qWait(30);
+            const auto bar = tabs.tabBar()->grab().toImage();
+            const auto page = tabs.currentWidget()->grab().toImage();
+            for (int i = 0; i < 2; ++i)
+            {
+                const auto rect = tabs.tabBar()->tabRect(i);
+                const auto color = bar.pixelColor(rect.left() + 5, rect.top() + 5);
+                QVERIFY2(theme.dark ? color.lightness() < 110 : color.lightness() > 130, qPrintable(color.name()));
+            }
+            const auto pageColor = page.pixelColor(5, 5);
+            QVERIFY2(theme.dark ? pageColor.lightness() < 110 : pageColor.lightness() > 130,
+                     qPrintable(pageColor.name()));
+            auto *aeTabs = m_editor->findChild<QTabBar *>("analysis.leftTabs");
+            QVERIFY(aeTabs);
+            const auto aeBar = aeTabs->grab().toImage();
+            const auto rect = aeTabs->tabRect(0);
+            const auto color = aeBar.pixelColor(rect.left() + 5, rect.top() + 5);
+            QVERIFY2(theme.dark ? color.lightness() < 110 : color.lightness() > 130, qPrintable(color.name()));
+            QVERIFY(tabs.grab().save(folder + (theme.dark ? "/tabs-dark.png" : "/tabs-light.png")));
+        }
+    }
+    void preparedSpectrumWorkerReturnsActualCrop()
+    {
+        bool finished = false;
+        SpectrumService::Page page;
+        QElapsedTimer timer;
+        timer.start();
+        SpectrumService::prepareFileRangeAsync(this, m_wav, 2000, 2500, std::make_shared<std::atomic<bool>>(false),
+                                               [&](SpectrumService::Page result) {
+                                                   QCOMPARE(QThread::currentThread(), qApp->thread());
+                                                   page = std::move(result);
+                                                   finished = true;
+                                               });
+        QTRY_VERIFY_WITH_TIMEOUT(finished, 15000);
+        QVERIFY2(page.valid(), page.spectrum ? page.spectrum->error.c_str() : "Missing worker result");
+        QVERIFY(qAbs(page.spectrum->startSeconds - 2.) < .001);
+        QVERIFY(qAbs(page.spectrum->durationSeconds - 2.5) < .001);
+        QCOMPARE(page.raster.left.height(), int(page.spectrum->frames.size()));
+        QCOMPARE(page.raster.right.width(), int(page.spectrum->frequencies.size()));
+        canvas()->setSpectrumPage(page.spectrum, page.raster);
+        QCOMPARE(&canvas()->spectrum(), page.spectrum.get());
+        qInfo("Synthetic WAV decode + STFT + worker raster: %.3f ms", timer.nsecsElapsed() / 1e6);
+    }
+    void profileCompatibilityAndSnapshot()
+    {
+        auto defaults = analysis::defaultConfig();
+        QVERIFY(analysis::validateConfig(defaults).isEmpty());
+        auto edited = defaults;
+        auto stable = edited.value("stable").toObject();
+        stable["preferLocalTempoEvidence"] = true;
+        edited["stable"] = stable;
+        QVERIFY(analysis::configHash(defaults) != analysis::configHash(edited));
+        auto options = analysis::configOptions(edited);
+        QVERIFY(options.preferLocalTempoEvidence);
+        QVERIFY(!options.enableComplexSubdivisionAnalysis);
+        QCOMPARE(options.windowSpecs.size(), 3);
+        auto old = edited;
+        old["algorithmVersion"] = "another-build";
+        auto debug = old.value("debug").toObject();
+        debug["tempoTransitionPenalty"] = 9.;
+        old["debug"] = debug;
+        QJsonObject imported;
+        QStringList report;
+        QVERIFY(analysis::importConfig(old, imported, report));
+        QVERIFY(!report.isEmpty());
+        QCOMPARE(imported.value("debug").toObject().value("tempoTransitionPenalty").toDouble(), 2.);
+        QVERIFY(imported.value("stable").toObject().value("preferLocalTempoEvidence").toBool());
+        auto invalid = edited;
+        stable["minimumTempoBpm"] = 500.;
+        stable["maximumTempoBpm"] = 100.;
+        invalid["stable"] = stable;
+        const auto saved = imported;
+        QVERIFY(!analysis::importConfig(invalid, imported, report));
+        QCOMPARE(imported, saved);
+        old["schemaVersion"] = 900;
+        QVERIFY(!analysis::importConfig(old, imported, report));
+        QCOMPARE(imported, saved);
+        auto project = QJsonObject{{"algorithmVersion", AutoTiming2Bridge::algorithmVersion()},
+                                   {"stable", QJsonObject{{"minimumTempoBpm", 60.}}}};
+        auto effective = analysis::effectiveConfig(edited, project);
+        QCOMPARE(effective.value("stable").toObject().value("minimumTempoBpm").toDouble(), 60.);
+        QVERIFY(effective.value("stable").toObject().value("preferLocalTempoEvidence").toBool());
+        QVERIFY(analysis::validateRequest(defaults, 0, 750123.456).isEmpty());
+        QVERIFY(!analysis::validateRequest(defaults, 0, 250).isEmpty());
+        auto dense = defaults;
+        stable = defaults.value("stable").toObject();
+        stable["fineTempoHopSeconds"] = .01;
+        dense["stable"] = stable;
+        QVERIFY(!analysis::validateRequest(dense, 0, 750123.456).isEmpty());
+        for (const auto &entry : QJsonObject{{"tempoAgreementTolerance", .3},
+                                             {"minimumRhythmLayerSupportWindows", 1},
+                                             {"minimumSemanticSubdivision", 1},
+                                             {"maximumPolyrhythmTerm", 1}}
+                                     .keys())
+        {
+            auto rejected = defaults;
+            auto values = rejected.value("debug").toObject();
+            values[entry] = entry == "tempoAgreementTolerance" ? QJsonValue(.3) : QJsonValue(1);
+            rejected["debug"] = values;
+            QVERIFY(!analysis::validateConfig(rejected).isEmpty());
+        }
+        auto rejected = defaults;
+        stable = rejected.value("stable").toObject();
+        stable["fineTempoWindowSeconds"] = 3.;
+        rejected["stable"] = stable;
+        QVERIFY(!analysis::validateConfig(rejected).isEmpty());
+        stable["fineTempoWindowSeconds"] = 4.;
+        stable["maximumTrackedGapSeconds"] = 0.;
+        rejected["stable"] = stable;
+        QVERIFY(!analysis::validateConfig(rejected).isEmpty());
+    }
+    void profileUiPersistsSparseProjectOverrideAndProtectsDefault()
+    {
+        const auto path = m_temp.filePath("profiles.json");
+        AnalysisConfigPanel profiles(nullptr, path);
+        profiles.setLevel(2);
+        profiles.show();
+        auto *minimum = profiles.findChild<QDoubleSpinBox *>("analysis.option.minimumTempoBpm");
+        auto *save = profiles.findChild<QPushButton *>("analysis.profile.save");
+        auto namePreset = [&](const QString &name) {
+            QTimer::singleShot(0, &profiles, [name] {
+                auto *dialog = qobject_cast<QInputDialog *>(QApplication::activeModalWidget());
+                QVERIFY(dialog);
+                dialog->setTextValue(name);
+                dialog->accept();
+            });
+        };
+        minimum->setValue(60);
+        profiles.findChild<QDoubleSpinBox *>("analysis.option.maximumTempoBpm")->setValue(1000);
+        namePreset("Default");
+        save->click();
+        QVERIFY(!QFileInfo::exists(path));
+        namePreset("Fixture preset");
+        save->click();
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        auto saved = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+        QCOMPARE(saved.value("profiles").toObject().size(), 1);
+        QCOMPARE(saved.value("profiles")
+                     .toObject()
+                     .value("Fixture preset")
+                     .toObject()
+                     .value("stable")
+                     .toObject()
+                     .value("minimumTempoBpm")
+                     .toDouble(),
+                 60.);
+        minimum->setValue(75);
+        namePreset("Copied preset");
+        profiles.findChild<QPushButton *>("analysis.profile.copy")->click();
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        saved = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+        QCOMPARE(saved.value("profiles")
+                     .toObject()
+                     .value("Copied preset")
+                     .toObject()
+                     .value("stable")
+                     .toObject()
+                     .value("minimumTempoBpm")
+                     .toDouble(),
+                 60.);
+        const auto chartPath = m_temp.filePath("override.mc");
+        profiles.loadProject(chartPath);
+        minimum->setValue(900);
+        profiles.findChild<QPushButton *>("analysis.saveProjectProfile")->click();
+        QFile sidecar(chartPath + ".analysis-config.json");
+        QVERIFY(sidecar.open(QIODevice::ReadOnly));
+        const auto project = QJsonDocument::fromJson(sidecar.readAll()).object();
+        sidecar.close();
+        QCOMPARE(project.value("stable").toObject(), QJsonObject({{"minimumTempoBpm", 900.}}));
+        QCOMPARE(project.value("basePresetSnapshot")
+                     .toObject()
+                     .value("stable")
+                     .toObject()
+                     .value("maximumTempoBpm")
+                     .toDouble(),
+                 1000.);
+        QVERIFY(!QFileInfo::exists(chartPath));
+        AnalysisConfigPanel restored(nullptr, path);
+        restored.loadProject(chartPath);
+        QCOMPARE(restored.config().value("stable").toObject().value("minimumTempoBpm").toDouble(), 900.);
+        QCOMPARE(restored.config().value("stable").toObject().value("maximumTempoBpm").toDouble(), 1000.);
+        QVERIFY(analysis::validateConfig(restored.config()).isEmpty());
+        const auto portablePath = m_temp.filePath("missing-global-profiles.json");
+        AnalysisConfigPanel portable(nullptr, portablePath);
+        portable.loadProject(chartPath);
+        QCOMPARE(portable.config().value("stable").toObject().value("maximumTempoBpm").toDouble(), 1000.);
+        QCOMPARE(portable.config().value("stable").toObject().value("minimumTempoBpm").toDouble(), 900.);
+        profiles.findChild<QPushButton *>("analysis.clearProjectProfile")->click();
+        QCOMPARE(profiles.config().value("stable").toObject().value("minimumTempoBpm").toDouble(), 60.);
+        minimum->setValue(92);
+        profiles.findChild<QPushButton *>("analysis.reset.minimumTempoBpm")->click();
+        QCOMPARE(minimum->value(), 30.);
+        profiles.findChild<QPushButton *>("analysis.resetAll")->click();
+        QCOMPARE(profiles.config(), analysis::defaultConfig());
+        // Unsupported stores stay byte-for-byte intact after an attempted save.
+        const auto badPath = m_temp.filePath("bad-profiles.json");
+        QFile bad(badPath);
+        QVERIFY(bad.open(QIODevice::WriteOnly));
+        bad.write("{\"schemaVersion\":999,\"profiles\":{}}");
+        bad.close();
+        AnalysisConfigPanel invalid(nullptr, badPath);
+        invalid.findChild<QPushButton *>("analysis.profile.save")->click();
+        QVERIFY(bad.open(QIODevice::ReadOnly));
+        QCOMPARE(bad.readAll(), QByteArray("{\"schemaVersion\":999,\"profiles\":{}}"));
+    }
+    void requestIdentityRejectsOldConfigurationAndSource()
+    {
+        analysis::AnalysisSession session;
+        auto request = session.begin("source-A", 2500, 8000, analysis::defaultConfig());
+        QVERIFY(session.isCurrent(request, "source-A"));
+        QVERIFY(!session.isCurrent(request, "source-B"));
+        session.invalidateConfig();
+        QVERIFY(!session.isCurrent(request, "source-A"));
+        auto next = session.begin("source-A", 5000, 9000, analysis::defaultConfig());
+        QVERIFY(session.isCurrent(next, "source-A"));
+        session.discard();
+        QVERIFY(!session.isCurrent(next, "source-A"));
+        for (int i = 0; i < 12; ++i)
+            session.remember({{"runId", i}});
+        QCOMPARE(session.history.size(), 8);
+        session.clearSource();
+        QVERIFY(session.history.isEmpty());
+    }
+    void sessionDispatchFreezesConfigurationAndSerializesWork()
+    {
+        analysis::AnalysisSession session;
+        BpmDetector::AsyncAnalysisCallback pending;
+        std::shared_ptr<std::atomic<bool>> token;
+        int runs = 0, completions = 0;
+        auto config = analysis::defaultConfig();
+        auto stable = config.value("stable").toObject();
+        stable["preferLocalTempoEvidence"] = true;
+        config["stable"] = stable;
+        const auto request = session.begin("audio-A", 1234.567, 8000, config);
+        analysis::AnalysisSession::Runner fixture =
+            [&](QObject *, const QString &path, double start, double duration, const AutoTiming2Options &options,
+                std::shared_ptr<std::atomic<bool>> cancel, BpmDetector::AsyncAnalysisCallback callback) {
+                QCOMPARE(path, QString("fixture-only"));
+                QCOMPARE(start, 1234.567);
+                QCOMPARE(duration, 8000.);
+                QVERIFY(options.preferLocalTempoEvidence);
+                ++runs;
+                token = cancel;
+                pending = std::move(callback);
+            };
+        analysis::AnalysisCompletion completed;
+        auto accept = [&](analysis::AnalysisCompletion value) {
+            ++completions;
+            completed = std::move(value);
+        };
+        QVERIFY(session.dispatch(this, "fixture-only", request, accept, fixture));
+        QVERIFY(session.busy());
+        QCOMPARE(runs, 1);
+        QVERIFY(!session.dispatch(this, "fixture-only", request, accept, fixture));
+        session.invalidateConfig();
+        QVERIFY(token->load());
+        BpmDetector::DetectionResult result;
+        result.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
+        result.analysis.valid = true;
+        pending(true, result, {});
+        QVERIFY(!session.busy());
+        QCOMPARE(completions, 1);
+        QVERIFY(completed.discarded);
+        QCOMPARE(completed.diagnostics.value("configSnapshot").toObject(), config);
+        QCOMPARE(completed.diagnostics.value("configHash").toString(), analysis::configHash(config));
+        QCOMPARE(completed.diagnostics.value("resultState").toString(), QString("Discarded"));
+        const auto next = session.begin("audio-B", 1234.567, 8000, config);
+        QVERIFY(session.dispatch(this, "fixture-only", next, accept, fixture));
+        result.analysisStatus = BpmDetector::AnalysisStatus::Failed;
+        pending(false, result, QStringLiteral("fixture preparation failure"));
+        QVERIFY(!completed.discarded);
+        QCOMPARE(completions, 2);
+        QCOMPARE(completed.diagnostics.value("resultState").toString(), QString("Failed"));
+        QCOMPARE(completed.error, QString("fixture preparation failure"));
+        // A destroyed editor/session cancels preparation and suppresses a late callback.
+        {
+            analysis::AnalysisSession closing;
+            const auto r = closing.begin("audio-A", 1234.567, 8000, config);
+            QVERIFY(closing.dispatch(this, "fixture-only", r, accept, fixture));
+        }
+        QVERIFY(token->load());
+        pending(true, result, {});
+        QCOMPARE(completions, 2);
+    }
+    void independentTrackVisibilityIsWorkspaceState()
+    {
+        auto *workbench = m_editor->findChild<AnalysisWorkbench *>();
+        auto *check = m_editor->findChild<QCheckBox *>("analysis.track.confidence");
+        QVERIFY(check);
+        QVERIFY(workbench->trackVisible("confidence"));
+        const auto config = m_editor->findChild<AnalysisConfigPanel *>()->config();
+        const auto revision = m_chart.revision();
+        QSignalSpy changed(workbench, &AnalysisWorkbench::trackVisibilityChanged);
+        check->setChecked(false);
+        QCOMPARE(changed.size(), 1);
+        QVERIFY(!workbench->trackVisible("confidence"));
+        QVERIFY(workbench->trackVisible("tempo"));
+        QCOMPARE(m_editor->findChild<AnalysisConfigPanel *>()->config(), config);
+        QCOMPARE(m_chart.revision(), revision);
+        m_editor.reset();
+        createEditor();
+        QVERIFY(!m_editor->findChild<AnalysisWorkbench *>()->trackVisible("confidence"));
+    }
+    void musicalTransformAndModelDomain()
+    {
+        canvas()->setViewSynchronized(false);
+        canvas()->setMillisecondsPerPixel(2);
+        canvas()->setCurrentTime(3500);
+        const double center = canvas()->timeAtY((canvas()->height() + 28) / 2.);
+        canvas()->setMusicalView(true);
+        QVERIFY(qAbs(canvas()->timeAtY((canvas()->height() + 28) / 2.) - center) < 1e-6);
+        for (double beat : {0., 2., 7.5, 8., 10.})
+            QVERIFY(qAbs(canvas()->beatAtTime(canvas()->timeAtBeat(beat)) - beat) < 1e-9);
+        canvas()->setBeatsPerPixel(.01);
+        double y0 = canvas()->yAtTime(canvas()->timeAtBeat(7)), y1 = canvas()->yAtTime(canvas()->timeAtBeat(8)),
+               y2 = canvas()->yAtTime(canvas()->timeAtBeat(9));
+        QVERIFY(qAbs((y1 - y0) - (y2 - y1)) < 1e-6);
+        AutoTiming2TempoMap map;
+        map.available = true;
+        AutoTiming2TempoCurveSegment segment;
+        segment.startSeconds = 10;
+        segment.endSeconds = 12;
+        segment.startBeat = 0;
+        segment.endBeat = 4;
+        segment.phaseLinear = 3;
+        segment.phaseQuadratic = 1;
+        map.segments.append(segment);
+        auto ms = analysis::MusicalTimeTransform::audioAtModelBeat(map, 2);
+        QVERIFY(ms);
+        QVERIFY(qAbs(*ms - (10000 + 2000 * (-3 + std::sqrt(17.)) / 2)) < 1e-6);
+        QVERIFY(!analysis::MusicalTimeTransform::audioAtModelBeat(map, -1));
+        QVERIFY(!analysis::MusicalTimeTransform::audioAtModelBeat(map, 5));
+        map.segments[0].phaseLinear = 0;
+        QVERIFY(!analysis::MusicalTimeTransform::audioAtModelBeat(map, 2));
+    }
+    void interfaceLevelsAndOldResultState()
+    {
+        auto *level = m_editor->findChild<QComboBox *>("analysis.interfaceLevel");
+        auto *profiles = m_editor->findChild<AnalysisConfigPanel *>();
+        auto *advanced = profiles->findChild<QWidget *>("analysis.option.minimumTempoBpm"),
+             *debug = profiles->findChild<QWidget *>("analysis.option.tempoTransitionPenalty");
+        QVERIFY(level && advanced && debug);
+        QVERIFY(advanced->isHidden());
+        level->setCurrentIndex(1);
+        QVERIFY(!advanced->isHidden());
+        QVERIFY(debug->isHidden());
+        level->setCurrentIndex(2);
+        QVERIFY(!debug->isHidden());
+        const auto config = profiles->config();
+        level->setCurrentIndex(0);
+        QCOMPARE(profiles->config(), config);
+        BpmDetector::DetectionResult r;
+        r.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
+        r.analysis.valid = true;
+        r.analysis.durationSeconds = 8;
+        m_editor->showTimingResult(r);
+        QVERIFY(!m_editor->resultDiagnostics().isEmpty());
+        auto *start = m_editor->findChild<QDoubleSpinBox *>("analysis.timingStart");
+        start->setValue(1.234567);
+        QCOMPARE(m_editor->resultDiagnostics().value("resultState").toString(), QString("OldConfiguration"));
+        QCOMPARE(start->value(), 1.234567);
+        auto *duration = m_editor->findChild<QDoubleSpinBox *>("analysis.timingDuration");
+        duration->setValue(.25);
+        QCOMPARE(duration->value(), .25);
+        duration->setValue(750.123456);
+        QCOMPARE(duration->value(), 750.123456);
+        duration->setValue(.25);
+        m_editor->findChild<QPushButton *>("analysis.runTiming")->click();
+        QVERIFY(m_editor->findChild<QLabel *>("analysis.timingSummary")->text().contains("minimum analysis window"));
+    }
+    void localTestRecordViewerAndOverviewNavigation()
+    {
+        auto *workbench = m_editor->findChild<AnalysisWorkbench *>();
+        QVERIFY(workbench);
+        QJsonObject record{{"reference_type", "synthetic_truth"},
+                           {"cases", QJsonArray{QJsonObject{{"case", "fixed"},
+                                                            {"mode", "default"},
+                                                            {"status", "FAIL"},
+                                                            {"phase_error_max_ms", 9.},
+                                                            {"coverage", .5}}}}};
+        QString path = m_temp.filePath("fixture-record.json"), error;
+        QVERIFY(analysis::saveJson(path, record, &error));
+        QVERIFY(workbench->loadRecord(path, &error));
+        auto *table = m_editor->findChild<QTableWidget *>("analysis.referenceTests");
+        QCOMPARE(table->rowCount(), 1);
+        QCOMPARE(table->item(0, 1)->text(), QString("FAIL"));
+        const auto before = m_chart.revision();
+        QVERIFY(analysis::saveJson(path, {{"schemaVersion", 999}}, &error));
+        QVERIFY(!workbench->loadRecord(path, &error));
+        QCOMPARE(table->rowCount(), 1);
+        QCOMPARE(m_chart.revision(), before);
+        QJsonObject current{{"schemaVersion", 1},
+                            {"analysisStatus", "Succeeded"},
+                            {"analysisPcmSha256", "fixture-PCM"},
+                            {"analysisStartMs", 1200.},
+                            {"analysisFrameCount", 441000.},
+                            {"analysisSampleRate", 44100},
+                            {"analysisPcmEncoding", "fixture-float32"},
+                            {"algorithmVersion", "build-A"}};
+        current["derivedAnchorFit"] =
+            QJsonArray{QJsonObject{{"residualMilliseconds", 10.}}, QJsonObject{{"residualMilliseconds", 90.}}};
+        auto baseline = current;
+        baseline["algorithmVersion"] = "build-B";
+        workbench->setResult(current);
+        QVERIFY(workbench->findChild<QLabel *>("analysis.overviewSummary")->text().contains("50 / 82 / 90 ms"));
+        QVERIFY(analysis::saveJson(path, baseline, &error));
+        QVERIFY(workbench->loadRecord(path, &error));
+        QCOMPARE(workbench->pairedBaseline(), baseline);
+        QVERIFY(analysis::saveJson(path, workbench->comparisonRecord(), &error));
+        QVERIFY(workbench->loadRecord(path, &error));
+        QCOMPARE(workbench->pairedBaseline(), baseline);
+        baseline["analysisFrameCount"] = 440999.;
+        QVERIFY(analysis::saveJson(path, baseline, &error));
+        QVERIFY(workbench->loadRecord(path, &error));
+        QVERIFY(workbench->pairedBaseline().isEmpty());
+        auto *overview = m_editor->findChild<AudioOverview *>();
+        SpectrumService::EnergyEnvelope data;
+        data.durationSeconds = 12;
+        data.bins = {{0, 6, .2, .5}, {6, 12, .4, .8}};
+        overview->setEnvelope(data);
+        QVERIFY(overview->hasEnvelope());
+        canvas()->setMillisecondsPerPixel(2);
+        QSignalSpy seek(overview, &AudioOverview::seekRequested);
+        QTest::mouseClick(overview, Qt::LeftButton, {}, QPoint(10, 28 + (overview->height() - 52) / 2));
+        QCOMPARE(seek.size(), 1);
+        QVERIFY(qAbs(seek.first().first().toDouble() - 6000) < 1e-6);
+        QCOMPARE(m_chart.revision(), before);
+    }
+    void bridgeEvidenceProjectionRetainsCropAndNull()
+    {
+        BpmDetector::DetectionResult result;
+        result.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
+        AutoTiming2Window window;
+        window.startSeconds = 1;
+        window.endSeconds = 5;
+        window.signalMetrics = {{"signalScore", .63}};
+        window.evidenceReasons = {"LowSignal", "FutureReason"};
+        window.rawRhythmCandidates.append(QJsonObject{{"pulseTimeSeconds", 2.}, {"periodSeconds", .1}, {"score", .4}});
+        result.analysis.windows.append(window);
+        AutoTiming2Bridge::translateTimeline(result.analysis, 7);
+        auto json = analysis::timingDiagnostics(result);
+        auto projected = json.value("windows").toArray().first().toObject();
+        QCOMPARE(projected.value("startSeconds").toDouble(), 8.);
+        QCOMPARE(projected.value("signalMetrics").toObject().value("signalScore").toDouble(), .63);
+        QCOMPARE(projected.value("evidenceReasons").toArray().last().toString(), QString("FutureReason"));
+        const auto raw = projected.value("rawRhythmCandidates").toArray().first().toObject();
+        QCOMPARE(raw.value("pulseTimeSeconds").toDouble(), 9.);
+        QCOMPARE(raw.value("periodSeconds").toDouble(), .1);
+        QVERIFY(json.value("analysisPcmSha256").isNull());
+        QVERIFY(json.value("legacyOffsetMilliseconds").isNull());
+    }
+    void commonTracksPreserveProvenanceAndHitWithoutEditing()
+    {
+        analysis::StereoSpectrum spectrum;
+        spectrum.startSeconds = 7;
+        spectrum.hopSeconds = .1;
+        spectrum.sampleRate = 44100;
+        spectrum.frames = {{.5f, .6f, .2f, .3f}, {.7f, .8f, .4f, .5f}};
+        const auto envelopes = analysis::spectrumTracks(spectrum, {{"sourceIdentity", "fixture-source"}});
+        QCOMPARE(envelopes.size(), 4);
+        QVERIFY(qAbs(envelopes.first().points[1].seconds - 7.1) < 1e-9);
+        QCOMPARE(envelopes.first().provenance.value("sourceIdentity").toString(), QString("fixture-source"));
+        QVERIFY(!envelopes.first().points.first().confidence);
+        canvas()->setMillisecondsPerPixel(2);
+        canvas()->setCurrentTime(12000);
+        const double t0 = canvas()->timeAtY(210) / 1000, t1 = canvas()->timeAtY(310) / 1000;
+        analysis::TransientResult transient;
+        transient.frames = {{t0, .5f, .1f, {.2f, .3f, .1f}}, {t1, .2f, .1f, {.1f, .1f, .1f}}};
+        transient.peaks = {{0, t0, .02, .5f, {}, analysis::PeakDisposition::Detected},
+                           {1, t1, .02, .2f, {}, analysis::PeakDisposition::BelowThreshold}};
+        auto tracks = analysis::transientTracks(transient, {{"sourceIdentity", "fixture-source"}});
+        QCOMPARE(tracks.size(), 5);
+        QCOMPARE(tracks.last().events.size(), 2);
+        QVERIFY(!tracks.last().events.first().confidence);
+        QCOMPARE(tracks.last().events.last().disposition, QString("BelowThreshold"));
+        for (auto &track : tracks)
+            track.visible = track.kind == analysis::TrackKind::Events;
+        const auto candidates = analysis::diagnosticTracks(
+            {{"tempoCandidates", QJsonArray{QJsonObject{{"bpm", 120}, {"pulseTimeSeconds", QJsonValue()}}}}});
+        QVERIFY(!candidates.last().candidates.first().jumpSeconds);
+        canvas()->setAnalysisTracks(tracks + candidates, {});
+        QCOMPARE(canvas()->analysisTracks().first().transformId, QString("audio-seconds:v1"));
+        const auto revision = m_chart.revision();
+        const auto notes = m_chart.chart()->notes();
+        QSignalSpy objects(canvas(), &AnalysisCanvas::analysisObjectSelected);
+        QTest::mouseClick(canvas(), Qt::LeftButton, {}, QPoint(canvas()->spectrumWidth() - 8, 210));
+        QCOMPARE(objects.size(), 1);
+        QVERIFY(qAbs(canvas()->currentTime() - t0 * 1000) < 1e-6);
+        const auto selected = m_editor->findChild<AnalysisWorkbench *>()->selectedObject();
+        QCOMPARE(selected.value("trackId").toString(), QString("transient.peaks"));
+        QCOMPARE(selected.value("frameIndex").toString(), QString("0"));
+        QCOMPARE(m_chart.revision(), revision);
+        QCOMPARE(m_chart.chart()->notes(), notes);
+        QVERIFY(!m_chart.canUndo());
+        canvas()->setMusicalView(true);
+        const auto identity = canvas()->analysisTracks().first().transformId;
+        QVERIFY(identity.startsWith("chart-time:"));
+        QCOMPARE(canvas()->analysisTracks().last().events.first().seconds, t0);
+        m_chart.addBpm(BpmEntry(4, 0, 1, 240));
+        QVERIFY(identity != canvas()->analysisTracks().first().transformId);
+    }
+    void wholeAudioEnvelopeUsesBoundedDecode()
+    {
+        const auto data = SpectrumService::analyzeEnergy(m_wav, std::make_shared<std::atomic<bool>>(false));
+        QVERIFY2(data.error.isEmpty(), qPrintable(data.error));
+        QVERIFY(qAbs(data.durationSeconds - 12) < 1. / 44100);
+        QVERIFY(!data.bins.isEmpty() && data.bins.size() <= 4096);
+        double end = 0;
+        for (const auto &bin : data.bins)
+        {
+            QCOMPARE(bin.startSeconds, end);
+            QVERIFY(bin.endSeconds > bin.startSeconds);
+            QVERIFY(std::isfinite(bin.rms) && bin.rms >= 0 && bin.peak >= bin.rms);
+            end = bin.endSeconds;
+        }
+        QCOMPARE(end, data.durationSeconds);
+        const auto cancelled = SpectrumService::analyzeEnergy(m_wav, std::make_shared<std::atomic<bool>>(true));
+        QVERIFY(cancelled.bins.isEmpty());
+        QCOMPARE(cancelled.error, QString("Cancelled"));
+        const auto invalid = SpectrumService::analyzeEnergy(m_temp.filePath("not-present.wav"), {});
+        QVERIFY(!invalid.error.isEmpty());
+        QVERIFY(invalid.bins.isEmpty());
+    }
+    void timeOnlyMovePreservesXAndRainLength()
+    {
+        Note original(3, 1, 4, 123);
+        m_chart.addNote(original);
+        canvas()->setCurrentTime(2000);
+        QTest::mousePress(canvas(), Qt::LeftButton, {}, atBeat(3.25));
+        QTest::mouseMove(canvas(), atBeat(4));
+        QTest::mouseRelease(canvas(), Qt::LeftButton, {}, atBeat(4));
+        QCOMPARE(m_chart.chart()->notes().first().x, 123);
+        QCOMPARE(m_chart.chart()->notes().first().getStartBeat(), 4.);
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->notes().first().getStartBeat(), 3.25);
+        m_chart.removeNote(m_chart.chart()->notes().first());
+        Note rain(2, 2, 6, 3, 0, 1, 233);
+        m_chart.addNote(rain);
+        canvas()->setRainMode(true);
+        QTest::mousePress(canvas(), Qt::LeftButton, {}, atBeat(2 + 1. / 3));
+        QTest::mouseMove(canvas(), atBeat(4));
+        QTest::mouseRelease(canvas(), Qt::LeftButton, {}, atBeat(4));
+        const auto moved = m_chart.chart()->notes().first();
+        QCOMPARE(moved.x, 233);
+        QVERIFY(qAbs(moved.getStartBeat() - 4) < 1e-9);
+        QVERIFY(qAbs(moved.getEndBeat() - 4 - 2. / 3) < 1e-9);
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->notes().first().numerator, 2);
+        QCOMPARE(m_chart.chart()->notes().first().denominator, 6);
+    }
+    void autoTimingMapFixtureRequiresExplicitApplyAndOneUndo()
+    {
+        const Note note(9, 2, 6, 91);
+        m_chart.addNote(note);
+        const auto timings = m_chart.chart()->bpmList();
+        auto unchangedTimings = [&] {
+            const auto actual = m_chart.chart()->bpmList();
+            QCOMPARE(actual.size(), timings.size());
+            for (qsizetype i = 0; i < actual.size(); ++i)
+            {
+                QCOMPARE(actual[i].beatNum, timings[i].beatNum);
+                QCOMPARE(actual[i].numerator, timings[i].numerator);
+                QCOMPARE(actual[i].denominator, timings[i].denominator);
+                QCOMPARE(actual[i].bpm, timings[i].bpm);
+            }
+        };
+        BpmDetector::DetectionResult result;
+        result.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
+        result.analysis.valid = true;
+        auto &map = result.analysis.tempoMap;
+        map.available = true;
+        map.bpmListAvailable = true;
+        map.hasTempoChange = true;
+        map.hasAbruptChange = true;
+        // The chart beat 1 is at audio .375 s with offset +125 ms.
+        // The trusted step is at chart beat 8 / audio 3.875 s.
+        map.startSeconds = .375;
+        map.endSeconds = 7.875;
+        map.startBeat = 0;
+        map.endBeat = 23;
+        AutoTiming2TempoCurveSegment first;
+        first.startSeconds = .375;
+        first.endSeconds = 3.875;
+        first.startBeat = 0;
+        first.endBeat = 7;
+        first.startBpm = first.endBpm = 120;
+        first.phaseLinear = 7;
+        first.kind = "constant";
+        first.confidence = 1;
+        auto second = first;
+        second.startSeconds = 3.875;
+        second.endSeconds = 7.875;
+        second.startBeat = 7;
+        second.endBeat = 23;
+        second.startBpm = second.endBpm = 240;
+        second.phaseLinear = 16;
+        map.segments = {first, second};
+        map.bpmList = {{0, 120}, {7, 240}, {23, 240}};
+        AutoTiming2TempoMapAnchor anchor;
+        anchor.timeSeconds = 3.875;
+        anchor.phaseBeat = 7;
+        anchor.modelBpm = 240;
+        anchor.confidence = anchor.phaseConfidence = 1;
+        map.anchors.append(anchor);
+        m_editor->showTimingResult(result);
+        m_editor->findChild<QComboBox *>("analysis.interfaceLevel")->setCurrentIndex(1);
+        auto *grid = m_editor->findChild<QCheckBox *>("analysis.modelGrid");
+        QVERIFY(grid && grid->isEnabled());
+        grid->setChecked(true);
+        unchangedTimings();
+        auto *apply = m_editor->findChild<QPushButton *>("analysis.applyTempoMap");
+        QVERIFY(apply->isEnabled());
+        result.analysisStatus = BpmDetector::AnalysisStatus::Failed;
+        m_editor->showTimingResult(result);
+        QVERIFY(!apply->isEnabled());
+        unchangedTimings();
+        result.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
+        m_editor->showTimingResult(result);
+        auto answer = [&](QMessageBox::StandardButton choice) {
+            QTimer::singleShot(0, this, [choice] {
+                auto *dialog = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                QVERIFY(dialog);
+                dialog->button(choice)->click();
+            });
+        };
+        answer(QMessageBox::No);
+        apply->click();
+        unchangedTimings();
+        answer(QMessageBox::Yes);
+        apply->click();
+        QCOMPARE(m_chart.chart()->bpmList().size(), timings.size());
+        QCOMPARE(m_chart.chart()->bpmList().last().bpm, 240.);
+        QCOMPARE(m_chart.chart()->notes().first(), note);
+        QCOMPARE(m_chart.chart()->meta().offset, 125.);
+        m_chart.undo();
+        unchangedTimings();
+        QCOMPARE(m_chart.chart()->notes().first(), note);
+        m_chart.redo();
+        QCOMPARE(m_chart.chart()->bpmList().last().bpm, 240.);
+    }
+    void workbenchVisualFixture()
+    {
+        analysis::StereoSpectrum spectrum;
+        spectrum.sampleRate = 44100;
+        spectrum.sourceChannels = 2;
+        spectrum.startSeconds = 0;
+        spectrum.durationSeconds = 12;
+        spectrum.hopSeconds = .02;
+        for (int i = 0; i < 32; ++i)
+            spectrum.frequencies.push_back(40 * std::pow(1.2, i));
+        for (int i = 0; i < 600; ++i)
+        {
+            analysis::SpectrumFrame frame;
+            frame.leftPeak = .6;
+            frame.rightPeak = .5;
+            frame.leftRms = .2;
+            frame.rightRms = .15;
+            spectrum.frames.push_back(frame);
+            for (int band = 0; band < 32; ++band)
+            {
+                float db = float(-70 + 40 * std::exp(-std::pow((band - 8 - 3 * std::sin(i * .03)) / 4, 2))
+                                 + 15 * std::exp(-std::pow((i % 25) / 6., 2)));
+                spectrum.leftDb.push_back(db);
+                spectrum.rightDb.push_back(db - 4);
+            }
+        }
+        canvas()->setSpectrum(spectrum);
+        BpmDetector::DetectionResult result;
+        result.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
+        result.analysis.valid = true;
+        result.analysis.durationSeconds = 12;
+        result.analysis.windowCount = 3;
+        result.analysis.confidence = {.8, .8, .8, .8};
+        AutoTiming2TempoCurveSegment segment;
+        segment.startSeconds = 1;
+        segment.endSeconds = 9;
+        segment.startBeat = 0;
+        segment.endBeat = 16;
+        segment.phaseLinear = 12;
+        segment.phaseQuadratic = 4;
+        segment.startBpm = 90;
+        segment.endBpm = 150;
+        segment.kind = "continuous";
+        result.analysis.tempoMap.available = true;
+        result.analysis.tempoMap.segments.append(segment);
+        for (int i = 1; i <= 9; ++i)
+        {
+            AutoTiming2TrackPoint point;
+            point.timeSeconds = i;
+            point.bpm = 90 + (i - 1) * 7.5;
+            point.confidence = .7 + .1 * std::sin(i);
+            point.phaseConfidence = .8;
+            point.state = "Observed";
+            result.analysis.tempoTrack.append(point);
+        }
+        AutoTiming2Candidate candidate;
+        candidate.bpm = 120;
+        candidate.hasPulseTime = true;
+        candidate.pulseTimeSeconds = 1;
+        candidate.phaseConfidence = .8;
+        result.analysis.tempoCandidates.append(candidate);
+        AutoTiming2Window window;
+        window.id = 1;
+        window.startSeconds = 1;
+        window.endSeconds = 9;
+        window.reliability = .8;
+        window.evidenceReasons = {"AnchorSelected"};
+        window.signalMetrics = {{"signalScore", .8}, {"rmsDb", -18.}};
+        window.tempoCandidates.append(candidate);
+        result.analysis.windows.append(window);
+        m_chart.addNotes({Note(2, 0, 1, 200), Note(3, 0, 1, 320), Note(4, 0, 1, 6, 0, 1, 256)});
+        m_editor->showTimingResult(result);
+        canvas()->setCurrentTime(4000);
+        SpectrumService::EnergyEnvelope energy;
+        energy.durationSeconds = 12;
+        for (int i = 0; i < 96; ++i)
+            energy.bins.append(
+                {i / 8., (i + 1) / 8., .1 + .2 * qAbs(std::sin(i * .07)), .4 + .2 * qAbs(std::sin(i * .11))});
+        m_editor->findChild<AudioOverview *>()->setEnvelope(energy);
+        const QString folder = QDir::current().filePath("artifacts/ae-workbench-20261007");
+        QVERIFY(QDir().mkpath(folder));
+        auto *levels = m_editor->findChild<QComboBox *>("analysis.interfaceLevel");
+        m_editor->findChild<QLabel *>("analysis.audioName")->setText("Synthetic spectrum / diagnostics fixture");
+        canvas()->setStatus({});
+        QVERIFY(m_editor->grab().save(folder + "/normal-fixture.png"));
+        levels->setCurrentIndex(1);
+        m_editor->findChild<QCheckBox *>("analysis.modelGrid")->setChecked(true);
+        QTest::qWait(30);
+        canvas()->setStatus({});
+        QVERIFY(m_editor->grab().save(folder + "/advanced-fixture.png"));
+        levels->setCurrentIndex(2);
+        auto *right = m_editor->findChild<QTabBar *>("analysis.rightTabs");
+        QTest::mouseClick(right, Qt::LeftButton, {}, right->tabRect(2).center());
+        QTest::qWait(30);
+        QVERIFY(m_editor->findChild<AnalysisWorkbench *>()->isVisible());
+        canvas()->setStatus({});
+        QVERIFY(m_editor->grab().save(folder + "/debug-fixture.png"));
+        m_editor->findChild<AnalysisWorkbench *>()->showTable("tempoTrack");
+        QVERIFY(m_editor->grab().save(folder + "/tempo-phase-fixture.png"));
+        auto *left = m_editor->findChild<QTabBar *>("analysis.leftTabs");
+        QTest::mouseClick(left, Qt::LeftButton, {}, left->tabRect(3).center());
+        QTest::qWait(30);
+        QVERIFY(m_editor->findChild<AnalysisConfigPanel *>()->isVisible());
+        canvas()->setStatus({});
+        QVERIFY(m_editor->grab().save(folder + "/config-fixture.png"));
     }
     void compactAndPersistentLayout()
     {
@@ -370,8 +1352,9 @@ private slots:
         QCOMPARE(m_chart.chart()->notes().first().x, 7);
         m_selection.select(0);
         QTest::keyClick(canvas(), Qt::Key_Delete);
-        QCOMPARE(m_chart.chart()->notes().size(),
-                 1); // main spatial editing command must not leak into this workspace
+        QCOMPARE(m_chart.chart()->notes().size(), 0); // AE owns its time-only Delete command
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->notes().first().x, 7);
     }
     void normalNoteInsideRain()
     {
@@ -439,6 +1422,7 @@ private slots:
         BpmDetector::DetectionResult result;
         result.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
         result.analysis.valid = true;
+        result.analysis.tempoMap.available = true;
         AutoTiming2Candidate c;
         c.bpm = 120;
         c.hasPulseTime = true;
@@ -542,21 +1526,21 @@ private slots:
         QVERIFY(!hasCyanLine(9625));
         auto *side = m_editor->findChild<QTabBar *>("analysis.leftTabs");
         QTest::mouseClick(side, Qt::LeftButton, {}, side->tabRect(0).center());
-        auto *tables = m_editor->findChild<QTabWidget *>("analysis.timingTables");
-        tables->setCurrentWidget(windows);
+        auto *tables = m_editor->findChild<AnalysisWorkbench *>();
+        tables->showTable("windows");
         QTest::mouseClick(windows->viewport(), Qt::LeftButton, {},
                           windows->visualItemRect(windows->item(0, 0)).center());
         QTest::mouseDClick(windows->viewport(), Qt::LeftButton, {},
                            windows->visualItemRect(windows->item(0, 0)).center());
-        QCOMPARE(tables->currentWidget(), locals);
+        QCOMPARE(tables->currentDiagnosticTable(), static_cast<QWidget *>(locals));
         QVERIFY(qAbs(m_mainCanvas->currentPlayTime() - 10000) < .01);
         auto *globalTable = m_editor->findChild<QTableWidget *>("analysis.table.tempoCandidates");
-        tables->setCurrentWidget(globalTable);
+        tables->showTable("tempoCandidates");
         QTest::mouseClick(globalTable->viewport(), Qt::LeftButton, {},
                           globalTable->visualItemRect(globalTable->item(0, 0)).center());
         QVERIFY(!preview->isEnabled());
         QVERIFY(!canvas()->timingPreviewVisible());
-        tables->setCurrentWidget(windows);
+        tables->showTable("windows");
         QTest::mouseClick(windows->viewport(), Qt::LeftButton, {},
                           windows->visualItemRect(windows->item(0, 0)).center());
         QVERIFY(preview->isEnabled());
@@ -696,6 +1680,7 @@ private slots:
     }
     void transientParametersNavigationAndStaleResults()
     {
+        m_editor->findChild<QComboBox *>("analysis.interfaceLevel")->setCurrentIndex(1);
         auto *panel = m_editor->findChild<TransientPanel *>();
         auto *peaks = m_editor->findChild<QTableWidget *>("analysis.transientPeaks");
         auto *threshold = m_editor->findChild<QDoubleSpinBox *>("analysis.transientThreshold");
@@ -1378,7 +2363,20 @@ int main(int argc, char **argv)
     QTemporaryDir settings;
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
+#ifdef Q_OS_WIN
+    if (qEnvironmentVariable("QT_QPA_PLATFORM") == QLatin1String("offscreen")
+        && qEnvironmentVariableIsEmpty("QT_QPA_FONTDIR"))
+        qputenv("QT_QPA_FONTDIR", "C:/Windows/Fonts");
+#endif
     QApplication app(argc, argv);
+#ifdef Q_OS_WIN
+    if (qEnvironmentVariable("QT_QPA_PLATFORM") == QLatin1String("offscreen"))
+    {
+        const int font = QFontDatabase::addApplicationFont(QStringLiteral("C:/Windows/Fonts/segoeui.ttf"));
+        if (font >= 0 && !QFontDatabase::applicationFontFamilies(font).isEmpty())
+            app.setFont(QFont(QFontDatabase::applicationFontFamilies(font).first(), 9));
+    }
+#endif
     AnalysisEditorTests tests;
     return QTest::qExec(&tests, argc, argv);
 }

@@ -3,6 +3,13 @@
 #include "TransientPanel.h"
 #include "TimingToolsPanel.h"
 #include "TimingInterpolationPanel.h"
+#include "AnalysisConfigPanel.h"
+#include "AnalysisWorkbench.h"
+#include "AudioOverview.h"
+#include "TimingProposal.h"
+#include "analysis/AnalysisConfig.h"
+#include "analysis/SpectrumPaging.h"
+#include "ui/BpmMeasureUtils.h"
 #include "analysis/AutoTimingDiagnostics.h"
 #include "audio/SpectrumService.h"
 #include "controller/ChartController.h"
@@ -40,6 +47,9 @@
 #include <QShowEvent>
 #include <QHideEvent>
 #include <QCloseEvent>
+#include <QComboBox>
+#include <QApplication>
+#include <QElapsedTimer>
 #include <cmath>
 namespace
 {
@@ -70,12 +80,13 @@ QString cellText(const QJsonValue &v)
     return v.toString();
 }
 } // namespace
-AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *selection,
-                               PlaybackController *playback, ChartCanvas *main, LongRangeSelector *range,
-                               QWidget *parent)
+AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *selection, PlaybackController *playback,
+                               ChartCanvas *main, LongRangeSelector *range, QWidget *parent,
+                               SpectrumRunner spectrumRunner)
     : QWidget(parent, Qt::Window), m_chart(chart), m_selection(selection), m_playback(playback), m_main(main),
       m_range(range)
 {
+    m_spectrumRunner = spectrumRunner ? std::move(spectrumRunner) : SpectrumService::prepareFileRangeAsync;
     setObjectName("analysis.editor");
     setProperty("cceOwnCommandRouter", true);
     setWindowTitle(tr("CCE — Analysis Editor"));
@@ -91,10 +102,17 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     m_sourceName->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     header->addWidget(m_sourceName, 1);
     header->addStretch();
+    m_level = new QComboBox;
+    m_level->setObjectName("analysis.interfaceLevel");
+    m_level->addItems({tr("Normal"), tr("Advanced"), tr("Debug")});
+    header->addWidget(m_level);
+    m_timeView = new QComboBox;
+    m_timeView->setObjectName("analysis.timeView");
+    m_timeView->addItems({tr("Musical time"), tr("Audio time")});
+    header->addWidget(m_timeView);
     m_syncView = new QCheckBox(tr("Sync visible range"));
     m_syncView->setObjectName("analysis.syncView");
     header->addWidget(m_syncView);
-    header->addWidget(new QLabel(tr("ms / px")));
     m_zoom = new QDoubleSpinBox;
     m_zoom->setObjectName("analysis.zoom");
     m_zoom->setRange(0.1, 100);
@@ -128,11 +146,13 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     m_work->setObjectName("analysis.work");
     m_work->setChildrenCollapsible(false);
     m_canvas = new AnalysisCanvas(chart, selection, main);
+    m_configPanel = new AnalysisConfigPanel;
     m_work->addWidget(m_canvas);
-    auto *spare = new QWidget;
-    spare->setMinimumWidth(0);
-    spare->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Expanding);
-    m_work->addWidget(spare);
+    m_overview = new AudioOverview(m_canvas);
+    m_work->addWidget(m_overview);
+    connect(m_overview, &AudioOverview::seekRequested, this, &AnalysisEditor::seek);
+    connect(m_playback, &PlaybackController::loopRangeChanged, m_overview, &AudioOverview::setLoop);
+    m_overview->setLoop(m_playback->loopStartMs(), m_playback->loopEndMs(), m_playback->loopEnabled());
     m_work->setCollapsible(1, true);
     m_work->setStretchFactor(0, 0);
     m_work->setStretchFactor(1, 1);
@@ -172,6 +192,7 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     addAnalysisPanel(tr("Transient"), m_transient);
     connect(m_transient, &TransientPanel::seekRequested, this, [this](double ms) {
         m_syncView->setChecked(false);
+        m_timeView->setCurrentIndex(1);
         m_zoom->setValue(1);
         seek(ms);
     });
@@ -184,6 +205,46 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
                                     "ghost preview before a separate undoable commit.")),
                      true);
     addAnalysisPanel(tr("Diagnostics"), createDiagnosticsPanel(), true);
+    connect(m_transient, &TransientPanel::tracksChanged, this, &AnalysisEditor::updateAnalysisDisplay);
+    connect(m_canvas, &AnalysisCanvas::analysisObjectSelected, this,
+            [this](const QString &trackId, const QString &handle, const QJsonObject &details) {
+                m_workbench->selectObject(trackId, handle, details);
+                auto table = details.value("sourceTable").toString();
+                if (table == "derivedAnchorFit")
+                    table = "fit";
+                if (table == "windowCandidates" && details.contains("sourceWindowRow"))
+                {
+                    const auto row = details.value("sourceWindowRow").toInt(-1);
+                    auto *windows = m_tables.value("windows");
+                    if (windows && row >= 0 && row < windows->rowCount())
+                        windows->setCurrentCell(row, 0);
+                }
+                if (table == "transientPeaks")
+                    m_transient->selectPeakAt(details.value("timeSeconds").toDouble());
+                else if (auto *widget = m_tables.value(table))
+                {
+                    int row = details.value("sourceRow").toInt(-1);
+                    if (row >= 0 && row < widget->rowCount())
+                        widget->setCurrentCell(row, 0);
+                    m_workbench->showTable(table);
+                }
+                const auto start = details.value("startSeconds"), end = details.value("endSeconds");
+                if (start.isDouble() && end.isDouble() && end.toDouble() > start.toDouble())
+                {
+                    m_range->setStartBeat(m_canvas->beatAtTime(start.toDouble() * 1000));
+                    m_range->setEndBeat(m_canvas->beatAtTime(end.toDouble() * 1000));
+                    m_range->setRangeVisible(true);
+                }
+            });
+    addAnalysisPanel(tr("Configuration"), m_configPanel);
+    connect(m_configPanel, &AnalysisConfigPanel::configChanged, this, [this] {
+        const auto s = m_configPanel->config().value("stable").toObject();
+        QSignalBlocker a(m_preferLocal), b(m_complexSubdivision);
+        m_preferLocal->setChecked(s.value("preferLocalTempoEvidence").toBool());
+        m_complexSubdivision->setChecked(s.value("enableComplexSubdivisionAnalysis").toBool());
+        invalidateTimingConfiguration();
+    });
+    connect(m_level, &QComboBox::currentIndexChanged, this, &AnalysisEditor::setInterfaceLevel);
     m_leftPanels->hide();
     m_rightPanels->hide();
     connect(m_leftTabs, &QTabBar::tabBarClicked, this, [this](int i) { togglePanel(false, i); });
@@ -222,6 +283,15 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
         registerCommand("edit.undo", tr("Undo"), QKeySequence::Undo, [chart] { chart->undo(); });
     auto *redoAction =
         registerCommand("edit.redo", tr("Redo"), QKeySequence::Redo, [chart] { chart->redo(); });
+    auto *deleteAction =
+        registerCommand("edit.delete", tr("Delete selected notes"), QKeySequence(Qt::Key_Delete), [this] {
+            if (m_canvas->hasFocus())
+                m_canvas->deleteSelectedNotes();
+        });
+    connect(selection, &SelectionController::selectionChanged, this, [this, deleteAction] {
+        deleteAction->setEnabled(!m_selection->selectedIndices().isEmpty());
+    });
+    deleteAction->setEnabled(!m_selection->selectedIndices().isEmpty());
     auto togglePlay = [this] {
         if (m_playback->state() == PlaybackController::Playing)
             m_playback->pause();
@@ -244,8 +314,17 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     connect(m_syncView, &QCheckBox::toggled, this, [this](bool on) {
         m_canvas->setViewSynchronized(on);
         m_zoom->setEnabled(!on);
+        m_timeView->setEnabled(!on);
     });
-    connect(m_zoom, &QDoubleSpinBox::valueChanged, m_canvas, &AnalysisCanvas::setMillisecondsPerPixel);
+    connect(m_zoom, &QDoubleSpinBox::valueChanged, this, [this](double value) {
+        if (m_canvas->musicalView())
+            m_canvas->setBeatsPerPixel(value);
+        else
+            m_canvas->setMillisecondsPerPixel(value);
+    });
+    connect(m_timeView, &QComboBox::currentIndexChanged, this, [this](int index) {
+        m_canvas->setMusicalView(index == 0);
+    });
     connect(m_canvas, &AnalysisCanvas::seekRequested, this, &AnalysisEditor::seek);
     connect(m_canvas, &AnalysisCanvas::rangeRequested, this, [this](double a, double b) {
         m_range->setStartBeat(a);
@@ -281,14 +360,24 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     });
     m_spectrumTimer = new QTimer(this);
     m_spectrumTimer->setSingleShot(true);
-    m_spectrumTimer->setInterval(180);
+    m_spectrumTimer->setInterval(80);
     connect(m_spectrumTimer, &QTimer::timeout, this, &AnalysisEditor::requestSpectrum);
+    connect(playback->audioPlayer(), &AudioPlayer::durationChanged, this, &AnalysisEditor::scheduleSpectrum);
+    connect(playback->audioPlayer(), &AudioPlayer::loadingStateChanged, this, &AnalysisEditor::scheduleSpectrum);
     connect(m_canvas, &AnalysisCanvas::viewportChanged, this, [this] {
         const QSignalBlocker blocker(m_zoom);
-        m_zoom->setValue(m_canvas->millisecondsPerPixel());
+        const QSignalBlocker modeBlocker(m_timeView);
+        const bool musical = m_canvas->musicalView();
+        m_timeView->setCurrentIndex(musical ? 0 : 1);
+        m_zoom->setDecimals(musical ? 4 : 2);
+        m_zoom->setRange(musical ? .0001 : .1, musical ? 10. : 100.);
+        m_zoom->setSuffix(musical ? tr(" beat / px") : tr(" ms / px"));
+        m_zoom->setValue(musical ? m_canvas->beatsPerPixel() : m_canvas->millisecondsPerPixel());
         scheduleSpectrum();
     });
     connect(chart, &ChartController::chartLoaded, this, [this] {
+        m_session.clearSource();
+        m_configPanel->loadProject(m_chart->chartFilePath());
         ++m_sourceGeneration;
         ++m_spectrumGeneration;
         if (m_spectrumCancel)
@@ -303,6 +392,8 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
         updateRange();
     });
     connect(chart, &ChartController::metaDataChanged, this, &AnalysisEditor::refreshAudioSource);
+    m_configPanel->loadProject(m_chart->chartFilePath());
+    setInterfaceLevel(0);
     refreshAudioSource();
     updateRange();
     updateTime(main->currentPlayTime());
@@ -315,6 +406,8 @@ AnalysisEditor::~AnalysisEditor()
     cancelTiming();
     if (m_spectrumCancel)
         *m_spectrumCancel = true;
+    if (m_overviewCancel)
+        *m_overviewCancel = true;
 }
 void AnalysisEditor::addAnalysisPanel(const QString &title, QWidget *panel, bool right)
 {
@@ -377,6 +470,8 @@ void AnalysisEditor::seek(double ms)
 void AnalysisEditor::updateRange()
 {
     m_canvas->setRange(m_range->currentStartBeat(), m_range->currentEndBeat(), m_range->isRangeVisible());
+    m_overview->setRange(m_canvas->timeAtBeat(m_range->currentStartBeat()),
+                         m_canvas->timeAtBeat(m_range->currentEndBeat()), m_range->isRangeVisible());
     if (m_loop->isChecked())
         updateLoopFromRange();
 }
@@ -404,6 +499,10 @@ void AnalysisEditor::refreshAudioSource()
                                        : tr("Analysis Editor · %1").arg(info.fileName()));
     m_sourceName->setToolTip(path);
     m_sourceIdentity = identity;
+    m_session.clearSource();
+    if (m_overviewCancel)
+        *m_overviewCancel = true;
+    m_overview->setEnvelope({});
     ++m_sourceGeneration;
     ++m_spectrumGeneration;
     if (m_spectrumCancel)
@@ -412,9 +511,11 @@ void AnalysisEditor::refreshAudioSource()
     clearDiagnostics();
     m_canvas->clearSpectrum();
     m_transient->clearSource();
+    m_spectrumPages.clear();
     m_spectrumFailureKey.clear();
     m_cachedEofMs = -1;
     scheduleSpectrum();
+    requestOverview();
 }
 void AnalysisEditor::scheduleSpectrum()
 {
@@ -442,28 +543,61 @@ void AnalysisEditor::requestSpectrum()
         m_canvas->setStatus(tr("Zoom in to inspect spectrum (visible range ≤ 100 s)"));
         return;
     }
-    const auto &cached = m_canvas->spectrum();
-    const double audioDuration = m_playback->audioPlayer()->duration();
-    double requiredEnd = audioDuration > 0 ? qMin(high, audioDuration) : high;
+    const auto *audio = m_playback->audioPlayer();
+    const double audioDuration = audio->isLoaded() ? audio->duration() : -1;
+    double eof = audioDuration > 0 ? audioDuration : -1;
     if (m_cachedEofMs >= 0)
-        requiredEnd = qMin(requiredEnd, m_cachedEofMs);
-    if (cached.valid() && cached.startSeconds * 1000 <= low &&
-        (cached.startSeconds + cached.durationSeconds) * 1000 + 20 >= requiredEnd)
+        eof = eof >= 0 ? qMin(eof, m_cachedEofMs) : m_cachedEofMs;
+    const auto range = analysis::spectrumPageRange(low, high, eof);
+    if (!range.valid)
     {
-        if (m_spectrumBusy && (low < m_pendingStart || high > m_pendingStart + m_pendingDuration))
-            if (m_spectrumCancel)
-                *m_spectrumCancel = true;
         m_canvas->setStatus({});
         return;
     }
-    const double start = qMax(0.0, std::floor(low / 20000) * 20000);
-    const double duration = qBound(30000.0, high - start + 1000, 120000.0);
+    // Prefetch before either visible edge reaches the page boundary. Larger
+    // safety margins are reserved in the next page, so minor scrolls do not
+    // continually decode overlapping pages.
+    const double span = range.requiredEndMs - range.requiredStartMs;
+    const double guard = qMin(qMax(1000., span * .25), (120000. - span) / 4);
+    const double guardStart = qMax(0., range.requiredStartMs - guard);
+    const double guardEnd = eof >= 0 ? qMin(eof, range.requiredEndMs + guard) : range.requiredEndMs + guard;
+    auto covers = [](const analysis::StereoSpectrum &s, double a, double b) {
+        return s.valid() && s.startSeconds * 1000 <= a + .1 && (s.startSeconds + s.durationSeconds) * 1000 + .1 >= b;
+    };
+    bool visibleCovered = covers(m_canvas->spectrum(), range.requiredStartMs, range.requiredEndMs);
+    bool guardCovered = covers(m_canvas->spectrum(), guardStart, guardEnd);
+    const SpectrumService::Page *selected = nullptr;
+    if (!guardCovered)
+        for (auto it = m_spectrumPages.crbegin(); it != m_spectrumPages.crend(); ++it)
+        {
+            if (covers(*it->spectrum, guardStart, guardEnd))
+            {
+                selected = &*it;
+                guardCovered = true;
+                break;
+            }
+            if (!visibleCovered && !selected && covers(*it->spectrum, range.requiredStartMs, range.requiredEndMs))
+                selected = &*it;
+        }
+    if (selected)
+    {
+        m_canvas->setSpectrumPage(selected->spectrum, selected->raster);
+        m_transient->setSpectrum(selected->spectrum);
+        visibleCovered = true;
+        m_status->setText(tr("Stereo spectrum ready · gutters: peak / RMS"));
+    }
+    if (visibleCovered)
+        m_canvas->setStatus({});
+    if (guardCovered)
+        return;
+    const double start = range.startMs, duration = range.durationMs();
     const QString key = m_sourceIdentity + '|' + QString::number(start) + '|' + QString::number(duration);
     if (key == m_spectrumFailureKey)
         return;
     if (m_spectrumBusy)
     {
-        if (low < m_pendingStart || high > m_pendingStart + m_pendingDuration)
+        if (!visibleCovered
+            && (range.requiredStartMs < m_pendingStart || range.requiredEndMs > m_pendingStart + m_pendingDuration))
         {
             if (m_spectrumCancel)
                 *m_spectrumCancel = true;
@@ -476,31 +610,44 @@ void AnalysisEditor::requestSpectrum()
     m_spectrumCancel = std::make_shared<std::atomic<bool>>(false);
     const auto cancel = m_spectrumCancel;
     const auto generation = ++m_spectrumGeneration, source = m_sourceGeneration;
-    m_canvas->setStatus(tr("Decoding stereo spectrum…"));
-    SpectrumService::analyzeFileRangeAsync(
-        this, m_audioPath, start, duration, cancel,
-        [this, generation, source, key, duration, cancel](analysis::StereoSpectrum result) {
-            m_spectrumBusy = false;
-            if (generation != m_spectrumGeneration || source != m_sourceGeneration || cancel->load())
-            {
-                scheduleSpectrum();
-                return;
-            }
-            if (result.valid())
-            {
-                if (result.durationSeconds * 1000 + 20 < duration)
-                    m_cachedEofMs = (result.startSeconds + result.durationSeconds) * 1000;
-                m_transient->setSpectrum(result);
-                m_canvas->setSpectrum(std::move(result));
-                m_status->setText(tr("Stereo spectrum ready · gutters: peak / RMS"));
-            }
-            else
-            {
-                m_spectrumFailureKey = key;
-                m_canvas->setStatus(QString::fromStdString(result.error));
-            }
-            scheduleSpectrum();
-        });
+    if (visibleCovered)
+        m_status->setText(tr("Preloading adjacent spectrum…"));
+    else
+        m_canvas->setStatus(tr("Decoding stereo spectrum…"));
+    m_spectrumRunner(this, m_audioPath, start, duration, cancel,
+                     [this, generation, source, key, duration, cancel](SpectrumService::Page page) {
+                         m_spectrumBusy = false;
+                         if (generation != m_spectrumGeneration || source != m_sourceGeneration || cancel->load())
+                         {
+                             scheduleSpectrum();
+                             return;
+                         }
+                         const bool ready = page.valid();
+                         if (ready)
+                         {
+                             const auto &result = *page.spectrum;
+                             if (result.durationSeconds * 1000 + 20 < duration)
+                                 m_cachedEofMs = (result.startSeconds + result.durationSeconds) * 1000;
+                             m_spectrumPages.append(std::move(page));
+                             while (m_spectrumPages.size() > 3)
+                                 m_spectrumPages.removeFirst();
+                             // Select against the current viewport, which may have moved
+                             // while this page was being prepared. An obsolete prefetch
+                             // must never replace a page that still covers the screen.
+                             requestSpectrum();
+                         }
+                         else
+                         {
+                             m_spectrumFailureKey = key;
+                             const auto error = page.spectrum ? QString::fromStdString(page.spectrum->error)
+                                                              : tr("Invalid spectrum result");
+                             m_status->setText(error);
+                             if (!m_canvas->spectrum().valid())
+                                 m_canvas->setStatus(error);
+                         }
+                         if (!ready)
+                             scheduleSpectrum();
+                     });
 }
 QWidget *AnalysisEditor::createTimingPanel()
 {
@@ -510,11 +657,12 @@ QWidget *AnalysisEditor::createTimingPanel()
     m_timingStart = new QDoubleSpinBox;
     m_timingStart->setObjectName("analysis.timingStart");
     m_timingStart->setRange(0, 86400);
-    m_timingStart->setDecimals(3);
+    m_timingStart->setDecimals(6);
     m_timingStart->setSuffix(tr(" s"));
     m_timingDuration = new QDoubleSpinBox;
     m_timingDuration->setObjectName("analysis.timingDuration");
-    m_timingDuration->setRange(4, 300);
+    m_timingDuration->setRange(0, 86400);
+    m_timingDuration->setDecimals(6);
     m_timingDuration->setValue(60);
     m_timingDuration->setSuffix(tr(" s"));
     form->addRow(tr("Audio start"), m_timingStart);
@@ -536,9 +684,29 @@ QWidget *AnalysisEditor::createTimingPanel()
     connect(visible, &QPushButton::clicked, this,
             [this, setRange] { setRange(m_canvas->timeAtY(28), m_canvas->timeAtY(m_canvas->height())); });
     m_complexSubdivision = new QCheckBox(tr("Enable experimental subdivision analysis"));
+    m_complexSubdivision->setObjectName("analysis.complexSubdivision");
     m_complexSubdivision->setToolTip(tr("Raw periodicity evidence is always available. Semantic rhythm "
                                         "profiles require Core's confidence gates."));
     layout->addWidget(m_complexSubdivision);
+    m_preferLocal = new QCheckBox(tr("Prefer local tempo evidence"));
+    m_preferLocal->setObjectName("analysis.preferLocal");
+    layout->addWidget(m_preferLocal);
+    auto updateOptions = [this] {
+        auto config = m_configPanel->config();
+        auto stable = config.value("stable").toObject();
+        stable["preferLocalTempoEvidence"] = m_preferLocal->isChecked();
+        stable["enableComplexSubdivisionAnalysis"] = m_complexSubdivision->isChecked();
+        config["stable"] = stable;
+        m_configPanel->setConfig(config);
+    };
+    connect(m_complexSubdivision, &QCheckBox::toggled, this, updateOptions);
+    connect(m_preferLocal, &QCheckBox::toggled, this, updateOptions);
+    connect(m_timingStart, &QDoubleSpinBox::valueChanged, this, [this] {
+        invalidateTimingConfiguration();
+    });
+    connect(m_timingDuration, &QDoubleSpinBox::valueChanged, this, [this] {
+        invalidateTimingConfiguration();
+    });
     auto *buttons = new QHBoxLayout;
     m_runTiming = new QPushButton(tr("Analyze timing"));
     m_runTiming->setObjectName("analysis.runTiming");
@@ -557,6 +725,7 @@ QWidget *AnalysisEditor::createTimingPanel()
     m_timingSummary->setTextFormat(Qt::PlainText);
     layout->addWidget(m_timingSummary);
     auto *tabs = new QTabWidget;
+    m_timingTables = tabs;
     tabs->setObjectName("analysis.timingTables");
     auto table = [this, tabs](const QString &id, const QString &label, const QStringList &fields) {
         auto *t = new QTableWidget(0, fields.size());
@@ -602,11 +771,13 @@ QWidget *AnalysisEditor::createTimingPanel()
             if (v.isDouble() && std::isfinite(v.toDouble()))
             {
                 m_syncView->setChecked(false);
+                m_timeView->setCurrentIndex(1);
                 m_zoom->setValue(1);
                 seek(v.toDouble() * 1000);
             }
             if (id == QLatin1String("windows"))
-                tabs->setCurrentWidget(m_tables.value("windowCandidates"));
+                if (m_workbench)
+                    m_workbench->showWindowCandidates();
         });
         m_tables.insert(id, t);
         tabs->addTab(t, label);
@@ -657,12 +828,28 @@ QWidget *AnalysisEditor::createTimingPanel()
     preview->addWidget(m_candidateGrid);
     preview->addWidget(m_candidateSeek);
     layout->addLayout(preview);
+    m_modelGrid = new QCheckBox(tr("Preview fitted tempo map"));
+    m_modelGrid->setObjectName("analysis.modelGrid");
+    m_showTracks = new QCheckBox(tr("Show analysis tracks"));
+    m_showTracks->setObjectName("analysis.showTracks");
+    m_showTracks->setChecked(true);
+    m_applyMap = new QPushButton(tr("Preview and apply reliable tempo changes…"));
+    m_applyMap->setObjectName("analysis.applyTempoMap");
+    m_applyMap->setEnabled(false);
+    m_modelGrid->setEnabled(false);
+    layout->addWidget(m_modelGrid);
+    layout->addWidget(m_showTracks);
+    layout->addWidget(m_applyMap);
+    connect(m_modelGrid, &QCheckBox::toggled, this, &AnalysisEditor::updateAnalysisDisplay);
+    connect(m_showTracks, &QCheckBox::toggled, this, &AnalysisEditor::updateAnalysisDisplay);
+    connect(m_applyMap, &QPushButton::clicked, this, &AnalysisEditor::applyTempoMap);
     connect(m_candidateGrid, &QCheckBox::toggled, this, &AnalysisEditor::updateTimingPreview);
     connect(m_candidateSeek, &QPushButton::clicked, this, [this] {
         const auto pulse = m_selectedCandidate.value("pulseTimeSeconds");
         if (!pulse.isDouble() || !std::isfinite(pulse.toDouble()))
             return;
         m_syncView->setChecked(false);
+        m_timeView->setCurrentIndex(1);
         m_zoom->setValue(1);
         seek(pulse.toDouble() * 1000);
     });
@@ -675,17 +862,30 @@ QWidget *AnalysisEditor::createTimingPanel()
 }
 QWidget *AnalysisEditor::createDiagnosticsPanel()
 {
-    auto *panel = new QWidget;
-    auto *l = new QVBoxLayout(panel);
-    auto *exportButton = new QPushButton(tr("Export diagnostic JSON…"));
-    l->addWidget(exportButton);
-    connect(exportButton, &QPushButton::clicked, this, &AnalysisEditor::exportDiagnostics);
-    m_raw = new QPlainTextEdit;
-    m_raw->setObjectName("analysis.rawDiagnostics");
-    m_raw->setReadOnly(true);
-    m_raw->setLineWrapMode(QPlainTextEdit::NoWrap);
-    l->addWidget(m_raw, 1);
-    return panel;
+    m_workbench = new AnalysisWorkbench(m_canvas);
+    connect(m_workbench, &AnalysisWorkbench::exportRequested, this, &AnalysisEditor::exportDiagnostics);
+    connect(m_workbench, &AnalysisWorkbench::seekRequested, this, &AnalysisEditor::seek);
+    connect(m_workbench, &AnalysisWorkbench::rangeRequested, this, [this](double a, double b) {
+        m_range->setStartBeat(m_canvas->beatAtTime(a));
+        m_range->setEndBeat(m_canvas->beatAtTime(b));
+        m_range->setRangeVisible(true);
+    });
+    connect(m_workbench, &AnalysisWorkbench::hypothesisSelected, this, &AnalysisEditor::inspectHypothesis);
+    connect(m_workbench, &AnalysisWorkbench::trackVisibilityChanged, this, &AnalysisEditor::updateAnalysisDisplay);
+    connect(m_workbench, &AnalysisWorkbench::evidenceSelected, this, [this](const QJsonObject &record) {
+        m_selectedEvidence = record;
+        updateAnalysisDisplay();
+    });
+    while (m_timingTables->count())
+    {
+        auto *table = qobject_cast<QTableWidget *>(m_timingTables->widget(0));
+        const auto label = m_timingTables->tabText(0);
+        m_timingTables->removeTab(0);
+        m_workbench->adoptTable(table->objectName().mid(QStringLiteral("analysis.table.").size()), label, table);
+    }
+    m_timingTables->hide();
+    m_raw = m_workbench->rawEditor();
+    return m_workbench;
 }
 void AnalysisEditor::fillTable(const QString &id, const QJsonArray &rows)
 {
@@ -801,39 +1001,7 @@ void AnalysisEditor::showTimingResult(const BpmDetector::DetectionResult &result
         fillTable(id, m_diagnostics.value(id).toArray());
     const auto map = m_diagnostics.value("tempoMap").toObject();
     fillTable("segments", map.value("segments").toArray());
-    // The core exposes phase anchors and a maximum residual, not per-anchor
-    // residuals. Evaluate the published cubic phase model at each anchor.
-    QJsonArray fit;
-    for (const auto &v : map.value("anchors").toArray())
-    {
-        auto row = v.toObject();
-        const double time = row.value("timeSeconds").toDouble();
-        const double beat = row.value("phaseBeat").toDouble();
-        for (const auto &sv : map.value("segments").toArray())
-        {
-            const auto segment = sv.toObject();
-            if (beat < segment.value("startBeat").toDouble() || beat > segment.value("endBeat").toDouble())
-                continue;
-            double lo = 0, hi = 1;
-            for (int iteration = 0; iteration < 56; ++iteration)
-            {
-                const double x = (lo + hi) / 2;
-                const double phase = segment.value("startBeat").toDouble() +
-                                     x * (segment.value("phaseLinear").toDouble() +
-                                          x * (segment.value("phaseQuadratic").toDouble() +
-                                               x * segment.value("phaseCubic").toDouble()));
-                if (phase < beat)
-                    lo = x;
-                else
-                    hi = x;
-            }
-            const double start = segment.value("startSeconds").toDouble();
-            const double predicted = start + (lo + hi) / 2 * (segment.value("endSeconds").toDouble() - start);
-            row["residualMilliseconds"] = (predicted - time) * 1000; // signed diagnostic
-            break;
-        }
-        fit.append(row);
-    }
+    const auto fit = analysis::anchorFit(result.analysis.tempoMap);
     fillTable("fit", fit);
     m_diagnostics["derivedAnchorFit"] = fit;
     QJsonArray rhythm;
@@ -868,51 +1036,80 @@ void AnalysisEditor::showTimingResult(const BpmDetector::DetectionResult &result
         m_tables.value("tempoCandidates")->setCurrentCell(0, 0);
         selectTimingCandidate(m_diagnostics.value("tempoCandidates").toArray().first().toObject());
     }
+    m_result = result;
+    m_inspectedMap = result.analysis.tempoMap;
+    m_inspectedDiagnostics = m_diagnostics;
+    m_modelGrid->setEnabled(result.analysis.tempoMap.available);
+    m_applyMap->setEnabled(result.hasAnalysis() && result.analysis.valid
+                           && BpmMeasureUtils::buildTimingMapProposal(result.analysis, m_chart->chart()->bpmList(),
+                                                                      m_chart->chart()->meta().offset)
+                                  .available);
+    m_workbench->setResult(m_diagnostics);
+    updateAnalysisDisplay();
 }
 void AnalysisEditor::runTiming()
 {
     if (m_timingBusy)
         return;
     refreshAudioSource();
+    const auto config = m_configPanel->config();
+    const double start = m_timingStart->value() * 1000, duration = m_timingDuration->value() * 1000;
+    auto errors = analysis::validateRequest(config, start, duration);
     if (m_audioPath.isEmpty() || !QFileInfo::exists(m_audioPath))
+        errors << tr("Chart audio is unavailable");
+    const double audioDuration = m_playback->audioPlayer()->duration();
+    if (audioDuration > 0 && (start >= audioDuration || start + duration > audioDuration + .001))
+        errors << tr("Requested interval exceeds the remaining audio. Choose an exact interval within the file.");
+    if (!errors.isEmpty())
     {
-        m_timingSummary->setText(tr("Chart audio is unavailable"));
+        m_timingSummary->setText(errors.join('\n'));
         return;
     }
     clearDiagnostics();
     m_timingBusy = true;
     m_runTiming->setEnabled(false);
     m_cancelTiming->setEnabled(true);
-    m_timingCancel = std::make_shared<std::atomic<bool>>(false);
-    const auto cancel = m_timingCancel;
-    const auto generation = ++m_timingGeneration, source = m_sourceGeneration;
-    const double start = m_timingStart->value() * 1000, duration = m_timingDuration->value() * 1000;
-    AutoTiming2Options options;
-    options.enableComplexSubdivisionAnalysis = m_complexSubdivision->isChecked();
+    const auto source = m_sourceGeneration;
+    const auto request = m_session.begin(m_sourceIdentity, start, duration, config);
     m_timingSummary->setText(
-        tr("Analyzing… Cancel discards the result; an active core calculation finishes in the background."));
-    BpmDetector::analyzeFromFileDetailedAsync(
-        this, m_audioPath, start, duration,
-        [this, source, generation, start, duration, options, cancel](bool, BpmDetector::DetectionResult r,
-                                                                     const QString &error) {
+        tr("Analyzing… Cancel discards the result; an active Core calculation finishes in the background."));
+    const bool started =
+        m_session.dispatch(this, m_audioPath, request, [this, source](analysis::AnalysisCompletion completion) {
             m_timingBusy = false;
             m_runTiming->setEnabled(true);
             m_cancelTiming->setEnabled(false);
-            if (source != m_sourceGeneration || generation != m_timingGeneration || cancel->load())
+            refreshAudioSource();
+            if (source != m_sourceGeneration || completion.discarded
+                || !m_session.isCurrent(completion.request, m_sourceIdentity))
+            {
+                m_status->setText(
+                    tr("Previous analysis finished and was discarded. Analyze the current configuration when ready."));
+                m_timingSummary->setText(m_status->text());
                 return;
-            showTimingResult(r, error);
-            m_diagnostics["requestedStartMs"] = start;
-            m_diagnostics["requestedDurationMs"] = duration;
-            m_diagnostics["enableComplexSubdivisionAnalysis"] = options.enableComplexSubdivisionAnalysis;
+            }
+            showTimingResult(completion.result, completion.error);
+            const auto derived = m_diagnostics.value("derivedAnchorFit");
+            m_diagnostics = completion.diagnostics;
+            m_diagnostics["derivedAnchorFit"] = derived;
+            m_diagnostics["audioPath"] = m_audioPath;
+            m_diagnostics["actualDurationMs"] = completion.result.analysis.durationSeconds * 1000;
+            m_inspectedDiagnostics = m_diagnostics;
             m_raw->setPlainText(QString::fromUtf8(QJsonDocument(m_diagnostics).toJson()));
-        },
-        options, cancel);
+            m_session.remember(m_diagnostics);
+            m_workbench->setResult(m_diagnostics);
+        });
+    if (!started)
+    {
+        m_timingBusy = false;
+        m_runTiming->setEnabled(true);
+        m_cancelTiming->setEnabled(false);
+        m_status->setText(tr("The previous analysis is still finishing."));
+    }
 }
 void AnalysisEditor::cancelTiming()
 {
-    ++m_timingGeneration;
-    if (m_timingCancel)
-        *m_timingCancel = true;
+    m_session.discard();
+
     if (m_timingBusy && m_timingSummary)
         m_timingSummary->setText(tr("Result discarded. Waiting for the analysis worker to finish…"));
     if (m_cancelTiming)
@@ -921,6 +1118,15 @@ void AnalysisEditor::cancelTiming()
 void AnalysisEditor::clearDiagnostics()
 {
     m_selectedCandidate = {};
+    m_result = {};
+    m_inspectedMap = {};
+    m_inspectedDiagnostics = {};
+    m_selectedEvidence = {};
+    m_modelGrid->setChecked(false);
+    m_modelGrid->setEnabled(false);
+    m_applyMap->setEnabled(false);
+    m_canvas->setTempoMapPreview({});
+    m_canvas->setAnalysisTracks({}, {});
     m_candidateGrid->setChecked(false);
     m_candidateGrid->setEnabled(false);
     m_candidateSeek->setEnabled(false);
@@ -930,6 +1136,8 @@ void AnalysisEditor::clearDiagnostics()
     for (auto *table : m_tables)
         table->setRowCount(0);
     m_raw->clear();
+    if (m_workbench)
+        m_workbench->setResult({});
     m_timingSummary->setText(tr("Analyze audio to inspect AutoTiming intermediate results."));
 }
 void AnalysisEditor::exportDiagnostics()
@@ -962,6 +1170,9 @@ void AnalysisEditor::saveLayout()
     s.setValue("noteLaneWidth", m_canvas->noteLaneWidth());
     s.remove("spectrumFraction");
     s.setValue("msPerPixel", m_canvas->millisecondsPerPixel());
+    s.setValue("musicalView", m_canvas->musicalView());
+    s.setValue("beatsPerPixel", m_canvas->beatsPerPixel());
+    s.setValue("interfaceLevel", m_interfaceLevel);
     s.setValue("syncView", m_syncView->isChecked());
     s.setValue("leftOpen", m_leftOpen);
     s.setValue("rightOpen", m_rightOpen);
@@ -976,7 +1187,10 @@ void AnalysisEditor::restoreLayout()
     m_work->restoreState(s.value("work").toByteArray());
     m_panels->restoreState(s.value("panels").toByteArray());
     m_canvas->setNoteLaneWidth(s.value("noteLaneWidth", 56).toInt());
-    m_zoom->setValue(s.value("msPerPixel", 6).toDouble());
+    m_canvas->setMillisecondsPerPixel(s.value("msPerPixel", 6).toDouble());
+    if (s.value("musicalView", !s.contains("msPerPixel")).toBool())
+        m_canvas->setBeatsPerPixel(s.value("beatsPerPixel", .012).toDouble());
+    m_level->setCurrentIndex(qBound(0, s.value("interfaceLevel", 0).toInt(), 2));
     m_syncView->setChecked(s.value("syncView", false).toBool());
     const int left = s.value("leftOpen", -1).toInt(), right = s.value("rightOpen", -1).toInt();
     if (left >= 0)
@@ -1000,6 +1214,7 @@ void AnalysisEditor::showEvent(QShowEvent *event)
     updateTime(m_main->currentPlayTime());
     m_canvas->setFocus();
     scheduleSpectrum();
+    requestOverview();
 }
 void AnalysisEditor::hideEvent(QHideEvent *event)
 {
@@ -1011,10 +1226,214 @@ void AnalysisEditor::hideEvent(QHideEvent *event)
     if (m_spectrumCancel)
         *m_spectrumCancel = true;
     m_spectrumTimer->stop();
+    if (m_overviewCancel)
+        *m_overviewCancel = true;
     QWidget::hideEvent(event);
 }
 void AnalysisEditor::closeEvent(QCloseEvent *event)
 {
     hide();
     event->ignore();
+}
+
+void AnalysisEditor::invalidateTimingConfiguration()
+{
+    m_session.invalidateConfig();
+
+    if (!m_diagnostics.isEmpty())
+    {
+        m_diagnostics["resultState"] = "OldConfiguration";
+        m_raw->setPlainText(QString::fromUtf8(QJsonDocument(m_diagnostics).toJson()));
+        if (m_workbench)
+            m_workbench->setResult(m_diagnostics);
+        m_timingSummary->setText(tr("Configuration/range changed. These results belong to the previous input settings; "
+                                    "analyze again before preview or apply."));
+    }
+    m_candidateGrid->setChecked(false);
+    m_candidateGrid->setEnabled(false);
+    m_modelGrid->setChecked(false);
+    m_modelGrid->setEnabled(false);
+    m_applyMap->setEnabled(false);
+    m_canvas->clearTimingPreview();
+    m_canvas->setTempoMapPreview({});
+}
+void AnalysisEditor::setInterfaceLevel(int level)
+{
+    m_interfaceLevel = qBound(0, level, 2);
+    m_canvas->cancelGesture();
+    m_timingTools->stopPicking();
+    m_interpolation->stopPicking();
+    m_configPanel->setLevel(m_interfaceLevel);
+    m_workbench->setLevel(m_interfaceLevel);
+    m_complexSubdivision->setVisible(level >= 1);
+    m_preferLocal->setVisible(level >= 1);
+    m_candidateDetails->setVisible(level >= 1);
+    m_modelGrid->setVisible(level >= 1);
+    m_showTracks->setVisible(level >= 1);
+    for (int i = 0; i < m_rightTabs->count(); ++i)
+        m_rightTabs->setTabVisible(i, level >= 1);
+    m_rightTabs->setVisible(level >= 1);
+    m_leftTabs->setTabVisible(1, level >= 1);
+    m_leftTabs->setTabVisible(2, level >= 2);
+    if (level == 0)
+    {
+        m_rightPanels->hide();
+        m_rightOpen = -1;
+    }
+    updateAnalysisDisplay();
+}
+void AnalysisEditor::updateAnalysisDisplay()
+{
+    const auto data = m_inspectedDiagnostics.isEmpty() ? m_diagnostics : m_inspectedDiagnostics;
+    auto tracks = analysis::diagnosticTracks(data);
+    for (auto track :
+         analysis::diagnosticTracks(m_diagnostics.isEmpty() ? QJsonObject() : m_workbench->pairedBaseline()))
+        if (track.id == "tempo")
+        {
+            track.id = "baselineTempo";
+            track.viewGroup = "baselineTempo";
+            track.laneGroup = "tempo";
+            track.label = tr("Baseline observed tempo");
+            tracks.append(track);
+        }
+    if (!m_selectedEvidence.isEmpty())
+    {
+        const auto start = m_selectedEvidence.value("startSeconds"), end = m_selectedEvidence.value("endSeconds"),
+                   value = m_selectedEvidence.value("observedRateBpm");
+        if (start.isDouble() && end.isDouble() && value.isDouble() && std::isfinite(value.toDouble())
+            && end.toDouble() > start.toDouble())
+        {
+            analysis::AnalysisTrack track{"periodicity", tr("Selected periodicity evidence"), "events/min"};
+            track.viewGroup = "periodicity";
+            track.laneGroup = "periodicity";
+            track.provenance = {{"sourceIdentity", m_sourceIdentity},
+                                {"timeline", "whole-file audio seconds"},
+                                {"method", "Selected raw periodicity evidence"}};
+            track.points = {
+                {start.toDouble(), value.toDouble(), "periodicity:start", "Evidence", {}, m_selectedEvidence},
+                {end.toDouble(), value.toDouble(), "periodicity:end", "Evidence", {}, m_selectedEvidence}};
+            tracks.append(track);
+        }
+    }
+    const QJsonObject source{{"sourceIdentity", m_sourceIdentity}};
+    if (m_interfaceLevel >= 1 && m_showTracks->isChecked())
+    {
+        if (m_workbench->trackVisible("spectrumEnvelope"))
+            tracks += analysis::spectrumTracks(m_canvas->spectrum(), source);
+        if (m_workbench->trackVisible("transientFlux") || m_workbench->trackVisible("transientEvents"))
+        {
+            auto transient = m_transient->tracks();
+            for (auto &track : transient)
+                track.provenance["sourceIdentity"] = m_sourceIdentity;
+            tracks += transient;
+        }
+    }
+    for (auto &track : tracks)
+        track.visible =
+            track.visible && m_workbench->trackVisible(track.viewGroup.isEmpty() ? track.id : track.viewGroup);
+    m_canvas->setAnalysisTracks(
+        m_interfaceLevel >= 1 && m_showTracks->isChecked() ? tracks : QVector<analysis::AnalysisTrack>(), {});
+    m_canvas->setTempoMapPreview(m_modelGrid->isEnabled() && m_modelGrid->isChecked() ? m_inspectedMap
+                                                                                      : AutoTiming2TempoMap());
+    if (!m_diagnostics.isEmpty() && m_interfaceLevel == 0
+        && m_diagnostics.value("resultState").toString() != QLatin1String("OldConfiguration"))
+    {
+        auto recommendation = BpmMeasureUtils::selectRecommendation(m_result);
+        QString summary;
+        if (recommendation.available)
+            summary = tr("Suggested tempo: %1 BPM\n").arg(recommendation.bpm, 0, 'f', 6);
+        switch (recommendation.quality)
+        {
+            case BpmMeasureUtils::EvidenceQuality::Supported:
+                summary += tr("Tempo suggestion has supporting evidence.");
+                break;
+            case BpmMeasureUtils::EvidenceQuality::Uncertain:
+                summary += tr("Tempo suggestion is uncertain; inspect coverage and competing candidates.");
+                break;
+            default:
+                summary += tr("No supported tempo suggestion is available.");
+                break;
+        }
+        summary += tr("\n%1 tempo candidates · %2 analysis windows. Preview does not change the chart.")
+                       .arg(m_result.analysis.tempoCandidates.size())
+                       .arg(m_result.analysis.windowCount);
+        if (!m_result.analysisError.isEmpty())
+            summary += '\n' + m_result.analysisError;
+        if (!m_diagnostics.value("pipelineError").toString().isEmpty())
+            summary += '\n' + m_diagnostics.value("pipelineError").toString();
+        m_timingSummary->setText(summary);
+    }
+}
+void AnalysisEditor::inspectHypothesis(int index)
+{
+    m_inspectedDiagnostics = m_diagnostics;
+    m_inspectedMap = m_result.analysis.tempoMap;
+    if (index >= 0 && index < m_result.analysis.tempoHypotheses.size())
+    {
+        const auto h = m_diagnostics.value("tempoHypotheses").toArray()[index].toObject();
+        m_inspectedDiagnostics["tempoTrack"] = h.value("track");
+        m_inspectedDiagnostics["tempoMap"] = h.value("tempoMap");
+        m_inspectedMap = m_result.analysis.tempoHypotheses[index].tempoMap;
+        m_inspectedDiagnostics["derivedAnchorFit"] = analysis::anchorFit(m_inspectedMap);
+    }
+    fillTable("tempoTrack", m_inspectedDiagnostics.value("tempoTrack").toArray());
+    fillTable("segments", m_inspectedDiagnostics.value("tempoMap").toObject().value("segments").toArray());
+    fillTable("fit", m_inspectedDiagnostics.value("derivedAnchorFit").toArray());
+    m_modelGrid->setEnabled(m_inspectedMap.available
+                            && m_diagnostics.value("resultState").toString() != QLatin1String("OldConfiguration"));
+    updateAnalysisDisplay();
+}
+void AnalysisEditor::requestOverview()
+{
+    if (!isVisible() || m_overviewBusy || m_overview->hasEnvelope() || m_audioPath.isEmpty()
+        || !QFileInfo::exists(m_audioPath))
+        return;
+    m_overviewBusy = true;
+    m_overviewCancel = std::make_shared<std::atomic<bool>>(false);
+    const auto cancel = m_overviewCancel;
+    const auto source = m_sourceGeneration;
+    m_overview->setStatus(tr("Preparing whole-audio RMS / peak overview…"));
+    SpectrumService::analyzeEnergyAsync(this, m_audioPath, cancel,
+                                        [this, cancel, source](SpectrumService::EnergyEnvelope result) {
+                                            m_overviewBusy = false;
+                                            refreshAudioSource();
+                                            if (cancel->load() || source != m_sourceGeneration)
+                                            {
+                                                if (isVisible())
+                                                    requestOverview();
+                                                return;
+                                            }
+                                            m_overview->setEnvelope(std::move(result));
+                                        });
+}
+void AnalysisEditor::applyTempoMap()
+{
+    if (!m_result.hasAnalysis() || !m_result.analysis.valid)
+        return;
+    if (m_diagnostics.isEmpty() || m_diagnostics.value("resultState").toString() == QLatin1String("OldConfiguration"))
+        return;
+    refreshAudioSource();
+    if (m_diagnostics.isEmpty())
+        return;
+    const auto proposal = BpmMeasureUtils::buildTimingMapProposal(m_result.analysis, m_chart->chart()->bpmList(),
+                                                                  m_chart->chart()->meta().offset);
+    if (!proposal.available)
+    {
+        m_status->setText(proposal.unavailableReason);
+        return;
+    }
+    const auto source = m_sourceIdentity;
+    const auto configRevision = m_session.configRevision;
+    analysis::confirmTimingProposal(this, m_chart, tr("Apply AutoTiming tempo map"),
+                                    tr("Replace only reliable tempo-change intervals from %1 to %2 seconds with %3 "
+                                       "generated timing entries. Model error: %4 ms.")
+                                        .arg(proposal.sourceStartSeconds)
+                                        .arg(proposal.sourceEndSeconds)
+                                        .arg(proposal.generatedEntryCount)
+                                        .arg(proposal.maximumModelErrorMs),
+                                    proposal.bpmList, m_chart->revision(), [this, source, configRevision] {
+                                        refreshAudioSource();
+                                        return source == m_sourceIdentity && configRevision == m_session.configRevision
+                                               && !m_diagnostics.isEmpty();
+                                    });
 }

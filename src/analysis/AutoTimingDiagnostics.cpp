@@ -159,6 +159,9 @@ QJsonObject object(const AutoTiming2Window &v)
     o["reliability"] = value(v.reliability);
     o["selectedAsAnchor"] = value(v.selectedAsAnchor);
     o["estimatorMessage"] = value(v.estimatorMessage);
+    o["signalMetrics"] = v.signalMetrics;
+    o["evidenceReasons"] = QJsonArray::fromStringList(v.evidenceReasons);
+    o["rawRhythmCandidates"] = v.rawRhythmCandidates;
     o["tempoCandidates"] = array(v.tempoCandidates);
     return o;
 }
@@ -367,6 +370,19 @@ QJsonObject analysis::timingDiagnostics(const BpmDetector::DetectionResult &r)
     QJsonObject o = object(r.analysis);
     o["schemaVersion"] = 1;
     o["timeline"] = "whole-file audio seconds";
+    o["algorithmVersion"] = AutoTiming2Bridge::algorithmVersion();
+    o["encodedSha256"] = r.encodedSha256.isEmpty() ? QJsonValue() : QJsonValue(r.encodedSha256);
+    o["analysisPcmSha256"] = r.analysisPcmSha256.isEmpty() ? QJsonValue() : QJsonValue(r.analysisPcmSha256);
+    o["analysisFrameCount"] = r.analysisFrameCount > 0 ? QJsonValue(double(r.analysisFrameCount)) : QJsonValue();
+    o["analysisSampleRate"] = r.analysisSampleRate > 0 ? QJsonValue(r.analysisSampleRate) : QJsonValue();
+    o["decodedFrameCount"] = r.decodedFrameCount > 0 ? QJsonValue(double(r.decodedFrameCount)) : QJsonValue();
+    o["decodedSampleRate"] = r.decodedSampleRate > 0 ? QJsonValue(r.decodedSampleRate) : QJsonValue();
+    o["decodedChannels"] = r.decodedChannels > 0 ? QJsonValue(r.decodedChannels) : QJsonValue();
+    o["analysisResampled"] = r.analysisSampleRate && r.decodedSampleRate
+                                 ? QJsonValue(r.analysisSampleRate != r.decodedSampleRate)
+                                 : QJsonValue();
+    o["analysisPcmEncoding"] = Q_BYTE_ORDER == Q_LITTLE_ENDIAN ? "float32 mono little-endian, SHA includes rate prefix"
+                                                               : "float32 mono big-endian, SHA includes rate prefix";
     const char *legacy[] = {"NotRequested", "Succeeded", "Failed", "Cancelled"};
     const char *status[] = {"NotRequested", "Succeeded", "Failed", "Cancelled"};
     o["legacyStatus"] = legacy[int(r.legacyStatus)];

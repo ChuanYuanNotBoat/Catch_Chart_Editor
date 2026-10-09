@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <memory>
 #include "analysis/TransientAnalysis.h"
+#include "analysis/AnalysisTracks.h"
 class AnalysisCanvas;
 class QDoubleSpinBox;
 class QCheckBox;
@@ -18,6 +19,7 @@ public:
     explicit TransientPanel(AnalysisCanvas *, QWidget *parent = nullptr);
     ~TransientPanel() override;
     void setSpectrum(const analysis::StereoSpectrum &);
+    void setSpectrum(std::shared_ptr<const analysis::StereoSpectrum>);
     void clearSource();
     const analysis::TransientResult &result() const
     {
@@ -28,8 +30,11 @@ public:
         return m_busy || m_pending;
     }
     QJsonObject diagnostics() const;
+    QVector<analysis::AnalysisTrack> tracks() const;
+    void selectPeakAt(double seconds);
 signals:
     void seekRequested(double milliseconds);
+    void tracksChanged();
 
 private:
     void scheduleAnalysis();

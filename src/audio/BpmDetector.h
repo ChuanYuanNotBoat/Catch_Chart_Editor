@@ -47,6 +47,11 @@ public:
         AnalysisStatus analysisStatus = AnalysisStatus::NotRequested;
         QString analysisError; // non-empty when Failed/Cancelled
         double analysisStartMs = 0.0;
+        QString encodedSha256, analysisPcmSha256;
+        qsizetype analysisFrameCount = 0;
+        int analysisSampleRate = 0;
+        qsizetype decodedFrameCount = 0;
+        int decodedSampleRate = 0, decodedChannels = 0;
         AutoTiming2Summary analysis;
 
         bool hasLegacyResult() const noexcept

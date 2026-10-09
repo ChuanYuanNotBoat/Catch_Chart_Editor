@@ -325,13 +325,8 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
     int firstBeatNum = 0;
     int firstBeatNumerator = 0;
     int firstBeatDenominator = 1;
-    MathUtils::msToBeat(
-        map.startSeconds * 1000.0 - offsetMs,
-        existingBpmList,
-        offsetMs,
-        firstBeatNum,
-        firstBeatNumerator,
-        firstBeatDenominator);
+    MathUtils::msToBeat(map.startSeconds * 1000.0, existingBpmList, offsetMs, firstBeatNum, firstBeatNumerator,
+                        firstBeatDenominator);
     proposal.firstAnchorBeat = firstBeatNum +
                                static_cast<double>(firstBeatNumerator) / firstBeatDenominator;
 
@@ -484,12 +479,8 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
         const double beat = proposal.firstAnchorBeat +
                             anchor.phaseBeat - map.startBeat;
         const BpmEntry position = makeBpmEntry(beat, anchor.modelBpm, options.maximumBeatDenominator);
-        const double projectedAudioMs = MathUtils::beatToMs(
-            position.beatNum,
-            position.numerator,
-            position.denominator,
-            normalized,
-            offsetMs) + offsetMs;
+        const double projectedAudioMs =
+            MathUtils::beatToMs(position.beatNum, position.numerator, position.denominator, normalized, offsetMs);
         maximumAnchorResidualMs = std::max(
             maximumAnchorResidualMs,
             std::fabs(projectedAudioMs - anchor.timeSeconds * 1000.0));
