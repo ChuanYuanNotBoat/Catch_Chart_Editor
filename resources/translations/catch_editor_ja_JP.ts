@@ -4205,4 +4205,1718 @@ Do you want to rename the imported file?</source>
         <translation>無効</translation>
     </message>
 </context>
+<context>
+    <name>AnalysisCanvas</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="270"/>
+        <source>Invalid spectrum result</source>
+        <translation>無効なスペクトル結果</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="316"/>
+        <source>Load chart audio to inspect stereo spectrum</source>
+        <translation>譜面の音声を読み込んでステレオスペクトルを確認</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="342"/>
+        <source>100 Hz</source>
+        <translation>100 Hz</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="342"/>
+        <source>1 kHz</source>
+        <translation>1 kHz</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="342"/>
+        <source>10 kHz</source>
+        <translation>10 kHz</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="484"/>
+        <source>End %1 ms</source>
+        <translation>終了 %1 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="516"/>
+        <source>%1 [%2,%3,%4]</source>
+        <translation>%1 [%2,%3,%4]</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="516"/>
+        <source>Ramp Start</source>
+        <translation>ランプ開始</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="516"/>
+        <source>Ramp End</source>
+        <translation>ランプ終了</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="601"/>
+        <source>Spectrum · Mono → L / R</source>
+        <translation>スペクトル · モノ → L / R</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="601"/>
+        <source>Spectrum · L / R</source>
+        <translation>スペクトル · L / R</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="604"/>
+        <source> · Preview %1 BPM</source>
+        <translation> · %1 BPM のプレビュー</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="608"/>
+        <source>Measure · End / drag markers</source>
+        <translation>計測 · 終了 / マーカーをドラッグ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="608"/>
+        <source>Measure · pick Start (snap)</source>
+        <translation>計測 · 開始位置を選択（スナップ）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="609"/>
+        <source> · BPM interpolation</source>
+        <translation> · BPM 補間</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="610"/>
+        <source>Interpolation · pick Start (snap)</source>
+        <translation>補間 · 開始位置を選択（スナップ）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="616"/>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="721"/>
+        <source>Rain</source>
+        <translation>Rain</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="616"/>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="721"/>
+        <source>Note</source>
+        <translation>ノート</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="835"/>
+        <source>Rain end must be later than its start</source>
+        <translation>Rain の終了位置は開始位置より後にしてください</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisConfigPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="43"/>
+        <source>The global preset store is unreadable. Saving is disabled to preserve it; current/imported settings can still be used.</source>
+        <translation>グローバルプリセットストアを読み取れません。内容を保護するため保存は無効です。現在またはインポート済みの設定は引き続き使用できます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="57"/>
+        <source>Save As…</source>
+        <translation>名前を付けて保存…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="60"/>
+        <source>Copy preset…</source>
+        <translation>プリセットを複製…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="63"/>
+        <source>Import…</source>
+        <translation>インポート…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="66"/>
+        <source>Export…</source>
+        <translation>エクスポート…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="71"/>
+        <source>Save project override</source>
+        <translation>プロジェクト上書き設定を保存</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="72"/>
+        <source>Clear project override</source>
+        <translation>プロジェクト上書き設定をクリア</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="82"/>
+        <source>Open a chart and provide a valid configuration first.</source>
+        <translation>先に譜面を開き、有効な設定を指定してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="100"/>
+        <source>Project override saved. The .mc chart is unchanged.</source>
+        <translation>プロジェクト上書き設定を保存しました。`.mc` 譜面は変更されていません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="116"/>
+        <source>Project override cleared.</source>
+        <translation>プロジェクト上書き設定をクリアしました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="132"/>
+        <source>Reset section</source>
+        <translation>セクションをリセット</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="132"/>
+        <source>Reset all</source>
+        <translation>すべてリセット</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="140"/>
+        <source>Current configuration reset; saved presets and project override are unchanged.</source>
+        <translation>現在の設定をリセットしました。保存済みプリセットとプロジェクト上書き設定は変更されていません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="186"/>
+        <source> · Core build dependent</source>
+        <translation> · Core ビルドに依存</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="186"/>
+        <source> · stable profile field</source>
+        <translation> · 安定プロファイル項目</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="187"/>
+        <source>
+CCE Default: %1 · range %2–%3</source>
+        <translation>
+CCE 既定値: %1 · 範囲 %2–%3</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="193"/>
+        <source>Reset</source>
+        <translation>リセット</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="195"/>
+        <source>Restore this field to the CCE Default</source>
+        <translation>この項目を CCE 既定値に戻す</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="212"/>
+        <source>Window duration / hop pairs in seconds, e.g. [[8,4],[24,12],[48,24]]</source>
+        <translation>ウィンドウ長 / ホップの秒数ペア、例: [[8,4],[24,12],[48,24]]</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="223"/>
+        <source>Configuration changed; analyze again.</source>
+        <translation>設定が変更されました。再分析してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="361"/>
+        <source>Analysis window schedule differs from Default.</source>
+        <translation>分析ウィンドウのスケジュールが既定値と異なります。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="363"/>
+        <source>All visible fields use CCE Default values.</source>
+        <translation>表示中のすべての項目に CCE 既定値を使用しています。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="364"/>
+        <source>Changes from CCE Default:
+</source>
+        <translation>CCE 既定値からの変更:
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="367"/>
+        <source>Current configuration: modified
+</source>
+        <translation>現在の設定: 変更あり
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="367"/>
+        <source>Current configuration: saved values
+</source>
+        <translation>現在の設定: 保存済みの値
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="368"/>
+        <source>Default is read-only. Project override: %1</source>
+        <translation>既定値は読み取り専用です。プロジェクト上書き設定: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="368"/>
+        <source>active</source>
+        <translation>有効</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="368"/>
+        <source>none</source>
+        <translation>なし</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="370"/>
+        <source>
+Core: %1
+Snapshot: %2</source>
+        <translation>
+Core: %1
+スナップショット: %2</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="404"/>
+        <source>Invalid project analysis configuration. Restore or clear the sidecar before analyzing.</source>
+        <translation>プロジェクト分析設定が無効です。解析の前にサイドカーファイルを復元または削除してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="413"/>
+        <source>Project base snapshot hash does not match. Restore or clear the sidecar before analyzing.</source>
+        <translation>プロジェクトベースのスナップショットハッシュが一致しません。解析の前にサイドカーファイルを復元または削除してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="436"/>
+        <source>Using the saved project base; installed preset is missing or differs.</source>
+        <translation>保存済みのプロジェクトベースを使用しています。インストール済みプリセットがないか、内容が異なります。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="446"/>
+        <source>Project base preset is unavailable. Restore its snapshot or select a preset explicitly.</source>
+        <translation>プロジェクトベースのプリセットを利用できません。スナップショットを復元するか、プリセットを明示的に選択してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="457"/>
+        <source>Unsupported/incomplete project analysis configuration.</source>
+        <translation>サポートされていない、または不完全なプロジェクト分析設定です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="484"/>
+        <source>Project Debug overrides target another Core build and are inactive.</source>
+        <translation>プロジェクトの Debug 上書き設定は別の Core ビルドを対象としているため無効です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="490"/>
+        <source>Project analysis configuration cannot be read (maximum 1 MiB).</source>
+        <translation>プロジェクト分析設定を読み取れません（最大 1 MiB）。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="501"/>
+        <source>Global preset store is unreadable; it will not be overwritten.</source>
+        <translation>グローバルプリセットストアを読み取れません。上書きは行いません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="514"/>
+        <source>Save analysis preset</source>
+        <translation>分析プリセットを保存</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="514"/>
+        <source>New name (Default is read-only)</source>
+        <translation>新しい名前（Default は読み取り専用）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="522"/>
+        <source>Choose an unused preset name.</source>
+        <translation>未使用のプリセット名を指定してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="546"/>
+        <source>Preset saved.</source>
+        <translation>プリセットを保存しました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="551"/>
+        <source>Import analysis profile</source>
+        <translation>分析プロファイルをインポート</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="551"/>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="610"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="557"/>
+        <source>Cannot read profile (maximum 1 MiB).</source>
+        <translation>プロファイルを読み取れません（最大 1 MiB）。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="567"/>
+        <source>Invalid profile JSON; configuration unchanged.</source>
+        <translation>プロファイルの JSON が無効です。設定は変更されていません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="584"/>
+        <source>Replace current analysis configuration</source>
+        <translation>現在の分析設定を置き換え</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="585"/>
+        <source>%1 field(s) will change:
+%2
+%3
+Saved presets are preserved. This does not start an analysis.</source>
+        <translation>%1 項目が変更されます:
+%2
+%3
+保存済みプリセットは保持されます。この操作では解析を開始しません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="609"/>
+        <source>Export effective profile</source>
+        <translation>有効なプロファイルをエクスポート</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="614"/>
+        <source>Effective profile exported.</source>
+        <translation>有効なプロファイルをエクスポートしました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="634"/>
+        <source>Section reset in current configuration.</source>
+        <translation>現在の設定でセクションをリセットしました。</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisEditor</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="92"/>
+        <source>CCE — Analysis Editor</source>
+        <translation>CCE — 分析エディター</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="99"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="498"/>
+        <source>Analysis Editor</source>
+        <translation>分析エディター</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="107"/>
+        <source>Normal</source>
+        <translation>通常</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="107"/>
+        <source>Advanced</source>
+        <translation>詳細</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="107"/>
+        <source>Debug</source>
+        <translation>デバッグ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="111"/>
+        <source>Musical time</source>
+        <translation>拍時間</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="111"/>
+        <source>Audio time</source>
+        <translation>音声時間</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="113"/>
+        <source>Sync visible range</source>
+        <translation>表示範囲を同期</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="121"/>
+        <source>Independent vertical zoom. Ctrl + wheel also zooms.</source>
+        <translation>縦方向のズームは独立しています。Ctrl + ホイールでもズームできます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="172"/>
+        <source>Measure</source>
+        <translation>計測</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="173"/>
+        <source>AutoTiming</source>
+        <translation>AutoTiming</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="175"/>
+        <source>Interpolate</source>
+        <translation>補間</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="177"/>
+        <source>Timing</source>
+        <translation>タイミング</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="192"/>
+        <source>Transient</source>
+        <translation>トランジェント</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="199"/>
+        <source>Timbre</source>
+        <translation>音色</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="200"/>
+        <source>Future: spectral features, event groups and stereo characteristics.</source>
+        <translation>今後：スペクトル特徴、イベントグループ、ステレオ特性。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="201"/>
+        <source>Tracks</source>
+        <translation>トラック</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="201"/>
+        <source>Future: pseudo tracks, continuity and preferred track.</source>
+        <translation>今後：擬似トラック、連続性、優先トラック。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="203"/>
+        <source>Generation</source>
+        <translation>生成</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="204"/>
+        <source>Future: density, importance and charting rules. Candidates will use ghost preview before a separate undoable commit.</source>
+        <translation>今後：密度、重要度、譜面作成ルールに対応予定です。候補はゴースト表示でプレビューし、後から別操作で取り消し可能な確定を行います。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="207"/>
+        <source>Diagnostics</source>
+        <translation>診断</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="239"/>
+        <source>Configuration</source>
+        <translation>設定</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="258"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="351"/>
+        <source>Play</source>
+        <translation>再生</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="264"/>
+        <source>Loop range</source>
+        <translation>ループ範囲</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="267"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="283"/>
+        <source>Undo</source>
+        <translation>元に戻す</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="267"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="285"/>
+        <source>Redo</source>
+        <translation>やり直し</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="270"/>
+        <source>Note: left add / right delete · Rain: two clicks · Shift drag: time range</source>
+        <translation>ノート：左クリックで追加 / 右クリックで削除 · Rain：2回クリック · Shift + ドラッグ：時間範囲を選択</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="287"/>
+        <source>Delete selected notes</source>
+        <translation>選択したノートを削除</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="302"/>
+        <source>Play / Pause</source>
+        <translation>再生 / 一時停止</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="351"/>
+        <source>Pause</source>
+        <translation>一時停止</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="374"/>
+        <source> beat / px</source>
+        <translation> 拍 / px</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="374"/>
+        <source> ms / px</source>
+        <translation> ms / px</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="454"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="661"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="667"/>
+        <source> s</source>
+        <translation> s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="499"/>
+        <source>Analysis Editor · %1</source>
+        <translation>分析エディター · %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="536"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1059"/>
+        <source>Chart audio is unavailable</source>
+        <translation>譜面の音声を利用できません</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="543"/>
+        <source>Zoom in to inspect spectrum (visible range ≤ 100 s)</source>
+        <translation>スペクトルを確認するにはズームインしてください（表示範囲 ≤ 100 秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="587"/>
+        <source>Stereo spectrum ready · gutters: peak / RMS</source>
+        <translation>ステレオスペクトル準備完了 · 端の表示：ピーク / RMS</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="614"/>
+        <source>Preloading adjacent spectrum…</source>
+        <translation>隣接するスペクトルを先読み中…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="616"/>
+        <source>Decoding stereo spectrum…</source>
+        <translation>ステレオスペクトルをデコード中…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="643"/>
+        <source>Invalid spectrum result</source>
+        <translation>無効なスペクトル結果</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="668"/>
+        <source>Audio start</source>
+        <translation>音声開始位置</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="669"/>
+        <source>Duration</source>
+        <translation>長さ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="672"/>
+        <source>Use range</source>
+        <translation>範囲を使用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="672"/>
+        <source>Use visible</source>
+        <translation>表示範囲を使用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="686"/>
+        <source>Enable experimental subdivision analysis</source>
+        <translation>実験的な細分解析を有効化</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="688"/>
+        <source>Raw periodicity evidence is always available. Semantic rhythm profiles require Core&apos;s confidence gates.</source>
+        <translation>生の周期性情報は常に利用できます。意味的なリズムプロファイルには Core の信頼度ゲートが必要です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="691"/>
+        <source>Prefer local tempo evidence</source>
+        <translation>局所テンポの根拠を優先</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="711"/>
+        <source>Analyze timing</source>
+        <translation>テンポを解析</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="713"/>
+        <source>Cancel / discard</source>
+        <translation>キャンセル / 破棄</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="720"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1141"/>
+        <source>Analyze audio to inspect AutoTiming intermediate results.</source>
+        <translation>AutoTiming の中間結果を確認するには音声を解析してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="785"/>
+        <source>Candidates</source>
+        <translation>候補</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="789"/>
+        <source>Windows</source>
+        <translation>ウィンドウ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="792"/>
+        <source>Window candidates</source>
+        <translation>ウィンドウ候補</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="795"/>
+        <source>Track</source>
+        <translation>トラック</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="798"/>
+        <source>Segments</source>
+        <translation>セグメント</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="800"/>
+        <source>Grid fit</source>
+        <translation>グリッドフィット</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="803"/>
+        <source>Periodicity evidence</source>
+        <translation>周期性の根拠</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="807"/>
+        <source>Subdivision evidence</source>
+        <translation>細分の根拠</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="810"/>
+        <source>Uncertainty</source>
+        <translation>不確実性</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="813"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="958"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1134"/>
+        <source>Select a candidate or an analysis window to inspect its phase.</source>
+        <translation>候補または分析ウィンドウを選択して位相を確認します。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="820"/>
+        <source>Preview candidate grid</source>
+        <translation>候補グリッドをプレビュー</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="823"/>
+        <source>Constant BPM reference at the reported absolute pulse. Cyan lines are limited to the analyzed range. Chart timing and placement snap stay unchanged.</source>
+        <translation>報告された絶対拍位置を基準にした一定 BPM の参照線です。シアンの線は解析範囲内に限られます。譜面タイミングと配置スナップは変わりません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="825"/>
+        <source>Go to pulse</source>
+        <translation>拍位置へ移動</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="831"/>
+        <source>Preview fitted tempo map</source>
+        <translation>フィット済みテンポマップをプレビュー</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="833"/>
+        <source>Show analysis tracks</source>
+        <translation>分析トラックを表示</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="836"/>
+        <source>Preview and apply reliable tempo changes…</source>
+        <translation>信頼性の高いテンポ変化をプレビューして適用…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="857"/>
+        <source>Double-click a window to inspect its local candidates and audio. Global candidates currently carry tempo only. Scores/costs are diagnostics, not probabilities.</source>
+        <translation>ウィンドウをダブルクリックして局所候補と音声を確認します。現在、グローバル候補に含まれるのはテンポのみです。スコア / コストは診断指標であり、確率ではありません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="937"/>
+        <source>Window #%1 has no tempo candidates.</source>
+        <translation>ウィンドウ #%1 にテンポ候補がありません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="961"/>
+        <source>Window #%1 · %2–%3 s</source>
+        <translation>ウィンドウ #%1 · %2–%3 s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="965"/>
+        <source>Global candidate</source>
+        <translation>グローバル候補</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="967"/>
+        <source>%1
+%2 BPM · pulse %3
+Phase confidence %4 · legacy offset %5 ms</source>
+        <translation>%1
+%2 BPM · 拍位置 %3
+位相信頼度 %4 · レガシーオフセット %5 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="970"/>
+        <source>%1 s</source>
+        <translation>%1 s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="970"/>
+        <source>unavailable (tempo only)</source>
+        <translation>利用不可（テンポのみ）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1014"/>
+        <source>Legacy: %1 BPM / offset %2 ms
+Analysis: %3 · %4 windows · confidence %5
+Grid max residual: %6 ms · BPM list model error: %7 ms</source>
+        <translation>レガシー: %1 BPM / オフセット %2 ms
+解析: %3 · %4 ウィンドウ · 信頼度 %5
+グリッド最大残差: %6 ms · BPM リストのモデル誤差: %7 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1016"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1018"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1023"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1026"/>
+        <source>unavailable</source>
+        <translation>利用不可</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1062"/>
+        <source>Requested interval exceeds the remaining audio. Choose an exact interval within the file.</source>
+        <translation>要求された区間が音声の残りの長さを超えています。ファイル内の正確な区間を選択してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1075"/>
+        <source>Analyzing… Cancel discards the result; an active Core calculation finishes in the background.</source>
+        <translation>解析中…キャンセルすると結果は破棄されます。実行中の Core 計算はバックグラウンドで完了します。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1086"/>
+        <source>Previous analysis finished and was discarded. Analyze the current configuration when ready.</source>
+        <translation>前回の解析は完了し、結果は破棄されました。準備ができたら現在の設定で再解析してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1106"/>
+        <source>The previous analysis is still finishing.</source>
+        <translation>前回の解析はまだ終了処理中です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1114"/>
+        <source>Result discarded. Waiting for the analysis worker to finish…</source>
+        <translation>結果を破棄しました。解析ワーカーの終了を待機中…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1147"/>
+        <source>No diagnostic result to export</source>
+        <translation>エクスポート可能な診断結果がありません</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1150"/>
+        <source>Export diagnostic JSON</source>
+        <translation>診断 JSON をエクスポート</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1151"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1157"/>
+        <source>Export failed: %1</source>
+        <translation>エクスポートに失敗しました: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1159"/>
+        <source>Diagnostic JSON exported</source>
+        <translation>診断 JSON をエクスポートしました</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1249"/>
+        <source>Configuration/range changed. These results belong to the previous input settings; analyze again before preview or apply.</source>
+        <translation>設定 / 範囲が変更されました。この結果は以前の入力設定に対するものです。プレビューまたは適用の前に再解析してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1296"/>
+        <source>Baseline observed tempo</source>
+        <translation>ベースライン観測テンポ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1306"/>
+        <source>Selected periodicity evidence</source>
+        <translation>選択した周期性の根拠</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1344"/>
+        <source>Suggested tempo: %1 BPM
+</source>
+        <translation>推奨テンポ: %1 BPM
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1348"/>
+        <source>Tempo suggestion has supporting evidence.</source>
+        <translation>テンポ候補には裏付けがあります。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1351"/>
+        <source>Tempo suggestion is uncertain; inspect coverage and competing candidates.</source>
+        <translation>テンポ候補は不確かです。カバー範囲と競合する候補を確認してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1354"/>
+        <source>No supported tempo suggestion is available.</source>
+        <translation>裏付けのあるテンポ候補がありません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1357"/>
+        <source>
+%1 tempo candidates · %2 analysis windows. Preview does not change the chart.</source>
+        <translation>
+テンポ候補 %1 件 · 分析ウィンドウ %2 件。プレビューで譜面は変更されません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1395"/>
+        <source>Preparing whole-audio RMS / peak overview…</source>
+        <translation>音声全体の RMS / ピーク概要を準備中…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1427"/>
+        <source>Apply AutoTiming tempo map</source>
+        <translation>AutoTiming テンポマップを適用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1428"/>
+        <source>Replace only reliable tempo-change intervals from %1 to %2 seconds with %3 generated timing entries. Model error: %4 ms.</source>
+        <translation>%1～%2 秒の信頼性の高いテンポ変化区間のみを置き換え、タイミングポイントを %3 個生成します。モデル誤差: %4 ms。</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisWorkbench</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="42"/>
+        <source>Load record…</source>
+        <translation>記録を読み込む…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="42"/>
+        <source>Export diagnostics…</source>
+        <translation>診断データをエクスポート…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="46"/>
+        <source>Export comparison…</source>
+        <translation>比較をエクスポート…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="56"/>
+        <source>Load a baseline first.</source>
+        <translation>先にベースラインを読み込んでください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="59"/>
+        <source>Export local comparison</source>
+        <translation>ローカル比較をエクスポート</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="60"/>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="69"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="69"/>
+        <source>Load local analysis record</source>
+        <translation>ローカル分析記録を読み込む</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="107"/>
+        <source>Curves follow the spectrum time axis. Observation/model residuals are separate from reference accuracy. Orange regions: uncertainty; green grid: fitted model.</source>
+        <translation>曲線はスペクトルの時間軸に沿います。観測 / モデル残差は参照精度とは別の指標です。オレンジの領域は不確実性、緑のグリッドはフィットモデルです。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="115"/>
+        <source>Observed tempo (BPM)</source>
+        <translation>観測テンポ (BPM)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="116"/>
+        <source>Confidence (raw)</source>
+        <translation>信頼度（生値）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="117"/>
+        <source>Phase confidence (raw)</source>
+        <translation>位相信頼度（生値）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="118"/>
+        <source>Observation / model residual (ms)</source>
+        <translation>観測 / モデル残差 (ms)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="119"/>
+        <source>Periodicity (events/min)</source>
+        <translation>周期性（イベント / 分）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="120"/>
+        <source>Uncertainty regions</source>
+        <translation>不確実性区間</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="121"/>
+        <source>Baseline tempo (same input)</source>
+        <translation>ベースラインテンポ（同一入力）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="122"/>
+        <source>Spectrum RMS / peak</source>
+        <translation>スペクトル RMS / ピーク</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="123"/>
+        <source>Transient flux</source>
+        <translation>トランジェントフラックス</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="124"/>
+        <source>Transient peaks (accepted / rejected)</source>
+        <translation>トランジェントピーク（採用 / 除外）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="125"/>
+        <source>Candidate pulses</source>
+        <translation>候補拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="151"/>
+        <source>Overview</source>
+        <translation>概要</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="151"/>
+        <source>Tempo</source>
+        <translation>テンポ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="151"/>
+        <source>Rhythm</source>
+        <translation>リズム</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="152"/>
+        <source>Overview / Compare</source>
+        <translation>概要 / 比較</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="153"/>
+        <source>Tempo / Phase</source>
+        <translation>テンポ / 位相</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="154"/>
+        <source>Rhythm / Evidence</source>
+        <translation>リズム / 根拠</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="159"/>
+        <source>Load existing records. No tests run when this page opens. Unannotated audio has no accuracy PASS.</source>
+        <translation>既存の記録を読み込みます。このページを開いてもテストは実行されません。未注釈の音声に精度 PASS は表示されません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="165"/>
+        <source>Case / Mode</source>
+        <translation>ケース / モード</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="165"/>
+        <source>Recorded status</source>
+        <translation>記録済みステータス</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="165"/>
+        <source>Reference type</source>
+        <translation>参照タイプ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="166"/>
+        <source>Strict max</source>
+        <translation>厳密な最大値</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="166"/>
+        <source>Phase max (ms)</source>
+        <translation>位相最大値 (ms)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="166"/>
+        <source>Coverage / reason</source>
+        <translation>カバー範囲 / 理由</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="176"/>
+        <source>Current diagnostics</source>
+        <translation>現在の診断</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="181"/>
+        <source>Loaded record</source>
+        <translation>読み込み済み記録</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="183"/>
+        <source>Reference</source>
+        <translation>参照</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="184"/>
+        <source>Reference / Tests</source>
+        <translation>参照 / テスト</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="194"/>
+        <source>This case is not paired with the current audio hash. Audio navigation is unavailable.</source>
+        <translation>このケースは現在の音声ハッシュに対応していないため、音声上のナビゲーションは利用できません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="290"/>
+        <source>Final selected result</source>
+        <translation>最終選択結果</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="295"/>
+        <source> (selected by Core)</source>
+        <translation>（Core により選択）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="295"/>
+        <source> (alternative)</source>
+        <translation>（代替）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="308"/>
+        <source>unavailable</source>
+        <translation>利用不可</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="315"/>
+        <source>Analyze audio to inspect results.</source>
+        <translation>結果を確認するには音声を解析してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="316"/>
+        <source>Legacy BPM: %1 · Legacy offset: %2 ms
+Analysis: %3 · Core: %4
+Requested: %5 ms + %6 ms · Actual: %7 ms + %8 s
+Input: %9
+Config hash: %10
+Observation/model |residual| P50 / P90 / max: %11 / %12 / %13 ms
+BPM list/model error: %14 ms · not reference accuracy</source>
+        <translation>レガシー BPM: %1 · レガシーオフセット: %2 ms
+解析: %3 · Core: %4
+要求: %5 ms + %6 ms · 実際: %7 ms + %8 s
+入力: %9
+設定ハッシュ: %10
+観測 / モデル |残差| P50 / P90 / 最大: %11 / %12 / %13 ms
+BPM リスト / モデル誤差: %14 ms · 参照精度ではありません</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="328"/>
+        <source>Result state: %1
+</source>
+        <translation>結果状態: %1
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="353"/>
+        <source>Load a same-input baseline to compare. Scores and costs are not probabilities.</source>
+        <translation>同一入力のベースラインを読み込んで比較します。スコアとコストは確率ではありません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="360"/>
+        <source>Same decoded input verified; options and Core versions are recorded independently.
+</source>
+        <translation>同一のデコード済み入力であることを確認しました。オプションと Core バージョンは個別に記録されています。
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="361"/>
+        <source>Inputs are not verified identical. Browsing only; accuracy comparison unavailable.
+</source>
+        <translation>入力が同一であることを確認できません。閲覧のみ可能で、精度比較は利用できません。
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="366"/>
+        <source>Current coverage: %1–%2 s; baseline: %3–%4 s
+Common interval: %5; unmatched edges retained.
+Current config: %6; baseline config: %7
+Current Core: %8; baseline Core: %9</source>
+        <translation>現在のカバー範囲: %1–%2 s、ベースライン: %3–%4 s
+共通区間: %5。不一致の境界も保持されます。
+現在の設定: %6、ベースライン設定: %7
+現在の Core: %8、ベースライン Core: %9</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="370"/>
+        <source>none</source>
+        <translation>なし</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="382"/>
+        <source>Cannot read record (maximum 32 MiB).</source>
+        <translation>記録を読み取れません（最大 32 MiB）。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="390"/>
+        <source>Invalid record JSON.</source>
+        <translation>記録の JSON が無効です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="397"/>
+        <source>Unsupported diagnostics schema; current results unchanged.</source>
+        <translation>サポートされていない診断スキーマです。現在の結果は変更されていません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="406"/>
+        <source>Incomplete comparison record.</source>
+        <translation>比較記録が不完全です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="415"/>
+        <source>Unsupported nested diagnostics schema; records unchanged.</source>
+        <translation>サポートされていないネストされた診断スキーマです。記録は変更されていません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="427"/>
+        <source>Expected diagnostics or a corpus/benchmark summary.</source>
+        <translation>診断データまたはコーパス / ベンチマーク概要が必要です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="478"/>
+        <source>Showing %1 of %2 existing records. Statuses are recorded results, not a new verification. Source/reference pairing is required before accuracy or navigation. No test was started.</source>
+        <translation>既存記録 %2 件中 %1 件を表示しています。ステータスは記録済みの結果であり、新たな検証結果ではありません。精度比較やナビゲーションにはソースと参照データのペアリングが必要です。テストは開始されていません。</translation>
+    </message>
+</context>
+<context>
+    <name>AudioOverview</name>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="12"/>
+        <source>Whole-audio relative energy (RMS / peak), not Note density or LUFS. Click or drag to navigate.</source>
+        <translation>音声全体の相対エネルギー（RMS / ピーク）です。ノート密度や LUFS ではありません。クリックまたはドラッグして移動します。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="71"/>
+        <source>Audio energy</source>
+        <translation>音声エネルギー</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="75"/>
+        <source>Link audio for whole-track navigation.</source>
+        <translation>音声を紐付けるとトラック全体を移動できます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="114"/>
+        <source>%1 s</source>
+        <translation>%1 s</translation>
+    </message>
+</context>
+<context>
+    <name>TimingInterpolationPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="43"/>
+        <source>BPM varies linearly with beat. Stored segment BPMs match the exact curve duration; difficult regions subdivide locally to stay below the error limit.</source>
+        <translation>BPM は拍位置に応じて線形に変化します。保存される区間 BPM は曲線の正確な長さと一致し、誤差上限を守るため難しい区間は局所的に細分化されます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="47"/>
+        <source>Pick Start on spectrum</source>
+        <translation>スペクトル上で開始位置を選択</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="68"/>
+        <source>Start beat</source>
+        <translation>開始拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="69"/>
+        <source>End beat</source>
+        <translation>終了拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="81"/>
+        <source>Start BPM</source>
+        <translation>開始 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="82"/>
+        <source>End BPM</source>
+        <translation>終了 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="85"/>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="89"/>
+        <source>Beat length</source>
+        <translation>拍の長さ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="85"/>
+        <source>Start / End beat</source>
+        <translation>開始 / 終了拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="85"/>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="91"/>
+        <source>Duration ms</source>
+        <translation>所要時間 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="86"/>
+        <source>Range via</source>
+        <translation>範囲の指定方法</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="94"/>
+        <source>Maximum spacing in beats; decimal or fraction. Default 1 beat.</source>
+        <translation>最大間隔（拍）。小数または分数で入力します。既定値は 1 拍です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="95"/>
+        <source>Maximum gap</source>
+        <translation>最大間隔</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="97"/>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="98"/>
+        <source>Error below</source>
+        <translation>許容誤差</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="100"/>
+        <source>Resume chart BPM at End</source>
+        <translation>終了位置で譜面 BPM に戻す</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="103"/>
+        <source>On: restore the original active BPM at End. Off: continue the specified End BPM. Later timing points keep their original beat coordinates and BPM.</source>
+        <translation>オン：終了位置で元の有効 BPM に戻します。オフ：指定した終了 BPM を継続します。後続のタイミングポイントは元の拍位置と BPM を維持します。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="105"/>
+        <source>Preview interpolation</source>
+        <translation>補間をプレビュー</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Beat</source>
+        <translation>拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Audio ms</source>
+        <translation>音声 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Stored BPM</source>
+        <translation>保存 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Error ms</source>
+        <translation>誤差 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="123"/>
+        <source>Rebuild preview</source>
+        <translation>プレビューを再生成</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="125"/>
+        <source>Apply interpolation…</source>
+        <translation>補間を適用…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="127"/>
+        <source>Export interpolation JSON…</source>
+        <translation>補間 JSON をエクスポート…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="193"/>
+        <source>Chart changed. Rebuild preview before applying.</source>
+        <translation>譜面が変更されました。適用前にプレビューを再生成してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="204"/>
+        <source>Updating preview…</source>
+        <translation>プレビューを更新中…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="231"/>
+        <source>Enter valid beats, a positive length/gap and Start at or after the first timing.</source>
+        <translation>有効な拍位置と正の長さ / 間隔を入力し、開始位置を最初のタイミングポイント以降にしてください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="233"/>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="285"/>
+        <source>Existing timing contains duplicate/invalid points. Resolve them before applying.</source>
+        <translation>既存のタイミングポイントに重複または無効な値があります。適用前に解決してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="267"/>
+        <source>The complete timing list exceeds 100000 points.</source>
+        <translation>タイミングポイントの総数が 100000 を超えています。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="288"/>
+        <source>Stored chart timing or duration rounding exceeds the requested error bound.</source>
+        <translation>保存された譜面のタイミングまたは時間の丸め誤差が指定した許容値を超えています。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="303"/>
+        <source>%1 → %2 · %3 segments
+Curve %4 → %5 BPM · %6 ms
+Maximum interior error %7 ms; node drift %8 ms; duration residual %9 ms.
+Replace %10 timing points in range. %11 Notes keep their beat coordinates.
+At End: %12. Later timing beats/BPM stay unchanged; audio times may move.%13</source>
+        <translation>%1 → %2 · %3 セグメント
+曲線 %4 → %5 BPM · %6 ms
+最大内部誤差 %7 ms、ノードずれ %8 ms、時間残差 %9 ms。
+範囲内のタイミングポイント %10 個を置き換えます。%11 個のノートは拍位置を維持します。
+終了位置の処理：%12。後続ポイントの拍位置 / BPM は変わりませんが、音声時刻は移動する場合があります。%13</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="311"/>
+        <source>resume chart BPM</source>
+        <translation>譜面 BPM に戻す</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="311"/>
+        <source>continue End BPM</source>
+        <translation>終了 BPM を継続</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="312"/>
+        <source>
+Table shows the first 200 points; JSON includes every point.</source>
+        <translation>
+表には最初の 200 件のみ表示されます。JSON にはすべてのポイントが含まれます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="332"/>
+        <source>Apply BPM interpolation</source>
+        <translation>BPM 補間を適用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="333"/>
+        <source>Replace %1 timing points with %2 points in %3 → %4?</source>
+        <translation>範囲 %3 → %4 のタイミングポイント %1 個を %2 個に置き換えますか？</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="366"/>
+        <source>Export interpolation JSON</source>
+        <translation>補間 JSON をエクスポート</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="366"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="371"/>
+        <source>Export failed: %1</source>
+        <translation>エクスポートに失敗しました: %1</translation>
+    </message>
+</context>
+<context>
+    <name>TimingToolsPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="27"/>
+        <source>Pick Start on the chart grid, then End freely on the spectrum. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</source>
+        <translation>譜面グリッドで開始位置を選び、スペクトル上で終了位置を自由に選択します。マーカーをドラッグして調整できます。Ctrl + ホイールでズームし、Tab で拍の長さを編集します。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="31"/>
+        <source>Pick Start → End</source>
+        <translation>開始位置を選択 → 終了位置</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="35"/>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="167"/>
+        <source>Click the spectrum to choose Start</source>
+        <translation>スペクトルをクリックして開始位置を選択</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="39"/>
+        <source>Start beat</source>
+        <translation>開始拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="44"/>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="47"/>
+        <source>End audio time</source>
+        <translation>音声終了時刻</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="50"/>
+        <source>1, 0.5, 1/3, 4…</source>
+        <translation>1, 0.5, 1/3, 4…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="51"/>
+        <source>Measured interval in beats. Positive decimal or fraction; default 1 beat.</source>
+        <translation>測定する拍間隔。正の小数または分数を入力します。既定値は 1 拍です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="52"/>
+        <source>Beat span</source>
+        <translation>拍の長さ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="54"/>
+        <source>Preview measured grid</source>
+        <translation>測定グリッドをプレビュー</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="67"/>
+        <source>Copy BPM</source>
+        <translation>BPM をコピー</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="70"/>
+        <source>Apply BPM at Start</source>
+        <translation>開始位置に BPM を適用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="73"/>
+        <source>Clear / measure again</source>
+        <translation>クリア / 再測定</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="164"/>
+        <source>[%1, %2, %3] · %4 ms</source>
+        <translation>[%1, %2, %3] · %4 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="168"/>
+        <source>Enter a positive decimal or fraction (up to 9 decimal places).</source>
+        <translation>正の小数または分数を入力してください（小数点以下 9 桁まで）。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="169"/>
+        <source>Default interval: 1 beat. Enable Pick to begin.</source>
+        <translation>既定の間隔は 1 拍です。「開始位置を選択」を有効にしてください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="170"/>
+        <source>Start selected. Click End freely on the spectrum.</source>
+        <translation>開始位置を選択しました。スペクトル上で終了位置をクリックしてください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="171"/>
+        <source>End must follow Start; BPM must be 0.001–10000.</source>
+        <translation>終了位置は開始位置より後にしてください。BPM は 0.001–10000 の範囲で指定してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="172"/>
+        <source>Δt %1 ms · %2/%3 beat
+%4 BPM</source>
+        <translation>Δt %1 ms · %2/%3 拍
+%4 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="180"/>
+        <source>Multiple timing points share Start. Resolve them before applying.</source>
+        <translation>開始位置に複数のタイミングポイントがあります。適用前に解決してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="181"/>
+        <source>Update the existing timing at Start; preserve its beat triplet.</source>
+        <translation>開始位置の既存タイミングを更新し、拍の分割値を保持します。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="182"/>
+        <source>Add one timing point at Start.</source>
+        <translation>開始位置にタイミングポイントを 1 つ追加します。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="186"/>
+        <source>
+Start must be at or after the first chart timing point.</source>
+        <translation>
+開始位置は譜面の最初のタイミングポイント以降にしてください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="192"/>
+        <source>
+The next timing at [%1, %2, %3] remains in place.</source>
+        <translation>
+次のタイミング [%1, %2, %3] はそのまま残ります。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="196"/>
+        <source> The measured interval crosses it; shorten Beat span before applying.</source>
+        <translation>測定区間がこのポイントをまたいでいます。適用前に拍の長さを短くしてください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="201"/>
+        <source>
+Applying changes later audio times, keeps note beats and offset, and is undoable.</source>
+        <translation>
+適用すると後続の音声時刻が変わりますが、ノートの拍位置とオフセットは維持され、元に戻すこともできます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="211"/>
+        <source>Start [%1,%2,%3]</source>
+        <translation>開始 [%1,%2,%3]</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="242"/>
+        <source>Apply measured BPM</source>
+        <translation>測定した BPM を適用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="243"/>
+        <source>Set %1 BPM at [%2, %3, %4]?</source>
+        <translation>[%2, %3, %4] に BPM %1 を設定しますか？</translation>
+    </message>
+</context>
+<context>
+    <name>TransientPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="169"/>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="170"/>
+        <source>Relative threshold</source>
+        <translation>相対しきい値</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="171"/>
+        <source>Minimum interval</source>
+        <translation>最小間隔</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="173"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="272"/>
+        <source>Waiting for stereo spectrum…</source>
+        <translation>ステレオスペクトルを待機中…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <source>All</source>
+        <translation>すべて</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Low</source>
+        <translation>低域</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Mid</source>
+        <translation>中域</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>High</source>
+        <translation>高域</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="204"/>
+        <source>Curves</source>
+        <translation>曲線</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="208"/>
+        <source>Show rejected peaks</source>
+        <translation>除外したピークを表示</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Audio s</source>
+        <translation>音声 s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Result</source>
+        <translation>結果</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Strength</source>
+        <translation>強度</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Width ms</source>
+        <translation>幅 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="226"/>
+        <source>Peaks</source>
+        <translation>ピーク</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="228"/>
+        <source>Export transient JSON…</source>
+        <translation>トランジェント JSON をエクスポート…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="231"/>
+        <source>Display-band spectral flux; low &lt;250 Hz, mid &lt;2 kHz. Threshold is relative to the loaded audio page. Width measures the onset peak, not sound duration. Double-click a peak to inspect audio.</source>
+        <translation>表示帯域のスペクトルフラックスを表示します。低域 &lt;250 Hz、中域 &lt;2 kHz。しきい値は読み込み済み音声ページに対する相対値です。幅はオンセットピークの幅であり、音の長さではありません。ピークをダブルクリックすると音声を確認できます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="296"/>
+        <source>Analyzing transients…</source>
+        <translation>トランジェントを分析中…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="324"/>
+        <source>%1 detected / %2 rejected · hop %3 ms · audio %4–%5 s</source>
+        <translation>%1 件検出 / %2 件除外 · ホップ %3 ms · 音声 %4–%5 s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="439"/>
+        <source>Export transient JSON</source>
+        <translation>トランジェント JSON をエクスポート</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="440"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="446"/>
+        <source>Export failed: %1</source>
+        <translation>エクスポートに失敗しました: %1</translation>
+    </message>
+</context>
+<context>
+    <name>TransientPlot</name>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="80"/>
+        <source>Audio seconds / onset strength →</source>
+        <translation>音声秒 / オンセット強度 →</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="83"/>
+        <source>Load audio to inspect transients</source>
+        <translation>音声を読み込んでトランジェントを確認</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="138"/>
+        <source>Click to seek · All threshold: dashed</source>
+        <translation>クリックでシーク · 全帯域のしきい値：破線</translation>
+    </message>
+</context>
 </TS>
