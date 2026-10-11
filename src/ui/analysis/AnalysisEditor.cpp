@@ -1065,7 +1065,9 @@ void AnalysisEditor::runTiming()
         m_timingSummary->setText(errors.join('\n'));
         return;
     }
-    clearDiagnostics();
+    // Keep the last completed diagnostics visible while this request runs.
+    // A discarded request has no replacement result, so clearing here would
+    // permanently remove the overlays until another successful analysis.
     m_timingBusy = true;
     m_runTiming->setEnabled(false);
     m_cancelTiming->setEnabled(true);
