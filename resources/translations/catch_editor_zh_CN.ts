@@ -4403,4 +4403,1718 @@ This replaces all current editor settings. Open chart data is not affected.</sou
         <translation>已禁用</translation>
     </message>
 </context>
+<context>
+    <name>AnalysisCanvas</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="270"/>
+        <source>Invalid spectrum result</source>
+        <translation>无效的频谱结果</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="316"/>
+        <source>Load chart audio to inspect stereo spectrum</source>
+        <translation>加载谱面音频以查看立体声频谱</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="342"/>
+        <source>100 Hz</source>
+        <translation>100 Hz</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="342"/>
+        <source>1 kHz</source>
+        <translation>1 kHz</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="342"/>
+        <source>10 kHz</source>
+        <translation>10 kHz</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="484"/>
+        <source>End %1 ms</source>
+        <translation>结束 %1 毫秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="516"/>
+        <source>%1 [%2,%3,%4]</source>
+        <translation>%1 [%2,%3,%4]</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="516"/>
+        <source>Ramp Start</source>
+        <translation>渐变起点</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="516"/>
+        <source>Ramp End</source>
+        <translation>渐变终点</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="601"/>
+        <source>Spectrum · Mono → L / R</source>
+        <translation>频谱 · 单声道 → 左 / 右</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="601"/>
+        <source>Spectrum · L / R</source>
+        <translation>频谱 · 左 / 右</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="604"/>
+        <source> · Preview %1 BPM</source>
+        <translation> · 预览 %1 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="608"/>
+        <source>Measure · End / drag markers</source>
+        <translation>测量 · 结束 / 拖动标记</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="608"/>
+        <source>Measure · pick Start (snap)</source>
+        <translation>测量 · 选择起点（吸附）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="609"/>
+        <source> · BPM interpolation</source>
+        <translation> · BPM 插值</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="610"/>
+        <source>Interpolation · pick Start (snap)</source>
+        <translation>插值 · 选择起点（吸附）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="616"/>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="721"/>
+        <source>Rain</source>
+        <translation>雨滴</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="616"/>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="721"/>
+        <source>Note</source>
+        <translation>音符</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="835"/>
+        <source>Rain end must be later than its start</source>
+        <translation>雨滴终点必须晚于起点</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisConfigPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="43"/>
+        <source>The global preset store is unreadable. Saving is disabled to preserve it; current/imported settings can still be used.</source>
+        <translation>全局预设存储无法读取。为避免覆盖，已禁用保存；仍可使用当前或已导入的设置。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="57"/>
+        <source>Save As…</source>
+        <translation>另存为…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="60"/>
+        <source>Copy preset…</source>
+        <translation>复制预设…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="63"/>
+        <source>Import…</source>
+        <translation>导入…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="66"/>
+        <source>Export…</source>
+        <translation>导出…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="71"/>
+        <source>Save project override</source>
+        <translation>保存项目覆盖项</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="72"/>
+        <source>Clear project override</source>
+        <translation>清除项目覆盖项</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="82"/>
+        <source>Open a chart and provide a valid configuration first.</source>
+        <translation>请先打开谱面并提供有效配置。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="100"/>
+        <source>Project override saved. The .mc chart is unchanged.</source>
+        <translation>已保存项目覆盖配置。`.mc` 谱面未更改。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="116"/>
+        <source>Project override cleared.</source>
+        <translation>已清除项目覆盖配置。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="132"/>
+        <source>Reset section</source>
+        <translation>重置此分区</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="132"/>
+        <source>Reset all</source>
+        <translation>全部重置</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="140"/>
+        <source>Current configuration reset; saved presets and project override are unchanged.</source>
+        <translation>已重置当前配置；已保存的预设和项目覆盖项未更改。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="186"/>
+        <source> · Core build dependent</source>
+        <translation> · 依赖 Core 构建</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="186"/>
+        <source> · stable profile field</source>
+        <translation> · 稳定配置字段</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="187"/>
+        <source>
+CCE Default: %1 · range %2–%3</source>
+        <translation>
+CCE 默认值：%1 · 范围 %2–%3</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="193"/>
+        <source>Reset</source>
+        <translation>重置</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="195"/>
+        <source>Restore this field to the CCE Default</source>
+        <translation>将此项恢复为 CCE 默认值</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="212"/>
+        <source>Window duration / hop pairs in seconds, e.g. [[8,4],[24,12],[48,24]]</source>
+        <translation>窗长/跳步配对（秒），例如 [[8,4],[24,12],[48,24]]</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="223"/>
+        <source>Configuration changed; analyze again.</source>
+        <translation>配置已更改；请重新分析。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="361"/>
+        <source>Analysis window schedule differs from Default.</source>
+        <translation>分析窗口计划与默认值不同。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="363"/>
+        <source>All visible fields use CCE Default values.</source>
+        <translation>所有可见字段均使用 CCE 默认值。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="364"/>
+        <source>Changes from CCE Default:
+</source>
+        <translation>与 CCE 默认值的差异：
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="367"/>
+        <source>Current configuration: modified
+</source>
+        <translation>当前配置：已修改
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="367"/>
+        <source>Current configuration: saved values
+</source>
+        <translation>当前配置：已保存
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="368"/>
+        <source>Default is read-only. Project override: %1</source>
+        <translation>默认配置为只读。项目覆盖：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="368"/>
+        <source>active</source>
+        <translation>生效</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="368"/>
+        <source>none</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="370"/>
+        <source>
+Core: %1
+Snapshot: %2</source>
+        <translation>
+Core：%1
+快照：%2</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="404"/>
+        <source>Invalid project analysis configuration. Restore or clear the sidecar before analyzing.</source>
+        <translation>项目分析配置无效。请先恢复或清除 sidecar 文件，再开始分析。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="413"/>
+        <source>Project base snapshot hash does not match. Restore or clear the sidecar before analyzing.</source>
+        <translation>项目基础快照哈希不匹配。请先恢复或清除 sidecar 文件，再开始分析。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="436"/>
+        <source>Using the saved project base; installed preset is missing or differs.</source>
+        <translation>正在使用已保存的项目基准；已安装预设不存在或内容不同。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="446"/>
+        <source>Project base preset is unavailable. Restore its snapshot or select a preset explicitly.</source>
+        <translation>项目基准预设不可用。请恢复其快照或明确选择其他预设。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="457"/>
+        <source>Unsupported/incomplete project analysis configuration.</source>
+        <translation>不支持或不完整的项目分析配置。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="484"/>
+        <source>Project Debug overrides target another Core build and are inactive.</source>
+        <translation>项目 Debug 覆盖项针对其他 Core 构建，因此当前未生效。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="490"/>
+        <source>Project analysis configuration cannot be read (maximum 1 MiB).</source>
+        <translation>无法读取项目分析配置（最大 1 MiB）。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="501"/>
+        <source>Global preset store is unreadable; it will not be overwritten.</source>
+        <translation>全局预设存储无法读取；不会覆盖该文件。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="514"/>
+        <source>Save analysis preset</source>
+        <translation>保存分析预设</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="514"/>
+        <source>New name (Default is read-only)</source>
+        <translation>新名称（Default 为只读）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="522"/>
+        <source>Choose an unused preset name.</source>
+        <translation>请选择尚未使用的预设名称。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="546"/>
+        <source>Preset saved.</source>
+        <translation>已保存预设。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="551"/>
+        <source>Import analysis profile</source>
+        <translation>导入分析配置</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="551"/>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="610"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="557"/>
+        <source>Cannot read profile (maximum 1 MiB).</source>
+        <translation>无法读取配置文件（最大 1 MiB）。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="567"/>
+        <source>Invalid profile JSON; configuration unchanged.</source>
+        <translation>配置文件 JSON 无效；配置未更改。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="584"/>
+        <source>Replace current analysis configuration</source>
+        <translation>替换当前分析配置</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="585"/>
+        <source>%1 field(s) will change:
+%2
+%3
+Saved presets are preserved. This does not start an analysis.</source>
+        <translation>%1 个字段将更改：
+%2
+%3
+已保存的预设将保留。此操作不会开始分析。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="609"/>
+        <source>Export effective profile</source>
+        <translation>导出当前生效配置</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="614"/>
+        <source>Effective profile exported.</source>
+        <translation>已导出当前生效配置。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="634"/>
+        <source>Section reset in current configuration.</source>
+        <translation>已重置当前配置中的此分区。</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisEditor</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="92"/>
+        <source>CCE — Analysis Editor</source>
+        <translation>CCE — 分析编辑器</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="99"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="498"/>
+        <source>Analysis Editor</source>
+        <translation>分析编辑器</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="107"/>
+        <source>Normal</source>
+        <translation>普通</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="107"/>
+        <source>Advanced</source>
+        <translation>高级</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="107"/>
+        <source>Debug</source>
+        <translation>调试</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="111"/>
+        <source>Musical time</source>
+        <translation>拍时间</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="111"/>
+        <source>Audio time</source>
+        <translation>音频时间</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="113"/>
+        <source>Sync visible range</source>
+        <translation>同步可见范围</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="121"/>
+        <source>Independent vertical zoom. Ctrl + wheel also zooms.</source>
+        <translation>独立垂直缩放。也可按住 Ctrl 滚动滚轮。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="172"/>
+        <source>Measure</source>
+        <translation>测量</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="173"/>
+        <source>AutoTiming</source>
+        <translation>AutoTiming</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="175"/>
+        <source>Interpolate</source>
+        <translation>插值</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="177"/>
+        <source>Timing</source>
+        <translation>变速</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="192"/>
+        <source>Transient</source>
+        <translation>瞬态</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="199"/>
+        <source>Timbre</source>
+        <translation>音色</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="200"/>
+        <source>Future: spectral features, event groups and stereo characteristics.</source>
+        <translation>未来功能：频谱特征、事件分组和立体声特性。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="201"/>
+        <source>Tracks</source>
+        <translation>音轨</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="201"/>
+        <source>Future: pseudo tracks, continuity and preferred track.</source>
+        <translation>未来功能：伪音轨、连续性和首选音轨。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="203"/>
+        <source>Generation</source>
+        <translation>生成</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="204"/>
+        <source>Future: density, importance and charting rules. Candidates will use ghost preview before a separate undoable commit.</source>
+        <translation>未来功能：密度、重要性和制谱规则。候选结果将先以幽灵预览显示，再单独执行可撤销的提交。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="207"/>
+        <source>Diagnostics</source>
+        <translation>诊断</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="239"/>
+        <source>Configuration</source>
+        <translation>配置</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="258"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="351"/>
+        <source>Play</source>
+        <translation>播放</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="264"/>
+        <source>Loop range</source>
+        <translation>循环区间</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="267"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="283"/>
+        <source>Undo</source>
+        <translation>撤销</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="267"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="285"/>
+        <source>Redo</source>
+        <translation>重做</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="270"/>
+        <source>Note: left add / right delete · Rain: two clicks · Shift drag: time range</source>
+        <translation>提示：左键添加 / 右键删除 · 雨滴：点击两次 · Shift 拖动：选择时间范围</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="287"/>
+        <source>Delete selected notes</source>
+        <translation>删除所选音符</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="302"/>
+        <source>Play / Pause</source>
+        <translation>播放 / 暂停</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="351"/>
+        <source>Pause</source>
+        <translation>暂停</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="374"/>
+        <source> beat / px</source>
+        <translation> 拍 / 像素</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="374"/>
+        <source> ms / px</source>
+        <translation> 毫秒 / 像素</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="454"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="661"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="667"/>
+        <source> s</source>
+        <translation> 秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="499"/>
+        <source>Analysis Editor · %1</source>
+        <translation>分析编辑器 · %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="536"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1059"/>
+        <source>Chart audio is unavailable</source>
+        <translation>谱面音频不可用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="543"/>
+        <source>Zoom in to inspect spectrum (visible range ≤ 100 s)</source>
+        <translation>放大以查看频谱（可见范围 ≤ 100 秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="587"/>
+        <source>Stereo spectrum ready · gutters: peak / RMS</source>
+        <translation>立体声频谱已就绪 · 边栏：峰值 / RMS</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="614"/>
+        <source>Preloading adjacent spectrum…</source>
+        <translation>正在预加载相邻频谱…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="616"/>
+        <source>Decoding stereo spectrum…</source>
+        <translation>正在解码立体声频谱…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="643"/>
+        <source>Invalid spectrum result</source>
+        <translation>无效的频谱结果</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="668"/>
+        <source>Audio start</source>
+        <translation>音频起点</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="669"/>
+        <source>Duration</source>
+        <translation>时长</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="672"/>
+        <source>Use range</source>
+        <translation>使用区间</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="672"/>
+        <source>Use visible</source>
+        <translation>使用可见范围</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="686"/>
+        <source>Enable experimental subdivision analysis</source>
+        <translation>启用实验性细分分析</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="688"/>
+        <source>Raw periodicity evidence is always available. Semantic rhythm profiles require Core&apos;s confidence gates.</source>
+        <translation>始终提供原始周期性证据。语义节奏型分析需通过 Core 的置信度门限。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="691"/>
+        <source>Prefer local tempo evidence</source>
+        <translation>优先使用局部节奏证据</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="711"/>
+        <source>Analyze timing</source>
+        <translation>分析节奏</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="713"/>
+        <source>Cancel / discard</source>
+        <translation>取消 / 丢弃</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="720"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1141"/>
+        <source>Analyze audio to inspect AutoTiming intermediate results.</source>
+        <translation>分析音频以查看 AutoTiming 中间结果。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="785"/>
+        <source>Candidates</source>
+        <translation>候选项</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="789"/>
+        <source>Windows</source>
+        <translation>窗口</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="792"/>
+        <source>Window candidates</source>
+        <translation>窗口候选项</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="795"/>
+        <source>Track</source>
+        <translation>音轨</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="798"/>
+        <source>Segments</source>
+        <translation>分段</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="800"/>
+        <source>Grid fit</source>
+        <translation>网格拟合</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="803"/>
+        <source>Periodicity evidence</source>
+        <translation>周期性证据</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="807"/>
+        <source>Subdivision evidence</source>
+        <translation>细分证据</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="810"/>
+        <source>Uncertainty</source>
+        <translation>不确定性</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="813"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="958"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1134"/>
+        <source>Select a candidate or an analysis window to inspect its phase.</source>
+        <translation>选择一个候选项或分析窗口以查看其相位。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="820"/>
+        <source>Preview candidate grid</source>
+        <translation>预览候选网格</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="823"/>
+        <source>Constant BPM reference at the reported absolute pulse. Cyan lines are limited to the analyzed range. Chart timing and placement snap stay unchanged.</source>
+        <translation>报告绝对脉冲位置处的恒定 BPM 参考线。青色线条仅显示在分析范围内。谱面变速与放置吸附设置保持不变。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="825"/>
+        <source>Go to pulse</source>
+        <translation>跳转到脉冲</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="831"/>
+        <source>Preview fitted tempo map</source>
+        <translation>预览拟合节奏图</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="833"/>
+        <source>Show analysis tracks</source>
+        <translation>显示分析音轨</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="836"/>
+        <source>Preview and apply reliable tempo changes…</source>
+        <translation>预览并应用可靠的节奏变化…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="857"/>
+        <source>Double-click a window to inspect its local candidates and audio. Global candidates currently carry tempo only. Scores/costs are diagnostics, not probabilities.</source>
+        <translation>双击窗口以检查其中的局部候选项和音频。全局候选项目前仅包含节奏信息。评分/成本属于诊断指标，并非概率。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="937"/>
+        <source>Window #%1 has no tempo candidates.</source>
+        <translation>窗口 #%1 没有节奏候选项。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="961"/>
+        <source>Window #%1 · %2–%3 s</source>
+        <translation>窗口 #%1 · %2–%3 秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="965"/>
+        <source>Global candidate</source>
+        <translation>全局候选项</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="967"/>
+        <source>%1
+%2 BPM · pulse %3
+Phase confidence %4 · legacy offset %5 ms</source>
+        <translation>%1
+%2 BPM · 脉冲 %3
+相位置信度 %4 · 旧版偏移 %5 毫秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="970"/>
+        <source>%1 s</source>
+        <translation>%1 秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="970"/>
+        <source>unavailable (tempo only)</source>
+        <translation>不可用（仅节奏）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1014"/>
+        <source>Legacy: %1 BPM / offset %2 ms
+Analysis: %3 · %4 windows · confidence %5
+Grid max residual: %6 ms · BPM list model error: %7 ms</source>
+        <translation>旧版：%1 BPM / 偏移 %2 毫秒
+分析：%3 · %4 个窗口 · 置信度 %5
+网格最大残差：%6 毫秒 · BPM 列表模型误差：%7 毫秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1016"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1018"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1023"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1026"/>
+        <source>unavailable</source>
+        <translation>不可用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1062"/>
+        <source>Requested interval exceeds the remaining audio. Choose an exact interval within the file.</source>
+        <translation>请求的区间超出了剩余音频范围。请选择文件内的确切区间。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1075"/>
+        <source>Analyzing… Cancel discards the result; an active Core calculation finishes in the background.</source>
+        <translation>正在分析…取消将丢弃结果；正在运行的 Core 计算会在后台完成。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1086"/>
+        <source>Previous analysis finished and was discarded. Analyze the current configuration when ready.</source>
+        <translation>上一次分析已完成，结果已丢弃。准备好后请按当前配置重新分析。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1106"/>
+        <source>The previous analysis is still finishing.</source>
+        <translation>上一次分析仍在完成中。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1114"/>
+        <source>Result discarded. Waiting for the analysis worker to finish…</source>
+        <translation>已丢弃结果。正在等待分析工作线程结束…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1147"/>
+        <source>No diagnostic result to export</source>
+        <translation>没有可导出的诊断结果</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1150"/>
+        <source>Export diagnostic JSON</source>
+        <translation>导出诊断 JSON</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1151"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1157"/>
+        <source>Export failed: %1</source>
+        <translation>导出失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1159"/>
+        <source>Diagnostic JSON exported</source>
+        <translation>已导出诊断 JSON</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1249"/>
+        <source>Configuration/range changed. These results belong to the previous input settings; analyze again before preview or apply.</source>
+        <translation>配置/范围已更改。这些结果对应之前的输入设置；请重新分析后再预览或应用。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1296"/>
+        <source>Baseline observed tempo</source>
+        <translation>基线观测节奏</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1306"/>
+        <source>Selected periodicity evidence</source>
+        <translation>选定的周期性证据</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1344"/>
+        <source>Suggested tempo: %1 BPM
+</source>
+        <translation>建议节奏：%1 BPM
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1348"/>
+        <source>Tempo suggestion has supporting evidence.</source>
+        <translation>节奏建议有证据支持。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1351"/>
+        <source>Tempo suggestion is uncertain; inspect coverage and competing candidates.</source>
+        <translation>节奏建议不确定；请检查覆盖范围和竞争候选项。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1354"/>
+        <source>No supported tempo suggestion is available.</source>
+        <translation>没有可用的、得到支持的节奏建议。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1357"/>
+        <source>
+%1 tempo candidates · %2 analysis windows. Preview does not change the chart.</source>
+        <translation>
+%1 个节奏候选项 · %2 个分析窗口。预览不会更改谱面。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1395"/>
+        <source>Preparing whole-audio RMS / peak overview…</source>
+        <translation>正在准备整段音频 RMS / 峰值概览…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1427"/>
+        <source>Apply AutoTiming tempo map</source>
+        <translation>应用 AutoTiming 节奏图</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1428"/>
+        <source>Replace only reliable tempo-change intervals from %1 to %2 seconds with %3 generated timing entries. Model error: %4 ms.</source>
+        <translation>仅替换 %1 至 %2 秒内可靠的节奏变化区间，并生成 %3 个变速点。模型误差：%4 毫秒。</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisWorkbench</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="42"/>
+        <source>Load record…</source>
+        <translation>加载记录…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="42"/>
+        <source>Export diagnostics…</source>
+        <translation>导出诊断数据…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="46"/>
+        <source>Export comparison…</source>
+        <translation>导出对比…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="56"/>
+        <source>Load a baseline first.</source>
+        <translation>请先加载基线。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="59"/>
+        <source>Export local comparison</source>
+        <translation>导出本地对比</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="60"/>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="69"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="69"/>
+        <source>Load local analysis record</source>
+        <translation>加载本地分析记录</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="107"/>
+        <source>Curves follow the spectrum time axis. Observation/model residuals are separate from reference accuracy. Orange regions: uncertainty; green grid: fitted model.</source>
+        <translation>曲线沿用频谱时间轴。观测/模型残差与参考准确度分开统计。橙色区域：不确定性；绿色网格：拟合模型。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="115"/>
+        <source>Observed tempo (BPM)</source>
+        <translation>观测节奏（BPM）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="116"/>
+        <source>Confidence (raw)</source>
+        <translation>置信度（原始值）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="117"/>
+        <source>Phase confidence (raw)</source>
+        <translation>相位置信度（原始值）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="118"/>
+        <source>Observation / model residual (ms)</source>
+        <translation>观测/模型残差（毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="119"/>
+        <source>Periodicity (events/min)</source>
+        <translation>周期性（事件/分钟）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="120"/>
+        <source>Uncertainty regions</source>
+        <translation>不确定区间</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="121"/>
+        <source>Baseline tempo (same input)</source>
+        <translation>基线节奏（相同输入）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="122"/>
+        <source>Spectrum RMS / peak</source>
+        <translation>频谱 RMS / 峰值</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="123"/>
+        <source>Transient flux</source>
+        <translation>瞬态通量</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="124"/>
+        <source>Transient peaks (accepted / rejected)</source>
+        <translation>瞬态峰值（接受/剔除）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="125"/>
+        <source>Candidate pulses</source>
+        <translation>候选节拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="151"/>
+        <source>Overview</source>
+        <translation>概览</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="151"/>
+        <source>Tempo</source>
+        <translation>节奏</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="151"/>
+        <source>Rhythm</source>
+        <translation>节奏型</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="152"/>
+        <source>Overview / Compare</source>
+        <translation>概览/对比</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="153"/>
+        <source>Tempo / Phase</source>
+        <translation>节奏/相位</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="154"/>
+        <source>Rhythm / Evidence</source>
+        <translation>节奏型/依据</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="159"/>
+        <source>Load existing records. No tests run when this page opens. Unannotated audio has no accuracy PASS.</source>
+        <translation>加载已有记录。打开此页面时不会运行测试。未经标注的音频不显示准确度 PASS。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="165"/>
+        <source>Case / Mode</source>
+        <translation>案例/模式</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="165"/>
+        <source>Recorded status</source>
+        <translation>记录状态</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="165"/>
+        <source>Reference type</source>
+        <translation>参考类型</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="166"/>
+        <source>Strict max</source>
+        <translation>严格上限</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="166"/>
+        <source>Phase max (ms)</source>
+        <translation>相位最大误差（毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="166"/>
+        <source>Coverage / reason</source>
+        <translation>覆盖范围/原因</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="176"/>
+        <source>Current diagnostics</source>
+        <translation>当前诊断</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="181"/>
+        <source>Loaded record</source>
+        <translation>已加载记录</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="183"/>
+        <source>Reference</source>
+        <translation>参考</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="184"/>
+        <source>Reference / Tests</source>
+        <translation>参考/测试</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="194"/>
+        <source>This case is not paired with the current audio hash. Audio navigation is unavailable.</source>
+        <translation>此案例与当前音频哈希不匹配，无法在音频中定位。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="290"/>
+        <source>Final selected result</source>
+        <translation>最终选定结果</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="295"/>
+        <source> (selected by Core)</source>
+        <translation>（由 Core 选定）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="295"/>
+        <source> (alternative)</source>
+        <translation>（备选）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="308"/>
+        <source>unavailable</source>
+        <translation>不可用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="315"/>
+        <source>Analyze audio to inspect results.</source>
+        <translation>请先分析音频以查看结果。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="316"/>
+        <source>Legacy BPM: %1 · Legacy offset: %2 ms
+Analysis: %3 · Core: %4
+Requested: %5 ms + %6 ms · Actual: %7 ms + %8 s
+Input: %9
+Config hash: %10
+Observation/model |residual| P50 / P90 / max: %11 / %12 / %13 ms
+BPM list/model error: %14 ms · not reference accuracy</source>
+        <translation>旧版 BPM：%1 · 旧版偏移：%2 毫秒
+分析：%3 · Core：%4
+请求范围：%5 毫秒 + %6 毫秒 · 实际范围：%7 毫秒 + %8 秒
+输入：%9
+配置哈希：%10
+观测/模型 |残差| P50 / P90 / 最大值：%11 / %12 / %13 毫秒
+BPM 列表/模型误差：%14 毫秒 · 非参考准确度</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="328"/>
+        <source>Result state: %1
+</source>
+        <translation>结果状态：%1
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="353"/>
+        <source>Load a same-input baseline to compare. Scores and costs are not probabilities.</source>
+        <translation>加载相同输入的基线以进行对比。评分和成本不是概率。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="360"/>
+        <source>Same decoded input verified; options and Core versions are recorded independently.
+</source>
+        <translation>已确认解码后输入相同；选项和 Core 版本分别记录。
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="361"/>
+        <source>Inputs are not verified identical. Browsing only; accuracy comparison unavailable.
+</source>
+        <translation>尚未确认输入相同。仅可浏览；无法比较准确度。
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="366"/>
+        <source>Current coverage: %1–%2 s; baseline: %3–%4 s
+Common interval: %5; unmatched edges retained.
+Current config: %6; baseline config: %7
+Current Core: %8; baseline Core: %9</source>
+        <translation>当前覆盖范围：%1–%2 秒；基线：%3–%4 秒
+共同区间：%5；保留未匹配的边界。
+当前配置：%6；基线配置：%7
+当前 Core：%8；基线 Core：%9</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="370"/>
+        <source>none</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="382"/>
+        <source>Cannot read record (maximum 32 MiB).</source>
+        <translation>无法读取记录（最大 32 MiB）。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="390"/>
+        <source>Invalid record JSON.</source>
+        <translation>记录 JSON 无效。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="397"/>
+        <source>Unsupported diagnostics schema; current results unchanged.</source>
+        <translation>不支持此诊断数据架构；当前结果未更改。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="406"/>
+        <source>Incomplete comparison record.</source>
+        <translation>对比记录不完整。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="415"/>
+        <source>Unsupported nested diagnostics schema; records unchanged.</source>
+        <translation>不支持嵌套诊断数据架构；记录未更改。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="427"/>
+        <source>Expected diagnostics or a corpus/benchmark summary.</source>
+        <translation>需要诊断数据或语料库/基准测试摘要。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="478"/>
+        <source>Showing %1 of %2 existing records. Statuses are recorded results, not a new verification. Source/reference pairing is required before accuracy or navigation. No test was started.</source>
+        <translation>正在显示 %2 条已有记录中的 %1 条。状态为已记录的结果，并非本次重新验证。比较准确度或进行定位前，需要匹配源码与参考数据。本次未启动测试。</translation>
+    </message>
+</context>
+<context>
+    <name>AudioOverview</name>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="12"/>
+        <source>Whole-audio relative energy (RMS / peak), not Note density or LUFS. Click or drag to navigate.</source>
+        <translation>整段音频的相对能量（RMS / 峰值），不代表音符密度或 LUFS。单击或拖动以导航。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="71"/>
+        <source>Audio energy</source>
+        <translation>音频能量</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="75"/>
+        <source>Link audio for whole-track navigation.</source>
+        <translation>关联音频后可浏览整段音轨。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="114"/>
+        <source>%1 s</source>
+        <translation>%1 秒</translation>
+    </message>
+</context>
+<context>
+    <name>TimingInterpolationPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="43"/>
+        <source>BPM varies linearly with beat. Stored segment BPMs match the exact curve duration; difficult regions subdivide locally to stay below the error limit.</source>
+        <translation>BPM 随拍数线性变化。已存储的分段 BPM 与曲线对应的精确时长一致；复杂区段会局部细分以满足误差上限。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="47"/>
+        <source>Pick Start on spectrum</source>
+        <translation>在频谱上选择起点</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="68"/>
+        <source>Start beat</source>
+        <translation>起始拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="69"/>
+        <source>End beat</source>
+        <translation>结束拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="81"/>
+        <source>Start BPM</source>
+        <translation>起始 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="82"/>
+        <source>End BPM</source>
+        <translation>结束 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="85"/>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="89"/>
+        <source>Beat length</source>
+        <translation>拍长</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="85"/>
+        <source>Start / End beat</source>
+        <translation>起始/结束拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="85"/>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="91"/>
+        <source>Duration ms</source>
+        <translation>持续时间（毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="86"/>
+        <source>Range via</source>
+        <translation>区间方式</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="94"/>
+        <source>Maximum spacing in beats; decimal or fraction. Default 1 beat.</source>
+        <translation>最大间隔（拍）；可输入小数或分数，默认为 1 拍。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="95"/>
+        <source>Maximum gap</source>
+        <translation>最大间距</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="97"/>
+        <source> ms</source>
+        <translation> 毫秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="98"/>
+        <source>Error below</source>
+        <translation>误差上限</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="100"/>
+        <source>Resume chart BPM at End</source>
+        <translation>在终点恢复谱面 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="103"/>
+        <source>On: restore the original active BPM at End. Off: continue the specified End BPM. Later timing points keep their original beat coordinates and BPM.</source>
+        <translation>选中时：在终点恢复原本生效的 BPM。未选中时：继续使用指定的结束 BPM。后续变速点保留原有拍数坐标和 BPM。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="105"/>
+        <source>Preview interpolation</source>
+        <translation>预览插值</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Beat</source>
+        <translation>拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Audio ms</source>
+        <translation>音频时间（毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Stored BPM</source>
+        <translation>已存储 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Error ms</source>
+        <translation>误差（毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="123"/>
+        <source>Rebuild preview</source>
+        <translation>重新生成预览</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="125"/>
+        <source>Apply interpolation…</source>
+        <translation>应用插值…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="127"/>
+        <source>Export interpolation JSON…</source>
+        <translation>导出插值 JSON…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="193"/>
+        <source>Chart changed. Rebuild preview before applying.</source>
+        <translation>谱面已更改。请重新生成预览后再应用。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="204"/>
+        <source>Updating preview…</source>
+        <translation>正在更新预览…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="231"/>
+        <source>Enter valid beats, a positive length/gap and Start at or after the first timing.</source>
+        <translation>请输入有效拍数、正的长度/间隔，并确保起点不早于第一个变速点。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="233"/>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="285"/>
+        <source>Existing timing contains duplicate/invalid points. Resolve them before applying.</source>
+        <translation>现有变速点存在重复或无效项。请先解决再应用。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="267"/>
+        <source>The complete timing list exceeds 100000 points.</source>
+        <translation>完整变速点列表超过 100000 个。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="288"/>
+        <source>Stored chart timing or duration rounding exceeds the requested error bound.</source>
+        <translation>已存储的谱面变速信息或时长舍入误差超过指定上限。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="303"/>
+        <source>%1 → %2 · %3 segments
+Curve %4 → %5 BPM · %6 ms
+Maximum interior error %7 ms; node drift %8 ms; duration residual %9 ms.
+Replace %10 timing points in range. %11 Notes keep their beat coordinates.
+At End: %12. Later timing beats/BPM stay unchanged; audio times may move.%13</source>
+        <translation>%1 → %2 · %3 个分段
+曲线 %4 → %5 BPM · %6 毫秒
+最大内部误差 %7 毫秒；节点漂移 %8 毫秒；时长残差 %9 毫秒。
+替换区间内的 %10 个变速点。%11 个音符保持原拍坐标。
+终点处理：%12。后续变速点的拍数/BPM 保持不变；音频时间可能移动。%13</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="311"/>
+        <source>resume chart BPM</source>
+        <translation>恢复谱面 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="311"/>
+        <source>continue End BPM</source>
+        <translation>继续使用结束 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="312"/>
+        <source>
+Table shows the first 200 points; JSON includes every point.</source>
+        <translation>
+表格仅显示前 200 个点；JSON 包含全部点。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="332"/>
+        <source>Apply BPM interpolation</source>
+        <translation>应用 BPM 插值</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="333"/>
+        <source>Replace %1 timing points with %2 points in %3 → %4?</source>
+        <translation>将区间 %3 → %4 内的 %1 个变速点替换为 %2 个？</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="366"/>
+        <source>Export interpolation JSON</source>
+        <translation>导出插值 JSON</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="366"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="371"/>
+        <source>Export failed: %1</source>
+        <translation>导出失败：%1</translation>
+    </message>
+</context>
+<context>
+    <name>TimingToolsPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="27"/>
+        <source>Pick Start on the chart grid, then End freely on the spectrum. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</source>
+        <translation>在谱面网格上选择起点，再在频谱上任意选择终点。拖动标记可调整位置。Ctrl + 滚轮缩放；按 Tab 编辑拍跨度。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="31"/>
+        <source>Pick Start → End</source>
+        <translation>选择起点 → 终点</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="35"/>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="167"/>
+        <source>Click the spectrum to choose Start</source>
+        <translation>点击频谱以选择起点</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="39"/>
+        <source>Start beat</source>
+        <translation>起始拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="44"/>
+        <source> ms</source>
+        <translation> 毫秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="47"/>
+        <source>End audio time</source>
+        <translation>音频终点时间</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="50"/>
+        <source>1, 0.5, 1/3, 4…</source>
+        <translation>1, 0.5, 1/3, 4…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="51"/>
+        <source>Measured interval in beats. Positive decimal or fraction; default 1 beat.</source>
+        <translation>测得的拍间距。输入正的小数或分数；默认为 1 拍。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="52"/>
+        <source>Beat span</source>
+        <translation>拍跨度</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="54"/>
+        <source>Preview measured grid</source>
+        <translation>预览测量网格</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="67"/>
+        <source>Copy BPM</source>
+        <translation>复制 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="70"/>
+        <source>Apply BPM at Start</source>
+        <translation>在起点应用 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="73"/>
+        <source>Clear / measure again</source>
+        <translation>清除 / 重新测量</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="164"/>
+        <source>[%1, %2, %3] · %4 ms</source>
+        <translation>[%1, %2, %3] · %4 毫秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="168"/>
+        <source>Enter a positive decimal or fraction (up to 9 decimal places).</source>
+        <translation>请输入正的小数或分数（最多 9 位小数）。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="169"/>
+        <source>Default interval: 1 beat. Enable Pick to begin.</source>
+        <translation>默认间隔：1 拍。启用“选择起点”后即可开始。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="170"/>
+        <source>Start selected. Click End freely on the spectrum.</source>
+        <translation>已选择起点。请在频谱上任意点击终点。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="171"/>
+        <source>End must follow Start; BPM must be 0.001–10000.</source>
+        <translation>终点必须晚于起点；BPM 范围为 0.001–10000。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="172"/>
+        <source>Δt %1 ms · %2/%3 beat
+%4 BPM</source>
+        <translation>Δt %1 毫秒 · %2/%3 拍
+%4 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="180"/>
+        <source>Multiple timing points share Start. Resolve them before applying.</source>
+        <translation>起点处存在多个变速点。请先解决冲突再应用。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="181"/>
+        <source>Update the existing timing at Start; preserve its beat triplet.</source>
+        <translation>更新起点处的现有变速点；保留其拍数三元组。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="182"/>
+        <source>Add one timing point at Start.</source>
+        <translation>在起点添加一个变速点。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="186"/>
+        <source>
+Start must be at or after the first chart timing point.</source>
+        <translation>
+起点不得早于谱面的第一个变速点。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="192"/>
+        <source>
+The next timing at [%1, %2, %3] remains in place.</source>
+        <translation>
+后续位于 [%1, %2, %3] 的变速点保持不变。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="196"/>
+        <source> The measured interval crosses it; shorten Beat span before applying.</source>
+        <translation>测量区间跨越了该变速点；请缩短拍跨度后再应用。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="201"/>
+        <source>
+Applying changes later audio times, keeps note beats and offset, and is undoable.</source>
+        <translation>
+应用后会改变后续音频时间，但保留音符拍数和偏移量，并且可撤销。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="211"/>
+        <source>Start [%1,%2,%3]</source>
+        <translation>起点 [%1,%2,%3]</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="242"/>
+        <source>Apply measured BPM</source>
+        <translation>应用测得的 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="243"/>
+        <source>Set %1 BPM at [%2, %3, %4]?</source>
+        <translation>在 [%2, %3, %4] 将 BPM 设为 %1？</translation>
+    </message>
+</context>
+<context>
+    <name>TransientPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="169"/>
+        <source> ms</source>
+        <translation> 毫秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="170"/>
+        <source>Relative threshold</source>
+        <translation>相对阈值</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="171"/>
+        <source>Minimum interval</source>
+        <translation>最小间隔</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="173"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="272"/>
+        <source>Waiting for stereo spectrum…</source>
+        <translation>等待立体声频谱…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <source>All</source>
+        <translation>全部</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Low</source>
+        <translation>低频</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Mid</source>
+        <translation>中频</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>High</source>
+        <translation>高频</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="204"/>
+        <source>Curves</source>
+        <translation>曲线</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="208"/>
+        <source>Show rejected peaks</source>
+        <translation>显示已剔除的峰值</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Audio s</source>
+        <translation>音频时间（秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Result</source>
+        <translation>结果</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Strength</source>
+        <translation>强度</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Width ms</source>
+        <translation>宽度（毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="226"/>
+        <source>Peaks</source>
+        <translation>峰值</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="228"/>
+        <source>Export transient JSON…</source>
+        <translation>导出瞬态 JSON…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="231"/>
+        <source>Display-band spectral flux; low &lt;250 Hz, mid &lt;2 kHz. Threshold is relative to the loaded audio page. Width measures the onset peak, not sound duration. Double-click a peak to inspect audio.</source>
+        <translation>显示频带谱通量；低频 &lt;250 Hz，中频 &lt;2 kHz。阈值相对于已加载的音频页。宽度表示起音峰的宽度，不代表声音持续时间。双击峰值可检查音频。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="296"/>
+        <source>Analyzing transients…</source>
+        <translation>正在分析瞬态…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="324"/>
+        <source>%1 detected / %2 rejected · hop %3 ms · audio %4–%5 s</source>
+        <translation>%1 个检测 / %2 个剔除 · 跳步 %3 毫秒 · 音频 %4–%5 秒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="439"/>
+        <source>Export transient JSON</source>
+        <translation>导出瞬态 JSON</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="440"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="446"/>
+        <source>Export failed: %1</source>
+        <translation>导出失败：%1</translation>
+    </message>
+</context>
+<context>
+    <name>TransientPlot</name>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="80"/>
+        <source>Audio seconds / onset strength →</source>
+        <translation>音频秒数 / 起音强度 →</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="83"/>
+        <source>Load audio to inspect transients</source>
+        <translation>加载音频以查看瞬态</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="138"/>
+        <source>Click to seek · All threshold: dashed</source>
+        <translation>单击以定位 · 全频阈值：虚线</translation>
+    </message>
+</context>
 </TS>
