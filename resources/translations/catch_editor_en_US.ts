@@ -4279,6 +4279,178 @@ Do you want to rename the imported file?</translation>
 <context>
     <name>AnalysisConfigPanel</name>
     <message>
+        <source>Tempo</source>
+        <translation>Tempo</translation>
+    </message>
+    <message>
+        <source>Phase</source>
+        <translation>Phase</translation>
+    </message>
+    <message>
+        <source>Rhythm</source>
+        <translation>Rhythm</translation>
+    </message>
+    <message>
+        <source>Windows</source>
+        <translation>Windows</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Export</translation>
+    </message>
+    <message>
+        <source>Prefer local tempo evidence</source>
+        <translation>Prefer local tempo evidence</translation>
+    </message>
+    <message>
+        <source>Minimum tempo (BPM)</source>
+        <translation>Minimum tempo (BPM)</translation>
+    </message>
+    <message>
+        <source>Maximum tempo (BPM)</source>
+        <translation>Maximum tempo (BPM)</translation>
+    </message>
+    <message>
+        <source>Fine tempo tracking</source>
+        <translation>Fine tempo tracking</translation>
+    </message>
+    <message>
+        <source>Fine window (s)</source>
+        <translation>Fine window (s)</translation>
+    </message>
+    <message>
+        <source>Fine hop (s)</source>
+        <translation>Fine hop (s)</translation>
+    </message>
+    <message>
+        <source>Maximum tracked gap (s)</source>
+        <translation>Maximum tracked gap (s)</translation>
+    </message>
+    <message>
+        <source>Experimental subdivision analysis</source>
+        <translation>Experimental subdivision analysis</translation>
+    </message>
+    <message>
+        <source>BPM list error budget (ms)</source>
+        <translation>BPM list error budget (ms)</translation>
+    </message>
+    <message>
+        <source>Maximum BPM list entries</source>
+        <translation>Maximum BPM list entries</translation>
+    </message>
+    <message>
+        <source>Minimum window (s)</source>
+        <translation>Minimum window (s)</translation>
+    </message>
+    <message>
+        <source>Tempo agreement tolerance</source>
+        <translation>Tempo agreement tolerance</translation>
+    </message>
+    <message>
+        <source>Anchor reliability gate</source>
+        <translation>Anchor reliability gate</translation>
+    </message>
+    <message>
+        <source>Onset periodicity gate</source>
+        <translation>Onset periodicity gate</translation>
+    </message>
+    <message>
+        <source>Local candidate limit</source>
+        <translation>Local candidate limit</translation>
+    </message>
+    <message>
+        <source>Global candidate limit</source>
+        <translation>Global candidate limit</translation>
+    </message>
+    <message>
+        <source>Phase back-propagation (s)</source>
+        <translation>Phase back-propagation (s)</translation>
+    </message>
+    <message>
+        <source>Continuous slope (octaves/s)</source>
+        <translation>Continuous slope (octaves/s)</translation>
+    </message>
+    <message>
+        <source>Tempo transition penalty</source>
+        <translation>Tempo transition penalty</translation>
+    </message>
+    <message>
+        <source>Slope change penalty</source>
+        <translation>Slope change penalty</translation>
+    </message>
+    <message>
+        <source>Phase transition penalty</source>
+        <translation>Phase transition penalty</translation>
+    </message>
+    <message>
+        <source>Periodicity layer limit</source>
+        <translation>Periodicity layer limit</translation>
+    </message>
+    <message>
+        <source>High-rate rhythm analysis</source>
+        <translation>High-rate rhythm analysis</translation>
+    </message>
+    <message>
+        <source>Minimum high rhythm rate</source>
+        <translation>Minimum high rhythm rate</translation>
+    </message>
+    <message>
+        <source>Maximum high rhythm rate</source>
+        <translation>Maximum high rhythm rate</translation>
+    </message>
+    <message>
+        <source>Rhythm periodicity gate</source>
+        <translation>Rhythm periodicity gate</translation>
+    </message>
+    <message>
+        <source>Raw rhythm candidate limit</source>
+        <translation>Raw rhythm candidate limit</translation>
+    </message>
+    <message>
+        <source>Rhythm layer confidence gate</source>
+        <translation>Rhythm layer confidence gate</translation>
+    </message>
+    <message>
+        <source>Strong rhythm confidence gate</source>
+        <translation>Strong rhythm confidence gate</translation>
+    </message>
+    <message>
+        <source>Semantic phase gate</source>
+        <translation>Semantic phase gate</translation>
+    </message>
+    <message>
+        <source>Semantic pulse coverage gate</source>
+        <translation>Semantic pulse coverage gate</translation>
+    </message>
+    <message>
+        <source>Semantic transient density gate</source>
+        <translation>Semantic transient density gate</translation>
+    </message>
+    <message>
+        <source>Semantic support windows</source>
+        <translation>Semantic support windows</translation>
+    </message>
+    <message>
+        <source>Rhythm profile limit</source>
+        <translation>Rhythm profile limit</translation>
+    </message>
+    <message>
+        <source>Minimum semantic subdivision</source>
+        <translation>Minimum semantic subdivision</translation>
+    </message>
+    <message>
+        <source>Maximum subdivision</source>
+        <translation>Maximum subdivision</translation>
+    </message>
+    <message>
+        <source>Reserved polyrhythm term</source>
+        <translation>Reserved polyrhythm term</translation>
+    </message>
+    <message>
+        <source>Reserved polyrhythm layers</source>
+        <translation>Reserved polyrhythm layers</translation>
+    </message>
+    <message>
         <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="43"/>
         <source>The global preset store is unreadable. Saving is disabled to preserve it; current/imported settings can still be used.</source>
         <translation>The global preset store is unreadable. Saving is disabled to preserve it; current/imported settings can still be used.</translation>

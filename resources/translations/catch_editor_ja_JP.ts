@@ -4308,6 +4308,178 @@ Do you want to rename the imported file?</source>
 <context>
     <name>AnalysisConfigPanel</name>
     <message>
+        <source>Tempo</source>
+        <translation>テンポ</translation>
+    </message>
+    <message>
+        <source>Phase</source>
+        <translation>位相</translation>
+    </message>
+    <message>
+        <source>Rhythm</source>
+        <translation>リズム</translation>
+    </message>
+    <message>
+        <source>Windows</source>
+        <translation>ウィンドウ</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>エクスポート</translation>
+    </message>
+    <message>
+        <source>Prefer local tempo evidence</source>
+        <translation>ローカルテンポの根拠を優先</translation>
+    </message>
+    <message>
+        <source>Minimum tempo (BPM)</source>
+        <translation>最低テンポ（BPM）</translation>
+    </message>
+    <message>
+        <source>Maximum tempo (BPM)</source>
+        <translation>最高テンポ（BPM）</translation>
+    </message>
+    <message>
+        <source>Fine tempo tracking</source>
+        <translation>高精度テンポ追跡</translation>
+    </message>
+    <message>
+        <source>Fine window (s)</source>
+        <translation>高精度解析ウィンドウ（秒）</translation>
+    </message>
+    <message>
+        <source>Fine hop (s)</source>
+        <translation>高精度解析ホップ（秒）</translation>
+    </message>
+    <message>
+        <source>Maximum tracked gap (s)</source>
+        <translation>最大追跡間隔（秒）</translation>
+    </message>
+    <message>
+        <source>Experimental subdivision analysis</source>
+        <translation>実験的な拍分割解析</translation>
+    </message>
+    <message>
+        <source>BPM list error budget (ms)</source>
+        <translation>BPMリスト誤差許容値（ms）</translation>
+    </message>
+    <message>
+        <source>Maximum BPM list entries</source>
+        <translation>BPMリスト項目数上限</translation>
+    </message>
+    <message>
+        <source>Minimum window (s)</source>
+        <translation>最小解析ウィンドウ（秒）</translation>
+    </message>
+    <message>
+        <source>Tempo agreement tolerance</source>
+        <translation>テンポ一致許容差</translation>
+    </message>
+    <message>
+        <source>Anchor reliability gate</source>
+        <translation>アンカー信頼度しきい値</translation>
+    </message>
+    <message>
+        <source>Onset periodicity gate</source>
+        <translation>オンセット周期性しきい値</translation>
+    </message>
+    <message>
+        <source>Local candidate limit</source>
+        <translation>ローカル候補数上限</translation>
+    </message>
+    <message>
+        <source>Global candidate limit</source>
+        <translation>全体候補数上限</translation>
+    </message>
+    <message>
+        <source>Phase back-propagation (s)</source>
+        <translation>位相逆伝播時間（秒）</translation>
+    </message>
+    <message>
+        <source>Continuous slope (octaves/s)</source>
+        <translation>連続テンポ傾斜（オクターブ/秒）</translation>
+    </message>
+    <message>
+        <source>Tempo transition penalty</source>
+        <translation>テンポ遷移ペナルティ</translation>
+    </message>
+    <message>
+        <source>Slope change penalty</source>
+        <translation>傾斜変化ペナルティ</translation>
+    </message>
+    <message>
+        <source>Phase transition penalty</source>
+        <translation>位相遷移ペナルティ</translation>
+    </message>
+    <message>
+        <source>Periodicity layer limit</source>
+        <translation>周期レイヤー数上限</translation>
+    </message>
+    <message>
+        <source>High-rate rhythm analysis</source>
+        <translation>高レートリズム解析</translation>
+    </message>
+    <message>
+        <source>Minimum high rhythm rate</source>
+        <translation>高レートリズムの下限</translation>
+    </message>
+    <message>
+        <source>Maximum high rhythm rate</source>
+        <translation>高レートリズムの上限</translation>
+    </message>
+    <message>
+        <source>Rhythm periodicity gate</source>
+        <translation>リズム周期性しきい値</translation>
+    </message>
+    <message>
+        <source>Raw rhythm candidate limit</source>
+        <translation>生リズム候補数上限</translation>
+    </message>
+    <message>
+        <source>Rhythm layer confidence gate</source>
+        <translation>リズムレイヤー信頼度しきい値</translation>
+    </message>
+    <message>
+        <source>Strong rhythm confidence gate</source>
+        <translation>強リズム信頼度しきい値</translation>
+    </message>
+    <message>
+        <source>Semantic phase gate</source>
+        <translation>セマンティック位相しきい値</translation>
+    </message>
+    <message>
+        <source>Semantic pulse coverage gate</source>
+        <translation>セマンティック拍カバレッジしきい値</translation>
+    </message>
+    <message>
+        <source>Semantic transient density gate</source>
+        <translation>セマンティック過渡密度カバレッジしきい値</translation>
+    </message>
+    <message>
+        <source>Semantic support windows</source>
+        <translation>セマンティック支持ウィンドウ数</translation>
+    </message>
+    <message>
+        <source>Rhythm profile limit</source>
+        <translation>リズムプロファイル数上限</translation>
+    </message>
+    <message>
+        <source>Minimum semantic subdivision</source>
+        <translation>最小セマンティック細分数</translation>
+    </message>
+    <message>
+        <source>Maximum subdivision</source>
+        <translation>最大細分数</translation>
+    </message>
+    <message>
+        <source>Reserved polyrhythm term</source>
+        <translation>予約済みポリリズム項数</translation>
+    </message>
+    <message>
+        <source>Reserved polyrhythm layers</source>
+        <translation>予約済みポリリズムレイヤー数</translation>
+    </message>
+    <message>
         <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="43"/>
         <source>The global preset store is unreadable. Saving is disabled to preserve it; current/imported settings can still be used.</source>
         <translation>グローバルプリセットストアを読み取れません。内容を保護するため保存は無効です。現在またはインポート済みの設定は引き続き使用できます。</translation>

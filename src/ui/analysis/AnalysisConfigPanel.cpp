@@ -21,6 +21,73 @@
 #include <QMessageBox>
 #include <QGridLayout>
 #include <QSettings>
+#include <QCoreApplication>
+#include <QHash>
+
+namespace
+{
+// ConfigField labels are stored as data, so tr(field.label) is invisible to
+// lupdate. Keep a literal translation table in this UI context, then look up
+// the translated value by the original field text.
+const QHash<QString, QString> &configTextTranslations()
+{
+    static const QHash<QString, QString> translations = {
+        {QStringLiteral("Tempo"), QCoreApplication::translate("AnalysisConfigPanel", "Tempo")},
+        {QStringLiteral("Phase"), QCoreApplication::translate("AnalysisConfigPanel", "Phase")},
+        {QStringLiteral("Rhythm"), QCoreApplication::translate("AnalysisConfigPanel", "Rhythm")},
+        {QStringLiteral("Windows"), QCoreApplication::translate("AnalysisConfigPanel", "Windows")},
+        {QStringLiteral("Export"), QCoreApplication::translate("AnalysisConfigPanel", "Export")},
+        {QStringLiteral("Prefer local tempo evidence"), QCoreApplication::translate("AnalysisConfigPanel", "Prefer local tempo evidence")},
+        {QStringLiteral("Minimum tempo (BPM)"), QCoreApplication::translate("AnalysisConfigPanel", "Minimum tempo (BPM)")},
+        {QStringLiteral("Maximum tempo (BPM)"), QCoreApplication::translate("AnalysisConfigPanel", "Maximum tempo (BPM)")},
+        {QStringLiteral("Fine tempo tracking"), QCoreApplication::translate("AnalysisConfigPanel", "Fine tempo tracking")},
+        {QStringLiteral("Fine window (s)"), QCoreApplication::translate("AnalysisConfigPanel", "Fine window (s)")},
+        {QStringLiteral("Fine hop (s)"), QCoreApplication::translate("AnalysisConfigPanel", "Fine hop (s)")},
+        {QStringLiteral("Maximum tracked gap (s)"), QCoreApplication::translate("AnalysisConfigPanel", "Maximum tracked gap (s)")},
+        {QStringLiteral("Experimental subdivision analysis"), QCoreApplication::translate("AnalysisConfigPanel", "Experimental subdivision analysis")},
+        {QStringLiteral("BPM list error budget (ms)"), QCoreApplication::translate("AnalysisConfigPanel", "BPM list error budget (ms)")},
+        {QStringLiteral("Maximum BPM list entries"), QCoreApplication::translate("AnalysisConfigPanel", "Maximum BPM list entries")},
+        {QStringLiteral("Minimum window (s)"), QCoreApplication::translate("AnalysisConfigPanel", "Minimum window (s)")},
+        {QStringLiteral("Tempo agreement tolerance"), QCoreApplication::translate("AnalysisConfigPanel", "Tempo agreement tolerance")},
+        {QStringLiteral("Anchor reliability gate"), QCoreApplication::translate("AnalysisConfigPanel", "Anchor reliability gate")},
+        {QStringLiteral("Onset periodicity gate"), QCoreApplication::translate("AnalysisConfigPanel", "Onset periodicity gate")},
+        {QStringLiteral("Local candidate limit"), QCoreApplication::translate("AnalysisConfigPanel", "Local candidate limit")},
+        {QStringLiteral("Global candidate limit"), QCoreApplication::translate("AnalysisConfigPanel", "Global candidate limit")},
+        {QStringLiteral("Phase back-propagation (s)"), QCoreApplication::translate("AnalysisConfigPanel", "Phase back-propagation (s)")},
+        {QStringLiteral("Continuous slope (octaves/s)"), QCoreApplication::translate("AnalysisConfigPanel", "Continuous slope (octaves/s)")},
+        {QStringLiteral("Tempo transition penalty"), QCoreApplication::translate("AnalysisConfigPanel", "Tempo transition penalty")},
+        {QStringLiteral("Slope change penalty"), QCoreApplication::translate("AnalysisConfigPanel", "Slope change penalty")},
+        {QStringLiteral("Phase transition penalty"), QCoreApplication::translate("AnalysisConfigPanel", "Phase transition penalty")},
+        {QStringLiteral("Periodicity layer limit"), QCoreApplication::translate("AnalysisConfigPanel", "Periodicity layer limit")},
+        {QStringLiteral("High-rate rhythm analysis"), QCoreApplication::translate("AnalysisConfigPanel", "High-rate rhythm analysis")},
+        {QStringLiteral("Minimum high rhythm rate"), QCoreApplication::translate("AnalysisConfigPanel", "Minimum high rhythm rate")},
+        {QStringLiteral("Maximum high rhythm rate"), QCoreApplication::translate("AnalysisConfigPanel", "Maximum high rhythm rate")},
+        {QStringLiteral("Rhythm periodicity gate"), QCoreApplication::translate("AnalysisConfigPanel", "Rhythm periodicity gate")},
+        {QStringLiteral("Raw rhythm candidate limit"), QCoreApplication::translate("AnalysisConfigPanel", "Raw rhythm candidate limit")},
+        {QStringLiteral("Rhythm layer confidence gate"), QCoreApplication::translate("AnalysisConfigPanel", "Rhythm layer confidence gate")},
+        {QStringLiteral("Strong rhythm confidence gate"), QCoreApplication::translate("AnalysisConfigPanel", "Strong rhythm confidence gate")},
+        {QStringLiteral("Semantic phase gate"), QCoreApplication::translate("AnalysisConfigPanel", "Semantic phase gate")},
+        {QStringLiteral("Semantic pulse coverage gate"), QCoreApplication::translate("AnalysisConfigPanel", "Semantic pulse coverage gate")},
+        {QStringLiteral("Semantic transient density gate"), QCoreApplication::translate("AnalysisConfigPanel", "Semantic transient density gate")},
+        {QStringLiteral("Semantic support windows"), QCoreApplication::translate("AnalysisConfigPanel", "Semantic support windows")},
+        {QStringLiteral("Rhythm profile limit"), QCoreApplication::translate("AnalysisConfigPanel", "Rhythm profile limit")},
+        {QStringLiteral("Minimum semantic subdivision"), QCoreApplication::translate("AnalysisConfigPanel", "Minimum semantic subdivision")},
+        {QStringLiteral("Maximum subdivision"), QCoreApplication::translate("AnalysisConfigPanel", "Maximum subdivision")},
+        {QStringLiteral("Reserved polyrhythm term"), QCoreApplication::translate("AnalysisConfigPanel", "Reserved polyrhythm term")},
+        {QStringLiteral("Reserved polyrhythm layers"), QCoreApplication::translate("AnalysisConfigPanel", "Reserved polyrhythm layers")}};
+    return translations;
+}
+
+QString translatedConfigText(const char *source)
+{
+    const auto &translations = configTextTranslations();
+    const auto it = translations.constFind(QString::fromLatin1(source));
+    return it == translations.cend()
+               ? QCoreApplication::translate("AnalysisConfigPanel", source)
+               : it.value();
+}
+}
+
 AnalysisConfigPanel::AnalysisConfigPanel(QWidget *parent, const QString &storeOverride)
     : QWidget(parent), m_config(analysis::defaultConfig()), m_base(m_config), m_storeOverride(storeOverride)
 {
@@ -125,7 +192,7 @@ AnalysisConfigPanel::AnalysisConfigPanel(QWidget *parent, const QString &storeOv
     auto *reset = new QGridLayout;
     m_sections = new QComboBox;
     for (auto key : {"Tempo", "Phase", "Rhythm", "Windows", "Export"})
-        m_sections->addItem(tr(key), QString::fromLatin1(key));
+        m_sections->addItem(translatedConfigText(key), QString::fromLatin1(key));
     m_sections->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     m_sections->setMinimumContentsLength(3);
     reset->addWidget(m_sections, 0, 0);
@@ -144,7 +211,7 @@ AnalysisConfigPanel::AnalysisConfigPanel(QWidget *parent, const QString &storeOv
     form->setRowWrapPolicy(QFormLayout::WrapLongRows);
     for (const auto &f : analysis::configFields())
     {
-        auto *label = new QLabel(tr(f.label));
+        auto *label = new QLabel(translatedConfigText(f.label));
         label->setWordWrap(true);
         QWidget *editor;
         if (f.boolean)
