@@ -2,6 +2,7 @@
 
 #include <DockAreaWidget.h>
 #include <DockManager.h>
+#include <DockSplitter.h>
 #include <DockWidget.h>
 #include <QList>
 #include <QMap>
@@ -16,6 +17,7 @@ constexpr char kCompactToolDockProperty[] = "cceCompactToolDock";
 constexpr char kPrimaryWorkspaceDockProperty[] = "ccePrimaryWorkspaceDock";
 constexpr char kOriginalVerticalPolicyProperty[] = "cceOriginalVerticalPolicy";
 constexpr char kOriginalMaximumHeightProperty[] = "cceOriginalMaximumHeight";
+constexpr char kCompactSplitterStretchProperty[] = "cceCompactSplitterStretchPolicy";
 constexpr int kPrimaryWorkspaceMinimumWidth = 420;
 constexpr int kPrimaryWorkspaceMinimumHeight = 300;
 
@@ -132,7 +134,50 @@ bool containsPrimaryWorkspace(QWidget *widget)
     return false;
 }
 
-void rebalanceVerticalAncestors(QWidget *widget, bool constrainCompactSubtrees)
+bool adsWidgetResizesWithContainer(QWidget *widget, ads::CDockManager *manager)
+{
+    if (!manager || !manager->centralWidget())
+        return true;
+
+    if (auto *area = qobject_cast<ads::CDockAreaWidget *>(widget))
+        return area->isCentralWidgetArea();
+
+    if (auto *splitter = qobject_cast<ads::CDockSplitter *>(widget))
+        return splitter->isResizingWithContainer();
+
+    return false;
+}
+
+void restoreAdsVerticalSplitterStretch(QSplitter *splitter,
+                                       ads::CDockManager *manager)
+{
+    if (!splitter || splitter->orientation() != Qt::Vertical)
+        return;
+
+    for (int index = 0; index < splitter->count(); ++index)
+    {
+        splitter->setStretchFactor(
+            index, adsWidgetResizesWithContainer(splitter->widget(index), manager) ? 1 : 0);
+    }
+    splitter->setProperty(kCompactSplitterStretchProperty, false);
+}
+
+void restoreTrackedVerticalSplitterStretch(ads::CDockManager *manager)
+{
+    if (!manager)
+        return;
+
+    const QList<QSplitter *> splitters = manager->findChildren<QSplitter *>();
+    for (QSplitter *splitter : splitters)
+    {
+        if (splitter->property(kCompactSplitterStretchProperty).toBool())
+            restoreAdsVerticalSplitterStretch(splitter, manager);
+    }
+}
+
+void rebalanceVerticalAncestors(QWidget *widget,
+                                bool constrainCompactSubtrees,
+                                ads::CDockManager *manager)
 {
     QWidget *current = widget;
     while (current)
@@ -155,13 +200,31 @@ void rebalanceVerticalAncestors(QWidget *widget, bool constrainCompactSubtrees)
 
         if (splitter->orientation() == Qt::Vertical)
         {
+            bool hasCompactBranch = false;
             for (int index = 0; index < splitter->count(); ++index)
             {
                 QWidget *child = splitter->widget(index);
                 const bool compactOnly = constrainCompactSubtrees
                                          && isCompactOnlySubtree(child);
                 setCompactVerticalPolicy(child, compactOnly);
-                splitter->setStretchFactor(index, compactOnly ? 0 : 1);
+                hasCompactBranch = hasCompactBranch || compactOnly;
+            }
+
+            // Only rebalance the splitter that directly contains compact tool
+            // branches. Rewriting every vertical ancestor makes unrelated ADS
+            // branches (including the workspace and sidebars) share stretch.
+            if (constrainCompactSubtrees && hasCompactBranch)
+            {
+                splitter->setProperty(kCompactSplitterStretchProperty, true);
+                for (int index = 0; index < splitter->count(); ++index)
+                {
+                    const bool compactOnly = isCompactOnlySubtree(splitter->widget(index));
+                    splitter->setStretchFactor(index, compactOnly ? 0 : 1);
+                }
+            }
+            else if (splitter->property(kCompactSplitterStretchProperty).toBool())
+            {
+                restoreAdsVerticalSplitterStretch(splitter, manager);
             }
         }
         current = splitter;
@@ -243,7 +306,7 @@ void applyCompactToolDockPolicy(ads::CDockWidget *dock)
     {
         setCompactVerticalPolicy(area, constrainToNaturalHeight
                                            && isCompactOnlySubtree(area));
-        rebalanceVerticalAncestors(area, constrainToNaturalHeight);
+        rebalanceVerticalAncestors(area, constrainToNaturalHeight, dock->dockManager());
     }
 }
 
@@ -251,6 +314,11 @@ void refreshCompactToolDockPolicies(ads::CDockManager *manager)
 {
     if (!manager)
         return;
+
+    // Clear prior local adjustments first, then rebuild only the splitters
+    // that still contain compact tool branches. This keeps restoration
+    // independent of dock-widget iteration order.
+    restoreTrackedVerticalSplitterStretch(manager);
 
     const QMap<QString, ads::CDockWidget *> docks = manager->dockWidgetsMap();
     for (ads::CDockWidget *dock : docks)

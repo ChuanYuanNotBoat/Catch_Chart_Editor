@@ -151,6 +151,27 @@ namespace
         return NativeWindowTheme::themeColorsFor(bg).text;
     }
 
+    void applyFloatingWindowPalette(
+        QWidget *window, const NativeWindowTheme::ThemeColors &theme)
+    {
+        if (!window)
+            return;
+
+        QPalette palette = window->palette();
+        palette.setColor(QPalette::Window, theme.window);
+        palette.setColor(QPalette::WindowText, theme.text);
+        palette.setColor(QPalette::Base, theme.base);
+        palette.setColor(QPalette::AlternateBase, theme.window);
+        palette.setColor(QPalette::Text, theme.text);
+        palette.setColor(QPalette::Button, theme.button);
+        palette.setColor(QPalette::ButtonText, theme.text);
+        palette.setColor(QPalette::Highlight, theme.highlight);
+        palette.setColor(QPalette::HighlightedText, theme.text);
+        window->setPalette(palette);
+        window->setAttribute(Qt::WA_StyledBackground, true);
+        window->setAutoFillBackground(true);
+    }
+
     void applyApplicationPaletteFor(const QColor &background)
     {
         const auto theme = NativeWindowTheme::themeColorsFor(background);
@@ -257,6 +278,7 @@ namespace
 
         return QString(
                    "ads--CDockContainerWidget, ads--CDockAreaWidget, ads--CDockWidget { background: %1; }"
+                   "ads--CFloatingDockContainer { background: %1; }"
                    "ads--CDockSplitter::handle { background: %6; }"
                    "ads--CDockSplitter[compactToolStack=\"true\"]::handle { background: transparent; }"
                    "ads--CDockAreaTitleBar { background: %1; border-bottom: 1px solid %7; }"
@@ -2590,6 +2612,7 @@ void MainWindow::createCentralArea()
             [this](ads::CFloatingDockContainer *floatingWindow)
             {
                 const auto theme = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor());
+                applyFloatingWindowPalette(floatingWindow, theme);
                 NativeWindowTheme::apply(floatingWindow, theme.window, theme.text, theme.border, true);
             });
 
@@ -3576,11 +3599,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
     clearWorkingCopySession(true);
     event->accept();
 
-    // ADS keeps closed floating containers alive so their panels can be
-    // reopened.  Those hidden top-level windows make Qt's implicit
-    // quit-on-last-window-closed behavior platform dependent.  Closing the
-    // confirmed main editor window is an explicit application-exit request.
-    QCoreApplication::quit();
+    // ADS keeps floating containers alive so their panels can be reopened.
+    // Queue the exit after this close event so those top-level windows cannot
+    // keep the application event loop running after the editor is closed.
+    Logger::info("Main window close accepted; scheduling application exit.");
+    QTimer::singleShot(0, QCoreApplication::instance(), []()
+                       { QCoreApplication::exit(0); });
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
@@ -6171,7 +6195,10 @@ void MainWindow::applySidebarTheme()
         if (d->floatingToolWindowsEnabled)
         {
             for (ads::CFloatingDockContainer *floatingWindow : d->dockManager->floatingWidgets())
+            {
+                applyFloatingWindowPalette(floatingWindow, theme);
                 NativeWindowTheme::apply(floatingWindow, panelBg, theme.text, panelBorder, true);
+            }
         }
     }
 
