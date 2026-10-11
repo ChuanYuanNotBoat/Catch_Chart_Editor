@@ -4506,6 +4506,178 @@ This replaces all current editor settings. Open chart data is not affected.</sou
 <context>
     <name>AnalysisConfigPanel</name>
     <message>
+        <source>Tempo</source>
+        <translation>速度</translation>
+    </message>
+    <message>
+        <source>Phase</source>
+        <translation>相位</translation>
+    </message>
+    <message>
+        <source>Rhythm</source>
+        <translation>节奏</translation>
+    </message>
+    <message>
+        <source>Windows</source>
+        <translation>窗口</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>导出</translation>
+    </message>
+    <message>
+        <source>Prefer local tempo evidence</source>
+        <translation>优先采用局部速度证据</translation>
+    </message>
+    <message>
+        <source>Minimum tempo (BPM)</source>
+        <translation>最低速度（BPM）</translation>
+    </message>
+    <message>
+        <source>Maximum tempo (BPM)</source>
+        <translation>最高速度（BPM）</translation>
+    </message>
+    <message>
+        <source>Fine tempo tracking</source>
+        <translation>精细速度跟踪</translation>
+    </message>
+    <message>
+        <source>Fine window (s)</source>
+        <translation>精细分析窗口（秒）</translation>
+    </message>
+    <message>
+        <source>Fine hop (s)</source>
+        <translation>精细分析步长（秒）</translation>
+    </message>
+    <message>
+        <source>Maximum tracked gap (s)</source>
+        <translation>最大跟踪间隔（秒）</translation>
+    </message>
+    <message>
+        <source>Experimental subdivision analysis</source>
+        <translation>实验性节拍细分分析</translation>
+    </message>
+    <message>
+        <source>BPM list error budget (ms)</source>
+        <translation>速度列表误差限值（毫秒）</translation>
+    </message>
+    <message>
+        <source>Maximum BPM list entries</source>
+        <translation>速度列表条目上限</translation>
+    </message>
+    <message>
+        <source>Minimum window (s)</source>
+        <translation>最短分析窗口（秒）</translation>
+    </message>
+    <message>
+        <source>Tempo agreement tolerance</source>
+        <translation>速度一致容差</translation>
+    </message>
+    <message>
+        <source>Anchor reliability gate</source>
+        <translation>锚点可靠性阈值</translation>
+    </message>
+    <message>
+        <source>Onset periodicity gate</source>
+        <translation>起音周期性阈值</translation>
+    </message>
+    <message>
+        <source>Local candidate limit</source>
+        <translation>局部候选数上限</translation>
+    </message>
+    <message>
+        <source>Global candidate limit</source>
+        <translation>全局候选数上限</translation>
+    </message>
+    <message>
+        <source>Phase back-propagation (s)</source>
+        <translation>相位回推时长（秒）</translation>
+    </message>
+    <message>
+        <source>Continuous slope (octaves/s)</source>
+        <translation>连续速度斜率（倍频程/秒）</translation>
+    </message>
+    <message>
+        <source>Tempo transition penalty</source>
+        <translation>速度转换惩罚</translation>
+    </message>
+    <message>
+        <source>Slope change penalty</source>
+        <translation>斜率变化惩罚</translation>
+    </message>
+    <message>
+        <source>Phase transition penalty</source>
+        <translation>相位转换惩罚</translation>
+    </message>
+    <message>
+        <source>Periodicity layer limit</source>
+        <translation>周期层数上限</translation>
+    </message>
+    <message>
+        <source>High-rate rhythm analysis</source>
+        <translation>高速率节奏分析</translation>
+    </message>
+    <message>
+        <source>Minimum high rhythm rate</source>
+        <translation>高速节奏率下限</translation>
+    </message>
+    <message>
+        <source>Maximum high rhythm rate</source>
+        <translation>高速节奏率上限</translation>
+    </message>
+    <message>
+        <source>Rhythm periodicity gate</source>
+        <translation>节奏周期性阈值</translation>
+    </message>
+    <message>
+        <source>Raw rhythm candidate limit</source>
+        <translation>原始节奏候选数上限</translation>
+    </message>
+    <message>
+        <source>Rhythm layer confidence gate</source>
+        <translation>节奏层置信度阈值</translation>
+    </message>
+    <message>
+        <source>Strong rhythm confidence gate</source>
+        <translation>强节奏置信度阈值</translation>
+    </message>
+    <message>
+        <source>Semantic phase gate</source>
+        <translation>语义相位阈值</translation>
+    </message>
+    <message>
+        <source>Semantic pulse coverage gate</source>
+        <translation>语义拍点覆盖率阈值</translation>
+    </message>
+    <message>
+        <source>Semantic transient density gate</source>
+        <translation>语义瞬态密度覆盖阈值</translation>
+    </message>
+    <message>
+        <source>Semantic support windows</source>
+        <translation>语义支持窗口数</translation>
+    </message>
+    <message>
+        <source>Rhythm profile limit</source>
+        <translation>节奏轮廓数上限</translation>
+    </message>
+    <message>
+        <source>Minimum semantic subdivision</source>
+        <translation>最小语义细分数</translation>
+    </message>
+    <message>
+        <source>Maximum subdivision</source>
+        <translation>最大细分数</translation>
+    </message>
+    <message>
+        <source>Reserved polyrhythm term</source>
+        <translation>保留的复合节奏项上限</translation>
+    </message>
+    <message>
+        <source>Reserved polyrhythm layers</source>
+        <translation>保留的复合节奏层数</translation>
+    </message>
+    <message>
         <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="43"/>
         <source>The global preset store is unreadable. Saving is disabled to preserve it; current/imported settings can still be used.</source>
         <translation>全局预设存储无法读取。为避免覆盖，已禁用保存；仍可使用当前或已导入的设置。</translation>
