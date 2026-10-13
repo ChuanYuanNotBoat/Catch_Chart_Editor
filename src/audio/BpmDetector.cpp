@@ -617,5 +617,5 @@ void BpmDetector::analyzeFromFileDetailedAsync(QObject *context,
                      {
         callback(state->success, std::move(state->result), state->error);
     });
-    worker->start();
+    worker->start(options.maximumWorkerThreads <= 1 ? QThread::LowestPriority : QThread::InheritPriority);
 }

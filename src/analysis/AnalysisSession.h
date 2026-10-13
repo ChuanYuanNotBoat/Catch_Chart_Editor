@@ -36,7 +36,8 @@ public:
     AnalysisSession() = default;
     AnalysisSession(const AnalysisSession &) = delete;
     AnalysisSession &operator=(const AnalysisSession &) = delete;
-    bool dispatch(QObject *, const QString &path, const AnalysisRequest &, Completion, Runner runner = {});
+    bool dispatch(QObject *, const QString &path, const AnalysisRequest &, Completion, Runner runner = {},
+                  int maximumWorkerThreads = 2);
     bool busy() const
     {
         return m_busy;

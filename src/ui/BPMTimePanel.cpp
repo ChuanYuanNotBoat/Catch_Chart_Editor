@@ -404,6 +404,8 @@ void BPMTimePanel::onMeasureBpmClicked()
         session->hasCompletedResult = false;
         const std::shared_ptr<std::atomic<bool>> cancelFlag = session->cancelFlag;
         AutoTiming2Options analysisOptions;
+        analysisOptions.maximumWorkerThreads =
+            m_playbackController && m_playbackController->state() == PlaybackController::Playing ? 1 : 2;
         analysisOptions.preferLocalTempoEvidence =
             dialog.preferLocalTempoEvidence();
         analysisOptions.enableComplexSubdivisionAnalysis =
