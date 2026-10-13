@@ -2,6 +2,7 @@
 #include <QWidget>
 #include <QJsonObject>
 #include <QHash>
+#include <QThreadPool>
 #include <memory>
 #include <atomic>
 #include "audio/BpmDetector.h"
@@ -109,6 +110,7 @@ class AnalysisEditor : public QWidget
     QJsonObject m_selectedEvidence;
     int m_interfaceLevel = 0;
     std::shared_ptr<std::atomic<bool>> m_overviewCancel;
+    std::shared_ptr<const analysis::StereoSpectrum> m_currentSpectrum;
     bool m_overviewBusy = false;
     QSplitter *m_panels, *m_work;
     QTabBar *m_leftTabs, *m_rightTabs;
@@ -120,6 +122,8 @@ class AnalysisEditor : public QWidget
     QPlainTextEdit *m_raw;
     QHash<QString, QTableWidget *> m_tables;
     QTimer *m_spectrumTimer;
+    QTimer *m_overviewRetryTimer = nullptr;
+    QThreadPool m_overviewPool;
     CommandRouter *m_router;
     QJsonObject m_diagnostics;
     QJsonObject m_selectedCandidate;
@@ -129,6 +133,6 @@ class AnalysisEditor : public QWidget
     QVector<SpectrumService::Page> m_spectrumPages;
     quint64 m_sourceGeneration = 0, m_spectrumGeneration = 0;
     double m_pendingStart = 0, m_pendingDuration = 0, m_cachedEofMs = -1;
-    bool m_timingBusy = false, m_spectrumBusy = false, m_restored = false;
+    bool m_timingBusy = false, m_spectrumBusy = false, m_restored = false, m_transientDeferred = false;
     int m_leftOpen = -1, m_rightOpen = -1;
 };

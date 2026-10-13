@@ -1,6 +1,10 @@
 #pragma once
 #include <QWidget>
 #include <QImage>
+#include <QElapsedTimer>
+#include <QFutureWatcher>
+#include <QThreadPool>
+#include <QTimer>
 #include <optional>
 #include "analysis/SpectrumAnalysis.h"
 #include "analysis/TimingInterpolation.h"
@@ -66,6 +70,7 @@ public:
     }
     Note snappedNoteAtY(double y) const;
     void setCurrentTime(double ms);
+    void setPlaybackActive(bool active);
     void setMillisecondsPerPixel(double value);
     void setNoteLaneWidth(int width);
     void setViewSynchronized(bool enabled);
@@ -126,7 +131,10 @@ protected:
 
 private:
     void rebuildChartCache();
-    void alignViewport();
+    void alignViewport(bool centerOnPlayhead = false);
+    void scheduleSpectrumViewportRender();
+    void startSpectrumViewportRender();
+    void finishSpectrumViewportRender();
     int hitNote(double y) const;
     void drawSpectrum(QPainter &);
     void drawTiming(QPainter &);
@@ -150,11 +158,19 @@ private:
     std::shared_ptr<const analysis::StereoSpectrum> m_spectrum;
     analysis::SpectrumRaster m_spectrumRaster;
     SpectrumViewport m_spectrumViewport;
+    QThreadPool m_spectrumViewportPool;
+    QFutureWatcher<QImage> *m_spectrumViewportWatcher = nullptr;
+    QTimer *m_spectrumViewportTimer = nullptr;
+    QElapsedTimer m_spectrumViewportClock;
+    QElapsedTimer m_playbackViewportClock;
+    std::optional<SpectrumViewport::RenderRequest> m_pendingSpectrumViewport;
+    std::optional<SpectrumViewport::RenderRequest> m_activeSpectrumViewport;
     quint64 m_spectrumRevision = 0;
     double m_current = 0, m_viewStart = 0, m_msPerPixel = 6;
     int m_noteLaneWidth = 56;
     double m_rangeStart = 0, m_rangeEnd = 0, m_loopStart = 0, m_loopEnd = 0, m_rangeAnchor = 0;
     bool m_rangeVisible = false, m_loopEnabled = false, m_syncView = false, m_rainMode = false;
+    bool m_playbackActive = false, m_asyncSpectrumViewport = false;
     bool m_resizeDivider = false, m_selectingRange = false;
     std::optional<Note> m_rainAnchor, m_tailOriginal, m_tailPreview;
     std::optional<Note> m_moveOriginal, m_movePreview;

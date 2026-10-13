@@ -3,6 +3,8 @@
 #include <QAudioDecoder>
 #include <QEventLoop>
 #include <QFutureWatcher>
+#include <QThread>
+#include <QThreadPool>
 #include <QTimer>
 #include <QUrl>
 #include <QtConcurrentRun>
@@ -12,6 +14,19 @@
 #include <QDateTime>
 namespace
 {
+QThreadPool &spectrumWorkerPool()
+{
+    static QThreadPool pool;
+    static const bool configured = [] {
+        pool.setMaxThreadCount(1);
+        pool.setThreadPriority(QThread::LowestPriority);
+        pool.setExpiryTimeout(-1);
+        return true;
+    }();
+    Q_UNUSED(configured);
+    return pool;
+}
+
 float sample(const QAudioBuffer &b, int i)
 {
     switch (b.format().sampleFormat())
@@ -156,8 +171,10 @@ void SpectrumService::analyzeFileRangeAsync(QObject *context, const QString &pat
                          watcher->deleteLater();
                          callback(std::move(result));
                      });
-    watcher->setFuture(QtConcurrent::run(
-        [path, start, duration, cancel] { return analyzeFileRange(path, start, duration, cancel); }));
+    watcher->setFuture(QtConcurrent::run(&spectrumWorkerPool(),
+                                         [path, start, duration, cancel] {
+                                             return analyzeFileRange(path, start, duration, cancel);
+                                         }));
 }
 void SpectrumService::prepareFileRangeAsync(QObject *context, const QString &path, double start, double duration,
                                             std::shared_ptr<std::atomic<bool>> cancel, PageCallback callback)
@@ -168,7 +185,7 @@ void SpectrumService::prepareFileRangeAsync(QObject *context, const QString &pat
         watcher->deleteLater();
         callback(std::move(result));
     });
-    watcher->setFuture(QtConcurrent::run([path, start, duration, cancel] {
+    watcher->setFuture(QtConcurrent::run(&spectrumWorkerPool(), [path, start, duration, cancel] {
         Page page;
         auto spectrum = analyzeFileRange(path, start, duration, cancel);
         if (spectrum.valid())
@@ -321,7 +338,8 @@ SpectrumService::EnergyEnvelope SpectrumService::analyzeEnergy(const QString &pa
     return out;
 }
 void SpectrumService::analyzeEnergyAsync(QObject *context, const QString &path,
-                                         std::shared_ptr<std::atomic<bool>> cancel, EnergyCallback callback)
+                                         std::shared_ptr<std::atomic<bool>> cancel, EnergyCallback callback,
+                                         QThreadPool *pool)
 {
     auto *watcher = new QFutureWatcher<EnergyEnvelope>(context);
     QObject::connect(watcher, &QFutureWatcher<EnergyEnvelope>::finished, context,
@@ -330,7 +348,6 @@ void SpectrumService::analyzeEnergyAsync(QObject *context, const QString &path,
                          watcher->deleteLater();
                          callback(std::move(result));
                      });
-    watcher->setFuture(QtConcurrent::run([path, cancel] {
-        return analyzeEnergy(path, cancel);
-    }));
+    auto task = [path, cancel] { return analyzeEnergy(path, cancel); };
+    watcher->setFuture(pool ? QtConcurrent::run(pool, task) : QtConcurrent::run(task));
 }

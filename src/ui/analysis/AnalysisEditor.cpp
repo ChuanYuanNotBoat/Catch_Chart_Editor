@@ -50,6 +50,7 @@
 #include <QComboBox>
 #include <QApplication>
 #include <QElapsedTimer>
+#include <QThread>
 #include <cmath>
 namespace
 {
@@ -349,6 +350,22 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     });
     connect(playback, &PlaybackController::stateChanged, this, [this](PlaybackController::State s) {
         m_play->setText(s == PlaybackController::Playing ? tr("Pause") : tr("Play"));
+        m_canvas->setPlaybackActive(s == PlaybackController::Playing);
+        m_transient->setAnalysisSuspended(s == PlaybackController::Playing);
+        if (s == PlaybackController::Playing)
+        {
+            if (m_overviewCancel)
+                m_overviewCancel->store(true);
+        }
+        else
+        {
+            if (m_transientDeferred && m_currentSpectrum)
+            {
+                m_transient->setSpectrum(m_currentSpectrum);
+                m_transientDeferred = false;
+            }
+            requestOverview();
+        }
     });
     connect(m_range, &LongRangeSelector::rangeChanged, this, &AnalysisEditor::updateRange);
     connect(m_range, &LongRangeSelector::rangeVisibilityChanged, this, &AnalysisEditor::updateRange);
@@ -362,6 +379,12 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     m_spectrumTimer->setSingleShot(true);
     m_spectrumTimer->setInterval(80);
     connect(m_spectrumTimer, &QTimer::timeout, this, &AnalysisEditor::requestSpectrum);
+    m_overviewRetryTimer = new QTimer(this);
+    m_overviewRetryTimer->setSingleShot(true);
+    m_overviewRetryTimer->setInterval(300);
+    connect(m_overviewRetryTimer, &QTimer::timeout, this, &AnalysisEditor::requestOverview);
+    m_overviewPool.setMaxThreadCount(1);
+    m_overviewPool.setThreadPriority(QThread::LowestPriority);
     connect(playback->audioPlayer(), &AudioPlayer::durationChanged, this, &AnalysisEditor::scheduleSpectrum);
     connect(playback->audioPlayer(), &AudioPlayer::loadingStateChanged, this, &AnalysisEditor::scheduleSpectrum);
     connect(m_canvas, &AnalysisCanvas::viewportChanged, this, [this] {
@@ -511,6 +534,8 @@ void AnalysisEditor::refreshAudioSource()
     clearDiagnostics();
     m_canvas->clearSpectrum();
     m_transient->clearSource();
+    m_currentSpectrum.reset();
+    m_transientDeferred = false;
     m_spectrumPages.clear();
     m_spectrumFailureKey.clear();
     m_cachedEofMs = -1;
@@ -520,7 +545,10 @@ void AnalysisEditor::refreshAudioSource()
 void AnalysisEditor::scheduleSpectrum()
 {
     if (isVisible() && !m_spectrumTimer->isActive())
+    {
+        m_spectrumTimer->setInterval(m_playback->state() == PlaybackController::Playing ? 200 : 80);
         m_spectrumTimer->start();
+    }
 }
 void AnalysisEditor::requestSpectrum()
 {
@@ -582,7 +610,14 @@ void AnalysisEditor::requestSpectrum()
     if (selected)
     {
         m_canvas->setSpectrumPage(selected->spectrum, selected->raster);
-        m_transient->setSpectrum(selected->spectrum);
+        m_currentSpectrum = selected->spectrum;
+        if (m_playback->state() == PlaybackController::Playing)
+            m_transientDeferred = true;
+        else
+        {
+            m_transient->setSpectrum(m_currentSpectrum);
+            m_transientDeferred = false;
+        }
         visibleCovered = true;
         m_status->setText(tr("Stereo spectrum ready · gutters: peak / RMS"));
     }
@@ -1087,6 +1122,7 @@ void AnalysisEditor::runTiming()
                 m_status->setText(
                     tr("Previous analysis finished and was discarded. Analyze the current configuration when ready."));
                 m_timingSummary->setText(m_status->text());
+                requestOverview();
                 return;
             }
             showTimingResult(completion.result, completion.error);
@@ -1099,13 +1135,15 @@ void AnalysisEditor::runTiming()
             m_raw->setPlainText(QString::fromUtf8(QJsonDocument(m_diagnostics).toJson()));
             m_session.remember(m_diagnostics);
             m_workbench->setResult(m_diagnostics);
-        });
+            requestOverview();
+        }, {}, m_playback->state() == PlaybackController::Playing ? 1 : 2);
     if (!started)
     {
         m_timingBusy = false;
         m_runTiming->setEnabled(true);
         m_cancelTiming->setEnabled(false);
         m_status->setText(tr("The previous analysis is still finishing."));
+        requestOverview();
     }
 }
 void AnalysisEditor::cancelTiming()
@@ -1213,6 +1251,8 @@ void AnalysisEditor::showEvent(QShowEvent *event)
     m_router->applyBindings(bindings);
     refreshAudioSource();
     updateRange();
+    m_canvas->setPlaybackActive(m_playback->state() == PlaybackController::Playing);
+    m_transient->setAnalysisSuspended(m_playback->state() == PlaybackController::Playing);
     updateTime(m_main->currentPlayTime());
     m_canvas->setFocus();
     scheduleSpectrum();
@@ -1230,6 +1270,7 @@ void AnalysisEditor::hideEvent(QHideEvent *event)
     m_spectrumTimer->stop();
     if (m_overviewCancel)
         *m_overviewCancel = true;
+    m_overviewRetryTimer->stop();
     QWidget::hideEvent(event);
 }
 void AnalysisEditor::closeEvent(QCloseEvent *event)
@@ -1390,6 +1431,14 @@ void AnalysisEditor::requestOverview()
     if (!isVisible() || m_overviewBusy || m_overview->hasEnvelope() || m_audioPath.isEmpty()
         || !QFileInfo::exists(m_audioPath))
         return;
+    if (m_playback->state() == PlaybackController::Playing || m_spectrumBusy || m_spectrumTimer->isActive()
+        || m_transient->busy() || m_timingBusy)
+    {
+        if (!m_overviewRetryTimer->isActive())
+            m_overviewRetryTimer->start();
+        return;
+    }
+    m_overviewRetryTimer->stop();
     m_overviewBusy = true;
     m_overviewCancel = std::make_shared<std::atomic<bool>>(false);
     const auto cancel = m_overviewCancel;
@@ -1406,7 +1455,8 @@ void AnalysisEditor::requestOverview()
                                                 return;
                                             }
                                             m_overview->setEnvelope(std::move(result));
-                                        });
+                                        },
+                                        &m_overviewPool);
 }
 void AnalysisEditor::applyTempoMap()
 {

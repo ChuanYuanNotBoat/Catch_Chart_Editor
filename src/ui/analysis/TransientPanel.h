@@ -1,6 +1,7 @@
 #pragma once
 #include <QWidget>
 #include <QFutureWatcher>
+#include <QThreadPool>
 #include <QJsonObject>
 #include <memory>
 #include "analysis/TransientAnalysis.h"
@@ -20,6 +21,7 @@ public:
     ~TransientPanel() override;
     void setSpectrum(const analysis::StereoSpectrum &);
     void setSpectrum(std::shared_ptr<const analysis::StereoSpectrum>);
+    void setAnalysisSuspended(bool suspended);
     void clearSource();
     const analysis::TransientResult &result() const
     {
@@ -50,7 +52,8 @@ private:
     QTimer *m_timer;
     std::shared_ptr<const analysis::StereoSpectrum> m_spectrum;
     std::shared_ptr<std::atomic<bool>> m_cancel;
+    QThreadPool m_workerPool;
     analysis::TransientResult m_result;
     quint64 m_generation = 0;
-    bool m_busy = false, m_pending = false;
+    bool m_busy = false, m_pending = false, m_analysisSuspended = false;
 };
