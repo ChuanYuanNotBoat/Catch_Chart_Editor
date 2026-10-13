@@ -325,6 +325,11 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
     int firstBeatNum = 0;
     int firstBeatNumerator = 0;
     int firstBeatDenominator = 1;
+    // TODO(645fd70-regression): this used to pass (map.startSeconds * 1000.0 - offsetMs);
+    // commit 645fd70 removed the offset adjustment when simplifying the call. The
+    // bpm_measurement_tests case `core_audio_to_chart_accuracy` fails for non-zero
+    // offsets (~137 ms error at offset=137) since that change. Verify whether the
+    // offset subtraction should be restored before treating the test as stale.
     MathUtils::msToBeat(map.startSeconds * 1000.0, existingBpmList, offsetMs, firstBeatNum, firstBeatNumerator,
                         firstBeatDenominator);
     proposal.firstAnchorBeat = firstBeatNum +
@@ -479,6 +484,10 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
         const double beat = proposal.firstAnchorBeat +
                             anchor.phaseBeat - map.startBeat;
         const BpmEntry position = makeBpmEntry(beat, anchor.modelBpm, options.maximumBeatDenominator);
+        // TODO(645fd70-regression): this used to append "+ offsetMs" after beatToMs to
+        // pair with the offset handling in MathUtils; commit 645fd70 removed it. Together
+        // with the first-anchor msToBeat change, `core_audio_to_chart_accuracy` fails for
+        // non-zero offsets. Decide with the paired site above whether to restore the pair.
         const double projectedAudioMs =
             MathUtils::beatToMs(position.beatNum, position.numerator, position.denominator, normalized, offsetMs);
         maximumAnchorResidualMs = std::max(
