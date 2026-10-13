@@ -13,6 +13,7 @@
 #include <QPainterPath>
 #include <QMouseEvent>
 #include <QTimer>
+#include <QThread>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -153,6 +154,8 @@ private:
 };
 TransientPanel::TransientPanel(AnalysisCanvas *canvas, QWidget *parent) : QWidget(parent), m_canvas(canvas)
 {
+    m_workerPool.setMaxThreadCount(1);
+    m_workerPool.setThreadPriority(QThread::LowestPriority);
     setObjectName("analysis.transientPanel");
     auto *layout = new QVBoxLayout(this);
     auto *form = new QFormLayout;
@@ -281,6 +284,26 @@ void TransientPanel::setSpectrum(std::shared_ptr<const analysis::StereoSpectrum>
     m_spectrum = std::move(spectrum);
     scheduleAnalysis();
 }
+void TransientPanel::setAnalysisSuspended(bool suspended)
+{
+    if (m_analysisSuspended == suspended)
+        return;
+    m_analysisSuspended = suspended;
+    if (suspended)
+    {
+        m_timer->stop();
+        if (m_busy && m_cancel)
+        {
+            m_cancel->store(true);
+            m_pending = bool(m_spectrum);
+        }
+        if (m_spectrum)
+            m_summary->setText(tr("Transient analysis paused during playback."));
+        return;
+    }
+    if (m_pending && !m_busy && !m_timer->isActive())
+        m_timer->start();
+}
 void TransientPanel::scheduleAnalysis()
 {
     ++m_generation;
@@ -291,7 +314,9 @@ void TransientPanel::scheduleAnalysis()
     fillPeaks();
     m_plot->update();
     m_pending = bool(m_spectrum);
-    if (m_pending)
+    if (m_pending && m_analysisSuspended)
+        m_summary->setText(tr("Transient analysis paused during playback."));
+    else if (m_pending)
     {
         m_summary->setText(tr("Analyzing transients…"));
         m_timer->start();
@@ -299,7 +324,7 @@ void TransientPanel::scheduleAnalysis()
 }
 void TransientPanel::startAnalysis()
 {
-    if (m_busy || !m_pending || !m_spectrum)
+    if (m_busy || m_analysisSuspended || !m_pending || !m_spectrum)
         return;
     m_pending = false;
     m_busy = true;
@@ -330,10 +355,10 @@ void TransientPanel::startAnalysis()
                                    : QString::fromStdString(m_result.error));
             m_plot->update();
         }
-        if (m_pending && !m_timer->isActive())
+        if (m_pending && !m_analysisSuspended && !m_timer->isActive())
             m_timer->start();
     });
-    watcher->setFuture(QtConcurrent::run([spectrum, options, cancel] {
+    watcher->setFuture(QtConcurrent::run(&m_workerPool, [spectrum, options, cancel] {
         return analysis::analyzeTransients(*spectrum, options, cancel.get());
     }));
 }

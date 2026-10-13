@@ -3,6 +3,7 @@
 #include "analysis/SpectrumRaster.h"
 #include <QString>
 #include <QVector>
+#include <QThreadPool>
 #include <functional>
 #include <memory>
 class QObject;
@@ -34,7 +35,8 @@ class SpectrumService
     };
     using EnergyCallback = std::function<void(EnergyEnvelope)>;
     static EnergyEnvelope analyzeEnergy(const QString &, const std::shared_ptr<std::atomic<bool>> &);
-    static void analyzeEnergyAsync(QObject *, const QString &, std::shared_ptr<std::atomic<bool>>, EnergyCallback);
+    static void analyzeEnergyAsync(QObject *, const QString &, std::shared_ptr<std::atomic<bool>>, EnergyCallback,
+                                   QThreadPool *pool = nullptr);
     static Result analyzeFileRange(const QString &, double startMs, double durationMs,
                                    const std::shared_ptr<std::atomic<bool>> &cancel);
     static void analyzeFileRangeAsync(QObject *context, const QString &, double startMs, double durationMs,
