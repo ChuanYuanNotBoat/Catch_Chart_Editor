@@ -246,6 +246,8 @@ struct AutoTiming2Confidence
 // upstream defaults.
 struct AutoTiming2Options
 {
+    // Keep the analysis worker pool bounded; playback callers can drop to one worker.
+    int maximumWorkerThreads = 2;
     // (durationSeconds, hopSeconds) pairs; empty -> upstream default scales
     // (8s/4s + 24s/12s + 48s/24s).
     QVector<QPair<double, double>> windowSpecs;

@@ -5,6 +5,7 @@
 #include <QElapsedTimer>
 #include <QPointer>
 #include <QJsonArray>
+#include <QtGlobal>
 #include <cmath>
 namespace analysis
 {
@@ -15,7 +16,7 @@ AnalysisSession::~AnalysisSession()
         *m_cancel = true;
 }
 bool AnalysisSession::dispatch(QObject *context, const QString &path, const AnalysisRequest &request,
-                               Completion complete, Runner runner)
+                               Completion complete, Runner runner, int maximumWorkerThreads)
 {
     if (m_busy || !context || !isCurrent(request, request.sourceIdentity)
         || !validateRequest(request.config, request.startMs, request.durationMs).isEmpty())
@@ -32,7 +33,9 @@ bool AnalysisSession::dispatch(QObject *context, const QString &path, const Anal
             BpmDetector::analyzeFromFileDetailedAsync(c, p, start, duration, std::move(callback), options,
                                                       std::move(flag));
         };
-    runner(context, path, request.startMs, request.durationMs, configOptions(request.config), cancel,
+    auto options = configOptions(request.config);
+    options.maximumWorkerThreads = qBound(1, maximumWorkerThreads, 4);
+    runner(context, path, request.startMs, request.durationMs, options, cancel,
            [this, owner, alive, cancel, elapsed, request,
             complete = std::move(complete)](bool success, BpmDetector::DetectionResult result, const QString &error) {
                if (!alive->load())

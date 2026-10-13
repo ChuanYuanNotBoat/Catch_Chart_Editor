@@ -4,6 +4,7 @@
 
 #include <stdexcept>
 #include <QSet>
+#include <QtGlobal>
 #include <type_traits>
 #include <cmath>
 
@@ -210,6 +211,7 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
     try
     {
         autotiming::AnalysisOptions native;
+        native.maximumWindowWorkerCount = static_cast<std::size_t>(qBound(1, options.maximumWorkerThreads, 4));
         if (!options.windowSpecs.isEmpty())
         {
             native.windowSpecs.clear();
