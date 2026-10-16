@@ -694,10 +694,14 @@ bool ChartIO::save(const QString &filePath, const Chart &chart)
         // 如果是纯文件名，尝试从源路径复制到保存目录
         if (!QDir::isAbsolutePath(audioFileName) && !audioFileName.contains('/') && !audioFileName.contains('\\'))
         {
+            const QString targetPath = chartSaveDir.filePath(audioFileName);
             QString sourcePath = chart.audioSourceFullPath();
-            if (!sourcePath.isEmpty() && QFileInfo::exists(sourcePath))
+            if (QFileInfo(targetPath).isFile())
             {
-                QString targetPath = chartSaveDir.filePath(audioFileName);
+                Logger::debug(QString("ChartIO::save - Audio target already exists: '%1'").arg(targetPath));
+            }
+            else if (!sourcePath.isEmpty() && QFileInfo::exists(sourcePath))
+            {
                 if (!QFileInfo::exists(targetPath))
                 {
                     Logger::debug(QString("ChartIO::save - Copying audio '%1' -> '%2'")

@@ -995,14 +995,16 @@ namespace
         return QDir::cleanPath(QDir(chartDir).filePath(resourceFile));
     }
 
-    void copyReferencedExternalResources(const QString &sourceChartPath, const QString &workingChartPath)
+    void copyReferencedExternalResources(const QString &sourceChartPath, const QString &targetChartPath)
     {
-        if (sourceChartPath.isEmpty() || workingChartPath.isEmpty())
+        if (sourceChartPath.isEmpty() || targetChartPath.isEmpty())
             return;
 
         const QString sourceChartDir = QFileInfo(sourceChartPath).absoluteDir().absolutePath();
-        const QString workingChartDir = QFileInfo(workingChartPath).absoluteDir().absolutePath();
-        const QString sessionRoot = workingSessionDirFromWorkingPath(workingChartPath);
+        // This is used both for imports into a session and for saves back to
+        // a library/Save As directory. Constrain copies to the chosen chart's
+        // directory; a save destination need not belong to a recovery session.
+        const QString targetChartDir = QFileInfo(targetChartPath).absoluteDir().absolutePath();
         const QStringList resources = collectReferencedResources(sourceChartPath);
         for (const QString &resource : resources)
         {
@@ -1041,10 +1043,10 @@ namespace
                 continue;
             }
 
-            const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(targetRelative));
-            if (!SessionPathUtils::isPathInsideRoot(sessionRoot, targetAbs))
+            const QString targetAbs = QDir::cleanPath(QDir(targetChartDir).absoluteFilePath(targetRelative));
+            if (!SessionPathUtils::isPathInsideRoot(targetChartDir, targetAbs))
             {
-                Logger::warn(QString("Skip copying referenced resource outside working session root: %1").arg(resource));
+                Logger::warn(QString("Skip copying referenced resource outside target chart directory: %1").arg(resource));
                 continue;
             }
 
@@ -3827,6 +3829,7 @@ void MainWindow::newChart()
 
         // Step 6: Create default chart and save to time-stamped .mc.
         Chart chart = ChartIO::createDefaultChart(meta);
+        chart.setAudioSourceFullPath(resolvedTargetAudioPath);
         const QString mcPath = QDir(resolvedSongDir).filePath(QString::number(timestamp) + ".mc");
         if (!ChartIO::save(mcPath, chart))
         {

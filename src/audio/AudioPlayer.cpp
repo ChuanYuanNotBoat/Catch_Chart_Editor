@@ -66,6 +66,10 @@ AudioPlayer::AudioPlayer(QObject *parent)
 AudioPlayer::~AudioPlayer()
 {
     cancelPendingLoad();
+    // Release the backend's open media handle before removing temporary audio.
+    disconnect(m_player, nullptr, this, nullptr);
+    delete m_player;
+    m_player = nullptr;
     cleanupTempAudioFiles();
 }
 
@@ -225,14 +229,16 @@ QString AudioPlayer::normalizeAudioPath(const QString &originalPath)
     const QString extension = suffix.isEmpty() ? QString() : QStringLiteral(".") + suffix;
     QTemporaryFile tempFile(QDir::tempPath() + QStringLiteral("/audio_XXXXXX") + extension);
     tempFile.setAutoRemove(false);
+    QString copyError;
     if (tempFile.open())
     {
         const QString tempPath = tempFile.fileName();
         tempFile.close();
 
-        // QFile::copy refuses to overwrite the placeholder created by
-        // QTemporaryFile, so remove it before copying the real media.
-        if (QFile::remove(tempPath) && QFile::copy(originalPath, tempPath))
+        // close() keeps QTemporaryFile's native handle alive for reopening.
+        // Remove through its owner so Windows releases that handle before copy.
+        QFile source(originalPath);
+        if (tempFile.remove() && source.copy(tempPath))
         {
             Logger::info(QString("AudioPlayer::normalizeAudioPath - Copied to: %1")
                              .arg(tempPath));
@@ -240,10 +246,14 @@ QString AudioPlayer::normalizeAudioPath(const QString &originalPath)
             return tempPath;
         }
 
-        QFile::remove(tempPath);
+        copyError = tempFile.error() != QFileDevice::NoError ? tempFile.errorString() : source.errorString();
+        tempFile.remove();
     }
+    else
+        copyError = tempFile.errorString();
 
-    Logger::warn("AudioPlayer::normalizeAudioPath - Temporary copy failed; using original path");
+    Logger::warn(QString("AudioPlayer::normalizeAudioPath - Temporary copy failed for '%1': %2; using original path")
+                     .arg(originalPath, copyError));
     return originalPath;
 }
 
