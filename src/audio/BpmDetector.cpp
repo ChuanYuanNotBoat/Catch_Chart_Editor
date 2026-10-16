@@ -11,6 +11,7 @@
 #include <QCryptographicHash>
 #include <QTimer>
 
+#include <cmath>
 #include <memory>
 
 namespace
@@ -87,6 +88,7 @@ QString encodedHash(const QString &path)
         decoder.setSource(QUrl::fromLocalFile(audioFilePath));
 
         qint64 processedFrames = 0;
+        qint64 startFrame = 0, endFrame = 0;
         bool success = true;
         bool decoderDone = false;
         QString errorText;
@@ -127,13 +129,33 @@ QString encodedHash(const QString &path)
                 loop.quit();
                 return;
             }
+            if (!outSampleRate)
+            {
+                // qFloor/qCeil return int, so casting their result to qint64
+                // still overflows for whole-file requests (or long timelines).
+                // Keep rounding in floating point until the checked 64-bit cast.
+                const double firstFrame = std::floor(qMax(0.0, startMs) * fmt.sampleRate() / 1000.0);
+                const double lastFrame =
+                    std::ceil((qMax(0.0, startMs) + durationMs) * fmt.sampleRate() / 1000.0);
+                // double(qint64::max()) rounds up to 2^63; that boundary must
+                // be exclusive to keep the cast defined, including in Release.
+                const double frameLimit = std::ldexp(1.0, 63);
+                if (!std::isfinite(firstFrame) || !std::isfinite(lastFrame) ||
+                    firstFrame >= frameLimit || lastFrame >= frameLimit)
+                {
+                    success = false;
+                    decoderDone = true;
+                    errorText = QStringLiteral("Requested audio range exceeds the 64-bit sample timeline.");
+                    loop.quit();
+                    return;
+                }
+                startFrame = static_cast<qint64>(firstFrame);
+                endFrame = static_cast<qint64>(lastFrame);
+            }
             outSampleRate = fmt.sampleRate();
             if (decodedChannels)
                 *decodedChannels = fmt.channelCount();
             const int channels = fmt.channelCount();
-            const qint64 startFrame = static_cast<qint64>(qFloor(qMax(0.0, startMs) * outSampleRate / 1000.0));
-            const qint64 endFrame =
-                static_cast<qint64>(qCeil((qMax(0.0, startMs) + durationMs) * outSampleRate / 1000.0));
             const qint64 bufStart = processedFrames;
             const qint64 bufEnd = processedFrames + buffer.frameCount();
             processedFrames = bufEnd;

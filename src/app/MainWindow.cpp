@@ -3846,6 +3846,7 @@ void MainWindow::newChart()
         bpmProgress->show();
         const QPointer<QProgressDialog> progressGuard(bpmProgress);
 
+        Logger::info(QString("New chart - measuring audio timing: %1").arg(resolvedTargetAudioPath));
         BpmDetector::detectFromFileDetailedAsync(
             this,
             resolvedTargetAudioPath,
@@ -3857,7 +3858,7 @@ void MainWindow::newChart()
              meta,
              mcPath](bool detected,
                      BpmDetector::DetectionResult detResult,
-                     const QString &) mutable
+                     const QString &detectionError) mutable
             {
                 if (progressGuard)
                 {
@@ -3881,6 +3882,7 @@ void MainWindow::newChart()
                 }
                 else
                 {
+                    Logger::warn(QString("New chart - auto-timing failed: %1").arg(detectionError));
                     statusBar()->showMessage(
                         tr("Auto-timing skipped (detection failed). Default BPM=120."), 5000);
                 }
@@ -3942,6 +3944,7 @@ void MainWindow::newChart()
                             tr("Failed to convert audio to OGG:\n%1").arg(convertError));
                         return;
                     }
+                    Logger::info(QString("New chart - audio converted successfully: %1").arg(targetAudioPath));
                     finishNewChart(songDir, targetAudioName, targetAudioPath);
                 });
             return;

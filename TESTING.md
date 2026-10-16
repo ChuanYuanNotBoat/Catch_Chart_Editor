@@ -184,6 +184,21 @@ python tools\perf\note_sound_probe_report.py artifacts\note-normal.json artifact
 `submission_lateness_wall_ms` 只表示相对预测时钟的提交误差，不能等同于听感延迟。
 完整原因与证据见 [Note 音时序排查](docs/NOTE_SOUND_TIMING_INVESTIGATION.md)。
 
+## 音频导入与整曲测时回归
+
+`audio_bpm_detector_file_tests` 真实执行异步 WAV 转 OGG，再以新建谱面的整曲时长
+请求调用异步 BPM 检测；同时验证不同采样率、区间裁切和超出 64 位采样位置的
+错误返回。旧代码会在第一个整曲请求上触发 `qnumeric.h:516` 断言。
+
+```powershell
+cmake --build build_clion_msvc --config Debug --target BpmDetectorFileTests
+ctest --test-dir build_clion_msvc -C Debug -R audio_bpm_detector_file_tests --output-on-failure
+```
+
+默认仅使用临时文件。可设置 `CCE_BPM_IMPORT_AUDIO` 为本机已有音乐路径，附加只读
+整曲检测；该文件不会被转换、覆盖或修改。原因追踪见
+[音频导入崩溃排查](docs/AUDIO_IMPORT_CRASH_INVESTIGATION.md)。
+
 ## 手工回归清单
 
 自动化测试不替代以下真实交互：
