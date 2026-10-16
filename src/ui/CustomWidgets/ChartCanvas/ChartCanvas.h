@@ -468,6 +468,15 @@ private:
     QVector<double> m_playableNoteTimesMs;
     int m_nextPlayableNoteIndex;
     double m_lastNoteSoundTimeMs;
+    QTimer m_noteSoundTimer;
+    // Note-sound timing probe stats (accumulated only while the playback
+    // probe is enabled; summarized on playback stop/pause).
+    qint64 m_noteSoundProbeTriggers = 0;
+    qint64 m_noteSoundProbeRestarts = 0;
+    QVector<double> m_noteSoundProbeQuantMs;
+    double m_noteSoundProbeTickSumMs = 0.0;
+    qint64 m_noteSoundProbeTickCount = 0;
+    qint64 m_lastNoteSoundTickNs = 0;
 
     int leftMargin() const;
     int rightMargin() const;
@@ -475,6 +484,8 @@ private:
     void invalidateChartCaches(const ChartChange &change);
     void resetOverlayQueryState();
     void advanceNoteSoundClock(double playbackTimeMs);
+    void resetNoteSoundProbeStats();
+    void logNoteSoundProbeSummary();
     void advancePlaybackVisual(bool scheduleRepaint, bool recordProbe = true);
     void attachDisplayFrameWindow();
     void updateDisplayRefreshRate(QScreen *screen);

@@ -56,6 +56,7 @@ signals:
     void loopRangeChanged(double startMs, double endMs, bool enabled);
     void stateChanged(State newState);
     void positionChanged(double timeMs);
+    void seeked(double timeMs);
     void playbackFrameTick(double predictedTimeMs, qint64 frameSeq);
     void speedChanged(double speed);
     void beatReached(int beatNum, int num, int den);

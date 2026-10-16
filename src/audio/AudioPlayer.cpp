@@ -8,11 +8,12 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-#include <QPlaybackOptions>
-#endif
 #include <QTemporaryFile>
 #include <QUrl>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+#include <QAudioBufferOutput>
+#include <QAudioBuffer>
+#endif
 
 AudioPlayer::AudioPlayer(QObject *parent)
     : QObject(parent),
@@ -27,12 +28,21 @@ AudioPlayer::AudioPlayer(QObject *parent)
 {
     m_player->setAudioOutput(m_audioOutput);
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    auto *bufferOutput = new QAudioBufferOutput(this);
+    m_player->setAudioBufferOutput(bufferOutput);
+    connect(bufferOutput, &QAudioBufferOutput::audioBufferReceived, this,
+            [this](const QAudioBuffer &buffer) {
+        if (buffer.isValid())
+            m_positionGranularityMs = qMax(m_positionGranularityMs, buffer.duration() / 1000.0);
+    });
+#endif
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-    // Editing favors responsive local playback over a large glitch-resistant
-    // buffer. Backends that do not support this hint safely ignore it.
-    QPlaybackOptions playbackOptions = m_player->playbackOptions();
-    playbackOptions.setPlaybackIntent(QPlaybackOptions::PlaybackIntent::LowLatencyStreaming);
-    m_player->setPlaybackOptions(playbackOptions);
+    // Keep the default file-playback intent. LowLatencyStreaming enables
+    // FFmpeg's nobuffer flag, which discards packets consumed by stream probing
+    // (the first 4266 ms of a 48 kHz stereo PCM WAV on Qt 6.10.2). A local chart
+    // must preserve its complete media timeline, including playback from zero.
 
     // Pitch compensation adds a large processing queue at very low rates.
     if (m_player->pitchCompensationAvailability() ==
@@ -128,6 +138,7 @@ bool AudioPlayer::load(const QString &filePath)
     setLoadingState(LoadingState::Idle);
     m_lastError.clear();
     m_currentLoadPath.clear();
+    m_positionGranularityMs = 0.0;
     m_player->stop();
     m_player->setSource(QUrl());
     cleanupTempAudioFiles();

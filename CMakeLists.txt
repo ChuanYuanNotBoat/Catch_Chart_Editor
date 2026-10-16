@@ -56,6 +56,15 @@ endif()
 
 add_subdirectory(src)
 
+option(CATCHEDITOR_BUILD_AUDIO_PROBE "Build the manual Windows note-sound loopback probe" OFF)
+if(CATCHEDITOR_BUILD_AUDIO_PROBE AND WIN32)
+    if(Qt6_VERSION VERSION_LESS 6.10)
+        message(FATAL_ERROR "The manual audio probe requires Qt 6.10 or newer")
+    endif()
+    add_executable(NoteSoundTimingProbe tools/perf/note_sound_timing_probe.cpp)
+    target_link_libraries(NoteSoundTimingProbe PRIVATE CatchChartEditorRuntime ole32 uuid)
+endif()
+
 install(TARGETS CatchChartEditor DESTINATION bin)
 install(DIRECTORY resources/ DESTINATION share/${PROJECT_NAME})
 install(FILES
@@ -80,6 +89,16 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/plugins")
 endif()
 
 if(BUILD_TESTING)
+    add_executable(PlaybackTimingTests tests/playback_timing_tests.cpp)
+    target_link_libraries(PlaybackTimingTests PRIVATE CatchChartEditorRuntime Qt6::Test)
+    add_test(NAME audio_playback_timing_tests COMMAND PlaybackTimingTests)
+    set_tests_properties(audio_playback_timing_tests PROPERTIES TIMEOUT 45 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        string(REPLACE ";" "\\;" _playback_test_path "$ENV{PATH}")
+        set_tests_properties(audio_playback_timing_tests PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=$<TARGET_FILE_DIR:Qt6::Core>\;${_playback_test_path}")
+    endif()
+
     add_executable(TimingInterpolationTests tests/timing_interpolation_tests.cpp src/analysis/TimingInterpolation.cpp)
     set_target_properties(TimingInterpolationTests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
     target_include_directories(TimingInterpolationTests PRIVATE src)

@@ -487,13 +487,16 @@ namespace
                                 proposal.unavailableReason.toStdString());
                     if (!proposal.available)
                         continue;
+                    const auto playbackCache = MathUtils::buildBpmTimeCache(proposal.bpmList, offset);
                     for (double beat = 0.0; beat <= summary.tempoMap.endBeat; beat += 1.0 / 32.0)
                     {
                         int whole = 0, numerator = 0, denominator = 1;
                         MathUtils::floatToBeat(proposal.firstAnchorBeat + beat,
                             whole, numerator, denominator, 65536);
+                        // Use the same absolute audio timeline as ChartCanvas.
+                        // Adding offset again here created a false 137 ms regression.
                         const double projectedAudioMs = MathUtils::beatToMs(
-                            whole, numerator, denominator, proposal.bpmList, offset) + offset;
+                            whole, numerator, denominator, playbackCache);
                         const double expectedAudioMs = 1000.0 * (audioStart + firstPulse +
                             linearRampPulseTime(firstBeat + beat, startBpm, slope));
                         maximumErrorMs = std::max(maximumErrorMs,

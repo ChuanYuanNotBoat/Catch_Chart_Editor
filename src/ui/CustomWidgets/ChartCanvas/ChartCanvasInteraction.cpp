@@ -337,14 +337,6 @@ void ChartCanvas::onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq)
         return;
     }
 
-    // The visual target is sampled for the upcoming presentation refresh and
-    // is intentionally a little ahead of wall time. Note sounds must follow
-    // the current audio clock instead of that future visual sample.
-    const double noteSoundTimeMs = m_playbackController
-                                       ? m_playbackController->currentTime()
-                                       : predictedTimeMs;
-    advanceNoteSoundClock(noteSoundTimeMs);
-
     double previousScrollBeat = 0.0;
     double previousPlayheadYPx = -1.0;
     if (probeEnabled)

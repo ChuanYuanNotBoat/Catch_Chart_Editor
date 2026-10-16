@@ -4,6 +4,7 @@
 #include <QSoundEffect>
 #include <QUrl>
 #include <QtGlobal>
+#include <chrono>
 
 NoteSoundPlayer::NoteSoundPlayer(QObject *parent)
     : QObject(parent),
@@ -43,9 +44,15 @@ void NoteSoundPlayer::playHitSound()
     {
         voice = m_voices[m_nextVoice];
         voice->stop();
+        ++m_restartCount;
         m_nextVoice = (m_nextVoice + 1) % m_voices.size();
     }
     voice->play();
+    m_lastPlaySteadyNs = static_cast<qint64>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
+            .count());
+    emit hitSoundTriggered(m_lastPlaySteadyNs);
 }
 
 void NoteSoundPlayer::setSoundFile(const QString &filePath)

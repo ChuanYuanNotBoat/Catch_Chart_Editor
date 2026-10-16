@@ -150,6 +150,40 @@ build\Release\CatchChartEditor.exe `
 `visual.scroll_step_change_pct`。音频后端首个位置样本可以延迟到达，但画面帧在等待期间
 必须继续推进，首次样本不得直接重设显示时钟。0.1×、0.25×、1×、2×、10× 至少各跑一次。
 
+## Note 音与播放时钟回归
+
+`audio_playback_timing_tests` 验证本地音频首段不丢失、解码帧粒度不会触发假时钟
+重同步、画面尚未确认绘制时音效仍继续，以及播放中跳转不集中补播跳过的 Note。
+测试使用临时 WAV 和隔离设置，不写入用户谱面。
+
+```powershell
+cmake --build build_clion_msvc --config Debug --target PlaybackTimingTests
+ctest --test-dir build_clion_msvc -C Debug -R audio_playback_timing_tests --output-on-failure
+```
+
+Windows / Qt 6.10+ 可启用独立诊断工具，记录解码帧 PTS、音频位置、预测时钟、每次
+音效提交和系统输出回环中的测试音起点。回环只保存检测时刻，不保存原始系统音频。
+该工具不加入默认构建或 CTest，不能用其音调检测结果自动校准 offset。
+密集场景可使用 `--interval-ms 20 --hit-file resources/note_sounds/kickwav.wav
+--muted --no-loopback`；加上 `--stall-ms 150` 单独检查 GUI 阻塞恢复后的过期音效合并。
+JSON 的 `voice_restart_count` 与逐次提交时刻用于区分声部满载和集中补播。
+
+```powershell
+cmake -S . -B build_clion_msvc -DCATCHEDITOR_BUILD_AUDIO_PROBE=ON
+cmake --build build_clion_msvc --config Debug --target NoteSoundTimingProbe
+build_clion_msvc\Debug\NoteSoundTimingProbe.exe --output artifacts\note-normal.json
+build_clion_msvc\Debug\NoteSoundTimingProbe.exe --paint-delay-ms 90 --output artifacts\note-paint90.json
+build_clion_msvc\Debug\NoteSoundTimingProbe.exe --speed 0.1 --no-loopback --output artifacts\note-slow.json
+python tools\perf\note_sound_probe_report.py artifacts\note-normal.json artifacts\note-paint90.json
+```
+
+`--streaming` 复现旧的 LowLatencyStreaming 输入配置；`--chart <path> --start-ms <ms>
+--no-loopback` 只读解析现有谱面及其音乐。工具读取真实谱面时只检查时间链路，不能
+通过音乐与测试音的混合检测来宣称真实声音已精确对齐。
+
+`submission_lateness_wall_ms` 只表示相对预测时钟的提交误差，不能等同于听感延迟。
+完整原因与证据见 [Note 音时序排查](docs/NOTE_SOUND_TIMING_INVESTIGATION.md)。
+
 ## 手工回归清单
 
 自动化测试不替代以下真实交互：

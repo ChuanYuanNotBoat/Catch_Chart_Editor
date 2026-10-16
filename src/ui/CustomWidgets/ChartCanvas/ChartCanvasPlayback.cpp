@@ -3,7 +3,7 @@
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "audio/NoteSoundPlayer.h"
-#include "audio/PlaybackTiming.h"
+#include "utils/Logger.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackStutterProbe.h"
 #include <QDateTime>
@@ -14,12 +14,18 @@
 #include <QTimer>
 #include <QWindow>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <limits>
+#include <numeric>
 
 
 namespace
 {
+    // Cap for per-session quantization samples; prevents unbounded growth
+    // during hours-long loop playback while keeping statistics representative.
+    constexpr qsizetype kMaxNoteSoundProbeSamples = 100000;
+
     void fillPluginEventModifiers(PluginInterface::CanvasInputEvent *outEvent, Qt::KeyboardModifiers eventModifiers)
     {
         if (!outEvent)
@@ -40,9 +46,8 @@ void ChartCanvas::playbackPositionChanged(double timeMs)
 
     const double clampedTimeMs = qMax(0.0, timeMs);
 
-    // During playback the high-resolution controller tick is the only clock
-    // for visuals and note sounds. QMediaPlayer position callbacks are sparse,
-    // especially at low rates, and are used only to re-anchor that clock.
+    // Presentation and note submissions have independent wakeups. Sparse
+    // QMediaPlayer callbacks calibrate their shared predicted timeline.
     if (m_playbackController && m_playbackController->state() == PlaybackController::Playing)
         return;
 
@@ -60,8 +65,7 @@ void ChartCanvas::playbackPositionChanged(double timeMs)
 
 void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
 {
-    constexpr double kComparisonEpsilonMs = 0.5;
-    constexpr double kOutputLeadWallMs = 8.0;
+    constexpr double kComparisonEpsilonMs = 1e-6;
 
     if (m_timesDirty || m_noteDataDirty)
         rebuildNoteTimesCache();
@@ -76,15 +80,39 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
         return;
     }
 
-    // QSoundEffect starts asynchronously. A small wall-time lead both offsets
-    // its output queue and centers the error of a 60 Hz controller pulse. The
-    // conversion by playback rate is essential: 8 ms wall time is only 0.8 ms
-    // on the media timeline at 0.1x.
-    const double schedulingTimeMs = qMax(
-        0.0,
-        playbackTimeMs + PlaybackTiming::wallDurationToMediaMs(
-                             kOutputLeadWallMs,
-                             m_playbackController->speed()));
+    const bool probeEnabled = PlaybackStutterProbe::enabled();
+    const double playbackSpeed = m_playbackController->speed();
+    const double safeSpeed =
+        (std::isfinite(playbackSpeed) && playbackSpeed > 0.0) ? playbackSpeed : 1.0;
+    const double frameWallBudgetMs = m_noteSoundTimer.interval();
+
+    // Measure the submission timer independently of display presentation.
+    if (probeEnabled)
+    {
+        const qint64 tickNowNs =
+            static_cast<qint64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                    std::chrono::steady_clock::now().time_since_epoch())
+                                    .count());
+        if (m_lastNoteSoundTickNs > 0)
+        {
+            const double tickMs =
+                static_cast<double>(tickNowNs - m_lastNoteSoundTickNs) / 1000000.0;
+            // Ignore multi-second gaps (machine sleep); resume resets this
+            // baseline through resetNoteSoundProbeStats() anyway.
+            if (tickMs >= 0.0 && tickMs < 1000.0)
+            {
+                PlaybackStutterProbe::recordDuration(
+                    "note_sound.tick_interval_ms", tickMs, frameWallBudgetMs * 1.35, true);
+                m_noteSoundProbeTickSumMs += tickMs;
+                ++m_noteSoundProbeTickCount;
+            }
+        }
+        m_lastNoteSoundTickNs = tickNowNs;
+    }
+
+    // No guessed output-latency compensation: the device's asynchronous
+    // output delay is distinct from submission jitter and clock drift.
+    const double schedulingTimeMs = qMax(0.0, playbackTimeMs);
 
     if (schedulingTimeMs < m_lastNoteSoundTimeMs - 2.0)
     {
@@ -95,7 +123,9 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
                                                    m_playableNoteTimesMs.begin());
     }
 
+    const qint64 restartsBefore = probeEnabled ? m_noteSoundPlayer->restartCount() : 0;
     double lastTriggeredTimeMs = -std::numeric_limits<double>::infinity();
+    qint64 uniqueDueNotes = 0;
     if (schedulingTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs)
     {
         const RainVisibilityIndex::IntervalRange dueNotes =
@@ -108,9 +138,53 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
             if (noteTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs &&
                 noteTimeMs > lastTriggeredTimeMs + kComparisonEpsilonMs)
             {
-                m_noteSoundPlayer->playHitSound();
                 lastTriggeredTimeMs = noteTimeMs;
+                ++uniqueDueNotes;
             }
+        }
+    }
+
+    if (uniqueDueNotes > 0)
+    {
+        // QSoundEffect has no timestamped scheduling. After a blocked event
+        // loop, playing every overdue strike here stacks their attacks at the
+        // same instant and steals active voices. Keep the latest audible cue;
+        // genuinely distinct on-time wakeups still submit distinct strikes.
+        m_noteSoundPlayer->playHitSound();
+        if (probeEnabled)
+        {
+            const double noteTimeMs = lastTriggeredTimeMs;
+            // Submission lateness relative to the predicted timeline;
+            // this does not measure when the device emits the sample.
+            const double overshootMediaMs = schedulingTimeMs - noteTimeMs;
+            const double quantizationWallMs = overshootMediaMs / safeSpeed;
+            const double offsetFromNoteMs = (playbackTimeMs - noteTimeMs) / safeSpeed;
+            PlaybackStutterProbe::recordValue(
+                "note_sound.window_overshoot_ms", overshootMediaMs,
+                frameWallBudgetMs * playbackSpeed, true);
+            PlaybackStutterProbe::recordValue(
+                "note_sound.quantization_ms", quantizationWallMs,
+                frameWallBudgetMs, true);
+            PlaybackStutterProbe::recordValue(
+                "note_sound.offset_from_note_ms", offsetFromNoteMs,
+                frameWallBudgetMs, true);
+            ++m_noteSoundProbeTriggers;
+            if (m_noteSoundProbeQuantMs.size() < kMaxNoteSoundProbeSamples)
+                m_noteSoundProbeQuantMs.append(quantizationWallMs);
+            if (uniqueDueNotes > 1)
+                PlaybackStutterProbe::recordCounter("note_sound.coalesced_overdue", uniqueDueNotes - 1, true);
+        }
+    }
+
+    if (probeEnabled)
+    {
+        const qint64 countedNow = m_noteSoundPlayer->restartCount();
+        const qint64 restartDelta = countedNow - restartsBefore;
+        if (restartDelta > 0)
+        {
+            PlaybackStutterProbe::recordCounter(
+                "note_sound.voice_restart", restartDelta, true);
+            m_noteSoundProbeRestarts += restartDelta;
         }
     }
 
@@ -121,6 +195,65 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
                                                m_playableNoteTimesMs.begin());
 
     m_lastNoteSoundTimeMs = schedulingTimeMs;
+}
+
+void ChartCanvas::resetNoteSoundProbeStats()
+{
+    m_noteSoundProbeTriggers = 0;
+    m_noteSoundProbeRestarts = 0;
+    m_noteSoundProbeQuantMs.clear();
+    m_noteSoundProbeTickSumMs = 0.0;
+    m_noteSoundProbeTickCount = 0;
+    m_lastNoteSoundTickNs = 0;
+}
+
+void ChartCanvas::logNoteSoundProbeSummary()
+{
+    const bool probeEnabled = PlaybackStutterProbe::enabled();
+    const bool hasSamples = m_noteSoundProbeTriggers > 0 || m_noteSoundProbeTickCount > 0;
+    if (!probeEnabled || !hasSamples)
+    {
+        resetNoteSoundProbeStats();
+        return;
+    }
+
+    QVector<double> sorted = m_noteSoundProbeQuantMs;
+    std::sort(sorted.begin(), sorted.end());
+    const auto percentile = [&sorted](double p) -> double
+    {
+        if (sorted.isEmpty())
+            return 0.0;
+        const qsizetype idx = static_cast<qsizetype>(
+            p * static_cast<double>(sorted.size() - 1));
+        return sorted[qBound<qsizetype>(0, idx, sorted.size() - 1)];
+    };
+    const double minMs = sorted.isEmpty() ? 0.0 : sorted.first();
+    const double maxMs = sorted.isEmpty() ? 0.0 : sorted.last();
+    const double avgQuantMs = m_noteSoundProbeTriggers > 0 && !sorted.isEmpty()
+                                  ? (std::accumulate(sorted.begin(), sorted.end(), 0.0) /
+                                     static_cast<double>(sorted.size()))
+                                  : 0.0;
+    const double avgTickMs = m_noteSoundProbeTickCount > 0
+                                 ? m_noteSoundProbeTickSumMs /
+                                       static_cast<double>(m_noteSoundProbeTickCount)
+                                 : 0.0;
+
+    // quant_ms measures submission jitter only. Output delay and the signed
+    // prediction/backend clock error must be inspected separately.
+    Logger::info(
+        QString("NOTE_SOUND_PROBE triggers=%1 quant_ms(min=%2, p50=%3, p90=%4, max=%5, avg=%6) "
+                "avg_tick_ms=%7 ticks=%8 voice_restarts=%9")
+            .arg(m_noteSoundProbeTriggers)
+            .arg(minMs, 0, 'f', 2)
+            .arg(percentile(0.50), 0, 'f', 2)
+            .arg(percentile(0.90), 0, 'f', 2)
+            .arg(maxMs, 0, 'f', 2)
+            .arg(avgQuantMs, 0, 'f', 2)
+            .arg(avgTickMs, 0, 'f', 2)
+            .arg(m_noteSoundProbeTickCount)
+            .arg(m_noteSoundProbeRestarts));
+
+    resetNoteSoundProbeStats();
 }
 
 void ChartCanvas::playFromReferenceLine()

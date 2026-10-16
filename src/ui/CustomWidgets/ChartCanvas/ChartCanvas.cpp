@@ -155,6 +155,14 @@ ChartCanvas::ChartCanvas(QWidget *parent)
 
     m_noteRenderer->setNoteSize(Settings::instance().noteSize());
     m_noteSoundPlayer = new NoteSoundPlayer(this);
+    // Audio submissions must keep running while presentation waits for paint.
+    // This timer still shares the UI event loop; it cannot hide a UI-thread stall.
+    m_noteSoundTimer.setTimerType(Qt::PreciseTimer);
+    m_noteSoundTimer.setInterval(1);
+    connect(&m_noteSoundTimer, &QTimer::timeout, this, [this] {
+        if (m_playbackController && m_isPlaying)
+            advanceNoteSoundClock(m_playbackController->currentTime());
+    });
     m_noteSoundPlayer->setVolumePercent(Settings::instance().noteSoundVolume());
     const QString noteSoundPath = Settings::instance().noteSoundPath();
     m_noteSoundPlayer->setSoundFile(noteSoundPath);
@@ -459,14 +467,20 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
         disconnect(m_playbackController, &PlaybackController::playbackFrameTick, this, &ChartCanvas::onPlaybackFrameTick);
         disconnect(m_playbackController, &PlaybackController::stateChanged, this, nullptr);
         disconnect(m_playbackController, &PlaybackController::loopRangeChanged, this, nullptr);
+        disconnect(m_playbackController, &PlaybackController::seeked, this, nullptr);
     }
 
     m_playbackController = controller;
+    m_noteSoundTimer.stop();
     m_currentPlayTime = 0;
 
     if (m_playbackController)
     {
         connect(m_playbackController, &PlaybackController::loopRangeChanged, this, [this] { update(); });
+        connect(m_playbackController, &PlaybackController::seeked, this, [this](double timeMs) {
+            // A discontinuity is navigation, not a range of notes to catch up.
+            m_lastNoteSoundTimeMs = qMax(0.0, timeMs);
+        });
         attachDisplayFrameWindow();
         if (m_displayFrameScreen)
             m_playbackController->setDisplayRefreshRate(m_displayFrameScreen->refreshRate());
@@ -494,6 +508,8 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 const double startMs = m_playbackController ? m_playbackController->currentTime() : m_currentPlayTime;
                 m_currentPlayTime = qMax(0.0, startMs);
                 m_lastNoteSoundTimeMs = m_currentPlayTime;
+                resetNoteSoundProbeStats();
+                m_noteSoundTimer.start();
                 m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
                     m_playableNoteTimesMs.begin(),
                     m_playableNoteTimesMs.end(),
@@ -501,6 +517,7 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 requestNextFrame();
             } else {
                 m_isPlaying = false;
+                m_noteSoundTimer.stop();
                 m_lastPlaybackFrameSeq = -1;
                 m_lastPlaybackPredictedTimeMs = -1.0;
                 m_lastPlaybackTargetTimeMs = -1.0;
@@ -514,6 +531,7 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 m_lastPaintScrollBeat = 0.0;
                 m_lastPaintScrollVelocityPxPerSecond = -1.0;
                 m_lastNoteSoundTimeMs = m_currentPlayTime;
+                logNoteSoundProbeSummary();
                 snapPlayheadToGrid();
                 update();
             } });
