@@ -80,6 +80,8 @@ public:
     void setEditorGridDivision(int division);
     bool editorGridSnapEnabled() const;
     void setEditorGridSnapEnabled(bool enabled);
+    bool editorDragGridSnapEnabled() const;
+    void setEditorDragGridSnapEnabled(bool enabled);
     double editorTimeScale() const;
     void setEditorTimeScale(double scale);
     int mirrorAxisX() const;

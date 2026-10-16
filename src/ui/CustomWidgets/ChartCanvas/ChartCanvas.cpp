@@ -66,6 +66,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_timeDivision(Settings::instance().editorTimeDivision()),
       m_gridDivision(Settings::instance().editorGridDivision()),
       m_gridSnap(Settings::instance().editorGridSnapEnabled()),
+      m_dragGridSnap(Settings::instance().editorDragGridSnapEnabled()),
       m_scrollBeat(0),
       m_baseVisibleBeatRange(10),
       m_timeScale(Settings::instance().editorTimeScale()),
@@ -647,6 +648,12 @@ void ChartCanvas::setGridSnap(bool snap)
         return;
     m_gridSnap = snap;
     Settings::instance().setEditorGridSnapEnabled(snap);
+}
+
+void ChartCanvas::setDragGridSnap(bool snap)
+{
+    m_dragGridSnap = snap;
+    Settings::instance().setEditorDragGridSnapEnabled(snap);
 }
 
 void ChartCanvas::setScrollPos(double timeMs)

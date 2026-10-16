@@ -199,15 +199,17 @@ ctest --test-dir build_clion_msvc -C Debug -R audio_bpm_detector_file_tests --ou
 整曲检测；该文件不会被转换、覆盖或修改。原因追踪见
 [音频导入崩溃排查](docs/AUDIO_IMPORT_CRASH_INVESTIGATION.md)。
 
-## 资源复制回归
+## 拖动吸附与资源复制回归
 
+`ui_grid_drag_tests` 验证放置吸附与拖动吸附的独立组合、单个/整组选中音符拖动、
+组内非网格间距的保留、单步撤销及两个网格设置入口。
 `file_resource_copy_tests` 验证已有目标音频不误报、缺失资源仍告警、Unicode 音频
 播放副本的创建/重载/释放，以及正式保存时复制工作目录中的背景和音效。
 可选设置 `CCE_RESOURCE_COPY_AUDIO` 指向已有 Unicode 路径音乐，附加只读播放验证。
 
 ```powershell
-cmake --build build_clion_msvc --config Debug --target ResourceCopyTests
-ctest --test-dir build_clion_msvc -C Debug -R file_resource_copy_tests --output-on-failure
+cmake --build build_clion_msvc --config Debug --target GridDragTests ResourceCopyTests SettingsTransferTests
+ctest --test-dir build_clion_msvc -C Debug -R "ui_grid_drag_tests|file_resource_copy_tests|utils_settings_transfer_tests" --output-on-failure
 ```
 
 ## 手工回归清单

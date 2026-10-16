@@ -380,12 +380,17 @@ void NoteEditPanel::onGridSettingsClicked()
 
     QCheckBox *snapCheck = new QCheckBox(tr("Enable Grid Snap"));
     snapCheck->setChecked(m_gridSnapCheck->isChecked());
+    QCheckBox *dragSnapCheck = new QCheckBox(tr("Snap to Grid When Dragging"));
+    dragSnapCheck->setObjectName("dragGridSnapCheck");
+    dragSnapCheck->setToolTip(tr("Snap horizontal movement when dragging notes."));
+    dragSnapCheck->setChecked(Settings::instance().editorDragGridSnapEnabled());
 
     QSpinBox *divisionSpin = new QSpinBox;
     divisionSpin->setRange(4, 64);
     divisionSpin->setValue(m_gridDivision); // Use current grid division instead of hardcoded default.
 
     form.addRow(tr("Snap to Grid:"), snapCheck);
+    form.addRow(dragSnapCheck);
     form.addRow(tr("Grid Divisions (4-64):"), divisionSpin);
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -396,6 +401,8 @@ void NoteEditPanel::onGridSettingsClicked()
     if (dialog.exec() == QDialog::Accepted)
     {
         m_gridSnapCheck->setChecked(snapCheck->isChecked());
+        Settings::instance().setEditorDragGridSnapEnabled(dragSnapCheck->isChecked());
+        emit dragGridSnapChanged(dragSnapCheck->isChecked());
         int newDivision = divisionSpin->value();
         m_gridDivision = newDivision;
         emit gridDivisionChanged(newDivision);

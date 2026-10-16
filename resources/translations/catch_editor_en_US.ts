@@ -865,6 +865,14 @@
         <source>AutoScroll: OFF</source>
         <translation>AutoScroll: OFF</translation>
     </message>
+    <message>
+        <source>Snap to Grid When Dragging</source>
+        <translation>Snap to Grid When Dragging</translation>
+    </message>
+    <message>
+        <source>Snap horizontal movement when dragging notes.</source>
+        <translation>Snap horizontal movement when dragging notes.</translation>
+    </message>
 </context>
 <context>
     <name>ChartStatsPanel</name>
@@ -3686,6 +3694,14 @@ Open the **History** tab for collapsible long update notes.</translation>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="527"/>
         <source>Curve Plugin Options</source>
         <translation>Curve Plugin Options</translation>
+    </message>
+    <message>
+        <source>Snap to Grid When Dragging</source>
+        <translation>Snap to Grid When Dragging</translation>
+    </message>
+    <message>
+        <source>Snap horizontal movement when dragging notes.</source>
+        <translation>Snap horizontal movement when dragging notes.</translation>
     </message>
 </context>
 <context>

@@ -89,6 +89,16 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/plugins")
 endif()
 
 if(BUILD_TESTING)
+    add_executable(GridDragTests tests/grid_drag_tests.cpp)
+    target_link_libraries(GridDragTests PRIVATE CatchChartEditorRuntime Qt6::Test)
+    add_test(NAME ui_grid_drag_tests COMMAND GridDragTests)
+    set_tests_properties(ui_grid_drag_tests PROPERTIES TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        string(REPLACE ";" "\\;" _grid_drag_test_path "$ENV{PATH}")
+        set_tests_properties(ui_grid_drag_tests PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=$<TARGET_FILE_DIR:Qt6::Core>\;${_grid_drag_test_path}")
+    endif()
+
     add_executable(ResourceCopyTests tests/resource_copy_tests.cpp)
     target_link_libraries(ResourceCopyTests PRIVATE CatchChartEditorRuntime Qt6::Test)
     if(MSVC)

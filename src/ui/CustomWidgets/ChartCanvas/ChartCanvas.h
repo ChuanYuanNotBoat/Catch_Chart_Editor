@@ -60,6 +60,7 @@ public:
     void setTimeDivision(int division);
     void setGridDivision(int division);
     void setGridSnap(bool snap);
+    void setDragGridSnap(bool snap);
     void setScrollPos(double timeMs);
     void setNoteSize(int size);
     void refreshRenderSettings();
@@ -355,6 +356,7 @@ private:
     int m_timeDivision;
     int m_gridDivision;
     bool m_gridSnap;
+    bool m_dragGridSnap;
     double m_scrollBeat;
     double m_baseVisibleBeatRange;
     double m_timeScale;

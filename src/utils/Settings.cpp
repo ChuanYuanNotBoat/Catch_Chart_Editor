@@ -680,6 +680,16 @@ void Settings::setEditorGridSnapEnabled(bool enabled)
     m_settings.setValue("editor/gridSnapEnabled", enabled);
 }
 
+bool Settings::editorDragGridSnapEnabled() const
+{
+    return m_settings.value("editor/dragGridSnapEnabled", false).toBool();
+}
+
+void Settings::setEditorDragGridSnapEnabled(bool enabled)
+{
+    m_settings.setValue("editor/dragGridSnapEnabled", enabled);
+}
+
 double Settings::editorTimeScale() const
 {
     const double scale = m_settings.value("editor/timeScale", 2.25).toDouble();

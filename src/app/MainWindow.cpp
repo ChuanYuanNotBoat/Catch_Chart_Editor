@@ -2820,6 +2820,7 @@ void MainWindow::createCentralArea()
             {
         Logger::info(QString("[Grid] MainWindow::gridSnapChanged signal received: %1").arg(on));
         d->canvas->setGridSnap(on); });
+    connect(d->notePanel, &NoteEditPanel::dragGridSnapChanged, d->canvas, &ChartCanvas::setDragGridSnap);
     connect(d->notePanel, &NoteEditPanel::modeChanged, d->canvas, [this](int mode)
             {
         if (mode == NoteEditPanel::PlaceAnchorMode)

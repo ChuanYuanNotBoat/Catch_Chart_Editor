@@ -91,10 +91,15 @@ void ChartCanvas::showGridSettings()
     QFormLayout form(&dialog);
     QCheckBox *snapCheck = new QCheckBox(tr("Enable Grid Snap"));
     snapCheck->setChecked(m_gridSnap);
+    QCheckBox *dragSnapCheck = new QCheckBox(tr("Snap to Grid When Dragging"));
+    dragSnapCheck->setObjectName("dragGridSnapCheck");
+    dragSnapCheck->setToolTip(tr("Snap horizontal movement when dragging notes."));
+    dragSnapCheck->setChecked(m_dragGridSnap);
     QSpinBox *divisionSpin = new QSpinBox;
     divisionSpin->setRange(4, 64);
     divisionSpin->setValue(m_gridDivision);
     form.addRow(tr("Snap to Grid:"), snapCheck);
+    form.addRow(dragSnapCheck);
     form.addRow(tr("Grid Divisions (4-64):"), divisionSpin);
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -105,6 +110,7 @@ void ChartCanvas::showGridSettings()
     if (dialog.exec() == QDialog::Accepted)
     {
         setGridSnap(snapCheck->isChecked());
+        setDragGridSnap(dragSnapCheck->isChecked());
         setGridDivision(divisionSpin->value());
     }
 }

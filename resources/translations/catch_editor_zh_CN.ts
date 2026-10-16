@@ -894,6 +894,14 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <source>Curve density set to 1/%1</source>
         <translation>曲线密度已设为 1/%1</translation>
     </message>
+    <message>
+        <source>Snap to Grid When Dragging</source>
+        <translation>拖动时吸附到网格</translation>
+    </message>
+    <message>
+        <source>Snap horizontal movement when dragging notes.</source>
+        <translation>将音符的横向拖动吸附到网格。</translation>
+    </message>
 </context>
 <context>
     <name>ChartStatsPanel</name>
@@ -3715,6 +3723,14 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="527"/>
         <source>Curve Plugin Options</source>
         <translation>曲线插件选项</translation>
+    </message>
+    <message>
+        <source>Snap to Grid When Dragging</source>
+        <translation>拖动时吸附到网格</translation>
+    </message>
+    <message>
+        <source>Snap horizontal movement when dragging notes.</source>
+        <translation>将音符的横向拖动吸附到网格。</translation>
     </message>
 </context>
 <context>

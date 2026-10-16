@@ -894,6 +894,14 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <source>Curve density set to 1/%1</source>
         <translation>カーブ密度を 1/%1 に設定</translation>
     </message>
+    <message>
+        <source>Snap to Grid When Dragging</source>
+        <translation>ドラッグ時にグリッドにスナップ</translation>
+    </message>
+    <message>
+        <source>Snap horizontal movement when dragging notes.</source>
+        <translation>ノーツの横方向のドラッグをグリッドにスナップします。</translation>
+    </message>
 </context>
 <context>
     <name>ChartStatsPanel</name>
@@ -3715,6 +3723,14 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/NoteEditPanel.cpp" line="527"/>
         <source>Curve Plugin Options</source>
         <translation>カーブプラグインオプション</translation>
+    </message>
+    <message>
+        <source>Snap to Grid When Dragging</source>
+        <translation>ドラッグ時にグリッドにスナップ</translation>
+    </message>
+    <message>
+        <source>Snap horizontal movement when dragging notes.</source>
+        <translation>ノーツの横方向のドラッグをグリッドにスナップします。</translation>
     </message>
 </context>
 <context>

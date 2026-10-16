@@ -39,6 +39,7 @@ int main(int argc, char **argv)
     settings.setEditorTimeDivision(12);
     settings.setEditorGridDivision(32);
     settings.setEditorGridSnapEnabled(false);
+    settings.setEditorDragGridSnapEnabled(true);
     settings.setEditorTimeScale(3.5);
     settings.setMirrorAxisX(192);
     settings.setMirrorGuideVisible(true);
@@ -65,6 +66,7 @@ int main(int argc, char **argv)
     settings.setEditorTimeDivision(4);
     settings.setEditorGridDivision(20);
     settings.setEditorGridSnapEnabled(true);
+    settings.setEditorDragGridSnapEnabled(false);
     settings.setEditorTimeScale(1.0);
     settings.setMirrorAxisX(256);
     settings.setMirrorGuideVisible(false);
@@ -84,7 +86,7 @@ int main(int argc, char **argv)
     ok &= require(qFuzzyCompare(settings.playbackSpeed(), 1.5),
                   "double settings must round-trip");
     ok &= require(settings.editorTimeDivision() == 12 && settings.editorGridDivision() == 32
-                      && !settings.editorGridSnapEnabled(),
+                      && !settings.editorGridSnapEnabled() && settings.editorDragGridSnapEnabled(),
                   "grid editor preferences must round-trip");
     ok &= require(qFuzzyCompare(settings.editorTimeScale(), 3.5)
                       && settings.mirrorAxisX() == 192 && settings.mirrorGuideVisible()

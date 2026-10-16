@@ -417,7 +417,14 @@ void ChartCanvas::updateMoveSelection(const QPointF &currentPos)
         const double refSnappedBeat = MathUtils::beatToFloat(refSnapped.beatNum, refSnapped.numerator, refSnapped.denominator);
         appliedDeltaBeat = refSnappedBeat - refOriginalBeat;
     }
-    const double appliedDeltaX = m_moveDeltaXRaw;
+    double appliedDeltaX = m_moveDeltaXRaw;
+    if (m_dragGridSnap && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    {
+        const Note &reference = m_moveChanges[m_dragReferenceIndex].first;
+        const int snappedX = MathUtils::snapXToGrid(qRound(reference.x + m_moveDeltaXRaw), m_gridDivision);
+        // Move the whole selection by one delta, preserving off-grid spacing.
+        appliedDeltaX = snappedX - reference.x;
+    }
 
     if (!chart())
         return;
