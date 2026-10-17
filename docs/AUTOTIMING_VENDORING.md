@@ -6,7 +6,8 @@
 
 - 上游仓库：`https://github.com/ChuanYuanNotBoat/AutoTimingCore.git`
 - 子模块路径：`third_party/AutoTimingCore`
-- 固定提交：`e47016ddfb24c4daf2d874164f3a64cc9346552c`
+- 固定提交：`23d3164b8a3fa2d8e9039a4fa86c8c029fc8b8fd`
+- 本次更新：2026-10-17；由 `607d8cdbf8906ff3ca90934d685a19f15996c271` 更新
 - 接入日期：2026-09-27
 - 接入方式：Git submodule；CCE 仓库的 gitlink 是唯一版本来源
 
