@@ -1,5 +1,6 @@
 ﻿#include "ChartCanvas.h"
 #include "controller/ChartController.h"
+#include "ChartSpectrumOverlay.h"
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "render/NoteRenderer.h"
@@ -198,6 +199,8 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     }
     const qint64 backgroundEndNs = paintMarkNs();
 
+    if (m_spectrumOverlay)
+        m_spectrumOverlay->paint(painter, QRectF(leftMargin(), 0, width() - leftMargin() - rightMargin(), height()));
     drawGrid(painter);
     const qint64 gridEndNs = paintMarkNs();
 

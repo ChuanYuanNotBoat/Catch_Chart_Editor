@@ -1276,6 +1276,10 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Show Spectrum Overlay</source>
+        <translation>スペクトログラムを重ねて表示</translation>
+    </message>
+    <message>
         <location filename="../../src/app/MainWindow.cpp" line="1765"/>
         <location filename="../../src/app/MainWindow.cpp" line="4565"/>
         <source>Catch Chart Editor</source>

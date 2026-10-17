@@ -1,3 +1,4 @@
+add_subdirectory(analysis/dsp)
 set(SOURCES
     app/Application.cpp
     app/SessionPathUtils.cpp
@@ -28,7 +29,6 @@ set(SOURCES
     file/ProjectIO.cpp
     file/PluginLoader.cpp
     file/ChartFileSystem.cpp
-    analysis/SpectrumAnalysis.cpp
     analysis/TransientAnalysis.cpp
     analysis/TimingMeasurement.cpp
     analysis/TimingInterpolation.cpp
@@ -39,6 +39,7 @@ set(SOURCES
     analysis/SpectrumRaster.cpp
     analysis/MusicalTimeTransform.cpp
     audio/SpectrumService.cpp
+    audio/SpectrumTileCache.cpp
     ui/analysis/AnalysisCanvas.cpp
     ui/analysis/AnalysisEditor.cpp
     ui/analysis/AnalysisConfigPanel.cpp
@@ -87,6 +88,7 @@ set(SOURCES
     ui/DensityCurve.cpp
     ui/NoteItem.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvas.cpp
+    ui/CustomWidgets/ChartCanvas/ChartSpectrumOverlay.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasPaste.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp
@@ -164,6 +166,7 @@ target_link_libraries(CatchChartEditor PRIVATE CatchChartEditorRuntime)
 
 target_link_libraries(CatchChartEditorRuntime
     PUBLIC
+    CatchSpectrumDsp
     Qt6::Core
     Qt6::Widgets
     Qt6::Multimedia

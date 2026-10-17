@@ -1,11 +1,15 @@
 #pragma once
 #include "SpectrumAnalysis.h"
 #include <QImage>
+#include <QVector>
 namespace analysis
 {
 struct SpectrumRaster
 {
     QImage left, right;
+    // Indexed, peak-preserving time pyramid. Shared by chart overlays; no
+    // waveform and no per-paint recoloring or full viewport rasterization.
+    QVector<QImage> overlay;
     bool valid() const
     {
         return !left.isNull() && !right.isNull();

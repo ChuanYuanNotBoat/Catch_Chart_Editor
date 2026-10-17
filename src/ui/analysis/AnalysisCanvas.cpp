@@ -33,8 +33,9 @@ AnalysisCanvas::AnalysisCanvas(ChartController *chart, SelectionController *sele
     connect(m_spectrumViewportTimer, &QTimer::timeout, this, &AnalysisCanvas::startSpectrumViewportRender);
     connect(m_spectrumViewportWatcher, &QFutureWatcher<QImage>::finished, this,
             &AnalysisCanvas::finishSpectrumViewportRender);
-    connect(chart, &ChartController::chartChanged, this, [this] {
-        rebuildChartCache();
+    connect(chart, &ChartController::chartChangeCommitted, this, [this](const ChartChange &change) {
+        if (change.affects(ChartChangeType::Notes) || change.affects(ChartChangeType::Timing))
+            rebuildChartCache(change.affects(ChartChangeType::Timing));
         update();
     });
     connect(chart, &ChartController::chartLoaded, this, &AnalysisCanvas::cancelGesture);
@@ -299,11 +300,44 @@ void AnalysisCanvas::setMeasurementOverlay(std::optional<double> start, std::opt
 }
 void AnalysisCanvas::clearSpectrum()
 {
+    m_spectrumTiles.clear();
     m_spectrum.reset();
     m_spectrumRaster = {};
     m_pendingSpectrumViewport.reset();
     m_spectrumViewport.clear();
     ++m_spectrumRevision;
+    update();
+}
+void AnalysisCanvas::setSpectrumTile(std::shared_ptr<const analysis::StereoSpectrum> data,
+                                     analysis::SpectrumRaster raster)
+{
+    if (!data || !data->valid() || !raster.valid())
+        return;
+    for (const auto &tile : m_spectrumTiles)
+        if (tile.spectrum == data || std::abs(tile.spectrum->startSeconds - data->startSeconds) < 1e-8)
+            return;
+    if (!m_spectrum)
+    {
+        m_spectrum = data;
+        m_spectrumRaster = raster;
+    }
+    m_spectrumTiles.append({std::move(data), std::move(raster)});
+    // A maximum 100-second visible range fits in 51 fine blocks. Keep room for
+    // neighbouring blocks; old off-screen tiles are the first to leave.
+    const double a = timeAtY(headerHeight) / 1000, b = timeAtY(height()) / 1000;
+    while (m_spectrumTiles.size() > 56)
+    {
+        auto victim = std::find_if(m_spectrumTiles.begin(), m_spectrumTiles.end(), [a, b](const auto &tile) {
+            const auto &s = *tile.spectrum;
+            return s.startSeconds >= qMax(a, b) || s.startSeconds + s.durationSeconds <= qMin(a, b);
+        });
+        if (victim == m_spectrumTiles.end())
+            victim = m_spectrumTiles.begin();
+        m_spectrumTiles.erase(victim);
+    }
+    m_asyncSpectrumViewport = true;
+    ++m_spectrumRevision;
+    m_status.clear();
     update();
 }
 void AnalysisCanvas::setSpectrum(analysis::StereoSpectrum data)
@@ -328,16 +362,20 @@ void AnalysisCanvas::setSpectrumPage(std::shared_ptr<const analysis::StereoSpect
     m_spectrumRaster = std::move(raster);
     m_pendingSpectrumViewport.reset();
     ++m_spectrumRevision;
-    m_spectrumViewport.clear();
+    if (m_spectrumTiles.isEmpty())
+        m_spectrumViewport.clear();
     m_status.clear();
     update();
 }
-void AnalysisCanvas::rebuildChartCache()
+void AnalysisCanvas::rebuildChartCache(bool timingChanged)
 {
     const auto previousTransform = m_transform.identity();
     const auto *chart = m_chart->chart();
-    m_bpm = MathUtils::buildBpmTimeCache(chart->bpmList(), chart->meta().offset);
-    m_transform.setChart(m_bpm);
+    if (timingChanged || m_bpm.isEmpty())
+    {
+        m_bpm = MathUtils::buildBpmTimeCache(chart->bpmList(), chart->meta().offset);
+        m_transform.setChart(m_bpm);
+    }
     m_trackScene.setTransformIdentity(m_musicalView ? m_transform.identity() : QStringLiteral("audio-seconds:v1"));
     const auto &notes = chart->notes();
     m_starts.resize(notes.size());
@@ -391,7 +429,8 @@ void AnalysisCanvas::drawSpectrum(QPainter &p)
     {
         auto request = SpectrumViewport::makeRenderRequest(m_spectrum, m_spectrumRaster, m_spectrumRevision,
                                                             logicalSize, dpr, transform,
-                                                            [this](double y) { return timeAtY(headerHeight + y); });
+                                                            [this](double y) { return timeAtY(headerHeight + y); },
+                                                            m_spectrumTiles);
         if (!m_spectrumViewport.matches(request))
         {
             m_pendingSpectrumViewport = request;

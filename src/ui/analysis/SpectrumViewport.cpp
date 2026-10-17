@@ -12,7 +12,8 @@ std::array<QRect, 2> spectrumChannelRects(int width, int height)
 
 SpectrumViewport::RenderRequest SpectrumViewport::makeRenderRequest(
     std::shared_ptr<const analysis::StereoSpectrum> spectrum, const analysis::SpectrumRaster &raster,
-    quint64 page, QSize logical, double dpr, const QString &transform, const Projection &timeAtY)
+    quint64 page, QSize logical, double dpr, const QString &transform, const Projection &timeAtY,
+    QVector<Source> tiles)
 {
     RenderRequest request;
     request.spectrum = std::move(spectrum);
@@ -24,20 +25,32 @@ SpectrumViewport::RenderRequest SpectrumViewport::makeRenderRequest(
 
     const int physicalHeight = qMax(1, int(std::ceil(logical.height() * request.dpr)));
     request.frames.fill(-1, physicalHeight);
-    if (!request.spectrum || !request.spectrum->valid() || !raster.valid()
-        || !std::isfinite(request.spectrum->hopSeconds) || request.spectrum->hopSeconds <= 0)
-        return request;
-
-    const auto &data = *request.spectrum;
-    const double end = data.startSeconds + data.durationSeconds;
-    const int frameCount = qMin(int(data.frames.size()), qMin(raster.left.height(), raster.right.height()));
+    // Shared fine tiles take precedence over a reduced analysis page. Missing
+    // tiles may still use the previous page while new blocks are arriving.
+    if (request.spectrum && request.spectrum->valid() && raster.valid())
+        tiles.append({request.spectrum, raster});
+    for (auto &source : tiles)
+        if (source.spectrum && source.spectrum->valid() && source.raster.valid()
+            && source.spectrum->frames.size() < 65536 && source.spectrum->hopSeconds > 0)
+            request.sources.append(std::move(source));
     for (int y = 0; y < physicalHeight; ++y)
     {
         const double seconds = timeAtY((y + .5) / request.dpr) / 1000.0;
-        const double position = (seconds - data.startSeconds) / data.hopSeconds;
-        if (std::isfinite(position) && seconds >= data.startSeconds && seconds < end && position >= 0
-            && position < frameCount)
-            request.frames[y] = int(std::floor(position));
+        if (!std::isfinite(seconds))
+            continue;
+        for (int index = 0; index < request.sources.size(); ++index)
+        {
+            const auto &source = request.sources[index];
+            const auto &data = *source.spectrum;
+            const double position = (seconds - data.startSeconds) / data.hopSeconds;
+            const int count = qMin(int(data.frames.size()), qMin(source.raster.left.height(), source.raster.right.height()));
+            if (seconds >= data.startSeconds && seconds < data.startSeconds + data.durationSeconds
+                && position >= 0 && position < count)
+            {
+                request.frames[y] = (index << 16) | int(std::floor(position));
+                break;
+            }
+        }
     }
     return request;
 }
@@ -52,28 +65,35 @@ QImage SpectrumViewport::render(const RenderRequest &request)
     image.setDevicePixelRatio(dpr);
     image.fill(Qt::transparent);
 
-    if (!request.spectrum || !request.spectrum->valid() || !request.raster.valid()
-        || request.frames.isEmpty())
+    if (request.sources.isEmpty() || request.frames.isEmpty())
         return image;
-
-    const auto &s = *request.spectrum;
-    const auto &r = request.raster;
     const auto rectangles = spectrumChannelRects(logical.width(), logical.height());
     struct Channel
     {
         int left = 0, width = 0, gutter = 0;
         QVector<int> bins;
     };
-    std::array<Channel, 2> channels;
-    for (int ch = 0; ch < 2; ++ch)
+    struct PreparedSource
     {
-        auto &out = channels[ch];
-        out.left = qRound(rectangles[ch].left() * dpr);
-        out.width = qMax(0, qMin(physical.width() - out.left, qRound(rectangles[ch].width() * dpr)));
-        out.gutter = ch ? qRound((logical.width() / 2) * dpr) : 0;
-        out.bins.resize(out.width);
-        for (int x = 0; x < out.bins.size(); ++x)
-            out.bins[x] = qMin(r.left.width() - 1, x * r.left.width() / qMax(1, out.width));
+        std::array<Channel, 2> channels;
+        std::array<QList<QRgb>, 2> palettes;
+    };
+    QVector<PreparedSource> prepared(request.sources.size());
+    for (int index = 0; index < request.sources.size(); ++index)
+    {
+        const auto &r = request.sources[index].raster;
+        auto &channels = prepared[index].channels;
+        prepared[index].palettes = {r.left.colorTable(), r.right.colorTable()};
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            auto &out = channels[ch];
+            out.left = qRound(rectangles[ch].left() * dpr);
+            out.width = qMax(0, qMin(physical.width() - out.left, qRound(rectangles[ch].width() * dpr)));
+            out.gutter = ch ? qRound((logical.width() / 2) * dpr) : 0;
+            out.bins.resize(out.width);
+            for (int x = 0; x < out.bins.size(); ++x)
+                out.bins[x] = qMin(r.left.width() - 1, x * r.left.width() / qMax(1, out.width));
+        }
     }
 
     int previous = -2;
@@ -82,15 +102,22 @@ QImage SpectrumViewport::render(const RenderRequest &request)
     const QRgb rms = qPremultiply(qRgba(204, 232, 159, 220));
     for (int y = 0; y < rowCount; ++y)
     {
-        const int frame = request.frames[y];
+        const int encoded = request.frames[y];
         auto *target = reinterpret_cast<QRgb *>(image.scanLine(y));
-        if (frame == previous && y > 0)
+        if (encoded == previous && y > 0)
         {
             std::memcpy(target, image.constScanLine(y - 1), size_t(image.bytesPerLine()));
             continue;
         }
-        previous = frame;
-        if (frame < 0 || size_t(frame) >= s.frames.size())
+        previous = encoded;
+        if (encoded < 0 || (encoded >> 16) >= request.sources.size())
+            continue;
+        const int index = encoded >> 16, frame = encoded & 65535;
+        const auto &s = *request.sources[index].spectrum;
+        const auto &r = request.sources[index].raster;
+        const auto &channels = prepared[index].channels;
+        const auto &palettes = prepared[index].palettes;
+        if (size_t(frame) >= s.frames.size())
             continue;
 
         const auto &level = s.frames[size_t(frame)];
@@ -100,9 +127,19 @@ QImage SpectrumViewport::render(const RenderRequest &request)
             const QImage &channelRaster = ch ? r.right : r.left;
             if (frame >= channelRaster.height())
                 continue;
-            const auto *source = reinterpret_cast<const QRgb *>(channelRaster.constScanLine(frame));
-            for (int x = 0; x < mapping.width; ++x)
-                target[mapping.left + x] = source[mapping.bins[x]];
+            if (channelRaster.format() == QImage::Format_Indexed8)
+            {
+                const auto *source = channelRaster.constScanLine(frame);
+                const auto &palette = palettes[ch];
+                for (int x = 0; x < mapping.width; ++x)
+                    target[mapping.left + x] = palette[source[mapping.bins[x]]];
+            }
+            else
+            {
+                const auto *source = reinterpret_cast<const QRgb *>(channelRaster.constScanLine(frame));
+                for (int x = 0; x < mapping.width; ++x)
+                    target[mapping.left + x] = source[mapping.bins[x]];
+            }
             const int span = qMax(1, qRound(14 * dpr));
             const double v = std::clamp(double(ch ? level.rightPeak : level.leftPeak), 0., 1.);
             const int start = mapping.gutter + qRound(dpr);
@@ -131,7 +168,9 @@ bool SpectrumViewport::matches(const RenderRequest &request) const
 
 bool SpectrumViewport::canDisplayFor(const RenderRequest &request) const
 {
-    return !m_image.isNull() && request.page == m_page && request.logicalSize == m_size
+    // Keep the last coherent viewport while another shared block arrives.
+    // Source replacement explicitly clears the viewport in AnalysisCanvas.
+    return !m_image.isNull() && request.logicalSize == m_size
            && request.dpr == m_dpr && request.transform == m_transform;
 }
 

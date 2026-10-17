@@ -307,6 +307,16 @@ void AudioPlayer::setSpeed(double speed)
     m_player->setPlaybackRate(speed);
 }
 
+void AudioPlayer::setMuted(bool muted)
+{
+    m_audioOutput->setMuted(muted);
+}
+
+bool AudioPlayer::isMuted() const
+{
+    return m_audioOutput->isMuted();
+}
+
 double AudioPlayer::speed() const
 {
     return m_player->playbackRate();

@@ -1247,6 +1247,10 @@
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Show Spectrum Overlay</source>
+        <translation>Show Spectrum Overlay</translation>
+    </message>
+    <message>
         <location filename="../../src/app/MainWindow.cpp" line="1765"/>
         <location filename="../../src/app/MainWindow.cpp" line="4565"/>
         <source>Catch Chart Editor</source>

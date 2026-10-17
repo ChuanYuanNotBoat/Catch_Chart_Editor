@@ -5,6 +5,8 @@
 #include <QCommandLineParser>
 #include <QDebug>
 #include <QTimer>
+#include <QSettings>
+#include <QDir>
 #include <iostream>
 
 int main(int argc, char *argv[])
@@ -37,6 +39,12 @@ int main(int argc, char *argv[])
             {
                 std::cerr << optionError.toStdString() << std::endl;
                 return 4;
+            }
+            if (!benchmarkOptions.settingsDirectory.isEmpty())
+            {
+                QSettings::setDefaultFormat(QSettings::IniFormat);
+                QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                                   QDir(benchmarkOptions.settingsDirectory).absolutePath());
             }
         }
 

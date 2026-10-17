@@ -21,6 +21,7 @@
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
+#include "ui/CustomWidgets/ChartCanvas/ChartSpectrumOverlay.h"
 #include "ui/NoteEditPanel.h"
 #include "ui/LongRangeSelector.h"
 #include "model/Skin.h"
@@ -188,7 +189,7 @@ private slots:
         const auto ordinary = analysis::spectrumPageRange(8000, 10000);
         QVERIFY(ordinary.valid);
         QVERIFY(ordinary.startMs < 8000 && ordinary.endMs > 10000);
-        QVERIFY(ordinary.durationMs() >= 12000 && ordinary.durationMs() < 30000);
+        QVERIFY(ordinary.durationMs() >= 4000 && ordinary.durationMs() < 12000);
         const auto flipped = analysis::spectrumPageRange(10000, 8000);
         QCOMPARE(flipped.startMs, ordinary.startMs);
         QCOMPARE(flipped.endMs, ordinary.endMs);
@@ -260,14 +261,15 @@ private slots:
         QCOMPARE(&canvas()->spectrum(), second.spectrum.get());
         canvas()->setCurrentTime(0);
         QTest::qWait(180);
-        QCOMPARE(&canvas()->spectrum(), first.spectrum.get());
+        QVERIFY(canvas()->spectrum().startSeconds * 1000 <= qMin(canvas()->timeAtY(28), canvas()->timeAtY(canvas()->height())));
+        const auto *retained = &canvas()->spectrum();
         QCOMPARE(pending.size(), 2); // reverse navigation reuses a neighbor
         canvas()->setCurrentTime(50000);
         QTRY_COMPARE_WITH_TIMEOUT(pending.size(), 3, 2000);
         canvas()->setCurrentTime(80000);
         QTRY_VERIFY_WITH_TIMEOUT(pending[2].cancel->load(), 2000);
         pending[2].callback(spectrumPage(pending[2].start, pending[2].duration));
-        QCOMPARE(&canvas()->spectrum(), first.spectrum.get());
+        QCOMPARE(&canvas()->spectrum(), retained);
         QTRY_COMPARE_WITH_TIMEOUT(pending.size(), 4, 2000);
         auto last = spectrumPage(pending[3].start, pending[3].duration);
         pending[3].callback(last);
@@ -290,6 +292,8 @@ private slots:
         auto s = *page.spectrum;
         s.hopSeconds = .1;
         auto raster = page.raster;
+        raster.left = raster.left.convertToFormat(QImage::Format_RGB32);
+        raster.right = raster.right.convertToFormat(QImage::Format_RGB32);
         for (int y = 0; y < 3; ++y)
             for (int x = 0; x < 4; ++x)
             {
@@ -323,6 +327,25 @@ private slots:
             return 1400 - 10 * y;
         });
         QCOMPARE(view.rebuildCount(), count + 2);
+    }
+    void spectrumViewportShowsIndependentSharedTiles()
+    {
+        const auto first = spectrumPage(0, 2000, 400, 32);
+        const auto next = spectrumPage(4000, 2000, 400, 32);
+        QVector<SpectrumViewport::Source> tiles{{first.spectrum, first.raster}, {next.spectrum, next.raster}};
+        auto request = SpectrumViewport::makeRenderRequest({}, {}, 1, {200, 60}, 1, "audio",
+            [](double y) { return y * 100; }, tiles);
+        const auto image = SpectrumViewport::render(request);
+        const int x = spectrumChannelRects(200, 60)[0].left() + 5;
+        QVERIFY(qAlpha(image.pixel(x, 10)) > 0);
+        QCOMPARE(qAlpha(image.pixel(x, 30)), 0);
+        QVERIFY(qAlpha(image.pixel(x, 50)) > 0);
+        // Filling the gap must not require regenerating either neighbour.
+        const auto gap = spectrumPage(2000, 2000, 400, 32);
+        tiles.append({gap.spectrum, gap.raster});
+        request = SpectrumViewport::makeRenderRequest({}, {}, 2, {200, 60}, 1, "audio",
+            [](double y) { return y * 100; }, tiles);
+        QVERIFY(qAlpha(SpectrumViewport::render(request).pixel(x, 30)) > 0);
     }
     void preparedSpectrumAttachmentAndOverlayPaintStayBounded()
     {
@@ -359,6 +382,34 @@ private slots:
         std::atomic<bool> cancelled{true};
         QVERIFY(!analysis::prepareSpectrumRaster(*page.spectrum, &cancelled).valid());
         qInfo("Prepared-page attach: %.3f ms; 20 overlay paints: %.3f ms", attachNs / 1e6, paintNs / 1e6);
+    }
+    void mainSpectrumToggleCoexistsWithAnalysisEditor()
+    {
+        loadChart(true);
+        auto *action = m_main->findChild<QAction *>("action.spectrum_overlay");
+        QVERIFY(action);
+        QVERIFY(!action->isChecked());
+        const auto restore = qScopeGuard([action] { if (action->isChecked()) action->trigger(); });
+        action->trigger();
+        QVERIFY(Settings::instance().spectrumOverlayEnabled());
+        QVERIFY(m_mainCanvas->spectrumOverlayEnabled());
+        auto *overlay = m_mainCanvas->findChild<ChartSpectrumOverlay *>();
+        QVERIFY(overlay);
+        QTRY_VERIFY_WITH_TIMEOUT(overlay->currentPage().valid() && canvas()->spectrum().valid(), 15000);
+        canvas()->setViewSynchronized(true);
+        m_mainCanvas->setVerticalFlip(true);
+        m_chart.updateBpm(1, {8, 0, 1, 200});
+        m_chart.undo();
+        QTest::qWait(100);
+        QVERIFY(overlay->currentPage().valid()); // the centre may select a different shared block
+        QVERIFY(canvas()->spectrum().valid());
+        const auto folder = QDir::current().filePath("artifacts/spectrum-optimization-20261017");
+        QVERIFY(QDir().mkpath(folder));
+        QVERIFY(m_mainCanvas->grab().save(folder + "/main-overlay.png"));
+        QVERIFY(m_editor->grab().save(folder + "/analysis-editor.png"));
+        action->trigger();
+        QVERIFY(!m_mainCanvas->spectrumOverlayEnabled());
+        QVERIFY(!Settings::instance().spectrumOverlayEnabled());
     }
     void nativeTabsFollowDarkLightAndThemeChanges()
     {
@@ -814,7 +865,8 @@ private slots:
         QSignalSpy seek(overview, &AudioOverview::seekRequested);
         QTest::mouseClick(overview, Qt::LeftButton, {}, QPoint(10, 28 + (overview->height() - 52) / 2));
         QCOMPARE(seek.size(), 1);
-        QVERIFY(qAbs(seek.first().first().toDouble() - 6000) < 1e-6);
+        // Integer mouse coordinates can miss the midpoint by half a pixel.
+        QVERIFY(qAbs(seek.first().first().toDouble() - 6000) <= 6000. / qMax(1, overview->height() - 52) + 1e-6);
         QCOMPARE(m_chart.revision(), before);
     }
     void bridgeEvidenceProjectionRetainsCropAndNull()
@@ -1769,12 +1821,13 @@ private slots:
         const auto left = large.leftDb, right = large.rightDb;
         large.frames.resize(12000);
         large.durationSeconds = large.hopSeconds * 12000;
-        large.leftDb.clear();
-        large.rightDb.clear();
-        for (int i = 0; i < 10; ++i)
+        const auto values = large.frames.size() * large.frequencies.size();
+        large.leftDb.resize(values);
+        large.rightDb.resize(values);
+        for (size_t i = 0; i < values; ++i)
         {
-            large.leftDb.insert(large.leftDb.end(), left.begin(), left.end());
-            large.rightDb.insert(large.rightDb.end(), right.begin(), right.end());
+            large.leftDb[i] = left[i % left.size()];
+            large.rightDb[i] = right[i % right.size()];
         }
         panel->setSpectrum(large);
         QTRY_VERIFY_WITH_TIMEOUT(([&] {

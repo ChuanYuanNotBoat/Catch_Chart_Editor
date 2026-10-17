@@ -22,6 +22,8 @@ public:
     qint64 duration() const;
     void setSpeed(double speed); // 0.1 ~ 10.0
     double speed() const;
+    void setMuted(bool muted);
+    bool isMuted() const;
 
     bool isPlaying() const;
     bool isPaused() const;

@@ -31,7 +31,7 @@ inline SpectrumPageRange spectrumPageRange(double a, double b, double eofMs = -1
         return r;
     const double margin = std::min(std::max(2000., span * .6), (120000 - span) / 2);
     r.startMs = std::max(0., std::floor((r.requiredStartMs - margin) / 2000) * 2000);
-    r.endMs = std::max(r.startMs + 12000, std::ceil((r.requiredEndMs + margin) / 2000) * 2000);
+    r.endMs = std::max(r.startMs + 4000, std::ceil((r.requiredEndMs + margin) / 2000) * 2000);
     if (r.endMs - r.startMs > 120000)
         r.startMs = std::max(0., r.endMs - 120000);
     if (eofMs >= 0)

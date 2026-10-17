@@ -1,6 +1,6 @@
 # Engineering TODO
 
-Last audited: 2026-09-19
+Last audited: 2026-10-18
 
 Target: Beta v1.11.2 maintenance line (`v2-main`)
 
@@ -131,6 +131,18 @@ See [the implementation record](AE_AC_GUI_BUGFIX_PLAN.md#10-实施记录2026-10-
 and [current AE usage](ANALYSIS_EDITOR.md). Full `.ccepr`, random-access PCM cache,
 universal CCE TaskContext infrastructure and the independent Core candidate remain
 separate follow-ups; this completion does not claim they are implemented.
+
+## AE spectrum follow-up (2026-10-18)
+
+- [x] Share immutable stereo 2-second spectrum blocks and in-flight requests between AE and the optional Catch canvas overlay; assemble analysis pages without repeating FFT for overlapping viewports.
+- [x] Prioritize visible blocks, display completed blocks progressively, prefetch one adjacent block and retain visible data during asynchronous updates.
+- [x] Keep 5ms / 192-band detail with bounded memory/disk caches and an optimized standalone Debug DSP backend.
+- [x] Add a preference-backed main spectrum overlay beneath notes/grid, preserve typed timing/resource updates and avoid a second playback clock or waveform.
+- [x] Add isolated, muted playback benchmark options and verify the spectrum/AE integration with focused tests; see [SPECTRUM_PIPELINE.md](SPECTRUM_PIPELINE.md).
+
+Random-access PCM caching, true Core cancellation, full project packaging and
+the document/layer roadmap below remain open; a spectrum-tile cache does not
+complete those requirements.
 
 ## P2 — CCE-internal document architecture
 

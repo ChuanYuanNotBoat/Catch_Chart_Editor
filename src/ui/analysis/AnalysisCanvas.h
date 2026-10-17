@@ -77,6 +77,7 @@ public:
     void setRainMode(bool enabled);
     void setSpectrum(analysis::StereoSpectrum data);
     void setSpectrumPage(std::shared_ptr<const analysis::StereoSpectrum>, analysis::SpectrumRaster);
+    void setSpectrumTile(std::shared_ptr<const analysis::StereoSpectrum>, analysis::SpectrumRaster);
     quint64 spectrumViewportBuildCount() const
     {
         return m_spectrumViewport.rebuildCount();
@@ -130,7 +131,7 @@ protected:
     void resizeEvent(QResizeEvent *) override;
 
 private:
-    void rebuildChartCache();
+    void rebuildChartCache(bool timingChanged = true);
     void alignViewport(bool centerOnPlayhead = false);
     void scheduleSpectrumViewportRender();
     void startSpectrumViewportRender();
@@ -157,6 +158,7 @@ private:
     RainVisibilityIndex::IntervalIndex m_noteIndex;
     std::shared_ptr<const analysis::StereoSpectrum> m_spectrum;
     analysis::SpectrumRaster m_spectrumRaster;
+    QVector<SpectrumViewport::Source> m_spectrumTiles;
     SpectrumViewport m_spectrumViewport;
     QThreadPool m_spectrumViewportPool;
     QFutureWatcher<QImage> *m_spectrumViewportWatcher = nullptr;

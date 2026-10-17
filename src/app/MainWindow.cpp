@@ -2135,6 +2135,15 @@ void MainWindow::createViewMenu()
     connect(d->verticalFlipAction, &QAction::toggled, this, &MainWindow::toggleVerticalFlip);
 
     // Background image toggle.
+    QAction *spectrumAction = viewMenu->addAction(tr("Show Spectrum Overlay"));
+    spectrumAction->setObjectName(QStringLiteral("action.spectrum_overlay"));
+    spectrumAction->setCheckable(true);
+    spectrumAction->setChecked(Settings::instance().spectrumOverlayEnabled());
+    connect(spectrumAction, &QAction::toggled, this, [this](bool enabled) {
+        Settings::instance().setSpectrumOverlayEnabled(enabled);
+        if (d->canvas)
+            d->canvas->setSpectrumOverlayEnabled(enabled);
+    });
     QAction *bgImageAction = viewMenu->addAction(tr("Show Background Image"));
     bgImageAction->setCheckable(true);
     bgImageAction->setChecked(Settings::instance().backgroundImageEnabled());
@@ -2636,6 +2645,7 @@ void MainWindow::createCentralArea()
     d->canvas->setColorMode(Settings::instance().colorNoteEnabled());
     d->canvas->setHyperfruitEnabled(Settings::instance().hyperfruitOutlineEnabled());
     d->canvas->setRainRewardPreviewEnabled(Settings::instance().rainRewardPreviewEnabled());
+    d->canvas->setSpectrumOverlayEnabled(Settings::instance().spectrumOverlayEnabled());
     if (d->skin)
         d->canvas->setSkin(d->skin);
     d->canvas->setNoteSize(Settings::instance().noteSize());

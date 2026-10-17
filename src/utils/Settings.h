@@ -93,6 +93,8 @@ public:
 
     bool backgroundImageEnabled() const;
     void setBackgroundImageEnabled(bool enabled);
+    bool spectrumOverlayEnabled() const;
+    void setSpectrumOverlayEnabled(bool enabled);
 
     int backgroundImageBrightness() const;
     void setBackgroundImageBrightness(int brightness);

@@ -12,6 +12,11 @@ class SpectrumViewport
 {
 public:
     using Projection = std::function<double(double)>; // logical y -> audio milliseconds
+    struct Source
+    {
+        std::shared_ptr<const analysis::StereoSpectrum> spectrum;
+        analysis::SpectrumRaster raster;
+    };
     struct RenderRequest
     {
         std::shared_ptr<const analysis::StereoSpectrum> spectrum;
@@ -21,12 +26,13 @@ public:
         double dpr = 1.0;
         QString transform;
         QVector<int> frames;
+        QVector<Source> sources;
     };
 
     static RenderRequest makeRenderRequest(std::shared_ptr<const analysis::StereoSpectrum>,
                                           const analysis::SpectrumRaster &, quint64 page,
                                           QSize logicalSize, double dpr, const QString &transform,
-                                          const Projection &);
+                                          const Projection &, QVector<Source> tiles = {});
     static QImage render(const RenderRequest &);
     bool matches(const RenderRequest &) const;
     bool canDisplayFor(const RenderRequest &) const;

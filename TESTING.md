@@ -111,6 +111,13 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 
 ## Release 播放性能基准
 
+频谱优化另有 `analysis_spectrum_tests`、`analysis_transient_tests` 和
+`ui_spectrum_overlay_tests`；AE 与主编辑区共存由 `analysis_editor_tests` 覆盖。
+主编辑区频谱的播放对比可在以下命令中加入 `--benchmark-spectrum-overlay`，
+该选项不修改用户偏好。需要静音时追加 `--benchmark-mute`，音乐和打击音效均静音，
+播放计时与性能测量继续运行；追加 `--benchmark-window-size 2560x1440` 可验证大窗口。
+缓存与更新边界见 [频谱实现](docs/SPECTRUM_PIPELINE.md)。
+
 主编辑区或 MainWindow 高频路径有改动时，使用实际谱面运行内置基准。开发机的主要
 压力用例是 `Yugami - Nyanpasu- Lv.16`（4,461 notes、1 BPM）：
 
@@ -250,7 +257,15 @@ ctest --test-dir build_clion_msvc -C Debug -R "ui_grid_drag_tests|file_resource_
 
 ## 常见失败
 
+- Windows 本机的 MSVC 14.51.36231 曾在 Debug 的 `<functional>`、UCRT 等不同位置报 `C1001`，也曾直接退出编译进程；14.44.35207 已通过本项目 Debug/Release 验证。若已安装该工具集，可用下面的命令重建 CMake 配置，再执行正常编译。`--fresh` 保留源码和输出目录，只重新生成构建配置；本地 VS Code 的 `cmake.toolset` 及 CMake preset 的 `toolset` 也应同步指定 `v143,version=14.44.35207`，避免 IDE 又选回默认工具集。
+
+  ```powershell
+  cmake --fresh -S . -B build -G "Visual Studio 18 2026" -A x64 -T "v143,version=14.44.35207" -DCMAKE_PREFIX_PATH=C:/Qt/6.10.2/msvc2022_64 -DBUILD_TESTING=ON
+  cmake --build build --config Debug --target CatchChartEditor --parallel 2
+  ```
+
 - `0xc0000135`：通常是 Qt DLL 不在测试进程 PATH；先确认 CMake 配置使用了正确 Qt。
+- 本机在 14.44 下也出现过不同旧文件中的随机 `C1001` / `0xc0000005`。2026-10-18 的相关 Debug 目标在仅限制构建子进程 CPU 亲和性、逐文件串行编译后通过；没有修改系统全局设置，也没有据报错位置改写业务代码。这只是本轮构建规避，不能据此确定工具链或硬件根因。构建记录见 `artifacts/spectrum-blocks-debug-build-affinity.log`。
 - UI 测试输出 `QWindowsWindow::setGeometry ... +0+0`：检查预览到真实浮动窗口是否丢失全局坐标。
 - 测试无输出但返回非零：直接运行对应可执行程序查看 stderr，例如 `build\Debug\DockingLayoutTests.exe`。
 - 只在 Release/Debug 失败：分别清查未初始化状态、断言、副作用时序和优化相关未定义行为。

@@ -1,5 +1,6 @@
 #include "ChartCanvas.h"
 #include "controller/ChartController.h"
+#include "ChartSpectrumOverlay.h"
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "audio/NoteSoundPlayer.h"
@@ -419,6 +420,8 @@ void ChartCanvas::setChartController(ChartController *controller)
         disconnect(m_chartController, &ChartController::chartLoaded, this, nullptr);
     }
     m_chartController = controller;
+    if (m_spectrumOverlay)
+        m_spectrumOverlay->setChartController(controller);
     m_chartRevision = controller ? controller->revision() : 0;
     if (m_noteChainEditor)
         m_noteChainEditor->setChartController(controller);
@@ -459,6 +462,8 @@ void ChartCanvas::setChartController(ChartController *controller)
 
 void ChartCanvas::setPlaybackController(PlaybackController *controller)
 {
+    if (m_spectrumOverlay)
+        m_spectrumOverlay->setPlaybackController(controller);
     if (m_playbackController == controller)
         return;
 
@@ -722,6 +727,7 @@ void ChartCanvas::setNoteSize(int size)
 void ChartCanvas::refreshRenderSettings()
 {
     m_noteRenderer->refreshSettings();
+    setSpectrumOverlayEnabled(Settings::instance().spectrumOverlayEnabled());
     invalidateGridCache();
     update();
 }
@@ -735,6 +741,24 @@ void ChartCanvas::setMode(Mode mode)
         m_rainFirst = true;
     }
     m_currentMode = mode;
+    update();
+}
+
+void ChartCanvas::setSpectrumOverlayEnabled(bool enabled)
+{
+    if (enabled == spectrumOverlayEnabled())
+        return;
+    if (enabled)
+    {
+        m_spectrumOverlay = new ChartSpectrumOverlay(this);
+        m_spectrumOverlay->setChartController(m_chartController);
+        m_spectrumOverlay->setPlaybackController(m_playbackController);
+    }
+    else
+    {
+        delete m_spectrumOverlay;
+        m_spectrumOverlay = nullptr;
+    }
     update();
 }
 

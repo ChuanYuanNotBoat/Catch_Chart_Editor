@@ -23,6 +23,7 @@ class NoteRenderer;
 class GridRenderer;
 class HyperfruitDetector;
 class BackgroundRenderer;
+class ChartSpectrumOverlay;
 class Skin;
 class PlaybackController;
 class NoteSoundPlayer;
@@ -84,6 +85,8 @@ public:
     void setTimeScale(double scale);
     double timeScale() const { return m_timeScale; }
     void refreshBackground();
+    void setSpectrumOverlayEnabled(bool enabled);
+    bool spectrumOverlayEnabled() const { return m_spectrumOverlay != nullptr; }
     int mirrorAxisX() const { return m_mirrorAxisX; }
     bool isMirrorGuideVisible() const { return m_mirrorGuideVisible; }
     bool isMirrorPreviewVisible() const { return m_mirrorPreviewVisible; }
@@ -157,6 +160,7 @@ protected:
 
 
 private:
+    ChartSpectrumOverlay *m_spectrumOverlay = nullptr;
     static constexpr int kLaneWidth = 512;
     static constexpr double kReferenceLineRatio = 0.8;
     static constexpr int kScrollSignalIntervalMs = 33;

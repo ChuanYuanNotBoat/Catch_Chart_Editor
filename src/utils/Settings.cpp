@@ -736,6 +736,16 @@ bool Settings::backgroundImageEnabled() const
 {
     return m_settings.value("view/backgroundImageEnabled", true).toBool();
 }
+
+bool Settings::spectrumOverlayEnabled() const
+{
+    return m_settings.value("view/spectrumOverlayEnabled", false).toBool();
+}
+
+void Settings::setSpectrumOverlayEnabled(bool enabled)
+{
+    m_settings.setValue("view/spectrumOverlayEnabled", enabled);
+}
 void Settings::setBackgroundImageEnabled(bool enabled)
 {
     m_settings.setValue("view/backgroundImageEnabled", enabled);

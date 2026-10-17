@@ -87,7 +87,17 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
     : QWidget(parent, Qt::Window), m_chart(chart), m_selection(selection), m_playback(playback), m_main(main),
       m_range(range)
 {
-    m_spectrumRunner = spectrumRunner ? std::move(spectrumRunner) : SpectrumService::prepareFileRangeAsync;
+    m_spectrumRunner = spectrumRunner ? std::move(spectrumRunner)
+        : [this](QObject *context, const QString &path, double start, double duration,
+                 std::shared_ptr<std::atomic<bool>> cancel, SpectrumService::PageCallback done) {
+        const auto source = m_sourceGeneration;
+        const double a = m_canvas->timeAtY(28), b = m_canvas->timeAtY(m_canvas->height());
+        SpectrumService::prepareFileRangeProgressiveAsync(context, path, start, duration, cancel,
+            std::move(done), [this, source, cancel](SpectrumService::Page tile) {
+                if (source == m_sourceGeneration && !cancel->load() && isVisible() && tile.valid())
+                    m_canvas->setSpectrumTile(std::move(tile.spectrum), std::move(tile.raster));
+            }, qMin(a, b), qMax(a, b));
+    };
     setObjectName("analysis.editor");
     setProperty("cceOwnCommandRouter", true);
     setWindowTitle(tr("CCE — Analysis Editor"));
@@ -664,8 +674,14 @@ void AnalysisEditor::requestSpectrum()
                              if (result.durationSeconds * 1000 + 20 < duration)
                                  m_cachedEofMs = (result.startSeconds + result.durationSeconds) * 1000;
                              m_spectrumPages.append(std::move(page));
-                             while (m_spectrumPages.size() > 3)
+                             qint64 bytes = 0;
+                             for (const auto &cached : m_spectrumPages)
+                                 bytes += cached.memoryBytes();
+                             while (m_spectrumPages.size() > 1 && (m_spectrumPages.size() > 3 || bytes > 24 * 1024 * 1024))
+                             {
+                                 bytes -= m_spectrumPages.front().memoryBytes();
                                  m_spectrumPages.removeFirst();
+                             }
                              // Select against the current viewport, which may have moved
                              // while this page was being prepared. An obsolete prefetch
                              // must never replace a page that still covers the screen.
