@@ -99,6 +99,39 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 AutoTiming algorithms continue in the independent AutoTimingCore repository;
 CCE work here is limited to integration and editor behavior.
 
+## AE / AC follow-up — completed host work (2026-10-08)
+
+Detailed scope, current-source audit, historical issue mapping and implementation
+order are in [the AE / AC plan](AE_AC_GUI_BUGFIX_PLAN.md).
+Normal / Advanced / Debug and the host fixes below are implemented on
+`feat/ae-analysis-workbench`. Debug/Release native builds and the same 28 focused
+host cases passed in both configurations (30 QtTest passes including setup/cleanup).
+The stopped AutoTiming accuracy/audio/smoke runs remain stopped.
+
+- [x] Fix AE result/config identity, range clamping and source replacement guards.
+- [x] Unify musical-time/audio-time transforms; preserve exact Malody beat triplets
+      and distinguish chart timing, measured audio positions and proposal models.
+- [x] Extract a small analysis session/task model and shared Event/Curve/Region/
+      Candidate tracks; keep existing Spectrum/Transient/Core algorithms.
+- [x] Add stable Advanced config/Profile compatibility and version-bound Debug controls:
+      read-only Default, Save As/copy, section/full reset, JSON import/export,
+      global preset/project override and effective snapshot/hash.
+- [x] Complete the three interface levels, musical/absolute views, whole-audio
+      energy overview and compact Spectrum/right Note lane layout.
+- [x] Share timing proposal/preview/validation and AE-scoped editing commands;
+      add continuous/segmented tempo-map preview while retaining candidate grids.
+- [x] Expand bridge diagnostics with SignalMetrics, EvidenceReason and raw rhythm
+      candidates; add Overview/Compare, Tempo/Phase, Rhythm/Evidence and
+      Reference/Tests views using existing local records.
+- [x] Verify affected AE/config/bridge behavior during implementation; keep AC
+      accuracy fixes, true Core cancellation and gitlink updates as separate work.
+
+The iteration also corrected duplicate offset handling in BPM-map projection.
+See [the implementation record](AE_AC_GUI_BUGFIX_PLAN.md#10-实施记录2026-10-08)
+and [current AE usage](ANALYSIS_EDITOR.md). Full `.ccepr`, random-access PCM cache,
+universal CCE TaskContext infrastructure and the independent Core candidate remain
+separate follow-ups; this completion does not claim they are implemented.
+
 ## P2 — CCE-internal document architecture
 
 The product direction is decided in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md):
