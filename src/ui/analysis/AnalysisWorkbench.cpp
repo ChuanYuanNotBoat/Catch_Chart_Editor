@@ -291,7 +291,15 @@ void AnalysisWorkbench::setResult(const QJsonObject &result)
     for (auto v : result.value("tempoHypotheses").toArray())
     {
         auto h = v.toObject();
-        m_hypotheses->addItem(text(h.value("kind"))
+        const auto kind = h.value("kind").toString();
+        const auto label = kind == QLatin1String("fixed_metrical_pulse") ? tr("Stable beat interpretation")
+            : kind == QLatin1String("ambiguity_preserving") ? tr("Alternative beat path")
+            : kind == QLatin1String("globally_regularized") ? tr("Whole-song interpretation")
+            : kind == QLatin1String("local_evidence_curve") ? tr("Local tempo changes") : kind;
+        m_hypotheses->addItem(label
+                              + QStringLiteral(" · %1 BPM").arg(
+                                  h.value("track").toArray().isEmpty() ? 0.0 :
+                                  h.value("track").toArray().first().toObject().value("bpm").toDouble(), 0, 'f', 3)
                               + (h.value("selected").toBool() ? tr(" (selected by Core)") : tr(" (alternative)")));
     }
     auto map = result.value("tempoMap").toObject();
@@ -326,6 +334,9 @@ void AnalysisWorkbench::setResult(const QJsonObject &result)
                                                                    : QJsonValue())));
     if (!result.isEmpty())
         m_overview->setText(tr("Result state: %1\n").arg(result.value("resultState").toString("Ready"))
+                            + m_overview->text());
+    if (result.value("selection").toObject().value("ambiguous").toBool())
+        m_overview->setText(tr("Several beat interpretations remain plausible. Inspect the alternatives.\n")
                             + m_overview->text());
     if (result.isEmpty())
         m_evidence->clear();

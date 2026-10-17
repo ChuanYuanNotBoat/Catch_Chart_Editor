@@ -47,6 +47,10 @@ Double-click a timed result row to seek to it and switch to a close independent 
 
 **Preview candidate grid** is off by default. It displays cyan constant-BPM references at the selected candidate's absolute pulse, limited to the analyzed window/range. Dense grids are thinned without shifting phase. This is a diagnostic reference, not the fitted variable-tempo model; it leaves chart BPM, offset, placement snap, notes and undo history unchanged. New analysis or source changes clear the preview.
 
+AutoTiming now retains several plausible beat interpretations when pulse layers compete. The hypothesis menu shows each interpretation's BPM and whether Core selected it. A short message explains unresolved ambiguity. Inspecting an alternative uses its own fitted phase and tempo map; the default recommendation follows Core's selected path, rather than the highest raw periodicity score.
+
+Debug exports include protected window candidates, rates surviving the regularized and metrical observation pruning, normalized root proposals and symmetric rational ambiguity relations. The version-bound **Preserve beat interpretations** and **Preserve candidate diversity** switches support separate ablations. Confidence remains heuristic; ambiguity reduces certainty without claiming a calibrated probability. The original raw candidates remain available alongside the extra proposals.
+
 The Diagnostics tab shows and exports full JSON, including nested local candidates, families, hypotheses, objective costs, phase/tempo models, rhythm profiles, support IDs, options and source provenance. `pulseTimeSeconds` is an absolute audio location and is null when absent. `legacyOffsetMilliseconds` retains its separate delay-style meaning. Objective costs and raw scores are not presented as calibrated probabilities. Pulse indices are serialized as decimal strings to preserve integer precision.
 
 Browsing diagnostics never modifies the chart. **Preview and apply reliable tempo changes…** builds a separate proposal from the published map and requires explicit confirmation. Uncertain evidence and unavailable model results remain visible as such.

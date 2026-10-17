@@ -61,6 +61,37 @@ namespace
         }
         return signal;
     }
+    void testMetricalHypothesesAndTimeline()
+    {
+        const auto pcm = makePulseTrainFloat(32000, 48, 137, .137);
+        AutoTiming2Summary summary; QString error; AutoTiming2Options options;
+        require(AutoTiming2Bridge::analyzeMono(pcm, 32000, options, summary, &error), "metrical bridge analysis failed");
+        require(summary.selection.evaluated && summary.selection.referenceWindowCount > 0,
+                "Core hypothesis metadata was not mapped");
+        require(!summary.selection.candidates.isEmpty() && !summary.selection.ambiguityRelations.isEmpty(),
+                "Core candidates and symmetric ambiguity relations were not mapped");
+        const auto original = summary;
+        AutoTiming2Bridge::translateTimeline(summary, 7.25);
+        require(summary.selection.selectedBpm == original.selection.selectedBpm,
+                "timeline translation changed selected tempo");
+        require(summary.selection.ambiguityRelations.size() == original.selection.ambiguityRelations.size(),
+                "timeline translation discarded ambiguity relations");
+        for (qsizetype i = 0; i < summary.windows.size(); ++i)
+            for (qsizetype j = 0; j < summary.windows[i].metricalCandidates.size(); ++j)
+                require(std::fabs(summary.windows[i].metricalCandidates[j].pulseTimeSeconds -
+                    original.windows[i].metricalCandidates[j].pulseTimeSeconds - 7.25) < 1e-8,
+                    "protected pulse timeline was not translated");
+        options.enableMetricalHypotheses = false;
+        AutoTiming2Summary baseline;
+        require(AutoTiming2Bridge::analyzeMono(pcm, 32000, options, baseline, &error) && !baseline.selection.evaluated,
+                "hypothesis ablation flag was not forwarded");
+        require(baseline.tempoTrack.size() == original.tempoTrack.size(), "adapter changed selected coverage");
+        for (qsizetype i = 0; i < baseline.tempoTrack.size(); ++i)
+            require(baseline.tempoTrack[i].bpm == original.tempoTrack[i].bpm &&
+                baseline.tempoTrack[i].pulseTimeSeconds == original.tempoTrack[i].pulseTimeSeconds,
+                "adapter ablation changed default selected phase");
+    }
+
     bool anyCandidateNear(const AutoTiming2Summary &s, double targetBpm, double tol)
     {
         for (const AutoTiming2Candidate &c : s.tempoCandidates)
@@ -506,6 +537,7 @@ int main(int argc, char **argv)
     };
 
     runTest("pulse_train_pipeline", testPulseTrainPipeline);
+    runTest("metrical_hypotheses_and_timeline", testMetricalHypothesesAndTimeline);
     runTest("short_audio_abstains", testShortAudioAbstains);
     runTest("silence_abstains", testSilenceAbstains);
     runTest("invalid_parameters", testInvalidParameters);

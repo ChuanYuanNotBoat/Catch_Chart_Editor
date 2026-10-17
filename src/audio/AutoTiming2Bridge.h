@@ -73,6 +73,9 @@ struct AutoTiming2Window
     QStringList evidenceReasons;
     QJsonArray rawRhythmCandidates;
     QVector<AutoTiming2Candidate> tempoCandidates;
+    QVector<AutoTiming2Candidate> metricalCandidates;
+    QVector<double> regularizedObservationBpms;
+    QVector<double> metricalObservationBpms;
 };
 
 struct AutoTiming2Family
@@ -254,6 +257,8 @@ struct AutoTiming2Options
     // Prefer Core's local-evidence tempo curve when the caller has independent
     // evidence of structural tempo changes.
     bool preferLocalTempoEvidence = false;
+    bool enableMetricalHypotheses = true;
+    bool enableMetricalDiversity = true;
     double minimumWindowSeconds = 4.0;
     double minimumTempoBpm = 30.0;
     double maximumTempoBpm = 480.0;
@@ -268,6 +273,26 @@ struct AutoTiming2Options
     // Version-bound fields from the configuration descriptor registry. Unknown
     // keys are rejected by the bridge instead of silently becoming defaults.
     QJsonObject internalOptions;
+};
+
+struct AutoTiming2AmbiguityRelation
+{
+    double firstBpm = 0.0;
+    double secondBpm = 0.0;
+    quint32 ratioNumerator = 0;
+    quint32 ratioDenominator = 0;
+    double firstSupport = 0.0;
+    double secondSupport = 0.0;
+};
+
+struct AutoTiming2Selection
+{
+    bool evaluated = false;
+    bool ambiguous = false;
+    double selectedBpm = 0.0;
+    qsizetype referenceWindowCount = 0;
+    QVector<AutoTiming2Candidate> candidates;
+    QVector<AutoTiming2AmbiguityRelation> ambiguityRelations;
 };
 
 struct AutoTiming2Summary
@@ -288,6 +313,7 @@ struct AutoTiming2Summary
     QVector<AutoTiming2Anchor> anchors;
     QVector<AutoTiming2Window> windows;
     AutoTiming2Confidence confidence;
+    AutoTiming2Selection selection;
 
     // Diagnostics counters (probe-style).
     int windowCount = 0;

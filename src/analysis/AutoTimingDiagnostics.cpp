@@ -163,6 +163,9 @@ QJsonObject object(const AutoTiming2Window &v)
     o["evidenceReasons"] = QJsonArray::fromStringList(v.evidenceReasons);
     o["rawRhythmCandidates"] = v.rawRhythmCandidates;
     o["tempoCandidates"] = array(v.tempoCandidates);
+    o["metricalCandidates"] = array(v.metricalCandidates);
+    o["regularizedObservationBpms"] = array(v.regularizedObservationBpms);
+    o["metricalObservationBpms"] = array(v.metricalObservationBpms);
     return o;
 }
 QJsonObject object(const AutoTiming2Family &v)
@@ -362,6 +365,14 @@ QJsonObject object(const AutoTiming2Summary &v)
     o["anchorSelectedWindowCount"] = value(v.anchorSelectedWindowCount);
     o["multiScalePhaseRefinedCount"] = value(v.multiScalePhaseRefinedCount);
     o["stableGridRegularizedCount"] = value(v.stableGridRegularizedCount);
+    QJsonArray relations;
+    for (const auto &r : v.selection.ambiguityRelations)
+        relations.append(QJsonObject{{"firstBpm", value(r.firstBpm)}, {"secondBpm", value(r.secondBpm)},
+            {"ratioNumerator", value(r.ratioNumerator)}, {"ratioDenominator", value(r.ratioDenominator)},
+            {"firstSupport", value(r.firstSupport)}, {"secondSupport", value(r.secondSupport)}});
+    o["selection"] = QJsonObject{{"evaluated", v.selection.evaluated}, {"ambiguous", v.selection.ambiguous},
+        {"selectedBpm", value(v.selection.selectedBpm)}, {"referenceWindowCount", value(v.selection.referenceWindowCount)},
+        {"candidates", array(v.selection.candidates)}, {"ambiguityRelations", relations}};
     return o;
 }
 } // namespace

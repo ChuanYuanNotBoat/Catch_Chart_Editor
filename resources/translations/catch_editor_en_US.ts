@@ -5551,6 +5551,28 @@ Current Core: %8; baseline Core: %9</translation>
         <source>Showing %1 of %2 existing records. Statuses are recorded results, not a new verification. Source/reference pairing is required before accuracy or navigation. No test was started.</source>
         <translation>Showing %1 of %2 existing records. Statuses are recorded results, not a new verification. Source/reference pairing is required before accuracy or navigation. No test was started.</translation>
     </message>
+    <message>
+        <source>Several beat interpretations remain plausible. Inspect the alternatives.
+</source>
+        <translation>Several beat interpretations remain plausible. Inspect the alternatives.
+</translation>
+    </message>
+    <message>
+        <source>Stable beat interpretation</source>
+        <translation>Stable beat interpretation</translation>
+    </message>
+    <message>
+        <source>Alternative beat path</source>
+        <translation>Alternative beat path</translation>
+    </message>
+    <message>
+        <source>Whole-song interpretation</source>
+        <translation>Whole-song interpretation</translation>
+    </message>
+    <message>
+        <source>Local tempo changes</source>
+        <translation>Local tempo changes</translation>
+    </message>
 </context>
 <context>
     <name>AudioOverview</name>

@@ -948,13 +948,17 @@ void AnalysisEditor::fillTable(const QString &id, const QJsonArray &rows)
 void AnalysisEditor::selectDiagnosticWindow(const QJsonObject &window)
 {
     QJsonArray rows;
-    for (const auto &value : window.value("tempoCandidates").toArray())
+    for (const auto *key : {"tempoCandidates", "metricalCandidates"})
     {
-        auto candidate = value.toObject();
-        candidate["windowId"] = window.value("id");
-        candidate["previewStartSeconds"] = window.value("startSeconds");
-        candidate["previewEndSeconds"] = window.value("endSeconds");
-        rows.append(candidate);
+        for (const auto &value : window.value(key).toArray())
+        {
+            auto candidate = value.toObject();
+            candidate["protectedAlternative"] = key == QLatin1String("metricalCandidates");
+            candidate["windowId"] = window.value("id");
+            candidate["previewStartSeconds"] = window.value("startSeconds");
+            candidate["previewEndSeconds"] = window.value("endSeconds");
+            rows.append(candidate);
+        }
     }
     fillTable("windowCandidates", rows);
     if (!rows.isEmpty())

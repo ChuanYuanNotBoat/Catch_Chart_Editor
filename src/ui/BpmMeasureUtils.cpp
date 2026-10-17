@@ -190,8 +190,28 @@ BpmMeasureUtils::Recommendation BpmMeasureUtils::selectRecommendation(
     if (!result.hasAnalysis())
         return recommendation;
 
+    const auto &selection = result.analysis.selection;
+    if (selection.evaluated)
+    {
+        if (!isPositiveFinite(selection.selectedBpm))
+            return recommendation;
+        recommendation.available = true;
+        recommendation.bpm = selection.selectedBpm;
+        for (qsizetype i = 0; i < result.analysis.tempoCandidates.size(); ++i)
+        {
+            const auto &candidate = result.analysis.tempoCandidates[i];
+            if (isPositiveFinite(candidate.bpm) && std::abs(candidate.bpm / selection.selectedBpm - 1.0) < .015)
+            {
+                recommendation.candidateIndex = i;
+                recommendation.candidateScore = candidate.score;
+                recommendation.familyId = candidate.harmonicFamilyId;
+                break;
+            }
+        }
+    }
+
     double bestScore = -std::numeric_limits<double>::infinity();
-    for (qsizetype i = 0; i < result.analysis.tempoCandidates.size(); ++i)
+    for (qsizetype i = 0; !selection.evaluated && i < result.analysis.tempoCandidates.size(); ++i)
     {
         const AutoTiming2Candidate &candidate = result.analysis.tempoCandidates[i];
         if (!isPositiveFinite(candidate.bpm))
@@ -242,7 +262,7 @@ BpmMeasureUtils::Recommendation BpmMeasureUtils::selectRecommendation(
     }
 
     const AutoTiming2Confidence &confidence = result.analysis.confidence;
-    recommendation.quality = confidence.overall >= kSupportedOverallConfidence &&
+    recommendation.quality = !selection.ambiguous && confidence.overall >= kSupportedOverallConfidence &&
                                      confidence.tempo >= kSupportedTempoConfidence &&
                                      confidence.reliableCoverage >= kMinimumReliableCoverage
                                  ? EvidenceQuality::Supported

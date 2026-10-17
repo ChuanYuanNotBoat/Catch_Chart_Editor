@@ -179,6 +179,27 @@ namespace
         require(result.hasAnalysis(), "candidate absence must not change analysis completion status");
     }
 
+    void testCoreSelectionAndAmbiguityAreAuthoritative()
+    {
+        BpmDetector::DetectionResult result;
+        result.analysisStatus = BpmDetector::AnalysisStatus::Succeeded;
+        AutoTiming2Candidate stronger; stronger.bpm = 137; stronger.score = 1;
+        AutoTiming2Candidate alternative; alternative.bpm = 205.5; alternative.score = .3;
+        result.analysis.tempoCandidates = {stronger, alternative};
+        result.analysis.selection.evaluated = true;
+        result.analysis.selection.selectedBpm = 205.5;
+        result.analysis.selection.ambiguous = true;
+        result.analysis.confidence.tempo = result.analysis.confidence.overall = result.analysis.confidence.reliableCoverage = 1;
+        const auto recommendation = BpmMeasureUtils::selectRecommendation(result);
+        require(recommendation.available && nearlyEqual(recommendation.bpm, 205.5),
+                "CCE must use Core selected path instead of reranking raw periodicities");
+        require(recommendation.quality == BpmMeasureUtils::EvidenceQuality::Uncertain,
+                "explicit metrical ambiguity must remain uncertain even with high legacy confidence");
+        result.analysis.selection.selectedBpm = 0;
+        require(!BpmMeasureUtils::selectRecommendation(result).available,
+                "missing Core selected tempo must not silently fall back to strongest pulse");
+    }
+
     void testMultiplierHintsMatchOnlyExistingActions()
     {
         const auto x2 = BpmMeasureUtils::findMultiplierHint(87.0, 174.0);
@@ -805,6 +826,7 @@ int main(int argc, char **argv)
     };
 
     runTest("recommendation_selection", testRecommendationSelectionAndUncertainty);
+    runTest("core_selection_and_ambiguity", testCoreSelectionAndAmbiguityAreAuthoritative);
     runTest("multiplier_hints", testMultiplierHintsMatchOnlyExistingActions);
     runTest("chart_start_target", testTargetEntryUsesTrueChartStart);
     runTest("timing_map_fixed_and_step", testTimingMapProjectionPreventsFixedAndStepDrift);

@@ -10,6 +10,8 @@ const QVector<ConfigField> &configFields()
 {
     static const QVector<ConfigField> fields = {
         {"preferLocalTempoEvidence", "Prefer local tempo evidence", "Tempo", 0, 0, 1, true},
+        {"enableMetricalHypotheses", "Preserve beat interpretations", "Tempo", 1, 0, 1, true, false, true},
+        {"enableMetricalDiversity", "Preserve candidate diversity", "Tempo", 1, 0, 1, true, false, true},
         {"minimumTempoBpm", "Minimum tempo (BPM)", "Tempo", 30, 1, 10000},
         {"maximumTempoBpm", "Maximum tempo (BPM)", "Tempo", 480, 1, 10000},
         {"enableFineTempoTracking", "Fine tempo tracking", "Tempo", 1, 0, 1, true},

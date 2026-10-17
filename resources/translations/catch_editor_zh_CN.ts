@@ -5778,6 +5778,28 @@ Current Core: %8; baseline Core: %9</source>
         <source>Showing %1 of %2 existing records. Statuses are recorded results, not a new verification. Source/reference pairing is required before accuracy or navigation. No test was started.</source>
         <translation>正在显示 %2 条已有记录中的 %1 条。状态为已记录的结果，并非本次重新验证。比较准确度或进行定位前，需要匹配源码与参考数据。本次未启动测试。</translation>
     </message>
+    <message>
+        <source>Several beat interpretations remain plausible. Inspect the alternatives.
+</source>
+        <translation>存在多种合理的节拍解释，请查看备选结果。
+</translation>
+    </message>
+    <message>
+        <source>Stable beat interpretation</source>
+        <translation>稳定节拍解释</translation>
+    </message>
+    <message>
+        <source>Alternative beat path</source>
+        <translation>备选节拍路径</translation>
+    </message>
+    <message>
+        <source>Whole-song interpretation</source>
+        <translation>整曲节拍解释</translation>
+    </message>
+    <message>
+        <source>Local tempo changes</source>
+        <translation>局部速度变化</translation>
+    </message>
 </context>
 <context>
     <name>AudioOverview</name>

@@ -84,6 +84,18 @@ namespace
         return out;
     }
 
+    AutoTiming2Candidate mapCandidate(const autotiming::GlobalTempoCandidate &candidate)
+    {
+        AutoTiming2Candidate out;
+        out.bpm = candidate.bpm;
+        out.score = candidate.relativeScore;
+        out.harmonicFamilyId = candidate.harmonicFamilyId == autotiming::NoTempoFamily
+                                  ? qsizetype(-1) : qsizetype(candidate.harmonicFamilyId);
+        out.harmonicRatioToFamily = candidate.harmonicRatioToFamily;
+        for (std::size_t id : candidate.supportingWindowIds) out.supportingWindowIds.append(qsizetype(id));
+        return out;
+    }
+
     QVector<AutoTiming2TrackPoint> mapTrack(const autotiming::TempoTrack &track)
     {
         QVector<AutoTiming2TrackPoint> out;
@@ -230,6 +242,8 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             }
         }
         native.preferLocalTempoEvidence = options.preferLocalTempoEvidence;
+        native.enableMetricalHypotheses = options.enableMetricalHypotheses;
+        native.enableMetricalDiversity = options.enableMetricalDiversity;
         native.minimumWindowSeconds = options.minimumWindowSeconds;
         native.minimumTempoBpm = options.minimumTempoBpm;
         native.maximumTempoBpm = options.maximumTempoBpm;
@@ -261,6 +275,8 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
         };
 #define APPLY_INTERNAL(field) apply(#field, native.field)
         APPLY_INTERNAL(enableFineTempoTracking);
+        APPLY_INTERNAL(enableMetricalHypotheses);
+        APPLY_INTERNAL(enableMetricalDiversity);
         APPLY_INTERNAL(fineTempoWindowSeconds);
         APPLY_INTERNAL(fineTempoHopSeconds);
         APPLY_INTERNAL(minimumWindowSeconds);
@@ -336,6 +352,16 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
         }
         outSummary.tempoTrack = mapTrack(result.tempoTrack);
         outSummary.tempoMap = mapTempoMap(result.tempoMap, options);
+        outSummary.selection.evaluated = result.selection.evaluated;
+        outSummary.selection.ambiguous = result.selection.ambiguous;
+        outSummary.selection.selectedBpm = result.selection.selectedBpm;
+        outSummary.selection.referenceWindowCount = qsizetype(result.selection.referenceWindowCount);
+        for (const auto &candidate : result.selection.candidates)
+            outSummary.selection.candidates.append(mapCandidate(candidate));
+
+        for (const auto &relation : result.selection.ambiguityRelations)
+            outSummary.selection.ambiguityRelations.append({relation.firstBpm, relation.secondBpm,
+                relation.ratioNumerator, relation.ratioDenominator, relation.firstSupport, relation.secondSupport});
 
         outSummary.tempoHypotheses.reserve(result.tempoHypotheses.size());
         for (const autotiming::TempoTrackHypothesis &h : result.tempoHypotheses)
@@ -474,6 +500,10 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             out.tempoCandidates.reserve(w.tempoCandidates.size());
             for (const autotiming::TempoCandidate &c : w.tempoCandidates)
                 out.tempoCandidates.append(mapCandidate(c));
+            for (const autotiming::TempoCandidate &c : w.metricalCandidates)
+                out.metricalCandidates.append(mapCandidate(c));
+            for (double bpm : w.regularizedObservationBpms) out.regularizedObservationBpms.append(bpm);
+            for (double bpm : w.metricalObservationBpms) out.metricalObservationBpms.append(bpm);
             outSummary.windows.append(out);
         }
 
@@ -588,5 +618,7 @@ void AutoTiming2Bridge::translateTimeline(AutoTiming2Summary &summary, double of
             if (candidate.hasPulseTime)
                 candidate.pulseTimeSeconds += offsetSeconds;
         }
+        for (AutoTiming2Candidate &candidate : window.metricalCandidates)
+            if (candidate.hasPulseTime) candidate.pulseTimeSeconds += offsetSeconds;
     }
 }

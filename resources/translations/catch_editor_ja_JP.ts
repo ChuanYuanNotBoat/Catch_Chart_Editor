@@ -5580,6 +5580,28 @@ Current Core: %8; baseline Core: %9</source>
         <source>Showing %1 of %2 existing records. Statuses are recorded results, not a new verification. Source/reference pairing is required before accuracy or navigation. No test was started.</source>
         <translation>既存記録 %2 件中 %1 件を表示しています。ステータスは記録済みの結果であり、新たな検証結果ではありません。精度比較やナビゲーションにはソースと参照データのペアリングが必要です。テストは開始されていません。</translation>
     </message>
+    <message>
+        <source>Several beat interpretations remain plausible. Inspect the alternatives.
+</source>
+        <translation>複数の拍の解釈が考えられます。代替結果を確認してください。
+</translation>
+    </message>
+    <message>
+        <source>Stable beat interpretation</source>
+        <translation>一定の拍の解釈</translation>
+    </message>
+    <message>
+        <source>Alternative beat path</source>
+        <translation>代替の拍の推移</translation>
+    </message>
+    <message>
+        <source>Whole-song interpretation</source>
+        <translation>曲全体の解釈</translation>
+    </message>
+    <message>
+        <source>Local tempo changes</source>
+        <translation>局所的なテンポ変化</translation>
+    </message>
 </context>
 <context>
     <name>AudioOverview</name>
