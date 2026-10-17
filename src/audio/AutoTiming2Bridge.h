@@ -2,6 +2,9 @@
 
 #include <QString>
 #include <QVector>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QStringList>
 
 #include <cstddef>
 #include <cstdint>
@@ -66,6 +69,9 @@ struct AutoTiming2Window
     double reliability = 0.0;
     bool selectedAsAnchor = false;
     QString estimatorMessage;
+    QJsonObject signalMetrics;
+    QStringList evidenceReasons;
+    QJsonArray rawRhythmCandidates;
     QVector<AutoTiming2Candidate> tempoCandidates;
 };
 
@@ -257,6 +263,9 @@ struct AutoTiming2Options
     bool enableComplexSubdivisionAnalysis = false;
     double tempoMapMaximumTimeErrorMilliseconds = 1.0;
     qsizetype tempoMapMaximumEntries = 2048;
+    // Version-bound fields from the configuration descriptor registry. Unknown
+    // keys are rejected by the bridge instead of silently becoming defaults.
+    QJsonObject internalOptions;
 };
 
 struct AutoTiming2Summary
@@ -288,6 +297,7 @@ struct AutoTiming2Summary
 class AutoTiming2Bridge
 {
 public:
+    static QString algorithmVersion();
     // Analyze mono float PCM. sampleRate must be 32000/44100/48000 Hz; callers
     // must resample other rates beforehand (BpmDetector::analyzeFromFileDetailed
     // does this via the existing linear resampler). A structurally valid

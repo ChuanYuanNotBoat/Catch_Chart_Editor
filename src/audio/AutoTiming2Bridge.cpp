@@ -3,6 +3,18 @@
 #include "autotiming/Analysis.h"
 
 #include <stdexcept>
+#include <QSet>
+#include <type_traits>
+#include <cmath>
+
+QString AutoTiming2Bridge::algorithmVersion()
+{
+#ifdef CCE_AUTOTIMING_CORE_VERSION
+    return QString::fromLatin1(CCE_AUTOTIMING_CORE_VERSION);
+#else
+    return QStringLiteral("unverified-build");
+#endif
+}
 
 namespace
 {
@@ -224,6 +236,63 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
         native.enableComplexSubdivisionAnalysis =
             options.enableComplexSubdivisionAnalysis;
 
+        QSet<QString> applied;
+        auto apply = [&](const char *key, auto &target) {
+            if (!options.internalOptions.contains(key))
+                return;
+            const auto v = options.internalOptions.value(key);
+            using T = std::decay_t<decltype(target)>;
+            if constexpr (std::is_same_v<T, bool>)
+            {
+                if (!v.isBool())
+                    throw std::invalid_argument("Invalid boolean internal option");
+                target = v.toBool();
+            }
+            else
+            {
+                if (!v.isDouble() || !std::isfinite(v.toDouble()) || v.toDouble() < 0 || v.toDouble() > 100000
+                    || (std::is_integral_v<T> && std::floor(v.toDouble()) != v.toDouble()))
+                    throw std::invalid_argument("Invalid numeric internal option");
+                target = static_cast<T>(v.toDouble());
+            }
+            applied.insert(QString::fromLatin1(key));
+        };
+#define APPLY_INTERNAL(field) apply(#field, native.field)
+        APPLY_INTERNAL(enableFineTempoTracking);
+        APPLY_INTERNAL(fineTempoWindowSeconds);
+        APPLY_INTERNAL(fineTempoHopSeconds);
+        APPLY_INTERNAL(minimumWindowSeconds);
+        APPLY_INTERNAL(tempoAgreementTolerance);
+        APPLY_INTERNAL(anchorReliabilityThreshold);
+        APPLY_INTERNAL(minimumOnsetPeriodicityScore);
+        APPLY_INTERNAL(maximumLocalTempoCandidates);
+        APPLY_INTERNAL(maximumGlobalTempoCandidates);
+        APPLY_INTERNAL(maximumPhaseBackPropagationSeconds);
+        APPLY_INTERNAL(maximumContinuousTempoSlopeOctavesPerSecond);
+        APPLY_INTERNAL(tempoTransitionPenalty);
+        APPLY_INTERNAL(tempoSlopeChangePenalty);
+        APPLY_INTERNAL(phaseTransitionPenalty);
+        APPLY_INTERNAL(maximumPeriodicityLayers);
+        APPLY_INTERNAL(enableHighRateRhythmAnalysis);
+        APPLY_INTERNAL(minimumHighRhythmRateBpm);
+        APPLY_INTERNAL(maximumHighRhythmRateBpm);
+        APPLY_INTERNAL(minimumRhythmPeriodicityScore);
+        APPLY_INTERNAL(maximumLocalRhythmCandidates);
+        APPLY_INTERNAL(minimumRhythmLayerConfidence);
+        APPLY_INTERNAL(strongRhythmLayerConfidence);
+        APPLY_INTERNAL(minimumSemanticRhythmPhaseConfidence);
+        APPLY_INTERNAL(minimumSemanticRhythmPulseCoverage);
+        APPLY_INTERNAL(minimumSemanticRhythmTransientDensityCoverage);
+        APPLY_INTERNAL(minimumRhythmLayerSupportWindows);
+        APPLY_INTERNAL(maximumRhythmProfiles);
+        APPLY_INTERNAL(minimumSemanticSubdivision);
+        APPLY_INTERNAL(maximumSubdivision);
+        APPLY_INTERNAL(maximumPolyrhythmTerm);
+        APPLY_INTERNAL(maximumPolyrhythmLayersPerProfile);
+#undef APPLY_INTERNAL
+        if (applied.size() != options.internalOptions.size())
+            throw std::invalid_argument("Unsupported internal option for this Core build");
+
         const autotiming::AudioView view{mono.constData(),
                                          static_cast<std::size_t>(mono.size()),
                                          static_cast<std::uint32_t>(sampleRate),
@@ -381,6 +450,25 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             out.reliability = w.reliability;
             out.selectedAsAnchor = w.selectedAsAnchor;
             out.estimatorMessage = QString::fromStdString(w.estimatorMessage);
+            out.signalMetrics = {{"rmsDb", w.signal.rmsDb},
+                                 {"peakAmplitude", w.signal.peakAmplitude},
+                                 {"silenceRatio", w.signal.silenceRatio},
+                                 {"clippingRatio", w.signal.clippingRatio},
+                                 {"dynamicRangeDb", w.signal.dynamicRangeDb},
+                                 {"transientDensityHz", w.signal.transientDensityHz},
+                                 {"signalScore", w.signal.signalScore},
+                                 {"transientScore", w.signal.transientScore}};
+            for (auto reason : w.reasons)
+                out.evidenceReasons.append(QString::fromLatin1(autotiming::toString(reason)));
+            for (const auto &c : w.rhythmCandidates)
+                out.rawRhythmCandidates.append(QJsonObject{{"rateBpm", c.rateBpm},
+                                                           {"periodSeconds", c.periodSeconds},
+                                                           {"pulseTimeSeconds", c.pulseTimeSeconds},
+                                                           {"uncertaintyBpm", c.uncertaintyBpm},
+                                                           {"phaseConfidence", c.phaseConfidence},
+                                                           {"pulseCoverage", c.pulseCoverage},
+                                                           {"transientDensityCoverage", c.transientDensityCoverage},
+                                                           {"score", c.score}});
             out.tempoCandidates.reserve(w.tempoCandidates.size());
             for (const autotiming::TempoCandidate &c : w.tempoCandidates)
                 out.tempoCandidates.append(mapCandidate(c));
@@ -484,6 +572,13 @@ void AutoTiming2Bridge::translateTimeline(AutoTiming2Summary &summary, double of
     }
     for (AutoTiming2Window &window : summary.windows)
     {
+        for (qsizetype i = 0; i < window.rawRhythmCandidates.size(); ++i)
+        {
+            auto c = window.rawRhythmCandidates[i].toObject();
+            if (c.value("pulseTimeSeconds").isDouble())
+                c["pulseTimeSeconds"] = c.value("pulseTimeSeconds").toDouble() + offsetSeconds;
+            window.rawRhythmCandidates[i] = c;
+        }
         window.startSeconds += offsetSeconds;
         window.endSeconds += offsetSeconds;
         for (AutoTiming2Candidate &candidate : window.tempoCandidates)
