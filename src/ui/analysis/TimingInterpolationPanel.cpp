@@ -1,4 +1,5 @@
 #include "TimingInterpolationPanel.h"
+#include "TimingProposal.h"
 #include "AnalysisCanvas.h"
 #include "controller/ChartController.h"
 #include "utils/MathUtils.h"
@@ -327,15 +328,15 @@ void TimingInterpolationPanel::apply()
     if (!m_apply->isEnabled() || !m_failure.isEmpty()) return;
     const auto revision = m_revision;
     const auto proposal = m_proposal;
-    const auto answer = QMessageBox::question(this, tr("Apply BPM interpolation"),
-        tr("Replace %1 timing points with %2 points in %3 → %4?\n%5 Notes keep their beat coordinates, "
-           "but audio times may change. Apply as one undoable edit?")
-            .arg(m_replaced).arg(m_result.nodes.size()).arg(beatText(m_result.nodes.front().beat),
-                                                         beatText(m_result.nodes.back().beat))
-            .arg(m_chart->chart()->notes().size()), QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-    if (answer == QMessageBox::Yes && revision == m_chart->revision())
-        m_chart->replaceBpmList(tr("Interpolate BPM"), proposal);
-    else if (revision != m_chart->revision()) invalidate();
+    analysis::confirmTimingProposal(
+        this, m_chart, tr("Apply BPM interpolation"),
+        tr("Replace %1 timing points with %2 points in %3 → %4?")
+            .arg(m_replaced)
+            .arg(m_result.nodes.size())
+            .arg(beatText(m_result.nodes.front().beat), beatText(m_result.nodes.back().beat)),
+        proposal, revision);
+    if (revision != m_chart->revision())
+        invalidate();
 }
 QJsonObject TimingInterpolationPanel::diagnostics() const
 {
