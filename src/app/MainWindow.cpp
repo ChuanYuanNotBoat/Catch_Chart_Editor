@@ -2783,6 +2783,7 @@ void MainWindow::createCentralArea()
             });
     d->bpmPanel->setChartController(d->chartController);
     d->bpmPanel->setPlaybackController(d->playbackController);
+    d->bpmPanel->setMainCanvas(d->canvas);
     d->metaPanel->setChartController(d->chartController);
     connect(d->metaPanel, &MetaEditPanel::backgroundResourceChanged, this,
             [this](const QString &fileName)

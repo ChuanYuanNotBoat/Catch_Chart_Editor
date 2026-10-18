@@ -431,6 +431,10 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
 
 このマップは %3～%4 秒の検出パルスアンカーに従い、区間外の BPM を維持します。音声からの推定であり譜面の正解ではありません。操作は一度に元に戻せます。</translation>
     </message>
+    <message>
+        <source>Advanced BPM editing…</source>
+        <translation>高度な BPM 編集…</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -5848,6 +5852,14 @@ Table shows the first 200 points; JSON includes every point.</source>
         <source>Export failed: %1</source>
         <translation>エクスポートに失敗しました: %1</translation>
     </message>
+    <message>
+        <source>Pick Start in timing view</source>
+        <translation>時間ビューで開始点を選択</translation>
+    </message>
+    <message>
+        <source>Preview cancelled. Rebuild preview to continue.</source>
+        <translation>プレビューをキャンセルしました。続けるにはプレビューを再作成してください。</translation>
+    </message>
 </context>
 <context>
     <name>TimingToolsPanel</name>
@@ -6004,6 +6016,18 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="243"/>
         <source>Set %1 BPM at [%2, %3, %4]?</source>
         <translation>[%2, %3, %4] に BPM %1 を設定しますか？</translation>
+    </message>
+    <message>
+        <source>Pick Start on the chart grid, then End freely in the timing view. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</source>
+        <translation>譜面グリッドで開始点を選び、時間ビューで終了点を自由に選択します。マーカーをドラッグして調整。Ctrl + ホイールで拡大縮小、Tab で拍数を編集。</translation>
+    </message>
+    <message>
+        <source>Click the timing view to choose Start</source>
+        <translation>時間ビューをクリックして開始点を選択</translation>
+    </message>
+    <message>
+        <source>Start selected. Click End freely in the timing view.</source>
+        <translation>開始点を選択しました。時間ビューで終了点を自由にクリックしてください。</translation>
     </message>
 </context>
 <context>
@@ -6278,6 +6302,86 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>Added %1 notes. Undo removes this batch.</source>
         <translation>%1 ノーツを追加しました。1 回で元に戻せます。</translation>
+    </message>
+</context>
+<context>
+    <name>BpmAdvancedEditor</name>
+    <message>
+        <source>Advanced BPM editing</source>
+        <translation>高度な BPM 編集</translation>
+    </message>
+    <message>
+        <source>The curve follows the main editor view. Click a timing point to inspect and seek; middle-click seeks freely. Wheel scrolls; Ctrl + wheel zooms. Preview does not edit the chart.</source>
+        <translation>曲線はメイン編集画面に追従します。変速点をクリックして詳細表示・移動、中クリックで自由に移動。ホイールでスクロール、Ctrl + ホイールで拡大縮小。プレビューでは譜面は変更されません。</translation>
+    </message>
+    <message>
+        <source>Select a chart timing point to inspect its exact beat and BPM.</source>
+        <translation>変速点を選択して正確な拍位置と BPM を確認します。</translation>
+    </message>
+    <message>
+        <source>Curve</source>
+        <translation>曲線</translation>
+    </message>
+    <message>
+        <source>Manual measurement</source>
+        <translation>手動測定</translation>
+    </message>
+    <message>
+        <source>Interpolation</source>
+        <translation>補間</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>元に戻す</translation>
+    </message>
+    <message>
+        <source>Redo</source>
+        <translation>やり直す</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>閉じる</translation>
+    </message>
+    <message>
+        <source>Beat [%1, %2, %3]
+%4 BPM</source>
+        <translation>拍位置 [%1, %2, %3]
+%4 BPM</translation>
+    </message>
+    <message>
+        <source>Cancel preview</source>
+        <translation>プレビューをキャンセル</translation>
+    </message>
+    <message>
+        <source>Play / Pause</source>
+        <translation>再生 / 一時停止</translation>
+    </message>
+</context>
+<context>
+    <name>BpmCurveCanvas</name>
+    <message>
+        <source>Chart BPM</source>
+        <translation>譜面 BPM</translation>
+    </message>
+    <message>
+        <source>Ideal curve</source>
+        <translation>理想曲線</translation>
+    </message>
+    <message>
+        <source>Stored points</source>
+        <translation>書込ポイント</translation>
+    </message>
+    <message>
+        <source>%1 BPM</source>
+        <translation>%1 BPM</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>開始</translation>
+    </message>
+    <message>
+        <source>End</source>
+        <translation>終了</translation>
     </message>
 </context>
 </TS>

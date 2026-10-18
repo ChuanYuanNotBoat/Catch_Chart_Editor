@@ -1,5 +1,5 @@
 #include "TimingToolsPanel.h"
-#include "AnalysisCanvas.h"
+#include "TimingEditorCanvas.h"
 #include "TimingProposal.h"
 #include <algorithm>
 #include "controller/ChartController.h"
@@ -18,21 +18,23 @@
 #include <QShowEvent>
 #include <QHideEvent>
 #include <cmath>
+#include <QPointer>
 
-TimingToolsPanel::TimingToolsPanel(ChartController *chart, AnalysisCanvas *canvas, QWidget *parent)
+TimingToolsPanel::TimingToolsPanel(ChartController *chart, TimingEditorCanvas *canvas, QWidget *parent)
     : QWidget(parent), m_chart(chart), m_canvas(canvas)
 {
     setObjectName("analysis.measurePanel");
     auto *layout = new QVBoxLayout(this);
-    auto *help = new QLabel(tr("Pick Start on the chart grid, then End freely on the spectrum. "
+    auto *help = new QLabel(tr("Pick Start on the chart grid, then End freely in the timing view. "
                               "Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span."));
+    help->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     help->setWordWrap(true);
     layout->addWidget(help);
     m_pick = new QCheckBox(tr("Pick Start → End"));
     m_pick->setObjectName("analysis.measurePick");
     layout->addWidget(m_pick);
     auto *form = new QFormLayout;
-    m_start = new QLabel(tr("Click the spectrum to choose Start"));
+    m_start = new QLabel(tr("Click the timing view to choose Start"));
     m_start->setObjectName("analysis.measureStart");
     m_start->setWordWrap(true);
     m_start->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -57,11 +59,13 @@ TimingToolsPanel::TimingToolsPanel(ChartController *chart, AnalysisCanvas *canva
     layout->addWidget(m_preview);
     m_summary = new QLabel;
     m_summary->setObjectName("analysis.measureSummary");
+    m_summary->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     m_summary->setWordWrap(true);
     m_summary->setTextInteractionFlags(Qt::TextSelectableByMouse);
     layout->addWidget(m_summary);
     m_effect = new QLabel;
     m_effect->setObjectName("analysis.measureEffect");
+    m_effect->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     m_effect->setWordWrap(true);
     layout->addWidget(m_effect);
     m_copy = new QPushButton(tr("Copy BPM"));
@@ -83,10 +87,10 @@ TimingToolsPanel::TimingToolsPanel(ChartController *chart, AnalysisCanvas *canva
             m_canvas->setFocus();
         }
     });
-    connect(canvas, &AnalysisCanvas::measurementStartRequested, this, &TimingToolsPanel::setStart);
-    connect(canvas, &AnalysisCanvas::measurementEndRequested, this, &TimingToolsPanel::setEnd);
-    connect(canvas, &AnalysisCanvas::measurementCancelRequested, this, &TimingToolsPanel::clearMeasurement);
-    connect(canvas, &AnalysisCanvas::measurementDetailsRequested, this, [this] {
+    connect(canvas, &TimingEditorCanvas::measurementStartRequested, this, &TimingToolsPanel::setStart);
+    connect(canvas, &TimingEditorCanvas::measurementEndRequested, this, &TimingToolsPanel::setEnd);
+    connect(canvas, &TimingEditorCanvas::measurementCancelRequested, this, &TimingToolsPanel::clearMeasurement);
+    connect(canvas, &TimingEditorCanvas::measurementDetailsRequested, this, [this] {
         m_span->setFocus();
         m_span->selectAll();
     });
@@ -157,6 +161,8 @@ void TimingToolsPanel::clearMeasurement()
 }
 void TimingToolsPanel::refresh()
 {
+    ++m_generation;
+    if (auto *confirmation = findChild<QMessageBox *>("bpm.applyConfirmation")) confirmation->reject();
     const auto span = analysis::parseBeatSpan(m_span->text().toStdString());
     m_result = span && m_startBeat && m_endMs
                    ? analysis::measureTiming(*span, startTime(), *m_endMs)
@@ -164,10 +170,10 @@ void TimingToolsPanel::refresh()
     m_start->setText(m_startBeat ? tr("[%1, %2, %3] · %4 ms")
                                      .arg(m_startBeat->beatNum).arg(m_startBeat->numerator)
                                      .arg(m_startBeat->denominator).arg(startTime(), 0, 'f', 3)
-                               : tr("Click the spectrum to choose Start"));
+                               : tr("Click the timing view to choose Start"));
     m_summary->setText(!span ? tr("Enter a positive decimal or fraction (up to 9 decimal places).")
                       : !m_startBeat ? tr("Default interval: 1 beat. Enable Pick to begin.")
-                      : !m_endMs ? tr("Start selected. Click End freely on the spectrum.")
+                      : !m_endMs ? tr("Start selected. Click End freely in the timing view.")
                       : !m_result.valid ? tr("End must follow Start; BPM must be 0.001–10000.")
                       : tr("Δt %1 ms · %2/%3 beat\n%4 BPM")
                             .arg(m_result.durationMilliseconds, 0, 'f', 3)
@@ -225,6 +231,7 @@ void TimingToolsPanel::hideEvent(QHideEvent *event)
 }
 void TimingToolsPanel::apply()
 {
+    if (property("timingProposalPending").toBool()) return;
     refresh();
     if (!m_apply->isEnabled())
         return;
@@ -239,13 +246,17 @@ void TimingToolsPanel::apply()
     std::stable_sort(entries.begin(), entries.end(), [](const auto &a, const auto &b) {
         return a.position() < b.position();
     });
-    analysis::confirmTimingProposal(this, m_chart, tr("Apply measured BPM"),
+    const auto generation = m_generation;
+    QPointer<TimingToolsPanel> guard(this);
+    analysis::requestTimingProposal(this, m_chart, tr("Apply measured BPM"),
                                     tr("Set %1 BPM at [%2, %3, %4]?")
                                         .arg(m_result.bpm, 0, 'f', 6)
                                         .arg(point.beatNum)
                                         .arg(point.numerator)
                                         .arg(point.denominator),
-                                    entries, m_chart->revision(), {}, false);
+                                    entries, m_chart->revision(), [guard, generation] {
+                                        return guard && guard->isVisible() && guard->m_generation == generation;
+                                    }, false);
 }
 QJsonObject TimingToolsPanel::diagnostics() const
 {

@@ -3,11 +3,13 @@
 #include <QJsonObject>
 #include <QVector>
 #include <array>
+#include <QFutureWatcher>
+#include "TimingInterpolationPreview.h"
 #include "analysis/TimingInterpolation.h"
 #include "model/BpmEntry.h"
 
 class ChartController;
-class AnalysisCanvas;
+class TimingEditorCanvas;
 class QSpinBox;
 class QDoubleSpinBox;
 class QLineEdit;
@@ -22,8 +24,10 @@ class TimingInterpolationPanel : public QWidget
 {
     Q_OBJECT
 public:
-    TimingInterpolationPanel(ChartController *, AnalysisCanvas *, QWidget *parent = nullptr);
+    TimingInterpolationPanel(ChartController *, TimingEditorCanvas *, QWidget *parent = nullptr);
+    ~TimingInterpolationPanel() override;
     void stopPicking();
+    void cancelPreview();
     QJsonObject diagnostics() const;
 signals:
     void pickingStarted();
@@ -36,11 +40,12 @@ private:
     void schedule();
     void invalidate();
     void buildPreview();
+    void finishPreview();
     void displayPreview();
     void apply();
     void exportJson();
     ChartController *m_chart;
-    AnalysisCanvas *m_canvas;
+    TimingEditorCanvas *m_canvas;
     std::array<QSpinBox *, 3> m_start, m_end;
     QDoubleSpinBox *m_startBpm, *m_endBpm, *m_duration, *m_error;
     QLineEdit *m_length, *m_gap;
@@ -50,6 +55,10 @@ private:
     QLabel *m_summary;
     QTableWidget *m_table;
     QTimer *m_timer;
+    QFutureWatcher<analysis::InterpolationPreviewResult> *m_watcher;
+    std::shared_ptr<std::atomic<bool>> m_cancel;
+    quint64 m_generation = 0, m_activeGeneration = 0;
+    bool m_busy = false, m_pendingBuild = false;
     analysis::InterpolationOptions m_options;
     analysis::TimingInterpolation m_result;
     QVector<BpmEntry> m_proposal;

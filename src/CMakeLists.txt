@@ -53,6 +53,11 @@ set(SOURCES
     ui/analysis/NoteGenerationPanel.cpp
     ui/analysis/TimingToolsPanel.cpp
     ui/analysis/TimingInterpolationPanel.cpp
+    ui/analysis/TimingEditorCanvas.h
+    ui/analysis/TimingPreviewJobs.cpp
+    ui/analysis/TimingInterpolationPreview.cpp
+    ui/bpm/BpmCurveCanvas.cpp
+    ui/bpm/BpmAdvancedEditor.cpp
     audio/AudioPlayer.cpp
     audio/NoteSoundPlayer.cpp
     audio/BpmDetector.cpp

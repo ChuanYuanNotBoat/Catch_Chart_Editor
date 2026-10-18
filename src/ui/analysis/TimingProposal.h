@@ -13,4 +13,9 @@ QString validateTimingProposal(const QVector<BpmEntry> &);
 bool confirmTimingProposal(QWidget *, ChartController *, const QString &title, const QString &description,
                            const QVector<BpmEntry> &, quint64 revision, std::function<bool()> sourceStillCurrent = {},
                            bool confirmEmptyChart = true);
+// Standalone timing windows use a background impact calculation and a modeless
+// confirmation. Other hosts retain their established confirmation behavior.
+void requestTimingProposal(QWidget *, ChartController *, const QString &title, const QString &description,
+                           const QVector<BpmEntry> &, quint64 revision, std::function<bool()> sourceStillCurrent = {},
+                           bool confirmEmptyChart = true);
 } // namespace analysis

@@ -412,6 +412,10 @@
         <source>Audio BPM detection failed.</source>
         <translation type="vanished">Audio BPM detection failed.</translation>
     </message>
+    <message>
+        <source>Advanced BPM editing…</source>
+        <translation>Advanced BPM editing…</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -5819,6 +5823,14 @@ Table shows the first 200 points; JSON includes every point.</translation>
         <source>Export failed: %1</source>
         <translation>Export failed: %1</translation>
     </message>
+    <message>
+        <source>Pick Start in timing view</source>
+        <translation>Pick Start in timing view</translation>
+    </message>
+    <message>
+        <source>Preview cancelled. Rebuild preview to continue.</source>
+        <translation>Preview cancelled. Rebuild preview to continue.</translation>
+    </message>
 </context>
 <context>
     <name>TimingToolsPanel</name>
@@ -5975,6 +5987,18 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="243"/>
         <source>Set %1 BPM at [%2, %3, %4]?</source>
         <translation>Set %1 BPM at [%2, %3, %4]?</translation>
+    </message>
+    <message>
+        <source>Pick Start on the chart grid, then End freely in the timing view. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</source>
+        <translation>Pick Start on the chart grid, then End freely in the timing view. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</translation>
+    </message>
+    <message>
+        <source>Click the timing view to choose Start</source>
+        <translation>Click the timing view to choose Start</translation>
+    </message>
+    <message>
+        <source>Start selected. Click End freely in the timing view.</source>
+        <translation>Start selected. Click End freely in the timing view.</translation>
     </message>
 </context>
 <context>
@@ -6249,6 +6273,86 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>Added %1 notes. Undo removes this batch.</source>
         <translation>Added %1 notes. Undo removes this batch.</translation>
+    </message>
+</context>
+<context>
+    <name>BpmAdvancedEditor</name>
+    <message>
+        <source>Advanced BPM editing</source>
+        <translation>Advanced BPM editing</translation>
+    </message>
+    <message>
+        <source>The curve follows the main editor view. Click a timing point to inspect and seek; middle-click seeks freely. Wheel scrolls; Ctrl + wheel zooms. Preview does not edit the chart.</source>
+        <translation>The curve follows the main editor view. Click a timing point to inspect and seek; middle-click seeks freely. Wheel scrolls; Ctrl + wheel zooms. Preview does not edit the chart.</translation>
+    </message>
+    <message>
+        <source>Select a chart timing point to inspect its exact beat and BPM.</source>
+        <translation>Select a chart timing point to inspect its exact beat and BPM.</translation>
+    </message>
+    <message>
+        <source>Curve</source>
+        <translation>Curve</translation>
+    </message>
+    <message>
+        <source>Manual measurement</source>
+        <translation>Manual measurement</translation>
+    </message>
+    <message>
+        <source>Interpolation</source>
+        <translation>Interpolation</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>Undo</translation>
+    </message>
+    <message>
+        <source>Redo</source>
+        <translation>Redo</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>Beat [%1, %2, %3]
+%4 BPM</source>
+        <translation>Beat [%1, %2, %3]
+%4 BPM</translation>
+    </message>
+    <message>
+        <source>Cancel preview</source>
+        <translation>Cancel preview</translation>
+    </message>
+    <message>
+        <source>Play / Pause</source>
+        <translation>Play / Pause</translation>
+    </message>
+</context>
+<context>
+    <name>BpmCurveCanvas</name>
+    <message>
+        <source>Chart BPM</source>
+        <translation>Chart BPM</translation>
+    </message>
+    <message>
+        <source>Ideal curve</source>
+        <translation>Ideal curve</translation>
+    </message>
+    <message>
+        <source>Stored points</source>
+        <translation>Stored points</translation>
+    </message>
+    <message>
+        <source>%1 BPM</source>
+        <translation>%1 BPM</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Start</translation>
+    </message>
+    <message>
+        <source>End</source>
+        <translation>End</translation>
     </message>
 </context>
 </TS>

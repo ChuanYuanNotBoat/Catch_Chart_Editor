@@ -1,4 +1,6 @@
 #include "BPMTimePanel.h"
+#include "bpm/BpmAdvancedEditor.h"
+#include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "controller/ChartController.h"
 #include "controller/PlaybackController.h"
 #include "audio/AudioPlayer.h"
@@ -74,6 +76,17 @@ void BPMTimePanel::setupUi()
     m_measureBtn = new QPushButton(tr("Measure BPM..."), this);
     m_measureBtn->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     mainLayout->addWidget(m_measureBtn);
+
+    m_advancedBtn = new QPushButton(tr("Advanced BPM editing…"), this);
+    m_advancedBtn->setObjectName("bpm.openAdvanced");
+    mainLayout->addWidget(m_advancedBtn);
+    connect(m_advancedBtn, &QPushButton::clicked, this, [this] {
+        if (!m_chartController || !m_mainCanvas) return;
+        if (!m_advancedEditor)
+            m_advancedEditor = new BpmAdvancedEditor(m_chartController, m_playbackController, m_mainCanvas,
+                                                     m_mainCanvas->window());
+        m_advancedEditor->show(); m_advancedEditor->raise(); m_advancedEditor->activateWindow();
+    });
 
     mainLayout->addStretch();
 
@@ -710,6 +723,8 @@ QString BPMTimePanel::currentAudioFilePath() const
 
 void BPMTimePanel::setChartController(ChartController *controller)
 {
+    if (m_chartController != controller && m_advancedEditor)
+        m_advancedEditor->close();
     if (m_chartController)
     {
         disconnect(m_chartController, &ChartController::bpmListChanged, this, &BPMTimePanel::refreshBpmList);
@@ -745,6 +760,8 @@ void BPMTimePanel::retranslateUi()
         m_removeBtn->setText(tr("Remove"));
     if (m_measureBtn)
         m_measureBtn->setText(tr("Measure BPM..."));
+    if (m_advancedBtn)
+        m_advancedBtn->setText(tr("Advanced BPM editing…"));
     if (m_timeEdit)
         m_timeEdit->setPlaceholderText(tr("e.g. 0:1/1"));
 }

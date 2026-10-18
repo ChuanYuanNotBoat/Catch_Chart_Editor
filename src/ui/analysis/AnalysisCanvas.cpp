@@ -16,7 +16,7 @@
 #include <QtConcurrent/QtConcurrentRun>
 AnalysisCanvas::AnalysisCanvas(ChartController *chart, SelectionController *selection, ChartCanvas *main,
                                QWidget *parent)
-    : QWidget(parent), m_chart(chart), m_selection(selection), m_main(main)
+    : TimingEditorCanvas(parent), m_chart(chart), m_selection(selection), m_main(main)
 {
     setObjectName("analysis.canvas");
     setMinimumWidth(180);

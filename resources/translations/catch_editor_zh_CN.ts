@@ -431,6 +431,10 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
 
 该时间图跟随 %3–%4 秒内检测到的脉冲锚点，并保留这些区间以外的 BPM。它根据音频推算，并非谱面基准；此操作可一次撤销。</translation>
     </message>
+    <message>
+        <source>Advanced BPM editing…</source>
+        <translation>高级 BPM 编辑…</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -6046,6 +6050,14 @@ Table shows the first 200 points; JSON includes every point.</source>
         <source>Export failed: %1</source>
         <translation>导出失败：%1</translation>
     </message>
+    <message>
+        <source>Pick Start in timing view</source>
+        <translation>在时间视图拾取起点</translation>
+    </message>
+    <message>
+        <source>Preview cancelled. Rebuild preview to continue.</source>
+        <translation>已取消预览。重新生成预览后可继续。</translation>
+    </message>
 </context>
 <context>
     <name>TimingToolsPanel</name>
@@ -6202,6 +6214,18 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="243"/>
         <source>Set %1 BPM at [%2, %3, %4]?</source>
         <translation>在 [%2, %3, %4] 将 BPM 设为 %1？</translation>
+    </message>
+    <message>
+        <source>Pick Start on the chart grid, then End freely in the timing view. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</source>
+        <translation>在谱面网格拾取起点，然后在时间视图自由选择终点。拖动标记可调整。Ctrl + 滚轮缩放；Tab 编辑拍数。</translation>
+    </message>
+    <message>
+        <source>Click the timing view to choose Start</source>
+        <translation>点击时间视图选择起点</translation>
+    </message>
+    <message>
+        <source>Start selected. Click End freely in the timing view.</source>
+        <translation>已选择起点。在时间视图自由点击终点。</translation>
     </message>
 </context>
 <context>
@@ -6476,6 +6500,86 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>Added %1 notes. Undo removes this batch.</source>
         <translation>已添加 %1 个音符，可一次撤销。</translation>
+    </message>
+</context>
+<context>
+    <name>BpmAdvancedEditor</name>
+    <message>
+        <source>Advanced BPM editing</source>
+        <translation>高级 BPM 编辑</translation>
+    </message>
+    <message>
+        <source>The curve follows the main editor view. Click a timing point to inspect and seek; middle-click seeks freely. Wheel scrolls; Ctrl + wheel zooms. Preview does not edit the chart.</source>
+        <translation>曲线跟随主编辑区视图。点击变速点查看详情并定位，中键自由定位；滚轮滚动，Ctrl + 滚轮缩放。预览不会修改谱面。</translation>
+    </message>
+    <message>
+        <source>Select a chart timing point to inspect its exact beat and BPM.</source>
+        <translation>选择谱面变速点，查看精确拍点与 BPM。</translation>
+    </message>
+    <message>
+        <source>Curve</source>
+        <translation>曲线</translation>
+    </message>
+    <message>
+        <source>Manual measurement</source>
+        <translation>手动测量</translation>
+    </message>
+    <message>
+        <source>Interpolation</source>
+        <translation>插值</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>撤销</translation>
+    </message>
+    <message>
+        <source>Redo</source>
+        <translation>重做</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Beat [%1, %2, %3]
+%4 BPM</source>
+        <translation>拍点 [%1, %2, %3]
+%4 BPM</translation>
+    </message>
+    <message>
+        <source>Cancel preview</source>
+        <translation>取消预览</translation>
+    </message>
+    <message>
+        <source>Play / Pause</source>
+        <translation>播放 / 暂停</translation>
+    </message>
+</context>
+<context>
+    <name>BpmCurveCanvas</name>
+    <message>
+        <source>Chart BPM</source>
+        <translation>谱面 BPM</translation>
+    </message>
+    <message>
+        <source>Ideal curve</source>
+        <translation>理想曲线</translation>
+    </message>
+    <message>
+        <source>Stored points</source>
+        <translation>写入点</translation>
+    </message>
+    <message>
+        <source>%1 BPM</source>
+        <translation>%1 BPM</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>开始</translation>
+    </message>
+    <message>
+        <source>End</source>
+        <translation>结束</translation>
     </message>
 </context>
 </TS>

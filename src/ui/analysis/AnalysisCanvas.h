@@ -1,5 +1,6 @@
 #pragma once
 #include <QWidget>
+#include "TimingEditorCanvas.h"
 #include <QImage>
 #include <QElapsedTimer>
 #include <QFutureWatcher>
@@ -20,7 +21,7 @@ class ChartController;
 class SelectionController;
 class ChartCanvas;
 // Compact time-only canvas. Decoder, algorithms, and panels live elsewhere.
-class AnalysisCanvas : public QWidget
+class AnalysisCanvas : public TimingEditorCanvas
 {
     Q_OBJECT
 public:
@@ -116,12 +117,6 @@ signals:
     void rangeRequested(double startBeat, double endBeat);
     void viewportChanged();
     void statusMessage(const QString &text);
-    void measurementStartRequested(int whole, int numerator, int denominator);
-    void measurementEndRequested(double milliseconds);
-    void measurementCancelRequested();
-    void measurementDetailsRequested();
-    void interpolationStartRequested(int whole, int numerator, int denominator);
-    void interpolationPickCancelled();
     void noteDraftCancelled();
 
 protected:
