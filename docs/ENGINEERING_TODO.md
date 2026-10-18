@@ -19,6 +19,18 @@ The future requirements and milestone gates are now defined in
 use, avoids another prematurely frozen core fork, and still creates reusable
 boundaries inside the desktop repository.
 
+## BPM advanced editing — scope awaiting confirmation (2026-10-18)
+
+The proposed scope is BPM curve display, manual measurement, BPM interpolation,
+and the shared preview/apply workflow. Implementation awaits user confirmation
+of the rough plan; reuse the later measurement/interpolation design and existing
+implementation described in [ANALYSIS_EDITOR.md](ANALYSIS_EDITOR.md).
+
+The user has discarded the old BPM requirements because of design flaws. Their
+original list and branch dependencies are [archived](archive/BPM_LEGACY_REQUIREMENTS.md)
+for a second design, not active TODO items or prerequisites. Do not reintroduce
+them from `AI_CONTEXT_MEMORY.md`. AE/AC algorithm work remains deferred.
+
 ## Reference workload
 
 Primary stress chart: `Yugami - Nyanpasu- Lv.16`.
