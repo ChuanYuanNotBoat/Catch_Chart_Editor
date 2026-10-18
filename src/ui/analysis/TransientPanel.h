@@ -31,6 +31,7 @@ public:
     {
         return m_busy || m_pending;
     }
+    std::shared_ptr<const analysis::StereoSpectrum> sourceSpectrum() const { return m_spectrum; }
     QJsonObject diagnostics() const;
     QVector<analysis::AnalysisTrack> tracks() const;
     void selectPeakAt(double seconds);

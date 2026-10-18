@@ -76,6 +76,8 @@ public:
     void pasteAtCursor(const QPoint &pos);
     void cancelOperation();
     void beginPastePreview(const QVector<Note> &notes, const QPoint &cursorPos = QPoint());
+    void setAnalysisNoteDraft(QVector<Note> notes);
+    int analysisNoteDraftCount() const { return m_analysisNoteDraft.size(); }
 
     bool isVerticalFlip() const;
     void setVerticalFlip(bool flip);
@@ -137,6 +139,8 @@ signals:
     void currentTimeChanged(double timeMs);
     void scrollPositionChanged(double beat);
     void timeScaleChanged(double scale);
+    void timeDivisionChanged(int division);
+    void analysisNoteDraftCancelled();
     void modeCycleRequested(int direction);
     void mirrorAxisChanged(int axisX);
     void statusMessage(const QString &msg); // Status bar message hook.
@@ -320,6 +324,8 @@ private:
     int m_pasteDragReferenceIndex;
     bool m_pasteSnapReferenceActive = false;
     QVector<Note> m_pastePreviewNotes;
+    QVector<Note> m_analysisNoteDraft;
+    QVector<double> m_analysisNoteDraftBeats;
     bool m_pastePreviewCacheValid = false;
     void cancelPaste();
     void beginDragPaste(const QPointF &startPos);

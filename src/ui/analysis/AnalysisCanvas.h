@@ -83,6 +83,8 @@ public:
         return m_spectrumViewport.rebuildCount();
     }
     void clearSpectrum();
+    void setNoteDraft(QVector<Note> notes);
+    int noteDraftCount() const { return m_noteDraftTimes.size(); }
     void setRange(double startBeat, double endBeat, bool visible = true);
     void setLoop(double startMs, double endMs, bool enabled);
     void setTimingPreview(double bpm, double pulseMs, double startMs, double endMs);
@@ -106,6 +108,7 @@ public:
         return m_timingPreview.has_value();
     }
     void cancelGesture();
+    void cancelInteraction();
     void setStatus(const QString &text);
 signals:
     void analysisObjectSelected(QString trackId, QString handle, QJsonObject details);
@@ -119,6 +122,7 @@ signals:
     void measurementDetailsRequested();
     void interpolationStartRequested(int whole, int numerator, int denominator);
     void interpolationPickCancelled();
+    void noteDraftCancelled();
 
 protected:
     bool event(QEvent *) override;
@@ -127,7 +131,6 @@ protected:
     void mouseMoveEvent(QMouseEvent *) override;
     void mouseReleaseEvent(QMouseEvent *) override;
     void wheelEvent(QWheelEvent *) override;
-    void keyPressEvent(QKeyEvent *) override;
     void resizeEvent(QResizeEvent *) override;
 
 private:
@@ -155,6 +158,7 @@ private:
     AutoTiming2TempoMap m_modelPreview;
     AnalysisTrackScene m_trackScene;
     QVector<double> m_starts, m_ends;
+    QVector<double> m_noteDraftTimes;
     RainVisibilityIndex::IntervalIndex m_noteIndex;
     std::shared_ptr<const analysis::StereoSpectrum> m_spectrum;
     analysis::SpectrumRaster m_spectrumRaster;

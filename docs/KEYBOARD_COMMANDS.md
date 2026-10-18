@@ -1,6 +1,6 @@
 # 统一快捷键命令
 
-最后核对：2026-10-01。默认键以 Windows 为例，标准 New/Open/Save/Undo 等组合
+最后核对：2026-10-18。默认键以 Windows 为例，标准 New/Open/Save/Undo 等组合
 使用 Qt 的平台默认值。`Settings -> Keyboard Shortcuts... -> Shortcut Reference`
 直接读取运行时注册表，显示当前绑定、默认值与作用范围，是当前配置的权威入口。
 
@@ -37,6 +37,8 @@
 | `plugin.commit` | 提交插件工具结果为音符 | Enter | 进程插件工具 |
 
 ## 上下文与冲突
+
+AE 的取消命令也使用 `edit.cancel`，用于取消测量/拖动和清除生成草稿；改绑或禁用后不再由画布硬编码的 Esc 绕过。草稿可从任一编辑区取消，清除两个窗口的预览，不修改谱面或撤销栈。
 
 - 所有宿主命令由 `src/controller/CommandRouter` 注册、持久化并派发；菜单和工具
   按钮继续使用同一个 QAction 回调，画布不再自行匹配默认快捷键。

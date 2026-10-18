@@ -111,6 +111,15 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 
 ## Release 播放性能基准
 
+AE 生成草稿的定向检查可直接选择 `AnalysisEditorTests` 中的
+`transientDraftUsesChartTimingAndFiltersWithoutMutation`、
+`transientGenerationPreviewsCheckedNotesAndCommitsOneUndo` 和
+`transientGenerationRejectsStaleSourceAndHonorsCancelBinding`。
+这些用例使用人工频谱/瞬态夹具，覆盖网格与 offset、逐项勾选、双窗口只读预览、
+一次撤销、源文件替换和取消键改绑，不启动 AutoTiming 准确度或实曲测试。
+2026-10-18 的 Debug 六项定向检查及一次布局复核通过，记录在
+`artifacts/ae-generation-tests.txt` 和 `artifacts/ae-generation-layout-check.txt`。
+
 频谱优化另有 `analysis_spectrum_tests`、`analysis_transient_tests` 和
 `ui_spectrum_overlay_tests`；AE 与主编辑区共存由 `analysis_editor_tests` 覆盖。
 主编辑区频谱的播放对比可在以下命令中加入 `--benchmark-spectrum-overlay`，

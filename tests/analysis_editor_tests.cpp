@@ -9,6 +9,8 @@
 #include "analysis/AnalysisSession.h"
 #include "analysis/MusicalTimeTransform.h"
 #include "analysis/SpectrumPaging.h"
+#include "analysis/TransientNoteDraft.h"
+#include "ui/analysis/NoteGenerationPanel.h"
 #include "utils/NativeWindowTheme.h"
 #include "ui/analysis/AnalysisConfigPanel.h"
 #include "ui/analysis/AnalysisWorkbench.h"
@@ -145,7 +147,152 @@ class AnalysisEditorTests : public QObject
         auto raster = analysis::prepareSpectrumRaster(s);
         return {std::make_shared<const analysis::StereoSpectrum>(std::move(s)), std::move(raster)};
     }
+    void createGenerationEditor()
+    {
+        m_editor.reset();
+        loadChart(true);
+        auto spectrum = *spectrumPage(0, 4000, 800, 32).spectrum;
+        std::fill(spectrum.leftDb.begin(), spectrum.leftDb.end(), -90.f);
+        std::fill(spectrum.rightDb.begin(), spectrum.rightDb.end(), -90.f);
+        for (size_t frame : {100, 200, 300, 400, 500, 600})
+            for (size_t bin = 0; bin < spectrum.frequencies.size(); ++bin)
+            {
+                spectrum.leftDb[frame * spectrum.frequencies.size() + bin] = 0;
+                spectrum.rightDb[frame * spectrum.frequencies.size() + bin] = 0;
+            }
+        SpectrumService::Page page{std::make_shared<const analysis::StereoSpectrum>(std::move(spectrum)), {}};
+        page.raster = analysis::prepareSpectrumRaster(*page.spectrum);
+        m_editor = std::make_unique<AnalysisEditor>(&m_chart, &m_selection, &m_playback, m_mainCanvas, m_range, m_main.get(),
+            [page](QObject *, const QString &, double, double, auto, auto done) { done(page); });
+        m_editor->show();
+        m_editor->findChild<QComboBox *>("analysis.interfaceLevel")->setCurrentIndex(1);
+        auto *tabs = m_editor->findChild<QTabBar *>("analysis.rightTabs");
+        QTest::qWait(30);
+        QTest::mouseClick(tabs, Qt::LeftButton, {}, tabs->tabRect(1).center());
+        m_editor->findChild<QComboBox *>("analysis.generationScope")->setCurrentIndex(2);
+        auto *transient = m_editor->findChild<TransientPanel *>();
+        QTRY_VERIFY_WITH_TIMEOUT(transient->result().valid() && !transient->busy(), 5000);
+    }
 private slots:
+    void transientDraftUsesChartTimingAndFiltersWithoutMutation()
+    {
+        analysis::TransientResult result;
+        result.frames.push_back({});
+        const auto timing = MathUtils::buildBpmTimeCache(m_chart.chart()->bpmList(), m_chart.chart()->meta().offset);
+        analysis::MusicalTimeTransform transform;
+        transform.setChart(timing);
+        const auto add = [&](double beat, float strength, analysis::PeakDisposition disposition = analysis::PeakDisposition::Detected,
+                              double shiftMs = 0) {
+            analysis::TransientPeak peak;
+            peak.timeSeconds = (transform.audioAtBeat(beat) + shiftMs) / 1000;
+            peak.strength = strength; peak.bands = {strength, strength / 2, strength / 4}; peak.disposition = disposition;
+            result.peaks.push_back(peak);
+        };
+        add(2, 10); add(2.25, 8); add(2.25, 12, analysis::PeakDisposition::Detected, 3);
+        add(3, 10, analysis::PeakDisposition::BelowThreshold);
+        add(4, 10, analysis::PeakDisposition::Detected, 60); // outside snap tolerance
+        add(5, 1); add(8.5, 10); // crosses a BPM change
+        analysis::TransientNoteDraftOptions options;
+        options.startSeconds = 0; options.endSeconds = 5; options.minimumRelativeStrength = .2; options.x = 400;
+        const auto revision = m_chart.revision();
+        const auto draft = analysis::buildTransientNoteDraft(result, options, timing, {Note(2, 0, 4, 10)});
+        QVERIFY(draft.valid());
+        QCOMPARE(draft.notes.size(), 2);
+        QVERIFY(draft.notes[0].startPosition() == BeatPosition(2, 1, 4));
+        QVERIFY(draft.notes[1].startPosition() == BeatPosition(8, 1, 2));
+        QCOMPARE(draft.notes[0].denominator, 4);
+        QCOMPARE(draft.notes[0].x, 400);
+        QCOMPARE(draft.occupied, 1); QCOMPARE(draft.merged, 1); QCOMPARE(draft.offGrid, 1); QCOMPARE(draft.filtered, 1);
+        QVERIFY(std::abs(draft.snapErrorsMs.front() + 3) < 1e-6);
+        QCOMPARE(m_chart.revision(), revision);
+        QVERIFY(m_chart.chart()->notes().isEmpty());
+        options.endSeconds = NAN;
+        QVERIFY(analysis::buildTransientNoteDraft(result, options, timing, {}).error == analysis::NoteDraftError::InvalidInput);
+        options.endSeconds = 5;
+        QVERIFY(analysis::buildTransientNoteDraft(result, options, {}, {}).error == analysis::NoteDraftError::InvalidTiming);
+        options.dominantBand = 3;
+        QVERIFY(!analysis::buildTransientNoteDraft(result, options, timing, {}).valid());
+    }
+    void transientGenerationPreviewsCheckedNotesAndCommitsOneUndo()
+    {
+        createGenerationEditor();
+        auto *panel = m_editor->findChild<NoteGenerationPanel *>();
+        auto *preview = m_editor->findChild<QPushButton *>("analysis.generationPreview");
+        auto *apply = m_editor->findChild<QPushButton *>("analysis.generationApply");
+        auto *rows = m_editor->findChild<QTableWidget *>("analysis.generationCandidates");
+        QVERIFY(panel && panel->isVisible() && preview && apply && rows);
+        m_editor->findChild<QSpinBox *>("analysis.generationX")->setValue(384);
+        const auto revision = m_chart.revision();
+        QTest::mouseClick(preview, Qt::LeftButton);
+        QVERIFY(rows->rowCount() >= 5);
+        const int proposed = rows->rowCount();
+        QCOMPARE(canvas()->noteDraftCount(), proposed);
+        QCOMPARE(m_mainCanvas->analysisNoteDraftCount(), proposed);
+        QCOMPARE(m_chart.revision(), revision);
+        QVERIFY(!m_chart.canUndo());
+        const auto screenshot = QDir::current().filePath("artifacts/ae-generation-20261018");
+        QVERIFY(QDir().mkpath(screenshot));
+        QVERIFY(m_editor->grab().save(screenshot + "/draft-preview.png"));
+        rows->item(0, 0)->setCheckState(Qt::Unchecked);
+        QCOMPARE(canvas()->noteDraftCount(), proposed - 1);
+        QCOMPARE(m_mainCanvas->analysisNoteDraftCount(), proposed - 1);
+        QTest::mouseClick(apply, Qt::LeftButton);
+        const auto committed = m_chart.chart()->notes();
+        QCOMPARE(committed.size(), proposed - 1);
+        QCOMPARE(canvas()->noteDraftCount(), 0);
+        QCOMPARE(m_mainCanvas->analysisNoteDraftCount(), 0);
+        for (const auto &note : committed) { QVERIFY(note.isNormal()); QCOMPARE(note.x, 384); }
+        QCOMPARE(m_chart.chart()->meta().offset, 125);
+        m_chart.undo();
+        QVERIFY(m_chart.chart()->notes().isEmpty());
+        QVERIFY(!m_chart.canUndo());
+        m_chart.redo();
+        QCOMPARE(m_chart.chart()->notes(), committed);
+        QTest::mouseClick(preview, Qt::LeftButton);
+        QCOMPARE(rows->rowCount(), 1); // existing beats are not generated twice
+        m_chart.updateBpm(0, {0, 0, 1, 130});
+        QCOMPARE(canvas()->noteDraftCount(), 0);
+        QCOMPARE(m_mainCanvas->analysisNoteDraftCount(), 0);
+        QVERIFY(!apply->isEnabled());
+    }
+    void transientGenerationRejectsStaleSourceAndHonorsCancelBinding()
+    {
+        createGenerationEditor();
+        auto *preview = m_editor->findChild<QPushButton *>("analysis.generationPreview");
+        auto *apply = m_editor->findChild<QPushButton *>("analysis.generationApply");
+        auto *rows = m_editor->findChild<QTableWidget *>("analysis.generationCandidates");
+        QTest::mouseClick(preview, Qt::LeftButton);
+        QVERIFY(canvas()->noteDraftCount() > 0);
+        m_mainCanvas->setTimeDivision(8);
+        QCOMPARE(canvas()->noteDraftCount(), 0);
+        QVERIFY(!apply->isEnabled());
+        Settings::instance().setShortcut("edit.cancel", QKeySequence("Ctrl+K"));
+        const auto restore = qScopeGuard([] { Settings::instance().setShortcut("edit.cancel", QKeySequence(Qt::Key_Escape)); });
+        m_editor->hide(); m_editor->show(); m_editor->activateWindow();
+        QTest::mouseClick(preview, Qt::LeftButton);
+        QVERIFY(canvas()->noteDraftCount() > 0);
+        canvas()->setFocus();
+        QTest::keyClick(canvas(), Qt::Key_Escape);
+        QVERIFY(canvas()->noteDraftCount() > 0); // remapped default cannot bypass the router
+        QTest::keyClick(canvas(), Qt::Key_K, Qt::ControlModifier);
+        QCOMPARE(canvas()->noteDraftCount(), 0);
+        QCOMPARE(m_mainCanvas->analysisNoteDraftCount(), 0);
+        QTest::mouseClick(preview, Qt::LeftButton);
+        QVERIFY(rows->rowCount() > 0);
+        m_mainCanvas->cancelOperation();
+        QCOMPARE(canvas()->noteDraftCount(), 0);
+        QTest::mouseClick(preview, Qt::LeftButton);
+        QVERIFY(apply->isEnabled());
+        QFile changed(m_wav);
+        QVERIFY(changed.open(QIODevice::Append));
+        QCOMPARE(changed.write("x", 1), 1);
+        changed.close();
+        QTest::mouseClick(apply, Qt::LeftButton);
+        QVERIFY(m_chart.chart()->notes().isEmpty());
+        QVERIFY(!m_chart.canUndo());
+        QCOMPARE(canvas()->noteDraftCount(), 0);
+        QCOMPARE(m_mainCanvas->analysisNoteDraftCount(), 0);
+    }
     void initTestCase()
     {
         QStandardPaths::setTestModeEnabled(true);

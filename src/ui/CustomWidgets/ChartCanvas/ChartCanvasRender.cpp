@@ -366,6 +366,26 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         renderNoteAtIndex(m_rainTailDragIndex, &m_rainTailDragPreview);
     const qint64 notesEndNs = paintMarkNs();
 
+    if (!m_analysisNoteDraft.isEmpty())
+    {
+        painter.save();
+        painter.setOpacity(.8);
+        const QColor draftColor = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor()).dark
+            ? QColor(231, 132, 255) : QColor(132, 38, 165);
+        painter.setPen(QPen(draftColor, 2, Qt::DashLine));
+        painter.setBrush(QColor(177, 84, 211, 60));
+        auto first = std::lower_bound(m_analysisNoteDraftBeats.cbegin(), m_analysisNoteDraftBeats.cend(), startBeat - .5);
+        for (int i = int(first - m_analysisNoteDraftBeats.cbegin()); i < m_analysisNoteDraft.size(); ++i)
+        {
+            if (m_analysisNoteDraftBeats[i] > endBeat + .5) break;
+            const double x = lmargin + m_analysisNoteDraft[i].x / 512. * availableWidth;
+            const double y = baseY + sign * ((m_analysisNoteDraftBeats[i] - m_scrollBeat) * invVisibleRange * canvasHeight);
+            const double size = m_noteRenderer ? m_noteRenderer->getNoteSize() : 24;
+            painter.drawRoundedRect(QRectF(x - size / 2, y - size / 2, size, size), 3, 3);
+        }
+        painter.restore();
+    }
+
     if (m_isPasting && !m_pasteNotes.isEmpty())
         drawPastePreview(painter, canvasHeight, lmargin, availableWidth, invVisibleRange, baseY, sign);
 

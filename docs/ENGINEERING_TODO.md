@@ -144,6 +144,12 @@ Random-access PCM caching, true Core cancellation, full project packaging and
 the document/layer roadmap below remain open; a spectrum-tile cache does not
 complete those requirements.
 
+## AE feature follow-up
+
+- [x] Replace the Generation placeholder with a detected-transient draft workflow: range/band/strength/snap filters, per-note review, passive ghosts in both editors and one explicit undoable commit.
+- [x] Verify draft source/revision guards and shared cancellation through the configured command; preserve read-only inspection and existing measurement gestures. Debug build and six focused cases passed on 2026-10-18 (8 QtTest passes including setup/cleanup).
+- [ ] Evolve charting rules and playable X patterns only through separate reviewed draft-generation features; do not infer them from onset width or diagnostic tempo models.
+
 ## P2 — CCE-internal document architecture
 
 The product direction is decided in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md):

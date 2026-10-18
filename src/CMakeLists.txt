@@ -30,6 +30,7 @@ set(SOURCES
     file/PluginLoader.cpp
     file/ChartFileSystem.cpp
     analysis/TransientAnalysis.cpp
+    analysis/TransientNoteDraft.cpp
     analysis/TimingMeasurement.cpp
     analysis/TimingInterpolation.cpp
     analysis/AutoTimingDiagnostics.cpp
@@ -49,6 +50,7 @@ set(SOURCES
     ui/analysis/AudioOverview.cpp
     ui/analysis/TimingProposal.cpp
     ui/analysis/TransientPanel.cpp
+    ui/analysis/NoteGenerationPanel.cpp
     ui/analysis/TimingToolsPanel.cpp
     ui/analysis/TimingInterpolationPanel.cpp
     audio/AudioPlayer.cpp

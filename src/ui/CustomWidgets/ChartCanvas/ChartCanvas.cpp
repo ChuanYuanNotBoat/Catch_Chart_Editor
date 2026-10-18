@@ -413,6 +413,11 @@ void ChartCanvas::setChartController(ChartController *controller)
 {
     if (m_chartController == controller)
         return;
+    if (!m_analysisNoteDraft.isEmpty())
+    {
+        setAnalysisNoteDraft({});
+        emit analysisNoteDraftCancelled();
+    }
 
     if (m_chartController)
     {
@@ -632,7 +637,20 @@ void ChartCanvas::setTimeDivision(int division)
         invalidatePastePreviewCache();
         snapPlayheadToGrid();
         update();
+        emit timeDivisionChanged(division);
     }
+}
+
+void ChartCanvas::setAnalysisNoteDraft(QVector<Note> notes)
+{
+    if (notes.size() > 4096 || std::any_of(notes.cbegin(), notes.cend(), [](const auto &n) { return !n.isNormal() || !n.isValid(); }))
+        notes.clear();
+    std::stable_sort(notes.begin(), notes.end(), [](const auto &a, const auto &b) { return a.startPosition() < b.startPosition(); });
+    m_analysisNoteDraft = std::move(notes);
+    m_analysisNoteDraftBeats.clear();
+    m_analysisNoteDraftBeats.reserve(m_analysisNoteDraft.size());
+    for (const auto &note : m_analysisNoteDraft) m_analysisNoteDraftBeats.append(note.getStartBeat());
+    update();
 }
 
 void ChartCanvas::setGridDivision(int division)

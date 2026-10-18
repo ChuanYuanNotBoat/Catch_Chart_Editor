@@ -9,6 +9,7 @@
 #include "analysis/AnalysisSession.h"
 #include "audio/SpectrumService.h"
 class AnalysisCanvas;
+class NoteGenerationPanel;
 class ChartController;
 class SelectionController;
 class PlaybackController;
@@ -94,6 +95,7 @@ class AnalysisEditor : public QWidget
     LongRangeSelector *m_range;
     AnalysisCanvas *m_canvas;
     TransientPanel *m_transient;
+    NoteGenerationPanel *m_generationPanel;
     TimingToolsPanel *m_timingTools;
     TimingInterpolationPanel *m_interpolation;
     AnalysisConfigPanel *m_configPanel;

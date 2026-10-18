@@ -4295,6 +4295,10 @@ Do you want to rename the imported file?</translation>
         <source>Rain end must be later than its start</source>
         <translation>Rain end must be later than its start</translation>
     </message>
+    <message>
+        <source> · Draft: %1</source>
+        <translation> · Draft: %1</translation>
+    </message>
 </context>
 <context>
     <name>AnalysisConfigPanel</name>
@@ -5247,6 +5251,10 @@ Grid max residual: %6 ms · BPM list model error: %7 ms</translation>
         <source>Replace only reliable tempo-change intervals from %1 to %2 seconds with %3 generated timing entries. Model error: %4 ms.</source>
         <translation>Replace only reliable tempo-change intervals from %1 to %2 seconds with %3 generated timing entries. Model error: %4 ms.</translation>
     </message>
+    <message>
+        <source>Cancel operation</source>
+        <translation>Cancel operation</translation>
+    </message>
 </context>
 <context>
     <name>AnalysisWorkbench</name>
@@ -6102,6 +6110,145 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <location filename="../../src/ui/analysis/TransientPanel.cpp" line="138"/>
         <source>Click to seek · All threshold: dashed</source>
         <translation>Click to seek · All threshold: dashed</translation>
+    </message>
+</context>
+<context>
+    <name>NoteGenerationPanel</name>
+    <message>
+        <source>Build ordinary-note drafts from detected transients. Review the ghosts in both editors, then add the checked notes. X layout remains a manual charting choice.</source>
+        <translation>Build ordinary-note drafts from detected transients. Review the ghosts in both editors, then add the checked notes. X layout remains a manual charting choice.</translation>
+    </message>
+    <message>
+        <source>Visible interval</source>
+        <translation>Visible interval</translation>
+    </message>
+    <message>
+        <source>Selected range</source>
+        <translation>Selected range</translation>
+    </message>
+    <message>
+        <source>Analyzed page</source>
+        <translation>Analyzed page</translation>
+    </message>
+    <message>
+        <source>All detected peaks</source>
+        <translation>All detected peaks</translation>
+    </message>
+    <message>
+        <source>Low-dominant peaks</source>
+        <translation>Low-dominant peaks</translation>
+    </message>
+    <message>
+        <source>Mid-dominant peaks</source>
+        <translation>Mid-dominant peaks</translation>
+    </message>
+    <message>
+        <source>High-dominant peaks</source>
+        <translation>High-dominant peaks</translation>
+    </message>
+    <message>
+        <source>Fraction of the strongest detected peak in this range.</source>
+        <translation>Fraction of the strongest detected peak in this range.</translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <source>Peaks farther from the current chart grid are skipped.</source>
+        <translation>Peaks farther from the current chart grid are skipped.</translation>
+    </message>
+    <message>
+        <source>Range</source>
+        <translation>Range</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Source</translation>
+    </message>
+    <message>
+        <source>X position</source>
+        <translation>X position</translation>
+    </message>
+    <message>
+        <source>Relative strength</source>
+        <translation>Relative strength</translation>
+    </message>
+    <message>
+        <source>Maximum snap distance</source>
+        <translation>Maximum snap distance</translation>
+    </message>
+    <message>
+        <source>Build draft preview</source>
+        <translation>Build draft preview</translation>
+    </message>
+    <message>
+        <source>Wait for transient analysis, then build a draft.</source>
+        <translation>Wait for transient analysis, then build a draft.</translation>
+    </message>
+    <message>
+        <source>Keep / audio s</source>
+        <translation>Keep / audio s</translation>
+    </message>
+    <message>
+        <source>Chart beat</source>
+        <translation>Chart beat</translation>
+    </message>
+    <message>
+        <source>Snap ms</source>
+        <translation>Snap ms</translation>
+    </message>
+    <message>
+        <source>Add checked notes (one undo)</source>
+        <translation>Add checked notes (one undo)</translation>
+    </message>
+    <message>
+        <source>Discard draft</source>
+        <translation>Discard draft</translation>
+    </message>
+    <message>
+        <source>Build a draft to review before adding notes.</source>
+        <translation>Build a draft to review before adding notes.</translation>
+    </message>
+    <message>
+        <source>The chart, source or analysis changed. Build a new preview.</source>
+        <translation>The chart, source or analysis changed. Build a new preview.</translation>
+    </message>
+    <message>
+        <source>Select a non-empty time range first.</source>
+        <translation>Select a non-empty time range first.</translation>
+    </message>
+    <message>
+        <source>The range is not fully analyzed. Load that interval or choose Analyzed page.</source>
+        <translation>The range is not fully analyzed. Load that interval or choose Analyzed page.</translation>
+    </message>
+    <message>
+        <source>More than 4096 notes. Narrow the range or raise the strength filter.</source>
+        <translation>More than 4096 notes. Narrow the range or raise the strength filter.</translation>
+    </message>
+    <message>
+        <source>The analysis range or chart timing is invalid.</source>
+        <translation>The analysis range or chart timing is invalid.</translation>
+    </message>
+    <message>
+        <source>Frozen range %1–%2 s · %3 notes · filtered %4 · off-grid %5 · occupied %6 · merged %7. Grid: 1/%8.</source>
+        <translation>Frozen range %1–%2 s · %3 notes · filtered %4 · off-grid %5 · occupied %6 · merged %7. Grid: 1/%8.</translation>
+    </message>
+    <message>
+        <source>Add %1 checked notes (one undo)</source>
+        <translation>Add %1 checked notes (one undo)</translation>
+    </message>
+    <message>
+        <source>Generate notes from transients</source>
+        <translation>Generate notes from transients</translation>
+    </message>
+    <message>
+        <source>The draft could not be added. Build a new preview.</source>
+        <translation>The draft could not be added. Build a new preview.</translation>
+    </message>
+    <message>
+        <source>Added %1 notes. Undo removes this batch.</source>
+        <translation>Added %1 notes. Undo removes this batch.</translation>
     </message>
 </context>
 </TS>

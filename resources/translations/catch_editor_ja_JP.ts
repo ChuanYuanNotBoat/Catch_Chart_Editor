@@ -4324,6 +4324,10 @@ Do you want to rename the imported file?</source>
         <source>Rain end must be later than its start</source>
         <translation>Rain の終了位置は開始位置より後にしてください</translation>
     </message>
+    <message>
+        <source> · Draft: %1</source>
+        <translation> · 下書き：%1</translation>
+    </message>
 </context>
 <context>
     <name>AnalysisConfigPanel</name>
@@ -5276,6 +5280,10 @@ Grid max residual: %6 ms · BPM list model error: %7 ms</source>
         <source>Replace only reliable tempo-change intervals from %1 to %2 seconds with %3 generated timing entries. Model error: %4 ms.</source>
         <translation>%1～%2 秒の信頼性の高いテンポ変化区間のみを置き換え、タイミングポイントを %3 個生成します。モデル誤差: %4 ms。</translation>
     </message>
+    <message>
+        <source>Cancel operation</source>
+        <translation>操作をキャンセル</translation>
+    </message>
 </context>
 <context>
     <name>AnalysisWorkbench</name>
@@ -6131,6 +6139,145 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <location filename="../../src/ui/analysis/TransientPanel.cpp" line="138"/>
         <source>Click to seek · All threshold: dashed</source>
         <translation>クリックでシーク · 全帯域のしきい値：破線</translation>
+    </message>
+</context>
+<context>
+    <name>NoteGenerationPanel</name>
+    <message>
+        <source>Build ordinary-note drafts from detected transients. Review the ghosts in both editors, then add the checked notes. X layout remains a manual charting choice.</source>
+        <translation>検出済みのトランジェントから通常ノーツの下書きを作成します。両エディターで確認してから、チェックしたノーツを追加します。X 配置は手動で調整してください。</translation>
+    </message>
+    <message>
+        <source>Visible interval</source>
+        <translation>表示区間</translation>
+    </message>
+    <message>
+        <source>Selected range</source>
+        <translation>選択範囲</translation>
+    </message>
+    <message>
+        <source>Analyzed page</source>
+        <translation>解析済みページ</translation>
+    </message>
+    <message>
+        <source>All detected peaks</source>
+        <translation>検出済みピークすべて</translation>
+    </message>
+    <message>
+        <source>Low-dominant peaks</source>
+        <translation>低域が優勢なピーク</translation>
+    </message>
+    <message>
+        <source>Mid-dominant peaks</source>
+        <translation>中域が優勢なピーク</translation>
+    </message>
+    <message>
+        <source>High-dominant peaks</source>
+        <translation>高域が優勢なピーク</translation>
+    </message>
+    <message>
+        <source>Fraction of the strongest detected peak in this range.</source>
+        <translation>この範囲の最も強い検出ピークに対する比率。</translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <source>Peaks farther from the current chart grid are skipped.</source>
+        <translation>現在の譜面グリッドから離れすぎたピークは除外します。</translation>
+    </message>
+    <message>
+        <source>Range</source>
+        <translation>範囲</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>ピークの種類</translation>
+    </message>
+    <message>
+        <source>X position</source>
+        <translation>X 座標</translation>
+    </message>
+    <message>
+        <source>Relative strength</source>
+        <translation>相対強度</translation>
+    </message>
+    <message>
+        <source>Maximum snap distance</source>
+        <translation>最大吸着距離</translation>
+    </message>
+    <message>
+        <source>Build draft preview</source>
+        <translation>下書きをプレビュー</translation>
+    </message>
+    <message>
+        <source>Wait for transient analysis, then build a draft.</source>
+        <translation>トランジェント解析の完了後に下書きを作成してください。</translation>
+    </message>
+    <message>
+        <source>Keep / audio s</source>
+        <translation>採用 / 音声秒</translation>
+    </message>
+    <message>
+        <source>Chart beat</source>
+        <translation>譜面の拍</translation>
+    </message>
+    <message>
+        <source>Snap ms</source>
+        <translation>吸着差 ms</translation>
+    </message>
+    <message>
+        <source>Add checked notes (one undo)</source>
+        <translation>選択ノーツを追加（1 回で元に戻す）</translation>
+    </message>
+    <message>
+        <source>Discard draft</source>
+        <translation>下書きを破棄</translation>
+    </message>
+    <message>
+        <source>Build a draft to review before adding notes.</source>
+        <translation>下書きを作成して確認してからノーツを追加してください。</translation>
+    </message>
+    <message>
+        <source>The chart, source or analysis changed. Build a new preview.</source>
+        <translation>譜面、音声または解析が更新されました。プレビューを作成し直してください。</translation>
+    </message>
+    <message>
+        <source>Select a non-empty time range first.</source>
+        <translation>先に空でない時間範囲を選択してください。</translation>
+    </message>
+    <message>
+        <source>The range is not fully analyzed. Load that interval or choose Analyzed page.</source>
+        <translation>範囲の解析が完了していません。該当区間を読み込むか「解析済みページ」を選択してください。</translation>
+    </message>
+    <message>
+        <source>More than 4096 notes. Narrow the range or raise the strength filter.</source>
+        <translation>4096 ノーツを超えています。範囲を狭めるか強度フィルターを上げてください。</translation>
+    </message>
+    <message>
+        <source>The analysis range or chart timing is invalid.</source>
+        <translation>解析範囲または譜面タイミングが無効です。</translation>
+    </message>
+    <message>
+        <source>Frozen range %1–%2 s · %3 notes · filtered %4 · off-grid %5 · occupied %6 · merged %7. Grid: 1/%8.</source>
+        <translation>固定範囲 %1–%2 秒 · %3 ノーツ · フィルター %4 · グリッド外 %5 · 既存 %6 · 統合 %7。分割：1/%8。</translation>
+    </message>
+    <message>
+        <source>Add %1 checked notes (one undo)</source>
+        <translation>選択した %1 ノーツを追加（1 回で元に戻す）</translation>
+    </message>
+    <message>
+        <source>Generate notes from transients</source>
+        <translation>トランジェントからノーツを生成</translation>
+    </message>
+    <message>
+        <source>The draft could not be added. Build a new preview.</source>
+        <translation>下書きを追加できませんでした。プレビューを作成し直してください。</translation>
+    </message>
+    <message>
+        <source>Added %1 notes. Undo removes this batch.</source>
+        <translation>%1 ノーツを追加しました。1 回で元に戻せます。</translation>
     </message>
 </context>
 </TS>

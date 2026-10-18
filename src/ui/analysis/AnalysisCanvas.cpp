@@ -718,6 +718,20 @@ void AnalysisCanvas::drawNotes(QPainter &p)
         p.setPen(QPen(QColor(105, 169, 255), 1, Qt::DashLine));
         p.drawLine(QPointF(spectrumWidth(), y), QPointF(width(), y));
     }
+    p.setPen(QPen(QColor(231, 132, 255), 2, Qt::DashLine));
+    p.setBrush(QColor(177, 84, 211, 60));
+    auto first = std::lower_bound(m_noteDraftTimes.cbegin(), m_noteDraftTimes.cend(), low);
+    for (auto it = first; it != m_noteDraftTimes.cend() && *it <= high; ++it)
+        p.drawRoundedRect(QRectF(x - 14, yAtTime(*it) - 5, 28, 10), 3, 3);
+}
+void AnalysisCanvas::setNoteDraft(QVector<Note> notes)
+{
+    m_noteDraftTimes.clear();
+    if (notes.size() <= 4096)
+        for (const auto &note : notes)
+            if (note.isNormal() && note.isValid()) m_noteDraftTimes.append(timeAtBeat(note.getStartBeat()));
+    std::sort(m_noteDraftTimes.begin(), m_noteDraftTimes.end());
+    update();
 }
 void AnalysisCanvas::paintEvent(QPaintEvent *)
 {
@@ -753,6 +767,7 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
     p.fillRect(QRect(0, 0, width(), headerHeight), QColor(30, 38, 50));
     p.setPen(QColor(201, 215, 231));
     QString spectrumTitle = spectrum().sourceChannels == 1 ? tr("Spectrum · Mono → L / R") : tr("Spectrum · L / R");
+    if (!m_noteDraftTimes.isEmpty()) spectrumTitle += tr(" · Draft: %1").arg(m_noteDraftTimes.size());
     if (m_timingPreview)
     {
         spectrumTitle += tr(" · Preview %1 BPM").arg(m_timingPreview->bpm, 0, 'f', 3);
@@ -808,6 +823,11 @@ int AnalysisCanvas::hitNote(double y) const
 }
 void AnalysisCanvas::cancelGesture()
 {
+    if (!m_noteDraftTimes.isEmpty())
+    {
+        m_noteDraftTimes.clear();
+        emit noteDraftCancelled();
+    }
     m_rainAnchor.reset();
     m_tailOriginal.reset();
     m_tailPreview.reset();
@@ -1111,18 +1131,11 @@ void AnalysisCanvas::wheelEvent(QWheelEvent *e)
                                                    : m_current + d * m_msPerPixel * 45));
     e->accept();
 }
-void AnalysisCanvas::keyPressEvent(QKeyEvent *e)
+void AnalysisCanvas::cancelInteraction()
 {
-    if (e->key() == Qt::Key_Escape)
-    {
-        cancelGesture();
-        if (m_measurePicking)
-            emit measurementCancelRequested();
-        if (m_interpolationPicking) emit interpolationPickCancelled();
-        e->accept();
-    }
-    else
-        QWidget::keyPressEvent(e);
+    cancelGesture();
+    if (m_measurePicking) emit measurementCancelRequested();
+    if (m_interpolationPicking) emit interpolationPickCancelled();
 }
 bool AnalysisCanvas::event(QEvent *event)
 {

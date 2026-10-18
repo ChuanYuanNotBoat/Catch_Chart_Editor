@@ -4522,6 +4522,10 @@ This replaces all current editor settings. Open chart data is not affected.</sou
         <source>Rain end must be later than its start</source>
         <translation>雨滴终点必须晚于起点</translation>
     </message>
+    <message>
+        <source> · Draft: %1</source>
+        <translation> · 草稿：%1</translation>
+    </message>
 </context>
 <context>
     <name>AnalysisConfigPanel</name>
@@ -5474,6 +5478,10 @@ Grid max residual: %6 ms · BPM list model error: %7 ms</source>
         <source>Replace only reliable tempo-change intervals from %1 to %2 seconds with %3 generated timing entries. Model error: %4 ms.</source>
         <translation>仅替换 %1 至 %2 秒内可靠的节奏变化区间，并生成 %3 个变速点。模型误差：%4 毫秒。</translation>
     </message>
+    <message>
+        <source>Cancel operation</source>
+        <translation>取消操作</translation>
+    </message>
 </context>
 <context>
     <name>AnalysisWorkbench</name>
@@ -6329,6 +6337,145 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <location filename="../../src/ui/analysis/TransientPanel.cpp" line="138"/>
         <source>Click to seek · All threshold: dashed</source>
         <translation>单击以定位 · 全频阈值：虚线</translation>
+    </message>
+</context>
+<context>
+    <name>NoteGenerationPanel</name>
+    <message>
+        <source>Build ordinary-note drafts from detected transients. Review the ghosts in both editors, then add the checked notes. X layout remains a manual charting choice.</source>
+        <translation>将检测到的瞬态生成普通音符草稿。先在两个编辑区查看预览，再添加勾选的音符。横向排布仍需手动设计。</translation>
+    </message>
+    <message>
+        <source>Visible interval</source>
+        <translation>可见区间</translation>
+    </message>
+    <message>
+        <source>Selected range</source>
+        <translation>所选范围</translation>
+    </message>
+    <message>
+        <source>Analyzed page</source>
+        <translation>已分析页面</translation>
+    </message>
+    <message>
+        <source>All detected peaks</source>
+        <translation>全部已检测峰值</translation>
+    </message>
+    <message>
+        <source>Low-dominant peaks</source>
+        <translation>低频为主的峰值</translation>
+    </message>
+    <message>
+        <source>Mid-dominant peaks</source>
+        <translation>中频为主的峰值</translation>
+    </message>
+    <message>
+        <source>High-dominant peaks</source>
+        <translation>高频为主的峰值</translation>
+    </message>
+    <message>
+        <source>Fraction of the strongest detected peak in this range.</source>
+        <translation>该范围内最强已检测峰值的比例。</translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation> 毫秒</translation>
+    </message>
+    <message>
+        <source>Peaks farther from the current chart grid are skipped.</source>
+        <translation>偏离当前谱面网格过远的峰值将被跳过。</translation>
+    </message>
+    <message>
+        <source>Range</source>
+        <translation>范围</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>峰值来源</translation>
+    </message>
+    <message>
+        <source>X position</source>
+        <translation>横坐标</translation>
+    </message>
+    <message>
+        <source>Relative strength</source>
+        <translation>相对强度</translation>
+    </message>
+    <message>
+        <source>Maximum snap distance</source>
+        <translation>最大吸附距离</translation>
+    </message>
+    <message>
+        <source>Build draft preview</source>
+        <translation>构建草稿预览</translation>
+    </message>
+    <message>
+        <source>Wait for transient analysis, then build a draft.</source>
+        <translation>等待瞬态分析完成后再构建草稿。</translation>
+    </message>
+    <message>
+        <source>Keep / audio s</source>
+        <translation>保留 / 音频秒</translation>
+    </message>
+    <message>
+        <source>Chart beat</source>
+        <translation>谱面拍点</translation>
+    </message>
+    <message>
+        <source>Snap ms</source>
+        <translation>吸附偏差 ms</translation>
+    </message>
+    <message>
+        <source>Add checked notes (one undo)</source>
+        <translation>添加勾选的音符（一次撤销）</translation>
+    </message>
+    <message>
+        <source>Discard draft</source>
+        <translation>放弃草稿</translation>
+    </message>
+    <message>
+        <source>Build a draft to review before adding notes.</source>
+        <translation>先构建草稿并检查，再添加音符。</translation>
+    </message>
+    <message>
+        <source>The chart, source or analysis changed. Build a new preview.</source>
+        <translation>谱面、音频或分析已更新，请重新构建预览。</translation>
+    </message>
+    <message>
+        <source>Select a non-empty time range first.</source>
+        <translation>请先选择非空的时间范围。</translation>
+    </message>
+    <message>
+        <source>The range is not fully analyzed. Load that interval or choose Analyzed page.</source>
+        <translation>该范围尚未完整分析，请先加载相应区间或选择“已分析页面”。</translation>
+    </message>
+    <message>
+        <source>More than 4096 notes. Narrow the range or raise the strength filter.</source>
+        <translation>超过 4096 个音符，请缩小范围或提高强度筛选。</translation>
+    </message>
+    <message>
+        <source>The analysis range or chart timing is invalid.</source>
+        <translation>分析范围或谱面时间轴无效。</translation>
+    </message>
+    <message>
+        <source>Frozen range %1–%2 s · %3 notes · filtered %4 · off-grid %5 · occupied %6 · merged %7. Grid: 1/%8.</source>
+        <translation>冻结范围 %1–%2 秒 · %3 个音符 · 筛除 %4 · 偏离网格 %5 · 已有拍点 %6 · 合并 %7。分度：1/%8。</translation>
+    </message>
+    <message>
+        <source>Add %1 checked notes (one undo)</source>
+        <translation>添加勾选的 %1 个音符（一次撤销）</translation>
+    </message>
+    <message>
+        <source>Generate notes from transients</source>
+        <translation>由瞬态生成音符</translation>
+    </message>
+    <message>
+        <source>The draft could not be added. Build a new preview.</source>
+        <translation>无法添加该草稿，请重新构建预览。</translation>
+    </message>
+    <message>
+        <source>Added %1 notes. Undo removes this batch.</source>
+        <translation>已添加 %1 个音符，可一次撤销。</translation>
     </message>
 </context>
 </TS>

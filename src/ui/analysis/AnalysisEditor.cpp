@@ -1,6 +1,7 @@
 #include "AnalysisEditor.h"
 #include "AnalysisCanvas.h"
 #include "TransientPanel.h"
+#include "NoteGenerationPanel.h"
 #include "TimingToolsPanel.h"
 #include "TimingInterpolationPanel.h"
 #include "AnalysisConfigPanel.h"
@@ -211,10 +212,8 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
                      placeholder(tr("Future: spectral features, event groups and stereo characteristics.")));
     addAnalysisPanel(tr("Tracks"), placeholder(tr("Future: pseudo tracks, continuity and preferred track.")),
                      true);
-    addAnalysisPanel(tr("Generation"),
-                     placeholder(tr("Future: density, importance and charting rules. Candidates will use "
-                                    "ghost preview before a separate undoable commit.")),
-                     true);
+    m_generationPanel = new NoteGenerationPanel(chart, main, m_canvas, m_transient, playback, range);
+    addAnalysisPanel(tr("Generation"), m_generationPanel, true);
     addAnalysisPanel(tr("Diagnostics"), createDiagnosticsPanel(), true);
     connect(m_transient, &TransientPanel::tracksChanged, this, &AnalysisEditor::updateAnalysisDisplay);
     connect(m_canvas, &AnalysisCanvas::analysisObjectSelected, this,
@@ -294,6 +293,10 @@ AnalysisEditor::AnalysisEditor(ChartController *chart, SelectionController *sele
         registerCommand("edit.undo", tr("Undo"), QKeySequence::Undo, [chart] { chart->undo(); });
     auto *redoAction =
         registerCommand("edit.redo", tr("Redo"), QKeySequence::Redo, [chart] { chart->redo(); });
+    registerCommand("edit.cancel", tr("Cancel operation"), QKeySequence(Qt::Key_Escape), [this] {
+        m_canvas->cancelInteraction();
+        m_generationPanel->clearPreview();
+    });
     auto *deleteAction =
         registerCommand("edit.delete", tr("Delete selected notes"), QKeySequence(Qt::Key_Delete), [this] {
             if (m_canvas->hasFocus())
@@ -532,6 +535,7 @@ void AnalysisEditor::refreshAudioSource()
                                        : tr("Analysis Editor · %1").arg(info.fileName()));
     m_sourceName->setToolTip(path);
     m_sourceIdentity = identity;
+    m_generationPanel->setSourceIdentity(identity);
     m_session.clearSource();
     if (m_overviewCancel)
         *m_overviewCancel = true;

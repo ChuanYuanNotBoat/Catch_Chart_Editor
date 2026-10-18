@@ -109,7 +109,17 @@ True Core cancellation checkpoints, the independent Core accuracy/candidate-rete
 
 Only one timing worker runs per window. Cancel discards its result and cooperatively stops preparation. The pinned AutoTiming core has no mid-analysis cancellation hook, so a running core calculation must finish before another timing job can start. Source/chart generations and audio file identity reject stale asynchronous results. Hiding the editor cancels spectrum work and discards outstanding timing work.
 
-Timbre, Tracks and Generation are explicitly marked future panels. The current extension point is only `addAnalysisPanel`; no speculative algorithm framework, machine learning, pseudo tracks or automatic chart generation is introduced. Future audio events can remain plain input/output data. Future chart candidates must enter an explicit ghost preview and then a separate undoable commit before reaching the real chart.
+Timbre and Tracks remain future panels. Generation now offers the explicit transient-note draft workflow below; it does not infer playable X patterns, Rain duration or difficulty. Future chart candidates must enter a ghost preview and then a separate undoable commit before reaching the real chart.
+
+## Transient note drafts
+
+In **Advanced → Generation**, choose the visible interval, selected range or analyzed page. The range must be fully covered by the current transient analysis; it is never silently clipped. Only detected peaks are eligible. Optional relative-strength and low/mid/high-dominance filters reuse the existing result without decoding audio or running another detector.
+
+**Build draft preview** freezes the interval and quantizes each peak against the chart BPM/offset and current time division. Peaks beyond the chosen snap distance, snapped outside the range or on an existing Note/Rain-head beat are skipped. Multiple peaks on one grid beat retain the strongest candidate. The summary reports each exclusion; the table shows original audio time, exact beat triplet and signed snap distance. Drafts over 4,096 notes are rejected explicitly.
+
+Purple dashed ghosts appear in the AE Note lane and main Catch canvas. Uncheck rows to exclude individual notes. Previewing and filtering preserve chart revision, selection, timing and undo history. **Add checked notes** is the explicit commit action and adds the checked ordinary notes as one shared undo entry. X is fixed to the chosen value and remains a manual charting decision.
+
+Discard, closing/hiding Generation or AE, a chart/analysis/source/grid change and the configured Cancel command invalidate the draft. Apply rechecks chart revision and on-disk audio identity. Both windows share the ghost lifecycle; ghosts are not selectable chart objects and ordinary canvas clicks cannot commit the batch. Cancel uses the existing `edit.cancel` binding, including remapping or disabling it.
 
 ## Manual timing measurement
 
