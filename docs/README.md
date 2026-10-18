@@ -26,6 +26,7 @@
 | [Autotiming.md](Autotiming.md) | AutoTiming 自动节拍检测流程与公共接口 |
 | [AE_AC_GUI_BUGFIX_PLAN.md](AE_AC_GUI_BUGFIX_PLAN.md) | AE/AC 的 Normal、Advanced、Debug 三层界面、配置/Profile、时间与轨道基础、已知问题及实施顺序 |
 | [ENGINEERING_TODO.md](ENGINEERING_TODO.md) | 已审计的性能/可靠性事项、验收门槛与未来重构决策 |
+| [LOCAL_REVIEW_IMPLEMENTATION.md](LOCAL_REVIEW_IMPLEMENTATION.md) | 本地身份、图层、独立评论、PR 编辑与多轮 `.ccepr` 的确认契约及实施阶段 |
 | [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) | 多难度、图层剪贴板/跨 MC 转移、Meta 同步、新建 MC、审图、版本、osu!ctb、移动端与通用核心的长期规划 |
 | [archive/BPM_LEGACY_REQUIREMENTS.md](archive/BPM_LEGACY_REQUIREMENTS.md) | 已废弃的旧 BPM 高级编辑需求及依赖记录；仅供二次设计参考，不属于当前实现范围 |
 | [../TESTING.md](../TESTING.md) | 自动化测试目标、命令、覆盖范围和手工回归清单 |

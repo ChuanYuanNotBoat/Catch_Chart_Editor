@@ -174,11 +174,25 @@ complete those requirements.
 
 ## P2 — CCE-internal document architecture
 
+The confirmed local review/layer iteration is specified in
+[LOCAL_REVIEW_IMPLEMENTATION.md](LOCAL_REVIEW_IMPLEMENTATION.md). It supersedes
+the persistent Note-ID prerequisite below: Note identities remain runtime-only;
+review changes use data matching and explicit editing intent. Project, layer,
+difficulty, comment, author and revision IDs remain persistent.
+
+- [ ] P1: editable document snapshots, canonical hashes and structured Diff.
+- [ ] P2: shared layers, independent bindings, live references and export.
+- [ ] P3: local signing identities and independent persistent comments.
+- [ ] P4: PR Base/Proposal views, explicit Move intent and Note Inspector.
+- [ ] P5: versioned `.ccepr` roundtrip and revision-DAG merge.
+- [ ] P6: three-way merge, rebase, transactional application and Undo/Redo.
+- [ ] P7/P8: integrated review UI, failure recovery, performance and documentation.
+
 The product direction is decided in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md):
 CCE remains the source of truth while these boundaries mature; repository-level
 core extraction comes later.
 
-- [ ] Introduce strong persistent IDs for document, difficulty, timeline, layer, and note entities.
+- [ ] Introduce strong persistent IDs for document, difficulty, timeline and layer entities; match Notes from data without persistent Note IDs.
 - [x] Replace legacy Note/BPM floating-point ordering with normalized rational comparison (`BeatPosition`); preserve source triplets and use exact text-input range boundaries. Audio time caches and continuous curve geometry remain floating-point projections.
 - [ ] Migrate selection identity from note indices to note IDs while retaining fast render indices.
 - [ ] Add a read-only versioned document snapshot and remove UI access to unrestricted mutable Chart state.

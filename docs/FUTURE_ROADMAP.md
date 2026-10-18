@@ -279,7 +279,7 @@ Document + Command + Read Model
 
 ### 7.1 持久实体标识
 
-工程内的 Project、Difficulty、Timeline、Layer、Note、Comment 和 Version 都使用持久 ID。标准 `.mc` 不携带编辑器 ID；首次导入时生成，之后保存在工程格式中。
+Project、Difficulty、Timeline、Layer、Comment 和 Version 使用持久 ID。Note 不引入永久身份：跨版本根据数据匹配，PR 编辑通过操作记录表达显式 Move。运行期选择使用的 Note ID 不写入工程或提案包。具体契约以 [本地审阅实施计划](LOCAL_REVIEW_IMPLEMENTATION.md) 为准。
 
 要求：
 
