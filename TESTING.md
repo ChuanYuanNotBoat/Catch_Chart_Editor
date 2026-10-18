@@ -111,6 +111,13 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 
 ## Release 播放性能基准
 
+BPM 高级编辑的定向检查为 `AnalysisEditorTests` 中的
+`bpmAdvancedWindowKeepsMainEditorInteractive`、`bpmAdvancedMeasurementAndModelessApply`、
+`bpmAdvancedPreviewDoesNotBlockAndDropsStaleJobs`。覆盖真实入口、主区继续放置音符、
+精确拍点、非模态确认与导出、一次撤销、后台任务过期及关闭不等待。
+2026-10-18 的三个用例通过，记录在 `artifacts/bpm-advanced-final-tests.txt`；
+既有手动测量及插值撤销两个用例也定向通过，未运行完整回归或 AutoTiming 准确度测试。
+
 AE 生成草稿的定向检查可直接选择 `AnalysisEditorTests` 中的
 `transientDraftUsesChartTimingAndFiltersWithoutMutation`、
 `transientGenerationPreviewsCheckedNotesAndCommitsOneUndo` 和

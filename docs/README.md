@@ -21,6 +21,7 @@
 | [AI_PROJECT_GUIDE.md](AI_PROJECT_GUIDE.md) | 当前源码结构、关键数据流、构建测试和维护约束 |
 | [ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md) | `.mc` / `.mcz`、模型、坐标、插件、sidecar 和 Malody 引擎兼容参考 |
 | [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md) | 统一快捷键命令清单、上下文和保留手势 |
+| [BPM_ADVANCED_EDITOR.md](BPM_ADVANCED_EDITOR.md) | 非模态 BPM 曲线、手动测量、插值、预览应用和后台更新约束 |
 | [NOTE_CHAIN_EDITOR.md](NOTE_CHAIN_EDITOR.md) | 原生 C++ 曲线编辑器的状态、交互、持久化、撤销和性能约束 |
 | [Autotiming.md](Autotiming.md) | AutoTiming 自动节拍检测流程与公共接口 |
 | [AE_AC_GUI_BUGFIX_PLAN.md](AE_AC_GUI_BUGFIX_PLAN.md) | AE/AC 的 Normal、Advanced、Debug 三层界面、配置/Profile、时间与轨道基础、已知问题及实施顺序 |

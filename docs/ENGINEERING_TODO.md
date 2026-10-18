@@ -19,12 +19,22 @@ The future requirements and milestone gates are now defined in
 use, avoids another prematurely frozen core fork, and still creates reusable
 boundaries inside the desktop repository.
 
-## BPM advanced editing — scope awaiting confirmation (2026-10-18)
+## BPM advanced editing — confirmed scope (2026-10-18)
 
-The proposed scope is BPM curve display, manual measurement, BPM interpolation,
-and the shared preview/apply workflow. Implementation awaits user confirmation
-of the rough plan; reuse the later measurement/interpolation design and existing
-implementation described in [ANALYSIS_EDITOR.md](ANALYSIS_EDITOR.md).
+The user confirmed BPM curve display, manual measurement, BPM interpolation,
+and the shared preview/apply workflow, with the main editor remaining usable.
+The implementation reuses the later measurement/interpolation design described
+in [ANALYSIS_EDITOR.md](ANALYSIS_EDITOR.md). Behavior and update boundaries are
+documented in [BPM_ADVANCED_EDITOR.md](BPM_ADVANCED_EDITOR.md).
+
+- [x] Add one reusable modeless window from the BPM panel, with a synchronized
+      chart BPM curve, exact timing inspection and seek without autoplay.
+- [x] Share existing manual measurement and interpolation tools through a small
+      timing-view interface; preserve exact triplets, error bounds and one-step Undo.
+- [x] Bound curve paint work; run interpolation and impact calculation on one
+      low-priority worker with coalescing, revision/generation guards and no close wait.
+- [x] Keep application confirmation and JSON export modeless in this window;
+      invalidate pending proposals when editing continues.
 
 The user has discarded the old BPM requirements because of design flaws. Their
 original list and branch dependencies are [archived](archive/BPM_LEGACY_REQUIREMENTS.md)

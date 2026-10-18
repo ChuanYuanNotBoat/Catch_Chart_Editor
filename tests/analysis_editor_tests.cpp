@@ -4,6 +4,10 @@
 #include "ui/analysis/TransientPanel.h"
 #include "ui/analysis/TimingToolsPanel.h"
 #include "ui/analysis/TimingInterpolationPanel.h"
+#include "ui/bpm/BpmAdvancedEditor.h"
+#include "ui/bpm/BpmCurveCanvas.h"
+#include "ui/analysis/TimingPreviewJobs.h"
+#include <QSemaphore>
 #include "analysis/AutoTimingDiagnostics.h"
 #include "analysis/AnalysisConfig.h"
 #include "analysis/AnalysisSession.h"
@@ -61,6 +65,7 @@
 #include <QBuffer>
 #include <QSaveFile>
 #include <QInputDialog>
+#include <QFileDialog>
 #include <QScopeGuard>
 #include <QtConcurrentRun>
 #include <memory>
@@ -174,6 +179,157 @@ class AnalysisEditorTests : public QObject
         QTRY_VERIFY_WITH_TIMEOUT(transient->result().valid() && !transient->busy(), 5000);
     }
 private slots:
+    void bpmAdvancedWindowKeepsMainEditorInteractive()
+    {
+        m_editor.reset();
+        Chart fixture = *m_chart.chart();
+        fixture.addBpm(BpmEntry(2, 2, 6, 145));
+        QVERIFY(m_chart.loadChartFromData(m_temp.filePath("bpm-advanced.mc"), fixture));
+        m_mainCanvas->setScrollPos(1500);
+        for (auto *action : m_main->findChildren<QAction *>())
+            if (action->text() == QStringLiteral("BPM")) { action->trigger(); break; }
+        auto *entry = m_main->findChild<QPushButton *>("bpm.openAdvanced");
+        QVERIFY(entry);
+        entry->click();
+        QPointer<BpmAdvancedEditor> editor = m_main->findChild<BpmAdvancedEditor *>();
+        QVERIFY(editor && editor->isVisible());
+        auto cleanup = qScopeGuard([&] { if (editor) delete editor; });
+        QCOMPARE(editor->windowModality(), Qt::NonModal);
+        QVERIFY(!QApplication::activeModalWidget());
+        entry->click();
+        QCOMPARE(m_main->findChildren<BpmAdvancedEditor *>().size(), 1);
+        auto *curve = editor->findChild<BpmCurveCanvas *>();
+        QVERIFY(curve);
+        QTest::qWait(30);
+        const double beat = 2. + 1. / 3.;
+        const auto revision = m_chart.revision();
+        QTest::mouseClick(curve, Qt::LeftButton, {}, QPoint(140, qRound(curve->yAtBeat(beat))));
+        QCOMPARE(m_chart.revision(), revision);
+        QVERIFY(editor->findChild<QLabel *>("bpm.selectedTiming")->text().contains("[2, 2, 6]"));
+        m_mainCanvas->setVerticalFlip(true);
+        QVERIFY(qAbs(curve->timeAtY(curve->yAtBeat(beat)) - curve->timeAtBeat(beat)) < 1e-6);
+        m_mainCanvas->setVerticalFlip(false);
+        m_mainCanvas->setMode(ChartCanvas::PlaceNote);
+        const auto count = m_chart.chart()->notes().size();
+        QTest::mouseClick(m_mainCanvas, Qt::LeftButton, {},
+                         QPoint(m_mainCanvas->width() / 2, qRound(m_mainCanvas->chartBeatToY(3))));
+        QCOMPARE(m_chart.chart()->notes().size(), count + 1);
+        QVERIFY(editor->isVisible());
+        QVERIFY(!QApplication::activeModalWidget());
+        m_chart.undo();
+        const auto image = curve->grab();
+        QVERIFY(!image.isNull());
+        QVERIFY(curve->lastPaintSamples() > 0 && curve->lastPaintSamples() <= curve->height() + 1);
+    }
+    void bpmAdvancedMeasurementAndModelessApply()
+    {
+        m_editor.reset();
+        m_chart.addNote(Note(6, 0, 1, 128));
+        const auto notes = m_chart.chart()->notes();
+        const auto before = m_chart.chart()->bpmList();
+        auto editor = std::make_unique<BpmAdvancedEditor>(&m_chart, &m_playback, m_mainCanvas);
+        editor->show();
+        editor->findChild<QTabWidget *>("bpm.tools")->setCurrentIndex(1);
+        auto *curve = editor->findChild<BpmCurveCanvas *>();
+        auto *panel = editor->findChild<TimingToolsPanel *>();
+        panel->findChild<QCheckBox *>("analysis.measurePick")->setChecked(true);
+        // End is a free audio timestamp, independent of chart divisions.
+        curve->measurementStartRequested(4, 2, 6);
+        const double start = curve->timeAtBeat(4. + 1. / 3.);
+        curve->measurementEndRequested(start + 333.125);
+        auto *apply = panel->findChild<QPushButton *>("analysis.measureApply");
+        QVERIFY(apply->isEnabled());
+        const auto revision = m_chart.revision();
+        apply->click();
+        QTRY_VERIFY(editor->findChild<QMessageBox *>("bpm.applyConfirmation"));
+        auto *confirmation = editor->findChild<QMessageBox *>("bpm.applyConfirmation");
+        QCOMPARE(confirmation->windowModality(), Qt::NonModal);
+        QVERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(m_chart.revision(), revision);
+        // A main-editor edit invalidates the pending application.
+        m_chart.addNote(Note(7, 0, 1, 256));
+        QTRY_VERIFY(!editor->findChild<QMessageBox *>("bpm.applyConfirmation"));
+        QCOMPARE(m_chart.chart()->bpmList().size(), before.size());
+        m_chart.undo();
+        // Recreate the draft and accept; its BPM change has one shared undo.
+        curve->measurementStartRequested(4, 2, 6);
+        curve->measurementEndRequested(start + 333.125);
+        apply->click();
+        QTRY_VERIFY(editor->findChild<QMessageBox *>("bpm.applyConfirmation"));
+        editor->findChild<QMessageBox *>("bpm.applyConfirmation")->button(QMessageBox::Yes)->click();
+        QCOMPARE(m_chart.chart()->bpmList().size(), before.size() + 1);
+        QCOMPARE(m_chart.chart()->bpmList()[1].numerator, 2);
+        QCOMPARE(m_chart.chart()->bpmList()[1].denominator, 6);
+        QCOMPARE(m_chart.chart()->notes(), notes);
+        QCOMPARE(m_chart.chart()->meta().offset, 125);
+        m_chart.undo();
+        QCOMPARE(m_chart.chart()->bpmList().size(), before.size());
+        QCOMPARE(m_chart.chart()->notes(), notes);
+    }
+    void bpmAdvancedPreviewDoesNotBlockAndDropsStaleJobs()
+    {
+        m_editor.reset();
+        QPointer<BpmAdvancedEditor> editor = new BpmAdvancedEditor(&m_chart, &m_playback, m_mainCanvas);
+        auto cleanup = qScopeGuard([&] { if (editor) delete editor; });
+        editor->show();
+        auto *panel = editor->findChild<TimingInterpolationPanel *>();
+        auto *apply = panel->findChild<QPushButton *>("analysis.interpolationApply");
+        auto gate = std::make_shared<QSemaphore>();
+        auto entered = std::make_shared<QSemaphore>();
+        const auto blocker = QtConcurrent::run(timingPreviewPool(), [gate, entered] {
+            entered->release(); gate->acquire();
+        });
+        auto release = qScopeGuard([gate] { gate->release(); });
+        QTRY_VERIFY(entered->available() > 0);
+        editor->findChild<QTabWidget *>("bpm.tools")->setCurrentIndex(2);
+        panel->findChild<QPushButton *>("analysis.interpolationBuild")->click();
+        QVERIFY(!apply->isEnabled());
+        bool eventDelivered = false;
+        QTimer::singleShot(0, [&] { eventDelivered = true; });
+        m_mainCanvas->setMode(ChartCanvas::PlaceNote);
+        const auto count = m_chart.chart()->notes().size();
+        QTest::mouseClick(m_mainCanvas, Qt::LeftButton, {},
+                         QPoint(m_mainCanvas->width() / 2, qRound(m_mainCanvas->chartBeatToY(3))));
+        QCOMPARE(m_chart.chart()->notes().size(), count + 1);
+        QTRY_VERIFY(eventDelivered);
+        gate->release(); release.dismiss();
+        QTest::qWait(150);
+        QVERIFY(!apply->isEnabled()); // the edited chart superseded this job
+        panel->findChild<QPushButton *>("analysis.interpolationBuild")->click();
+        QTRY_VERIFY(apply->isEnabled());
+        auto *curve = editor->findChild<BpmCurveCanvas *>();
+        QVERIFY(curve->interpolationPreviewVisible());
+        QVERIFY(panel->diagnostics().value("maximumInteriorErrorMilliseconds").toDouble() < 10);
+        auto *endBpm = panel->findChild<QDoubleSpinBox *>("analysis.interpolationEndBpm");
+        endBpm->setValue(240); endBpm->setValue(300); endBpm->setValue(360);
+        QTRY_VERIFY(apply->isEnabled());
+        QCOMPARE(panel->diagnostics().value("endBpm").toDouble(), 360.);
+        const auto screenshot = qEnvironmentVariable("CCE_BPM_TEST_SCREENSHOT");
+        if (!screenshot.isEmpty()) QVERIFY(editor->grab().save(screenshot));
+        panel->findChild<QPushButton *>("analysis.interpolationExport")->click();
+        auto *exportDialog = editor->findChild<QFileDialog *>("bpm.exportDialog");
+        QVERIFY(exportDialog && exportDialog->isVisible());
+        QCOMPARE(exportDialog->windowModality(), Qt::NonModal);
+        QVERIFY(!QApplication::activeModalWidget());
+        const auto exportPath = m_temp.filePath("advanced-interpolation.json");
+        exportDialog->fileSelected(exportPath);
+        exportDialog->reject();
+        QTRY_VERIFY(QFileInfo::exists(exportPath));
+        QFile exported(exportPath);
+        QVERIFY(exported.open(QIODevice::ReadOnly));
+        QCOMPARE(QJsonDocument::fromJson(exported.readAll()).object().value("endBpm").toDouble(), 360.);
+        // Closing while the worker is occupied must return without waiting.
+        gate = std::make_shared<QSemaphore>(); entered = std::make_shared<QSemaphore>();
+        const auto closingBlocker = QtConcurrent::run(timingPreviewPool(), [gate, entered] {
+            entered->release(); gate->acquire();
+        });
+        auto releaseClosing = qScopeGuard([gate] { gate->release(); });
+        QTRY_VERIFY(entered->available() > 0);
+        panel->findChild<QPushButton *>("analysis.interpolationBuild")->click();
+        editor->close();
+        QTRY_VERIFY(!editor);
+        gate->release(); releaseClosing.dismiss();
+    }
     void transientDraftUsesChartTimingAndFiltersWithoutMutation()
     {
         analysis::TransientResult result;

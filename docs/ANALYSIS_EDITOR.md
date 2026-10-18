@@ -123,6 +123,13 @@ Discard, closing/hiding Generation or AE, a chart/analysis/source/grid change an
 
 ## Manual timing measurement
 
+The same manual measurement and interpolation tools are also available from the
+main BPM panel's independent [Advanced BPM editor](BPM_ADVANCED_EDITOR.md).
+That window does not run spectrum or AutoTiming analysis. Its preview calculations,
+impact report, application confirmation and JSON export leave the main editor usable.
+Interpolation generation is shared with AE through the same bounded background worker;
+the established numerical rules below remain unchanged.
+
 Open **Timing → Measure** and enable **Pick Start → End**. The first spectrum click snaps Start to the Catch editor's current beat subdivision. Clicking an existing timing line (within 5 logical pixels) reuses its original Malody `[whole, numerator, denominator]`, including a non-canonical fraction. Otherwise the triplet is created directly on the subdivision; it is never reconstructed from the displayed start milliseconds. The second click chooses an unsnapped absolute audio End. Drag a marker within 8 pixels to adjust it: Start continues to snap and End stays free. Middle-click still seeks; Shift-drag still selects the shared range. Picking pauses playback. Closing/hiding the panel or switching tabs stops picking; Escape clears the draft. Tab on the spectrum focuses **Beat span**.
 
 The default span is **1 beat**, restored for each cleared/new measurement. Decimal and fractional input such as `0.5`, `1/3` and `4` retain their exact rational span (up to nine decimal places). `BPM = 60000 × span / (End − Start)` uses unrounded measurements; the UI offers numeric End adjustment, full-precision BPM copying and a purple reference grid inside the measured interval. The Start label reports its authoritative beat triplet plus a derived audio time. Preview and dragging leave the chart, snap, selection, offset and undo history unchanged.
