@@ -1,7 +1,9 @@
 // MainWindow.cpp - Main window implementation.
 #include "MainWindow.h"
+#include <QTemporaryDir>
 #include "ui/analysis/AnalysisEditor.h"
 #include "MainWindowPrivate.h"
+#include "review/ReviewWorkspace.h"
 #include "app/Application.h"
 #include "app/SessionPathUtils.h"
 #include "plugin/PluginManager.h"
@@ -1729,7 +1731,10 @@ MainWindow::MainWindow(ChartController *chartCtrl,
                 if (!chartPath.isEmpty() && !meta.audioFile.isEmpty())
                 {
                     const QString chartDir = QFileInfo(chartPath).absolutePath();
-                    const QString audioPath = QDir(chartDir).filePath(meta.audioFile);
+                    const QString explicitAudioSource = d->chartController->chart()->audioSourceFullPath();
+                    const QString audioPath = explicitAudioSource.isEmpty()
+                                                  ? QDir(chartDir).filePath(meta.audioFile)
+                                                  : explicitAudioSource;
                     if (QFile::exists(audioPath))
                     {
                         d->playbackController->audioPlayer()->load(audioPath);
@@ -1818,11 +1823,31 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     QTimer::singleShot(0, this, [this]()
                        { tryRecoverPreviousSession(); });
 
+    d->reviewWorkspace = new CceReview::ReviewWorkspace(d->chartController, d->selectionController,
+                                                       d->canvas, this);
+    d->reviewWorkspace->installMenus(d->commandRouter,d->mainToolBar);
+    connect(d->reviewWorkspace, &CceReview::ReviewWorkspace::statusMessage, this,
+            [this](const QString &message) { statusBar()->showMessage(message, 10000); });
+    connect(d->reviewWorkspace,&CceReview::ReviewWorkspace::projectOpened,this,[this](const QString &path) {
+        ++d->documentGeneration;
+        if(d->recoverySnapshotTimer)d->recoverySnapshotTimer->stop();
+        d->workingChartPath.clear();d->sourceChartPath.clear();d->currentChartPath=path;d->isModified=false;
+        d->editStatisticsChartPath.clear();
+        d->editSessionTimer.invalidate();
+        d->canvas->setSourceChartPath({});
+    });
+    if (auto *noteLayout = qobject_cast<QVBoxLayout *>(d->notePanel->layout()))
+        noteLayout->insertWidget(qMax(0,noteLayout->count()-1),d->reviewWorkspace->inspector());
+    if (auto *metaLayout = qobject_cast<QVBoxLayout *>(d->metaPanel->layout()))
+        metaLayout->insertWidget(qMax(0, metaLayout->count() - 1),
+                                 d->reviewWorkspace->createExportConfiguration(d->metaPanel));
     Logger::info("MainWindow constructor finished");
 }
 
 MainWindow::~MainWindow()
 {
+    delete d->reviewWorkspace;
+    d->reviewWorkspace = nullptr;
     if (d->pendingPluginRequestId != 0)
     {
         if (PluginManager *pm = activePluginManager())
@@ -1882,6 +1907,7 @@ void MainWindow::createMenus()
     createFileMenu();
     createEditMenu();
     createViewMenu();
+    if(d->reviewWorkspace)d->reviewWorkspace->installMenus(d->commandRouter,d->mainToolBar);
     createSettingsMenu();
     createPlaybackMenu();
     createToolsAndPluginsMenus();
@@ -1982,8 +2008,7 @@ void MainWindow::createEditMenu()
     nextModeAction->setAutoRepeat(false);
     registerShortcutAction(nextModeAction, "edit.next_mode", QKeySequence(Qt::ALT | Qt::Key_Down));
 
-    // Explicit paste timing mode. The same action is visible in the Edit menu
-    // and the main toolbar so the active quantization cannot be missed.
+    // Explicit paste timing mode is available in the Edit and canvas menus.
     editMenu->addSeparator();
     if (!d->paste288Action)
     {
@@ -2000,8 +2025,6 @@ void MainWindow::createEditMenu()
         d->paste288Action->setChecked(Settings::instance().pasteUse288Division());
     }
     editMenu->addAction(d->paste288Action);
-    if (d->mainToolBar && !d->mainToolBar->actions().contains(d->paste288Action))
-        d->mainToolBar->addAction(d->paste288Action);
 }
 
 void MainWindow::createViewMenu()
@@ -2083,11 +2106,6 @@ void MainWindow::createViewMenu()
         d->panelsToolbarAction->setToolTip(
             tr("Open or restore panels and the main editor"));
         d->panelsToolbarAction->setMenu(d->panelsMenu);
-        if (d->mainToolBar
-            && !d->mainToolBar->actions().contains(d->panelsToolbarAction))
-        {
-            d->mainToolBar->addAction(d->panelsToolbarAction);
-        }
         updateToolDockActionVisibility();
         viewMenu->addSeparator();
         if (!d->moveViewAction)
@@ -3111,15 +3129,6 @@ void MainWindow::createCentralArea()
     ensureStatsDockAssigned();
 
     d->mainToolBar = addToolBar(tr("Tools"));
-    if (d->panelsToolbarAction)
-    {
-        d->mainToolBar->addAction(d->panelsToolbarAction);
-        if (auto *panelsButton = qobject_cast<QToolButton *>(
-                d->mainToolBar->widgetForAction(d->panelsToolbarAction)))
-        {
-            panelsButton->setPopupMode(QToolButton::InstantPopup);
-        }
-    }
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
                                                    { showEditorPanel(d->notePanel); });
     d->bpmPanelAction = d->mainToolBar->addAction(tr("BPM"), [this]()
@@ -3154,9 +3163,8 @@ void MainWindow::createCentralArea()
             showEditorPanel(d->notePanel);
         if (d->pluginToolModeAction) { const QSignalBlocker b(d->pluginToolModeAction); d->pluginToolModeAction->setChecked(checked); }
     });
-    addToolBarBreak(Qt::TopToolBarArea);
-    d->pluginToolBar = addToolBar(tr("Plugins"));
-    d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
+    for (auto *action : {d->notePanelAction, d->bpmPanelAction, d->metaPanelAction, d->curvePanelAction})
+        action->setProperty("toolPage", true);
     setFloatingToolWindowsEnabled(Settings::instance().floatingToolWindowsEnabled());
     Logger::debug("Central area created with LeftPanel.");
 }
@@ -3354,6 +3362,7 @@ void MainWindow::saveDocumentAsync(const QString &path,
 
 void MainWindow::persistRecoveryState()
 {
+    if(d->reviewWorkspace && d->reviewWorkspace->projectMode())return;
     if (d->workingChartPath.isEmpty() || !d->isModified)
     {
         removeRecoveryState();
@@ -3376,6 +3385,7 @@ void MainWindow::persistRecoveryState()
 
 void MainWindow::scheduleRecoverySnapshot()
 {
+    if(d->reviewWorkspace && d->reviewWorkspace->projectMode())return;
     if (!d->isModified || d->workingChartPath.isEmpty() || !d->chartController)
         return;
     if (d->recoverySnapshotTimer)
@@ -3384,6 +3394,7 @@ void MainWindow::scheduleRecoverySnapshot()
 
 void MainWindow::flushRecoverySnapshot()
 {
+    if(d->reviewWorkspace && d->reviewWorkspace->projectMode())return;
     if (!d->isModified || d->workingChartPath.isEmpty() || !d->chartController)
         return;
     if (workingSessionDirFromWorkingPath(d->workingChartPath).isEmpty())
@@ -3662,6 +3673,8 @@ void MainWindow::dropEvent(QDropEvent *event)
 
 bool MainWindow::confirmSaveIfModified(const QString &reasonText)
 {
+    if (d->reviewWorkspace && d->reviewWorkspace->projectMode())
+        return d->reviewWorkspace->confirmClose();
     if (!d->isModified)
         return true;
 
@@ -3833,7 +3846,7 @@ void MainWindow::newChart()
         MetaData meta;
         meta.title = audioStem;
         meta.artist.clear();
-        meta.chartAuthor.clear();
+        meta.chartAuthor = d->reviewWorkspace ? d->reviewWorkspace->activeAuthorName() : QString();
         meta.difficulty = QStringLiteral("-New");
         meta.audioFile = resolvedTargetAudioName;
         meta.speed = 5;
@@ -4637,6 +4650,9 @@ void MainWindow::switchDifficulty()
 
 void MainWindow::saveChart()
 {
+    if (d->reviewWorkspace && d->reviewWorkspace->projectMode()) {
+        d->reviewWorkspace->saveProjectDialog(); return;
+    }
     Logger::info("Save chart requested");
     QString currentPath = d->sourceChartPath;
     if (currentPath.isEmpty())
@@ -4701,6 +4717,9 @@ void MainWindow::saveChart()
 
 void MainWindow::saveChartAs()
 {
+    if (d->reviewWorkspace && d->reviewWorkspace->projectMode()) {
+        d->reviewWorkspace->saveProjectDialog(); return;
+    }
     Logger::info("Save chart as requested");
     QString fileName = QFileDialog::getSaveFileName(this, tr("Save Chart As"), Settings::instance().lastOpenPath(),
                                                     tr("Malody Catch Chart (*.mc);;All Files (*.*)"));
@@ -4808,6 +4827,19 @@ void MainWindow::exportMczInternal(bool pureMode)
     {
         Logger::info(QString("MainWindow::exportMczInternal - Exporting to: %1 (mode=%2)")
                          .arg(fileName, pureMode ? "pure" : "full"));
+
+        if(d->reviewWorkspace && d->reviewWorkspace->projectMode()) {
+            QTemporaryDir staging;
+            QString error;
+            const QString chart=staging.filePath("chart.mc");
+            if(!staging.isValid() || !d->reviewWorkspace->exportChart(chart,{},&error) ||
+                !ProjectIO::exportToMczPure(fileName,chart)) {
+                QMessageBox::critical(this,tr("Error"),error.isEmpty()?tr("Failed to export chart to MCZ format."):error);
+                return;
+            }
+            statusBar()->showMessage(tr("Exported: %1").arg(fileName),3000);
+            return;
+        }
 
         // Export from the session working copy, not directly from the source directory.
         // currentChartPath is the last explicitly saved source .mc and can lag behind

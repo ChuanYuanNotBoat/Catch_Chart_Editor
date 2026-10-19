@@ -22,11 +22,11 @@ AE 指 Analysis Editor；AC 指 AutoTimingCore。三层已由用户确认：**�
 
 | 来源 | 用途 |
 | --- | --- |
-| [AE 实现说明](ANALYSIS_EDITOR.md) | 已有布局、手动测量、插值、Transient 和诊断能力 |
+| [AE 实现说明](../ANALYSIS_EDITOR.md) | 已有布局、手动测量、插值、Transient 和诊断能力 |
 | 原验收计划：`artifacts/autotiming-handoff-20261007/plan/AUTOTIMING-Implementation-Acceptance-Plan.md` §6 | 四组 Debug tab 的内容和语义 |
 | 移交说明：`artifacts/autotiming-handoff-20261007/CODEX-HANDOFF.md` | AC / CCE 分工及历史修复范围 |
 | 本地收尾记录：`artifacts/autotiming-handoff-20261007/local-results/TAKEOVER-STATUS.md` | 当前 AC 修改、已完成验证、失败和停止测试状态 |
-| [工程 TODO](ENGINEERING_TODO.md) | CCE 集成与基础设施约束 |
+| [工程 TODO](../ENGINEERING_TODO.md) | CCE 集成与基础设施约束 |
 
 `artifacts/` 中的移交包和验证记录是本机资料，不随 Git 仓库分发；其路径以上述当前工作区为根。
 

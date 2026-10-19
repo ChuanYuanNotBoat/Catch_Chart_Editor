@@ -28,5 +28,5 @@
 当前提出的 BPM 工作范围仅包括曲线显示、手动测量、BPM 插值和统一预览／应用流程；
 用户已于 2026-10-18 确认上述范围，主编辑区应保持可操作。实施说明见
 [BPM 高级编辑](../BPM_ADVANCED_EDITOR.md)。现有详细规则参见
-[Timing 设计](../AE_AC_GUI_BUGFIX_PLAN.md)和
+[Timing 设计](AE_AC_GUI_BUGFIX_PLAN_2026-10-08.md)和
 [当前测量、插值说明](../ANALYSIS_EDITOR.md)。

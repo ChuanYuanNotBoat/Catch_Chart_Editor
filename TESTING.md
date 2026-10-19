@@ -1,7 +1,7 @@
 # Testing Guide
 
 > 适用版本：Beta v1.11.2 + Unreleased maintenance
-> 最后核对：2026-10-03
+> 最后核对：2026-10-20
 
 ## 测试目标
 
@@ -11,6 +11,60 @@
 - 同时验证 Debug 与 Release，避免只在单一配置中通过。
 
 ## 自动化目标
+
+### 本地工程与审阅
+
+`LocalIdentityTests`、`DocumentModelTests`、`ProjectStorageTests`、`ReviewCoreTests`、
+`CommentModelTests`、`ReviewInspectorTests`、`ExportPipelineTests`、`ReviewWorkspaceTests`
+覆盖本地署名、共享图层、难度与引用、精确 Note/BPM 差异、元数据与导出配置、
+评论锚点、修订分叉与回传、包损坏回滚、资源校验、导出及应用/撤销。
+所有写入使用临时工程与资源，默认不访问安装实例的谱面库。Windows GUI 夹具使用
+Qt minimal 平台；可用 `ctest --test-dir build -C Debug -R 'Review|DocumentModel|ProjectStorage|CommentModel|LocalIdentity|ExportPipeline' --output-on-failure` 单独运行。
+
+本轮还覆盖未导出 Move 草稿的保存/恢复、资源替换冲突、选择性应用 Sound 资源与整批撤销、
+重开后 Sound 路径保持可移植、已接受内容改变后重新审阅、事件分支冲突及不可变修订 ID。
+`ui_shortcut_tests` 验证语言切换后命令唯一、顶栏仅有页签、面板内提案入口仍可使用、评论快捷键改绑、属性面板位置，
+以及工程编辑与旧 `.mc` 恢复写入的隔离。`ui_spectrum_overlay_tests` 验证播放跟随加载后续频谱。
+
+`ReviewCoreTests` 在 5k/20k/100k Note 上检查多重集合 Diff 与整批删除/合并；
+`ReviewWorkspaceTests` 在相同规模上绘制多个图层、活动 Reference、2,000 个评论线程（含回复），
+并检查属性查看及列表。2026-10-19 的 Release 合成夹具连续绘制 12 帧分别耗时 17/22/58 ms，
+仅作为可见区绘制的回归证据，不等同于带音频的完整谱面播放性能指标。
+
+可设置 `CCE_REVIEW_SCREENSHOT_DIR` 并直接运行 `ReviewWorkspaceTests reviewPanelRendersAndKeepsTheViewport`、
+`ShortcutTests toolbarOnlySwitchesToolPagesAndCommentShortcutRemainsRebindable` 导出本地检查截图；
+Windows 外观检查使用 `QT_QPA_PLATFORM=windows`，需要能找到 Qt 的平台插件。
+
+2026-10-20 验收记录：Release 与 Debug 完整 CTest 均为 34/34，通过耗时分别为 111.55 s、529.49 s。
+最新 GUI/副本、窗口销毁后 Undo 回调及频谱播放跟随调整另外执行定向检查。
+原生快捷键集在两种配置下均为 19 项通过，ReviewCore 为 18 项通过。
+原生 ReviewWorkspace 在启用真实副本后为 30 项通过（Debug 107.15 s）；原生频谱叠加集为 9 项通过。
+默认 CTest 不读取本机谱面，真实副本用例需显式设置下述环境变量后另行运行。
+
+保留早期失败记录：Debug 首轮曾为 33/34，ReviewCore 大谱面用例出现一次 `0xc0000005`，
+崩溃处理器仅给出 `SearchPathW` 附近的次级栈。单独重跑 5k/20k/100k、完整 Core 及后续完整 CTest 均通过，
+该次 Core 异常仍没有稳定复现或确定根因。
+另以 AddressSanitizer 检查 ReviewCore 的正常/冲突/包校验及 5k/20k 用例，15 项通过且未报告内存错误；
+ASan 的 100k 用例触发了 QtTest 的时限，不能计为 ASan 通过证据。未据此将首次崩溃归因于业务代码、编译器或硬件。
+
+原生窗口夹具另曾在连续销毁顶层 Canvas 后处理显示事件时崩溃，审阅与原有频谱夹具均可遇到。
+独立调试器、DLL 导出跳转解析及反汇编将位置定位为 Qt 6.10.2 `processExposeEvent` 对失效窗口数据的访问；
+不能把崩溃处理器给出的最近导出名 `QTextCharFormat::setFontLetterSpacingType` 当作实际函数。
+对应的 [Qt 源码](https://github.com/qt/qtbase/blob/v6.10.2/src/gui/kernel/qguiapplication.cpp#L3149) 用于核对事件处理路径，
+并不单独证明缺陷归属。夹具现于对象仍存活时隐藏窗口并完成原生事件处理，复现用例及原生频谱整组通过；
+恢复夹具清除自身测试目录中的旧备份，避免误读上一轮 100k Note 数据。生产代码没有加入等待或嵌套事件循环。
+
+副本验收可设置 `CCE_REVIEW_SOURCE_CHART` 为获准只读的真实 `.mc`。夹具先复制源文件夹中的文件到临时目录，
+加载器和所有编辑/保存操作只接触副本，结束时逐文件复核源目录 SHA-256。
+本机 `Catch the Glory / Deluge Lv.24`（4,430 Note）已通过旧 `.mc` 无身份编辑保存、
+第二难度导入与整谱 Reference、元数据/BPM/多选 Move、评论、GUI 接受与应用、整批撤销重做、
+解决状态回传、二次导出及 `.mc` 导出。来源谱面与资源的 SHA-256 保持不变。
+另外覆盖共享图层继续/独立复制/取消、无身份图层 GUI、隐藏与导出选项独立、资源失败时内存/审阅/撤销栈不变、
+提案另存难度保留配置并隔离同名资源、显式依赖组及分支合并后重建依赖、过期后台 Diff 不发布、
+评论卡片显示位置不改锚点和双击打开评论页、文本框快捷键兼容、销毁审阅窗口后回调失效保护。
+整谱 Reference 使用预计算时间映射；该副本的 Release 完整夹具由约 108 s 降至约 17 s。
+700 px 宽的审阅与图层窗口截图已检查，元数据列显示实际字段名，导出字段差异显示字段清单。
+真实谱面副本检查属于 Qt 原生窗口自动交互与截图检查；不能替代用户对全部手感和长时间使用的评价，功能仍标为实验性。
 
 ### `CatchChartEditorTests`
 
@@ -251,7 +305,7 @@ ctest --test-dir build_clion_msvc -C Debug -R "ui_grid_drag_tests|file_resource_
 - 在新旧两种布局中验证 Playback Speed 的六个快捷按钮与 `0.1×–10×` 手动输入，确认输入边界、Playback 菜单双向同步、播放中切速和重启持久化；
 - 关闭 `View -> Enable Floating Windows`，确认界面恢复为引入 ADS 前的固定 Navigation / Preview / Workspace / 右编辑栏四栏布局，Note/BPM/Meta 只在同一右栏切换，没有任何 ADS 标题、标签或工具拆分块；右栏滚轮及纵向滚动条有效且始终没有横向滚动条；
 - 先分别设置经典模式的四栏宽度、Note/BPM/Meta 页和 Plugin Tools 开关，以及多窗口模式的停靠/浮窗/关闭状态；反复切换并重启，确认每种模式只恢复自己的最后状态，互不手动同步或覆盖；
-- 多窗口模式尝试关闭 `Chart Workspace`，确认主编辑区没有关闭入口；关闭其他面板后，分别从顶部 `Panels`、`View -> Panels` 和 `Reopen All Closed Panels` 恢复；
+- 多窗口模式尝试关闭 `Chart Workspace`，确认主编辑区没有关闭入口；关闭其他面板后，从 `View -> Panels`、对应工具页和 `Reopen All Closed Panels` 恢复；顶栏仅显示工具页切换；
 - 依次关闭 Timing、Playback Speed、Range、Mirror、Curve、Plugin Tools 或 Chart Statistics，确认相邻紧凑模块不被拉高；剩余空间由普通编辑面板吸收，纯工具浮窗中则表现为空白；
 - Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、浮动、关闭、无需重启恢复和重启持久化；BPM/Meta 等完整面板另验证标签组合；
 - 关闭主窗口后确认 GUI、日志终端、外部插件子进程和主进程均结束；

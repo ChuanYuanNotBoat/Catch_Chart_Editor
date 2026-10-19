@@ -751,7 +751,7 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="716"/>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="829"/>
         <source>Mixed</source>
-        <translation>混合</translation>
+        <translation>混合值</translation>
     </message>
     <message>
         <location filename="../../src/ui/CustomWidgets/ChartCanvas/ChartCanvasMouse.cpp" line="697"/>
@@ -4193,6 +4193,94 @@ Do you want to rename the imported file?</source>
         <source>Settings imported. Restart the editor to apply all changes.</source>
         <translation>设置已导入。请重启编辑器以应用全部更改。</translation>
     </message>
+    <message>
+        <source>—</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>No</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>%1 items</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>%1 properties</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Title</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Original title</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Artist</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Original artist</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Difficulty name</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Creator</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Audio reference</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Background reference</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Preview time</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>First BPM</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Offset</source>
+        <translation>偏移</translation>
+    </message>
+    <message>
+        <source>Fall speed</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Normal</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Rain</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Sound</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Mixed</source>
+        <translation>混合值</translation>
+    </message>
 </context>
 <context>
     <name>Settings</name>
@@ -5932,7 +6020,7 @@ Current Core: %8; baseline Core: %9</source>
     <message>
         <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
         <source>Beat</source>
-        <translation>拍</translation>
+        <translation>拍点</translation>
     </message>
     <message>
         <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
@@ -6580,6 +6668,1039 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>End</source>
         <translation>结束</translation>
+    </message>
+</context>
+<context>
+    <name>CceReview::ReviewWorkspace</name>
+    <message>
+        <source>Document update failed: %1</source>
+        <translation>工程更新失败：%1</translation>
+    </message>
+    <message>
+        <source>Choose an unlocked layer before editing.</source>
+        <translation>请先选择一个未锁定的图层。</translation>
+    </message>
+    <message>
+        <source>Edit shared layer</source>
+        <translation>编辑共享图层</translation>
+    </message>
+    <message>
+        <source>Layer “%1” is shared by %2 difficulties. Editing it affects all of them.</source>
+        <translation>图层“%1”由 %2 个难度共享，编辑将影响这些难度。</translation>
+    </message>
+    <message>
+        <source>Edit Shared Layer</source>
+        <translation>编辑共享图层</translation>
+    </message>
+    <message>
+        <source>Copy as Independent Layer</source>
+        <translation>复制为独立图层</translation>
+    </message>
+    <message>
+        <source>Make layer independent</source>
+        <translation>设为独立图层</translation>
+    </message>
+    <message>
+        <source>Base is read only.</source>
+        <translation>基准视图只读。</translation>
+    </message>
+    <message>
+        <source>Update project</source>
+        <translation>更新工程</translation>
+    </message>
+    <message>
+        <source>Cannot read resource: %1</source>
+        <translation>无法读取资源：%1</translation>
+    </message>
+    <message>
+        <source>Missing resource: %1</source>
+        <translation>缺少资源：%1</translation>
+    </message>
+    <message>
+        <source>Project saved.</source>
+        <translation>工程已保存。</translation>
+    </message>
+    <message>
+        <source>Open project</source>
+        <translation>打开工程</translation>
+    </message>
+    <message>
+        <source>Create or select a local identity first.</source>
+        <translation>请先创建或选择本地身份。</translation>
+    </message>
+    <message>
+        <source>Start or import a proposal first.</source>
+        <translation>请先创建或导入提案。</translation>
+    </message>
+    <message>
+        <source>Select a local identity first.</source>
+        <translation>请先选择本地身份。</translation>
+    </message>
+    <message>
+        <source>Cannot reconstruct the proposal.</source>
+        <translation>无法重建提案内容。</translation>
+    </message>
+    <message>
+        <source>Proposal exported.</source>
+        <translation>提案已导出。</translation>
+    </message>
+    <message>
+        <source>Open the corresponding CCE project before importing this proposal.</source>
+        <translation>请先打开对应的 CCE 工程，再导入此提案。</translation>
+    </message>
+    <message>
+        <source>This proposal's base does not match the current chart or audio.</source>
+        <translation>此提案的基准与当前谱面或音频不匹配。</translation>
+    </message>
+    <message>
+        <source>Import proposal revision</source>
+        <translation>导入提案修订</translation>
+    </message>
+    <message>
+        <source>Revision conflicts require review: %1</source>
+        <translation>以下修订冲突需要审阅：%1</translation>
+    </message>
+    <message>
+        <source>Select at least one change to apply.</source>
+        <translation>请至少选择一处修改。</translation>
+    </message>
+    <message>
+        <source>Resolve the selected conflicts before applying.</source>
+        <translation>请先解决所选修改中的冲突。</translation>
+    </message>
+    <message>
+        <source>Apply reviewed changes</source>
+        <translation>应用已审阅修改</translation>
+    </message>
+    <message>
+        <source>Reviewed changes applied as one undoable operation.</source>
+        <translation>已应用修改，可一次撤销。</translation>
+    </message>
+    <message>
+        <source>No proposal to rebase.</source>
+        <translation>没有可重建基线的提案。</translation>
+    </message>
+    <message>
+        <source>Resolve conflicts before rebasing.</source>
+        <translation>请先解决冲突，再重建基线。</translation>
+    </message>
+    <message>
+        <source>Rebase proposal</source>
+        <translation>重建提案基线</translation>
+    </message>
+    <message>
+        <source>BASE — READ ONLY</source>
+        <translation>基准 — 只读</translation>
+    </message>
+    <message>
+        <source>Local comment</source>
+        <translation>本地评论</translation>
+    </message>
+    <message>
+        <source>Project &amp; Review</source>
+        <translation>工程与审阅</translation>
+    </message>
+    <message>
+        <source>Layers, Comments and Review…</source>
+        <translation>图层、评论与审阅…</translation>
+    </message>
+    <message>
+        <source>Local Identities…</source>
+        <translation>本地身份…</translation>
+    </message>
+    <message>
+        <source>Open CCE Project…</source>
+        <translation>打开 CCE 工程…</translation>
+    </message>
+    <message>
+        <source>CCE Projects (*.cceproj)</source>
+        <translation>CCE项目 (*.cceproj)</translation>
+    </message>
+    <message>
+        <source>Save Project…</source>
+        <translation>保存工程…</translation>
+    </message>
+    <message>
+        <source>Export Difficulty as .mc…</source>
+        <translation>导出当前难度为 .mc…</translation>
+    </message>
+    <message>
+        <source>Export Selected Layer as .mc…</source>
+        <translation>导出所选图层为 .mc…</translation>
+    </message>
+    <message>
+        <source>Create Proposal…</source>
+        <translation>创建提案…</translation>
+    </message>
+    <message>
+        <source>Create proposal</source>
+        <translation>创建提案</translation>
+    </message>
+    <message>
+        <source>Description:</source>
+        <translation>说明：</translation>
+    </message>
+    <message>
+        <source>Import .ccepr…</source>
+        <translation>导入 .ccepr…</translation>
+    </message>
+    <message>
+        <source>Import proposal</source>
+        <translation>导入提案</translation>
+    </message>
+    <message>
+        <source>CCE Review Packages (*.ccepr)</source>
+        <translation>CCE 审阅包 (*.ccepr)</translation>
+    </message>
+    <message>
+        <source>Export .ccepr…</source>
+        <translation>导出 .ccepr…</translation>
+    </message>
+    <message>
+        <source>Export proposal</source>
+        <translation>导出提案</translation>
+    </message>
+    <message>
+        <source>Edit Proposal</source>
+        <translation>编辑提案</translation>
+    </message>
+    <message>
+        <source>Peek Base (hold)</source>
+        <translation>按住查看基准</translation>
+    </message>
+    <message>
+        <source>Previous Comment</source>
+        <translation>上一条评论</translation>
+    </message>
+    <message>
+        <source>Next Comment</source>
+        <translation>下一条评论</translation>
+    </message>
+    <message>
+        <source>Previous Change</source>
+        <translation>上一处修改</translation>
+    </message>
+    <message>
+        <source>Next Change</source>
+        <translation>下一处修改</translation>
+    </message>
+    <message>
+        <source>Previous Conflict</source>
+        <translation>上一处冲突</translation>
+    </message>
+    <message>
+        <source>Next Conflict</source>
+        <translation>下一处冲突</translation>
+    </message>
+    <message>
+        <source>Recover Local Review Workspace…</source>
+        <translation>恢复本地审阅工作区…</translation>
+    </message>
+    <message>
+        <source>Layers and Chart Review</source>
+        <translation>图层与谱面审阅</translation>
+    </message>
+    <message>
+        <source>Proposal Only</source>
+        <translation>仅提案</translation>
+    </message>
+    <message>
+        <source>Diff Overlay</source>
+        <translation>差异叠加</translation>
+    </message>
+    <message>
+        <source>Base · Read Only</source>
+        <translation>基准 · 只读</translation>
+    </message>
+    <message>
+        <source>Peek Base</source>
+        <translation>查看基准</translation>
+    </message>
+    <message>
+        <source>New</source>
+        <translation>新建</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>重命名</translation>
+    </message>
+    <message>
+        <source>Duplicate</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>Import .mc…</source>
+        <translation>导入 .mc…</translation>
+    </message>
+    <message>
+        <source>Switch difficulty</source>
+        <translation>切换难度</translation>
+    </message>
+    <message>
+        <source>Layer</source>
+        <translation>图层</translation>
+    </message>
+    <message>
+        <source>Visible</source>
+        <translation>显示</translation>
+    </message>
+    <message>
+        <source>Locked</source>
+        <translation>锁定</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>导出</translation>
+    </message>
+    <message>
+        <source>Opacity %</source>
+        <translation>不透明度 %</translation>
+    </message>
+    <message>
+        <source>Shared by</source>
+        <translation>共享难度数</translation>
+    </message>
+    <message>
+        <source>Update layer binding</source>
+        <translation>修改图层设置</translation>
+    </message>
+    <message>
+        <source>New Layer</source>
+        <translation>新建图层</translation>
+    </message>
+    <message>
+        <source>Share Existing…</source>
+        <translation>共享已有图层…</translation>
+    </message>
+    <message>
+        <source>Make Independent</source>
+        <translation>设为独立图层</translation>
+    </message>
+    <message>
+        <source>Unbind</source>
+        <translation>解除绑定</translation>
+    </message>
+    <message>
+        <source>Up</source>
+        <translation>上移</translation>
+    </message>
+    <message>
+        <source>Down</source>
+        <translation>下移</translation>
+    </message>
+    <message>
+        <source>Move Selection into Layer</source>
+        <translation>将选区移动到图层</translation>
+    </message>
+    <message>
+        <source>Copy Selection into Layer</source>
+        <translation>将选区复制到图层</translation>
+    </message>
+    <message>
+        <source>Export Layer…</source>
+        <translation>导出图层…</translation>
+    </message>
+    <message>
+        <source>Live references (read only; excluded from statistics and export)</source>
+        <translation>实时参考（只读，不参与统计与导出）</translation>
+    </message>
+    <message>
+        <source>Add Reference…</source>
+        <translation>添加参考…</translation>
+    </message>
+    <message>
+        <source>Remove Reference</source>
+        <translation>移除参考</translation>
+    </message>
+    <message>
+        <source>Remove reference</source>
+        <translation>移除参考</translation>
+    </message>
+    <message>
+        <source>Layers &amp; Difficulties</source>
+        <translation>图层与难度</translation>
+    </message>
+    <message>
+        <source>Save Proposal as Difficulty</source>
+        <translation>将提案保存为新难度</translation>
+    </message>
+    <message>
+        <source> (proposal)</source>
+        <translation>（提案）</translation>
+    </message>
+    <message>
+        <source>Save proposal as difficulty</source>
+        <translation>将提案保存为新难度</translation>
+    </message>
+    <message>
+        <source>Rebase</source>
+        <translation>重建基线</translation>
+    </message>
+    <message>
+        <source>All Changes</source>
+        <translation>全部修改</translation>
+    </message>
+    <message>
+        <source>Conflicts</source>
+        <translation>冲突</translation>
+    </message>
+    <message>
+        <source>Data</source>
+        <translation>数据</translation>
+    </message>
+    <message>
+        <source>Change</source>
+        <translation>修改</translation>
+    </message>
+    <message>
+        <source>Before</source>
+        <translation>修改前</translation>
+    </message>
+    <message>
+        <source>After</source>
+        <translation>修改后</translation>
+    </message>
+    <message>
+        <source>Decision</source>
+        <translation>审阅决定</translation>
+    </message>
+    <message>
+        <source>Apply state</source>
+        <translation>应用状态</translation>
+    </message>
+    <message>
+        <source>Accept</source>
+        <translation>接受</translation>
+    </message>
+    <message>
+        <source>Reject</source>
+        <translation>拒绝</translation>
+    </message>
+    <message>
+        <source>Pending</source>
+        <translation>待处理</translation>
+    </message>
+    <message>
+        <source>Link as Move</source>
+        <translation>关联为移动</translation>
+    </message>
+    <message>
+        <source>Use Proposal</source>
+        <translation>使用提案／回传方</translation>
+    </message>
+    <message>
+        <source>Keep Current</source>
+        <translation>保留当前方</translation>
+    </message>
+    <message>
+        <source>Apply Selected</source>
+        <translation>应用所选修改</translation>
+    </message>
+    <message>
+        <source>Apply Accepted</source>
+        <translation>应用已接受修改</translation>
+    </message>
+    <message>
+        <source>Diff &amp; Conflict</source>
+        <translation>差异与冲突</translation>
+    </message>
+    <message>
+        <source>Author</source>
+        <translation>作者</translation>
+    </message>
+    <message>
+        <source>Comment</source>
+        <translation>评论</translation>
+    </message>
+    <message>
+        <source>State</source>
+        <translation>状态</translation>
+    </message>
+    <message>
+        <source>Anchor</source>
+        <translation>定位</translation>
+    </message>
+    <message>
+        <source>Add Comment…</source>
+        <translation>添加评论…</translation>
+    </message>
+    <message>
+        <source>Add comment</source>
+        <translation>添加评论</translation>
+    </message>
+    <message>
+        <source>Comment:</source>
+        <translation>评论：</translation>
+    </message>
+    <message>
+        <source>Reply…</source>
+        <translation>回复…</translation>
+    </message>
+    <message>
+        <source>Reply</source>
+        <translation>回复</translation>
+    </message>
+    <message>
+        <source>Reply:</source>
+        <translation>回复：</translation>
+    </message>
+    <message>
+        <source>Reply to comment</source>
+        <translation>回复评论</translation>
+    </message>
+    <message>
+        <source>Edit…</source>
+        <translation>编辑…</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <source>Resolve</source>
+        <translation>标记已解决</translation>
+    </message>
+    <message>
+        <source>Reopen</source>
+        <translation>重新打开</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>上一条</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>下一条</translation>
+    </message>
+    <message>
+        <source>Comments</source>
+        <translation>评论</translation>
+    </message>
+    <message>
+        <source>Export Metadata</source>
+        <translation>导出元数据</translation>
+    </message>
+    <message>
+        <source>Event Log</source>
+        <translation>操作记录</translation>
+    </message>
+    <message>
+        <source>Author: %1</source>
+        <translation>作者：%1</translation>
+    </message>
+    <message>
+        <source>No identity selected</source>
+        <translation>未选择身份</translation>
+    </message>
+    <message>
+        <source> · whole difficulty</source>
+        <translation> · 整个难度</translation>
+    </message>
+    <message>
+        <source> · %1 layers</source>
+        <translation> · %1 个图层</translation>
+    </message>
+    <message>
+        <source>Ready to apply</source>
+        <translation>可应用</translation>
+    </message>
+    <message>
+        <source>Revision conflict</source>
+        <translation>修订冲突</translation>
+    </message>
+    <message>
+        <source>Conflict</source>
+        <translation>冲突</translation>
+    </message>
+    <message>
+        <source>Select one or more notes first.</source>
+        <translation>请先选择一个或多个音符。</translation>
+    </message>
+    <message>
+        <source>A Note anchor requires exactly one selected note.</source>
+        <translation>Note 定位需要恰好选择一个音符。</translation>
+    </message>
+    <message>
+        <source>BPM entry</source>
+        <translation>变速点</translation>
+    </message>
+    <message>
+        <source>Entry:</source>
+        <translation>条目：</translation>
+    </message>
+    <message>
+        <source>Edit comment</source>
+        <translation>编辑评论</translation>
+    </message>
+    <message>
+        <source>Delete comment</source>
+        <translation>删除评论</translation>
+    </message>
+    <message>
+        <source>Resolve comment</source>
+        <translation>解决评论</translation>
+    </message>
+    <message>
+        <source>Reopen comment</source>
+        <translation>重新打开评论</translation>
+    </message>
+    <message>
+        <source>Update review decision</source>
+        <translation>更新审阅决定</translation>
+    </message>
+    <message>
+        <source>Select one removal and one addition while editing the proposal.</source>
+        <translation>编辑提案时，请选择一处删除和一处新增。</translation>
+    </message>
+    <message>
+        <source>Choose a Note removal and addition from the same layer.</source>
+        <translation>请选择同一图层的一处 Note 删除和一处 Note 新增。</translation>
+    </message>
+    <message>
+        <source>Resolve revision conflict</source>
+        <translation>解决修订冲突</translation>
+    </message>
+    <message>
+        <source>This object conflict requires editing the target or rebasing; it cannot be overwritten as one field.</source>
+        <translation>请先编辑目标或重建基线，以解决此对象冲突。</translation>
+    </message>
+    <message>
+        <source>New layer</source>
+        <translation>新建图层</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>名称：</translation>
+    </message>
+    <message>
+        <source>Rename layer</source>
+        <translation>重命名图层</translation>
+    </message>
+    <message>
+        <source>Share existing layers</source>
+        <translation>共享已有图层</translation>
+    </message>
+    <message>
+        <source>Keep at least one layer in a difficulty.</source>
+        <translation>每个难度至少保留一个图层。</translation>
+    </message>
+    <message>
+        <source>Edit project layers</source>
+        <translation>修改工程图层</translation>
+    </message>
+    <message>
+        <source>Difficulty</source>
+        <translation>难度</translation>
+    </message>
+    <message>
+        <source> copy</source>
+        <translation> 副本</translation>
+    </message>
+    <message>
+        <source>Base</source>
+        <translation>基准</translation>
+    </message>
+    <message>
+        <source>Edit project difficulty</source>
+        <translation>修改工程难度</translation>
+    </message>
+    <message>
+        <source>Import difficulty</source>
+        <translation>导入难度</translation>
+    </message>
+    <message>
+        <source>Malody Charts (*.mc)</source>
+        <translation>Malody 谱面 (*.mc)</translation>
+    </message>
+    <message>
+        <source>Cannot read chart.</source>
+        <translation>无法读取谱面。</translation>
+    </message>
+    <message>
+        <source>Import or create another difficulty first.</source>
+        <translation>请先导入或创建另一个难度。</translation>
+    </message>
+    <message>
+        <source>Reference difficulty</source>
+        <translation>参考难度</translation>
+    </message>
+    <message>
+        <source>Source:</source>
+        <translation>来源：</translation>
+    </message>
+    <message>
+        <source>Reference layers (select all for the whole difficulty)</source>
+        <translation>参考图层（全选表示整个难度）</translation>
+    </message>
+    <message>
+        <source>Add live reference</source>
+        <translation>添加实时参考</translation>
+    </message>
+    <message>
+        <source>Export Metadata Configuration</source>
+        <translation>导出元数据设置</translation>
+    </message>
+    <message>
+        <source>Choose fields included in exported .mc files. Stored chart values remain independent.</source>
+        <translation>选择导出的 .mc 中包含的字段。谱面中保存的实际值独立保留。</translation>
+    </message>
+    <message>
+        <source>Change export metadata configuration</source>
+        <translation>修改导出元数据设置</translation>
+    </message>
+    <message>
+        <source>Export chart</source>
+        <translation>导出谱面</translation>
+    </message>
+    <message>
+        <source>Chart exported.</source>
+        <translation>谱面已导出。</translation>
+    </message>
+    <message>
+        <source>Save CCE project</source>
+        <translation>保存 CCE 工程</translation>
+    </message>
+    <message>
+        <source>Save project</source>
+        <translation>保存工程</translation>
+    </message>
+    <message>
+        <source>Save changes to the local project and review data?</source>
+        <translation>保存本地工程与审阅数据的修改？</translation>
+    </message>
+    <message>
+        <source>Create or import a proposal first.</source>
+        <translation>请先创建或导入提案。</translation>
+    </message>
+    <message>
+        <source>Edit proposal</source>
+        <translation>编辑提案</translation>
+    </message>
+
+    <message>
+        <source>Keep existing objects; apply proposal separately</source>
+        <translation>保留现有对象；单独应用提案</translation>
+    </message>
+    <message>
+        <source>Resolve object conflict</source>
+        <translation>解决对象冲突</translation>
+    </message>
+    <message>
+        <source>Choose the current object to replace or remove:</source>
+        <translation>选择要替换或移除的当前对象:</translation>
+    </message>
+
+    <message>
+        <source>Add Comment Here…</source>
+        <translation>在此添加评论…</translation>
+    </message>
+    <message>
+        <source>Show Comments</source>
+        <translation>显示评论</translation>
+    </message>
+    <message>
+        <source>Review Changes…</source>
+        <translation>审阅更改…</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>审阅</translation>
+    </message>
+
+    <message>
+        <source>Editing</source>
+        <translation>编辑</translation>
+    </message>
+    <message>
+        <source>Review &amp; Layers</source>
+        <translation>审阅与图层</translation>
+    </message>
+    <message>
+        <source>Layers</source>
+        <translation>图层</translation>
+    </message>
+    <message>
+        <source>Active layer</source>
+        <translation>当前图层</translation>
+    </message>
+    <message>
+        <source>Select a change to review.</source>
+        <translation>请选择一项更改以供审阅。</translation>
+    </message>
+
+    <message>
+        <source>Expanded</source>
+        <translation>展开</translation>
+    </message>
+    <message>
+        <source>Collapsed</source>
+        <translation>折叠</translation>
+    </message>
+    <message>
+        <source>Hidden</source>
+        <translation>隐藏</translation>
+    </message>
+
+    <message>
+        <source>Reference status</source>
+        <translation>引用状态</translation>
+    </message>
+    <message>
+        <source>Target missing</source>
+        <translation>目标已删除</translation>
+    </message>
+    <message>
+        <source>Ambiguous target</source>
+        <translation>目标不明确</translation>
+    </message>
+    <message>
+        <source>Target modified</source>
+        <translation>目标已修改</translation>
+    </message>
+
+    <message>
+        <source>All comments</source>
+        <translation>所有评论</translation>
+    </message>
+    <message>
+        <source>Unresolved</source>
+        <translation>未解决</translation>
+    </message>
+    <message>
+        <source>Resolved</source>
+        <translation>已解决</translation>
+    </message>
+
+    <message>
+        <source>Review &amp; Layers (Experimental)</source>
+        <translation>审阅与图层（实验性）</translation>
+    </message>
+    <message>
+        <source>Layers, Comments and Review… (Experimental)</source>
+        <translation>图层、评论与审阅…（实验性）</translation>
+    </message>
+    <message>
+        <source>Layers (Experimental)</source>
+        <translation>图层（实验性）</translation>
+    </message>
+    <message>
+        <source>Review (Experimental)</source>
+        <translation>审阅（实验性）</translation>
+    </message>
+    <message>
+        <source>Experimental: layers and .ccepr review. Use a chart copy and verify the result before replacing your chart.</source>
+        <translation>实验性功能：图层与 .ccepr 审阅。请使用谱面副本完整测试逻辑操作和 GUI，并确认结果后再替换原谱面。</translation>
+    </message>
+
+    <message>
+        <source>Select Dependency Group</source>
+        <translation>选择依赖组</translation>
+    </message>
+    <message>
+        <source>Select the dependency group before applying these changes.</source>
+        <translation>应用这些更改前，请选择依赖组。</translation>
+    </message>
+    <message>
+        <source>No proposal to save.</source>
+        <translation>没有可保存的提案。</translation>
+    </message>
+</context>
+<context>
+    <name>CceReviewUi::IdentityDialog</name>
+    <message>
+        <source>Local identities</source>
+        <translation>本地身份</translation>
+    </message>
+    <message>
+        <source>Create</source>
+        <translation>创建</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>重命名</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <source>Set as current</source>
+        <translation>设为当前身份</translation>
+    </message>
+    <message>
+        <source>Current identity: none</source>
+        <translation>当前身份：未选择</translation>
+    </message>
+    <message>
+        <source>Current identity: %1</source>
+        <translation>当前身份：%1</translation>
+    </message>
+    <message>
+        <source>%1 (current)</source>
+        <translation>%1（当前）</translation>
+    </message>
+    <message>
+        <source>Identity store is unavailable.</source>
+        <translation>身份存储不可用。</translation>
+    </message>
+    <message>
+        <source>Create identity</source>
+        <translation>创建身份</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>名称：</translation>
+    </message>
+    <message>
+        <source>Rename identity</source>
+        <translation>重命名身份</translation>
+    </message>
+    <message>
+        <source>Delete identity</source>
+        <translation>删除身份</translation>
+    </message>
+    <message>
+        <source>Delete the local identity '%1'? Historical signatures will remain unchanged.</source>
+        <translation>删除本地身份“%1”？历史署名将保持不变。</translation>
+    </message>
+</context>
+<context>
+    <name>CceReviewUi::NoteInspector</name>
+    <message>
+        <source>Type:</source>
+        <translation>类型：</translation>
+    </message>
+    <message>
+        <source>Beat (whole:numerator/denominator):</source>
+        <translation>拍点（整数:分子/分母）：</translation>
+    </message>
+    <message>
+        <source>X (0–512):</source>
+        <translation>横坐标（0–512）：</translation>
+    </message>
+    <message>
+        <source>Rain end beat:</source>
+        <translation>Rain 结束拍点：</translation>
+    </message>
+    <message>
+        <source>Sound file:</source>
+        <translation>音效文件：</translation>
+    </message>
+    <message>
+        <source>Sound volume (0–100):</source>
+        <translation>音效音量（0–100）：</translation>
+    </message>
+    <message>
+        <source>Sound offset (ms):</source>
+        <translation>音效偏移（毫秒）：</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>应用</translation>
+    </message>
+    <message>
+        <source>—</source>
+        <translation>—</translation>
+    </message>
+    <message>
+        <source>Not applicable to all selected notes</source>
+        <translation>不适用于全部所选音符</translation>
+    </message>
+    <message>
+        <source>Mixed</source>
+        <translation>混合值</translation>
+    </message>
+    <message>
+        <source>Before: %1   After: %2</source>
+        <translation>修改前：%1   修改后：%2</translation>
+    </message>
+    <message>
+        <source>Before: %1    After: %2</source>
+        <translation>修改前：%1    修改后：%2</translation>
+    </message>
+    <message>
+        <source>Beat</source>
+        <translation>拍点</translation>
+    </message>
+    <message>
+        <source>X</source>
+        <translation>X</translation>
+    </message>
+    <message>
+        <source>Rain end beat</source>
+        <translation>Rain 结束拍点</translation>
+    </message>
+    <message>
+        <source>Sound file</source>
+        <translation>音效文件</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>音量</translation>
+    </message>
+    <message>
+        <source>Offset</source>
+        <translation>偏移</translation>
+    </message>
+    <message>
+        <source>No notes selected</source>
+        <translation>未选择音符</translation>
+    </message>
+    <message>
+        <source>This inspector is read-only.</source>
+        <translation>当前属性面板只读。</translation>
+    </message>
+    <message>
+        <source>No chart is available.</source>
+        <translation>没有可用谱面。</translation>
+    </message>
+    <message>
+        <source>Select one or more notes first.</source>
+        <translation>请先选择一个或多个音符。</translation>
+    </message>
+    <message>
+        <source>Beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</source>
+        <translation>拍点格式应为“整数:分子/分母”，分子不能为负数，分母必须为正数。</translation>
+    </message>
+    <message>
+        <source>X must be an integer from 0 to 512.</source>
+        <translation>横坐标须为 0 到 512 的整数。</translation>
+    </message>
+    <message>
+        <source>Rain end beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</source>
+        <translation>Rain 结束拍点格式应为“整数:分子/分母”，分子不能为负数，分母必须为正数。</translation>
+    </message>
+    <message>
+        <source>Sound file cannot be empty.</source>
+        <translation>音效文件不能为空。</translation>
+    </message>
+    <message>
+        <source>Sound volume must be an integer from 0 to 100.</source>
+        <translation>音效音量须为 0 到 100 的整数。</translation>
+    </message>
+    <message>
+        <source>Sound offset must be an integer number of milliseconds.</source>
+        <translation>音效偏移须为整数毫秒。</translation>
+    </message>
+    <message>
+        <source>X and Rain end beat can only be edited when every selected note supports them.</source>
+        <translation>仅当所有选中的音符都支持时，才能编辑 X 和 Rain 结束拍点。</translation>
+    </message>
+    <message>
+        <source>Sound properties can only be edited when every selected note is a Sound note.</source>
+        <translation>仅当所有选中的音符都是 Sound 时，才能编辑音效属性。</translation>
+    </message>
+    <message>
+        <source>Rain end beat can only be edited when every selected note is Rain.</source>
+        <translation>仅当所有选中的音符都是 Rain 时，才能编辑 Rain 结束拍点。</translation>
+    </message>
+    <message>
+        <source>The proposed values would make at least one selected note invalid.</source>
+        <translation>这些值会导致至少一个选中的音符无效。</translation>
+    </message>
+    <message>
+        <source>The chart rejected this edit.</source>
+        <translation>谱面拒绝了本次修改。</translation>
     </message>
 </context>
 </TS>

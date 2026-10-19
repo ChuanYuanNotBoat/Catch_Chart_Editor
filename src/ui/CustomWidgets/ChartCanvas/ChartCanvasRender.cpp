@@ -55,6 +55,18 @@ private:
     PlaybackController *m_controller;
     qint64 m_frameSeq;
 };
+
+class NoteOpacityGuard final
+{
+public:
+    NoteOpacityGuard(QPainter &painter, qreal opacity)
+        : m_painter(painter), m_previous(painter.opacity())
+    { if (opacity != 1.0) m_painter.setOpacity(m_previous * opacity); }
+    ~NoteOpacityGuard() { if (m_painter.opacity() != m_previous) m_painter.setOpacity(m_previous); }
+private:
+    QPainter &m_painter;
+    qreal m_previous;
+};
 }
 
 void ChartCanvas::paintEvent(QPaintEvent *event)
@@ -250,6 +262,9 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             return;
 
         const Note &displayNote = previewNote ? *previewNote : notes[i];
+        const qreal layerOpacity = m_layerOpacity.value(displayNote.id, 1.0);
+        if (layerOpacity <= 0.0) return;
+        const NoteOpacityGuard opacityGuard(painter, layerOpacity);
         const NoteType type = displayNote.type;
         if (type == NoteType::SOUND)
             return;
@@ -460,6 +475,7 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     // NoteChain native: direct QPainter render (zero overlay serialization)
     ChartCanvas_drawNoteChainOverlay(this, &painter);
+    emit paintReviewOverlay(&painter);
 
     painter.setPen(Qt::white);
     painter.setBrush(QColor(0, 0, 0, 128));

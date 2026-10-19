@@ -43,6 +43,7 @@ class DetailedStatsDialog;
 class WorkbenchLayout;
 class CommandRouter;
 class AnalysisEditor;
+namespace CceReview { class ReviewWorkspace; }
 
 namespace ads
 {
@@ -53,6 +54,7 @@ class CDockWidget;
 class MainWindow::Private
 {
 public:
+    CceReview::ReviewWorkspace *reviewWorkspace = nullptr;
     AnalysisEditor *analysisEditor = nullptr;
     ChartController *chartController = nullptr;
     SelectionController *selectionController = nullptr;

@@ -1,6 +1,6 @@
 # Engineering TODO
 
-Last audited: 2026-10-18
+Last audited: 2026-10-20
 
 Target: Beta v1.11.2 maintenance line (`v2-main`)
 
@@ -124,7 +124,7 @@ CCE work here is limited to integration and editor behavior.
 ## AE / AC follow-up — completed host work (2026-10-08)
 
 Detailed scope, current-source audit, historical issue mapping and implementation
-order are in [the AE / AC plan](AE_AC_GUI_BUGFIX_PLAN.md).
+order are in [the archived AE / AC plan](archive/AE_AC_GUI_BUGFIX_PLAN_2026-10-08.md).
 Normal / Advanced / Debug and the host fixes below are implemented on
 `feat/ae-analysis-workbench`. Debug/Release native builds and the same 28 focused
 host cases passed in both configurations (30 QtTest passes including setup/cleanup).
@@ -149,7 +149,7 @@ The stopped AutoTiming accuracy/audio/smoke runs remain stopped.
       accuracy fixes, true Core cancellation and gitlink updates as separate work.
 
 The iteration also corrected duplicate offset handling in BPM-map projection.
-See [the implementation record](AE_AC_GUI_BUGFIX_PLAN.md#10-实施记录2026-10-08)
+See [the implementation record](archive/AE_AC_GUI_BUGFIX_PLAN_2026-10-08.md#10-实施记录2026-10-08)
 and [current AE usage](ANALYSIS_EDITOR.md). Full `.ccepr`, random-access PCM cache,
 universal CCE TaskContext infrastructure and the independent Core candidate remain
 separate follow-ups; this completion does not claim they are implemented.
@@ -180,13 +180,14 @@ the persistent Note-ID prerequisite below: Note identities remain runtime-only;
 review changes use data matching and explicit editing intent. Project, layer,
 difficulty, comment, author and revision IDs remain persistent.
 
-- [ ] P1: editable document snapshots, canonical hashes and structured Diff.
-- [ ] P2: shared layers, independent bindings, live references and export.
-- [ ] P3: local signing identities and independent persistent comments.
-- [ ] P4: PR Base/Proposal views, explicit Move intent and Note Inspector.
-- [ ] P5: versioned `.ccepr` roundtrip and revision-DAG merge.
-- [ ] P6: three-way merge, rebase, transactional application and Undo/Redo.
-- [ ] P7/P8: integrated review UI, failure recovery, performance and documentation.
+- [x] P1: editable document snapshots, canonical hashes and structured Diff.
+- [x] P2: shared layers, independent bindings, live references and export.
+- [x] P3: local signing identities and independent persistent comments.
+- [x] P4: PR Base/Proposal views, explicit Move intent and Note Inspector.
+- [x] P5: versioned `.ccepr` roundtrip and revision-DAG merge.
+- [x] P6: explicit dependency groups, three-way merge/rebase, transactional failure rollback and one-step Undo/Redo; dependency groups are rebuilt after branch merges.
+- [x] P7: group-move bounds, unresolved-comment filtering, direct proposal tools, narrow-window layouts and a tool-page-only top bar; layers and PR are visibly experimental and optional.
+- [x] P8: requirement-by-requirement acceptance, stale results and explicit history events; Debug/Release CTest, native GUI and isolated real-chart roundtrips passed. Historical diagnostic limits are recorded in [TESTING.md](../TESTING.md).
 
 The product direction is decided in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md):
 CCE remains the source of truth while these boundaries mature; repository-level
@@ -194,18 +195,18 @@ core extraction comes later.
 
 - [ ] Introduce strong persistent IDs for document, difficulty, timeline and layer entities; match Notes from data without persistent Note IDs.
 - [x] Replace legacy Note/BPM floating-point ordering with normalized rational comparison (`BeatPosition`); preserve source triplets and use exact text-input range boundaries. Audio time caches and continuous curve geometry remain floating-point projections.
-- [ ] Migrate selection identity from note indices to note IDs while retaining fast render indices.
+- [x] Use runtime Note IDs for selection identity while retaining index-based render access; Note IDs remain runtime-only and are not serialized.
 - [ ] Add a read-only versioned document snapshot and remove UI access to unrestricted mutable Chart state.
 - [ ] Replace whole-Chart command snapshots with validated serializable deltas and inverse operations.
 - [ ] Split `MainWindow` incrementally into session, workspace, document, command, resource, diagnostics, and plugin-UI coordinators.
-- [ ] Establish a no-QtWidgets CMake target inside this repository; do not freeze or split its public ABI yet.
-- [ ] Model a legacy `.mc` as one difficulty using one Base layer without changing current user-visible behavior.
+- [x] Establish a no-QtWidgets QtCore CMake target (`CceReviewCore`) inside this repository; do not freeze or split its public ABI yet.
+- [x] Model an imported legacy `.mc` as one difficulty using one Base layer; document-model tests cover the composition and roundtrip behavior.
 - [ ] Define layer-aware clipboard commands for copy/cut/paste, atomic cross-layer and cross-difficulty transfer, and Timeline remapping previews.
 - [ ] Define project-shared, inheritable/overridable, per-difficulty-required, and structural Meta field policies.
 - [ ] Add transactional create/duplicate Difficulty services before exposing “New MC” in the project UI.
 - [ ] Add `ComposedChartView` and revision-driven per-layer/visible-object indices; never concatenate and sort all layers per paint.
 - [ ] Define the versioned directory-form project format, schema migration, atomic recovery, and resource hashing.
-- [ ] Implement layer composition and deterministic export projection before exposing the full layer UI.
+- [x] Implement layer composition and deterministic `.mc` export projection; document-model and export-pipeline tests cover visibility/export eligibility and selected-layer projection. Revision-driven composition indices remain tracked separately above.
 - [ ] Keep QWidget/QPainter unless measured multi-layer workloads demonstrate a rendering-backend limitation.
 - [ ] Redesign the process-plugin protocol around async requests, cancellation, capability scopes, bounded payloads, and layer-aware deltas.
 

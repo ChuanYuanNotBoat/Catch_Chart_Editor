@@ -1,4 +1,16 @@
 add_subdirectory(analysis/dsp)
+add_library(CceReviewCore STATIC
+    document/DocumentModel.cpp
+    document/ProjectStorage.cpp
+    identity/LocalIdentityStore.cpp
+    review/ReviewCore.cpp
+    review/CommentModel.cpp
+)
+target_include_directories(CceReviewCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(CceReviewCore PUBLIC Qt6::Core)
+if(MSVC)
+    target_compile_options(CceReviewCore PRIVATE /utf-8)
+endif()
 set(SOURCES
     app/Application.cpp
     app/SessionPathUtils.cpp
@@ -7,6 +19,14 @@ set(SOURCES
     app/MainWindowLayout.cpp
     app/MainWindowDialogs.cpp
     app/MainWindowSkinAudio.cpp
+    review/ReviewWorkspace.cpp
+    review/ReviewResources.cpp
+    review/ReviewWorkspaceUi.cpp
+    review/ReviewWorkspaceToolbar.cpp
+    review/ReviewWorkspaceRender.cpp
+    ui/review/IdentityDialog.cpp
+    ui/review/NoteInspector.cpp
+    document/ExportPipeline.cpp
     model/Note.cpp
     model/BpmEntry.cpp
     model/MetaData.cpp
@@ -174,6 +194,7 @@ target_link_libraries(CatchChartEditor PRIVATE CatchChartEditorRuntime)
 target_link_libraries(CatchChartEditorRuntime
     PUBLIC
     CatchSpectrumDsp
+    CceReviewCore
     Qt6::Core
     Qt6::Widgets
     Qt6::Multimedia

@@ -44,6 +44,7 @@ public:
 
 signals:
     void modifierReleased(int key);
+    void commandReleased(const QString &commandId);
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -59,4 +60,5 @@ private:
     QVector<int> m_pending;
     QTimer m_sequenceTimer;
     QSet<int> m_consumedKeys;
+    QHash<int, QString> m_heldCommands;
 };

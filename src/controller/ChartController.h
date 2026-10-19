@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QUndoStack>
 #include <QVector>
+#include <functional>
 #include "model/Chart.h"
 #include "controller/ChartChange.h"
 
@@ -33,6 +34,14 @@ public:
     // 获取当前谱面文件路径
     QString chartFilePath() const { return m_currentChartPath; }
     quint64 revision() const { return m_revision; }
+    bool isReadOnly() const { return m_readOnly; }
+    void setReadOnly(bool readOnly) { m_readOnly = readOnly; }
+    using EditGuard = std::function<bool(const QVector<Note> &, bool)>;
+    void setEditGuard(EditGuard guard) { m_editGuard = std::move(guard); }
+    // Project/review changes share the existing Undo timeline. The callback
+    // restores auxiliary state before publishing the resulting chart change.
+    bool applyDocumentMutation(const QString &name, const Chart &chart,
+                               std::function<void(bool)> restoreAuxiliary, bool reviewTransaction = false);
 
     // 编辑操作（都会自动压入撤销栈）
     void addNote(const Note &note);
@@ -59,6 +68,7 @@ public:
     // 保存/加载
     bool loadChart(const QString &path);
     bool loadChartFromData(const QString &path, Chart loadedChart);
+    void clearUndoHistory();
     bool saveChart(const QString &path);
     bool applyExternalChartMutation(const QString &actionName, const Chart &mutatedChart);
     // Adds a no-op entry to the shared undo timeline. Native auxiliary
@@ -70,6 +80,9 @@ public:
                         const QList<QPair<Note, Note>> &notesToMove);
 
 signals:
+    void historyOperationCommitted(bool undo, const QString &action);
+    void noteOperationCommitted(const QVector<Note> &removed, const QVector<Note> &added,
+                                const QList<QPair<Note, Note>> &moved, const QString &operationGroupId);
     void chartChangeCommitted(const ChartChange &change);
     void undoStateChanged(); // stack state is settled, after command notifications
     void chartChanged(); // 任何数据变化
@@ -94,6 +107,7 @@ private:
     class SetMetaCommand;
     class ExternalMutationCommand;
     class UndoMarkerCommand;
+    class DocumentMutationCommand;
 
     void publishChange(ChartChangeSet changes);
 
@@ -101,4 +115,7 @@ private:
     QUndoStack *m_undoStack;
     QString m_currentChartPath; // 当前加载的谱面文件路径
     quint64 m_revision = 0;
+    bool m_readOnly = false;
+    EditGuard m_editGuard;
+    bool allowEdit(const QVector<Note> &affected = {}, bool addsNotes = false);
 };

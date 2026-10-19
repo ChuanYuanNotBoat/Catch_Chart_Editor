@@ -4156,6 +4156,94 @@ Do you want to rename the imported file?</translation>
         <source>Audio Conversion</source>
         <translation>Audio Conversion</translation>
     </message>
+    <message>
+        <source>—</source>
+        <translation>—</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Yes</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>No</translation>
+    </message>
+    <message>
+        <source>%1 items</source>
+        <translation>%1 items</translation>
+    </message>
+    <message>
+        <source>%1 properties</source>
+        <translation>%1 properties</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>Title</translation>
+    </message>
+    <message>
+        <source>Original title</source>
+        <translation>Original title</translation>
+    </message>
+    <message>
+        <source>Artist</source>
+        <translation>Artist</translation>
+    </message>
+    <message>
+        <source>Original artist</source>
+        <translation>Original artist</translation>
+    </message>
+    <message>
+        <source>Difficulty name</source>
+        <translation>Difficulty name</translation>
+    </message>
+    <message>
+        <source>Creator</source>
+        <translation>Creator</translation>
+    </message>
+    <message>
+        <source>Audio reference</source>
+        <translation>Audio reference</translation>
+    </message>
+    <message>
+        <source>Background reference</source>
+        <translation>Background reference</translation>
+    </message>
+    <message>
+        <source>Preview time</source>
+        <translation>Preview time</translation>
+    </message>
+    <message>
+        <source>First BPM</source>
+        <translation>First BPM</translation>
+    </message>
+    <message>
+        <source>Offset</source>
+        <translation>Offset</translation>
+    </message>
+    <message>
+        <source>Fall speed</source>
+        <translation>Fall speed</translation>
+    </message>
+    <message>
+        <source>Normal</source>
+        <translation>Normal</translation>
+    </message>
+    <message>
+        <source>Rain</source>
+        <translation>Rain</translation>
+    </message>
+    <message>
+        <source>Sound</source>
+        <translation>Sound</translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation>Unknown</translation>
+    </message>
+    <message>
+        <source>Mixed</source>
+        <translation>Mixed</translation>
+    </message>
 </context>
 <context>
     <name>SpeedPopup</name>
@@ -6353,6 +6441,1039 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>End</source>
         <translation>End</translation>
+    </message>
+</context>
+<context>
+    <name>CceReview::ReviewWorkspace</name>
+    <message>
+        <source>Document update failed: %1</source>
+        <translation>Document update failed: %1</translation>
+    </message>
+    <message>
+        <source>Choose an unlocked layer before editing.</source>
+        <translation>Choose an unlocked layer before editing.</translation>
+    </message>
+    <message>
+        <source>Edit shared layer</source>
+        <translation>Edit shared layer</translation>
+    </message>
+    <message>
+        <source>Layer “%1” is shared by %2 difficulties. Editing it affects all of them.</source>
+        <translation>Layer “%1” is shared by %2 difficulties. Editing it affects all of them.</translation>
+    </message>
+    <message>
+        <source>Edit Shared Layer</source>
+        <translation>Edit Shared Layer</translation>
+    </message>
+    <message>
+        <source>Copy as Independent Layer</source>
+        <translation>Copy as Independent Layer</translation>
+    </message>
+    <message>
+        <source>Make layer independent</source>
+        <translation>Make layer independent</translation>
+    </message>
+    <message>
+        <source>Base is read only.</source>
+        <translation>Base is read only.</translation>
+    </message>
+    <message>
+        <source>Update project</source>
+        <translation>Update project</translation>
+    </message>
+    <message>
+        <source>Cannot read resource: %1</source>
+        <translation>Cannot read resource: %1</translation>
+    </message>
+    <message>
+        <source>Missing resource: %1</source>
+        <translation>Missing resource: %1</translation>
+    </message>
+    <message>
+        <source>Project saved.</source>
+        <translation>Project saved.</translation>
+    </message>
+    <message>
+        <source>Open project</source>
+        <translation>Open project</translation>
+    </message>
+    <message>
+        <source>Create or select a local identity first.</source>
+        <translation>Create or select a local identity first.</translation>
+    </message>
+    <message>
+        <source>Start or import a proposal first.</source>
+        <translation>Start or import a proposal first.</translation>
+    </message>
+    <message>
+        <source>Select a local identity first.</source>
+        <translation>Select a local identity first.</translation>
+    </message>
+    <message>
+        <source>Cannot reconstruct the proposal.</source>
+        <translation>Cannot reconstruct the proposal.</translation>
+    </message>
+    <message>
+        <source>Proposal exported.</source>
+        <translation>Proposal exported.</translation>
+    </message>
+    <message>
+        <source>Open the corresponding CCE project before importing this proposal.</source>
+        <translation>Open the corresponding CCE project before importing this proposal.</translation>
+    </message>
+    <message>
+        <source>This proposal's base does not match the current chart or audio.</source>
+        <translation>This proposal's base does not match the current chart or audio.</translation>
+    </message>
+    <message>
+        <source>Import proposal revision</source>
+        <translation>Import proposal revision</translation>
+    </message>
+    <message>
+        <source>Revision conflicts require review: %1</source>
+        <translation>Revision conflicts require review: %1</translation>
+    </message>
+    <message>
+        <source>Select at least one change to apply.</source>
+        <translation>Select at least one change to apply.</translation>
+    </message>
+    <message>
+        <source>Resolve the selected conflicts before applying.</source>
+        <translation>Resolve the selected conflicts before applying.</translation>
+    </message>
+    <message>
+        <source>Apply reviewed changes</source>
+        <translation>Apply reviewed changes</translation>
+    </message>
+    <message>
+        <source>Reviewed changes applied as one undoable operation.</source>
+        <translation>Reviewed changes applied as one undoable operation.</translation>
+    </message>
+    <message>
+        <source>No proposal to rebase.</source>
+        <translation>No proposal to rebase.</translation>
+    </message>
+    <message>
+        <source>Resolve conflicts before rebasing.</source>
+        <translation>Resolve conflicts before rebasing.</translation>
+    </message>
+    <message>
+        <source>Rebase proposal</source>
+        <translation>Rebase proposal</translation>
+    </message>
+    <message>
+        <source>BASE — READ ONLY</source>
+        <translation>BASE — READ ONLY</translation>
+    </message>
+    <message>
+        <source>Local comment</source>
+        <translation>Local comment</translation>
+    </message>
+    <message>
+        <source>Project &amp; Review</source>
+        <translation>Project &amp; Review</translation>
+    </message>
+    <message>
+        <source>Layers, Comments and Review…</source>
+        <translation>Layers, Comments and Review…</translation>
+    </message>
+    <message>
+        <source>Local Identities…</source>
+        <translation>Local Identities…</translation>
+    </message>
+    <message>
+        <source>Open CCE Project…</source>
+        <translation>Open CCE Project…</translation>
+    </message>
+    <message>
+        <source>CCE Projects (*.cceproj)</source>
+        <translation>CCE Projects (*.cceproj)</translation>
+    </message>
+    <message>
+        <source>Save Project…</source>
+        <translation>Save Project…</translation>
+    </message>
+    <message>
+        <source>Export Difficulty as .mc…</source>
+        <translation>Export Difficulty as .mc…</translation>
+    </message>
+    <message>
+        <source>Export Selected Layer as .mc…</source>
+        <translation>Export Selected Layer as .mc…</translation>
+    </message>
+    <message>
+        <source>Create Proposal…</source>
+        <translation>Create Proposal…</translation>
+    </message>
+    <message>
+        <source>Create proposal</source>
+        <translation>Create proposal</translation>
+    </message>
+    <message>
+        <source>Description:</source>
+        <translation>Description:</translation>
+    </message>
+    <message>
+        <source>Import .ccepr…</source>
+        <translation>Import .ccepr…</translation>
+    </message>
+    <message>
+        <source>Import proposal</source>
+        <translation>Import proposal</translation>
+    </message>
+    <message>
+        <source>CCE Review Packages (*.ccepr)</source>
+        <translation>CCE Review Packages (*.ccepr)</translation>
+    </message>
+    <message>
+        <source>Export .ccepr…</source>
+        <translation>Export .ccepr…</translation>
+    </message>
+    <message>
+        <source>Export proposal</source>
+        <translation>Export proposal</translation>
+    </message>
+    <message>
+        <source>Edit Proposal</source>
+        <translation>Edit Proposal</translation>
+    </message>
+    <message>
+        <source>Peek Base (hold)</source>
+        <translation>Peek Base (hold)</translation>
+    </message>
+    <message>
+        <source>Previous Comment</source>
+        <translation>Previous Comment</translation>
+    </message>
+    <message>
+        <source>Next Comment</source>
+        <translation>Next Comment</translation>
+    </message>
+    <message>
+        <source>Previous Change</source>
+        <translation>Previous Change</translation>
+    </message>
+    <message>
+        <source>Next Change</source>
+        <translation>Next Change</translation>
+    </message>
+    <message>
+        <source>Previous Conflict</source>
+        <translation>Previous Conflict</translation>
+    </message>
+    <message>
+        <source>Next Conflict</source>
+        <translation>Next Conflict</translation>
+    </message>
+    <message>
+        <source>Recover Local Review Workspace…</source>
+        <translation>Recover Local Review Workspace…</translation>
+    </message>
+    <message>
+        <source>Layers and Chart Review</source>
+        <translation>Layers and Chart Review</translation>
+    </message>
+    <message>
+        <source>Proposal Only</source>
+        <translation>Proposal Only</translation>
+    </message>
+    <message>
+        <source>Diff Overlay</source>
+        <translation>Diff Overlay</translation>
+    </message>
+    <message>
+        <source>Base · Read Only</source>
+        <translation>Base · Read Only</translation>
+    </message>
+    <message>
+        <source>Peek Base</source>
+        <translation>Peek Base</translation>
+    </message>
+    <message>
+        <source>New</source>
+        <translation>New</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>Rename</translation>
+    </message>
+    <message>
+        <source>Duplicate</source>
+        <translation>Duplicate</translation>
+    </message>
+    <message>
+        <source>Import .mc…</source>
+        <translation>Import .mc…</translation>
+    </message>
+    <message>
+        <source>Switch difficulty</source>
+        <translation>Switch difficulty</translation>
+    </message>
+    <message>
+        <source>Layer</source>
+        <translation>Layer</translation>
+    </message>
+    <message>
+        <source>Visible</source>
+        <translation>Visible</translation>
+    </message>
+    <message>
+        <source>Locked</source>
+        <translation>Locked</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Export</translation>
+    </message>
+    <message>
+        <source>Opacity %</source>
+        <translation>Opacity %</translation>
+    </message>
+    <message>
+        <source>Shared by</source>
+        <translation>Shared by</translation>
+    </message>
+    <message>
+        <source>Update layer binding</source>
+        <translation>Update layer binding</translation>
+    </message>
+    <message>
+        <source>New Layer</source>
+        <translation>New Layer</translation>
+    </message>
+    <message>
+        <source>Share Existing…</source>
+        <translation>Share Existing…</translation>
+    </message>
+    <message>
+        <source>Make Independent</source>
+        <translation>Make Independent</translation>
+    </message>
+    <message>
+        <source>Unbind</source>
+        <translation>Unbind</translation>
+    </message>
+    <message>
+        <source>Up</source>
+        <translation>Up</translation>
+    </message>
+    <message>
+        <source>Down</source>
+        <translation>Down</translation>
+    </message>
+    <message>
+        <source>Move Selection into Layer</source>
+        <translation>Move Selection into Layer</translation>
+    </message>
+    <message>
+        <source>Copy Selection into Layer</source>
+        <translation>Copy Selection into Layer</translation>
+    </message>
+    <message>
+        <source>Export Layer…</source>
+        <translation>Export Layer…</translation>
+    </message>
+    <message>
+        <source>Live references (read only; excluded from statistics and export)</source>
+        <translation>Live references (read only; excluded from statistics and export)</translation>
+    </message>
+    <message>
+        <source>Add Reference…</source>
+        <translation>Add Reference…</translation>
+    </message>
+    <message>
+        <source>Remove Reference</source>
+        <translation>Remove Reference</translation>
+    </message>
+    <message>
+        <source>Remove reference</source>
+        <translation>Remove reference</translation>
+    </message>
+    <message>
+        <source>Layers &amp; Difficulties</source>
+        <translation>Layers &amp; Difficulties</translation>
+    </message>
+    <message>
+        <source>Save Proposal as Difficulty</source>
+        <translation>Save Proposal as Difficulty</translation>
+    </message>
+    <message>
+        <source> (proposal)</source>
+        <translation> (proposal)</translation>
+    </message>
+    <message>
+        <source>Save proposal as difficulty</source>
+        <translation>Save proposal as difficulty</translation>
+    </message>
+    <message>
+        <source>Rebase</source>
+        <translation>Rebase</translation>
+    </message>
+    <message>
+        <source>All Changes</source>
+        <translation>All Changes</translation>
+    </message>
+    <message>
+        <source>Conflicts</source>
+        <translation>Conflicts</translation>
+    </message>
+    <message>
+        <source>Data</source>
+        <translation>Data</translation>
+    </message>
+    <message>
+        <source>Change</source>
+        <translation>Change</translation>
+    </message>
+    <message>
+        <source>Before</source>
+        <translation>Before</translation>
+    </message>
+    <message>
+        <source>After</source>
+        <translation>After</translation>
+    </message>
+    <message>
+        <source>Decision</source>
+        <translation>Decision</translation>
+    </message>
+    <message>
+        <source>Apply state</source>
+        <translation>Apply state</translation>
+    </message>
+    <message>
+        <source>Accept</source>
+        <translation>Accept</translation>
+    </message>
+    <message>
+        <source>Reject</source>
+        <translation>Reject</translation>
+    </message>
+    <message>
+        <source>Pending</source>
+        <translation>Pending</translation>
+    </message>
+    <message>
+        <source>Link as Move</source>
+        <translation>Link as Move</translation>
+    </message>
+    <message>
+        <source>Use Proposal</source>
+        <translation>Use Proposal</translation>
+    </message>
+    <message>
+        <source>Keep Current</source>
+        <translation>Keep Current</translation>
+    </message>
+    <message>
+        <source>Apply Selected</source>
+        <translation>Apply Selected</translation>
+    </message>
+    <message>
+        <source>Apply Accepted</source>
+        <translation>Apply Accepted</translation>
+    </message>
+    <message>
+        <source>Diff &amp; Conflict</source>
+        <translation>Diff &amp; Conflict</translation>
+    </message>
+    <message>
+        <source>Author</source>
+        <translation>Author</translation>
+    </message>
+    <message>
+        <source>Comment</source>
+        <translation>Comment</translation>
+    </message>
+    <message>
+        <source>State</source>
+        <translation>State</translation>
+    </message>
+    <message>
+        <source>Anchor</source>
+        <translation>Anchor</translation>
+    </message>
+    <message>
+        <source>Add Comment…</source>
+        <translation>Add Comment…</translation>
+    </message>
+    <message>
+        <source>Add comment</source>
+        <translation>Add comment</translation>
+    </message>
+    <message>
+        <source>Comment:</source>
+        <translation>Comment:</translation>
+    </message>
+    <message>
+        <source>Reply…</source>
+        <translation>Reply…</translation>
+    </message>
+    <message>
+        <source>Reply</source>
+        <translation>Reply</translation>
+    </message>
+    <message>
+        <source>Reply:</source>
+        <translation>Reply:</translation>
+    </message>
+    <message>
+        <source>Reply to comment</source>
+        <translation>Reply to comment</translation>
+    </message>
+    <message>
+        <source>Edit…</source>
+        <translation>Edit…</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Delete</translation>
+    </message>
+    <message>
+        <source>Resolve</source>
+        <translation>Resolve</translation>
+    </message>
+    <message>
+        <source>Reopen</source>
+        <translation>Reopen</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Previous</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Next</translation>
+    </message>
+    <message>
+        <source>Comments</source>
+        <translation>Comments</translation>
+    </message>
+    <message>
+        <source>Export Metadata</source>
+        <translation>Export Metadata</translation>
+    </message>
+    <message>
+        <source>Event Log</source>
+        <translation>Event Log</translation>
+    </message>
+    <message>
+        <source>Author: %1</source>
+        <translation>Author: %1</translation>
+    </message>
+    <message>
+        <source>No identity selected</source>
+        <translation>No identity selected</translation>
+    </message>
+    <message>
+        <source> · whole difficulty</source>
+        <translation> · whole difficulty</translation>
+    </message>
+    <message>
+        <source> · %1 layers</source>
+        <translation> · %1 layers</translation>
+    </message>
+    <message>
+        <source>Ready to apply</source>
+        <translation>Ready to apply</translation>
+    </message>
+    <message>
+        <source>Revision conflict</source>
+        <translation>Revision conflict</translation>
+    </message>
+    <message>
+        <source>Conflict</source>
+        <translation>Conflict</translation>
+    </message>
+    <message>
+        <source>Select one or more notes first.</source>
+        <translation>Select one or more notes first.</translation>
+    </message>
+    <message>
+        <source>A Note anchor requires exactly one selected note.</source>
+        <translation>A Note anchor requires exactly one selected note.</translation>
+    </message>
+    <message>
+        <source>BPM entry</source>
+        <translation>BPM entry</translation>
+    </message>
+    <message>
+        <source>Entry:</source>
+        <translation>Entry:</translation>
+    </message>
+    <message>
+        <source>Edit comment</source>
+        <translation>Edit comment</translation>
+    </message>
+    <message>
+        <source>Delete comment</source>
+        <translation>Delete comment</translation>
+    </message>
+    <message>
+        <source>Resolve comment</source>
+        <translation>Resolve comment</translation>
+    </message>
+    <message>
+        <source>Reopen comment</source>
+        <translation>Reopen comment</translation>
+    </message>
+    <message>
+        <source>Update review decision</source>
+        <translation>Update review decision</translation>
+    </message>
+    <message>
+        <source>Select one removal and one addition while editing the proposal.</source>
+        <translation>Select one removal and one addition while editing the proposal.</translation>
+    </message>
+    <message>
+        <source>Choose a Note removal and addition from the same layer.</source>
+        <translation>Choose a Note removal and addition from the same layer.</translation>
+    </message>
+    <message>
+        <source>Resolve revision conflict</source>
+        <translation>Resolve revision conflict</translation>
+    </message>
+    <message>
+        <source>This object conflict requires editing the target or rebasing; it cannot be overwritten as one field.</source>
+        <translation>This object conflict requires editing the target or rebasing; it cannot be overwritten as one field.</translation>
+    </message>
+    <message>
+        <source>New layer</source>
+        <translation>New layer</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Name:</translation>
+    </message>
+    <message>
+        <source>Rename layer</source>
+        <translation>Rename layer</translation>
+    </message>
+    <message>
+        <source>Share existing layers</source>
+        <translation>Share existing layers</translation>
+    </message>
+    <message>
+        <source>Keep at least one layer in a difficulty.</source>
+        <translation>Keep at least one layer in a difficulty.</translation>
+    </message>
+    <message>
+        <source>Edit project layers</source>
+        <translation>Edit project layers</translation>
+    </message>
+    <message>
+        <source>Difficulty</source>
+        <translation>Difficulty</translation>
+    </message>
+    <message>
+        <source> copy</source>
+        <translation> copy</translation>
+    </message>
+    <message>
+        <source>Base</source>
+        <translation>Base</translation>
+    </message>
+    <message>
+        <source>Edit project difficulty</source>
+        <translation>Edit project difficulty</translation>
+    </message>
+    <message>
+        <source>Import difficulty</source>
+        <translation>Import difficulty</translation>
+    </message>
+    <message>
+        <source>Malody Charts (*.mc)</source>
+        <translation>Malody Charts (*.mc)</translation>
+    </message>
+    <message>
+        <source>Cannot read chart.</source>
+        <translation>Cannot read chart.</translation>
+    </message>
+    <message>
+        <source>Import or create another difficulty first.</source>
+        <translation>Import or create another difficulty first.</translation>
+    </message>
+    <message>
+        <source>Reference difficulty</source>
+        <translation>Reference difficulty</translation>
+    </message>
+    <message>
+        <source>Source:</source>
+        <translation>Source:</translation>
+    </message>
+    <message>
+        <source>Reference layers (select all for the whole difficulty)</source>
+        <translation>Reference layers (select all for the whole difficulty)</translation>
+    </message>
+    <message>
+        <source>Add live reference</source>
+        <translation>Add live reference</translation>
+    </message>
+    <message>
+        <source>Export Metadata Configuration</source>
+        <translation>Export Metadata Configuration</translation>
+    </message>
+    <message>
+        <source>Choose fields included in exported .mc files. Stored chart values remain independent.</source>
+        <translation>Choose fields included in exported .mc files. Stored chart values remain independent.</translation>
+    </message>
+    <message>
+        <source>Change export metadata configuration</source>
+        <translation>Change export metadata configuration</translation>
+    </message>
+    <message>
+        <source>Export chart</source>
+        <translation>Export chart</translation>
+    </message>
+    <message>
+        <source>Chart exported.</source>
+        <translation>Chart exported.</translation>
+    </message>
+    <message>
+        <source>Save CCE project</source>
+        <translation>Save CCE project</translation>
+    </message>
+    <message>
+        <source>Save project</source>
+        <translation>Save project</translation>
+    </message>
+    <message>
+        <source>Save changes to the local project and review data?</source>
+        <translation>Save changes to the local project and review data?</translation>
+    </message>
+    <message>
+        <source>Create or import a proposal first.</source>
+        <translation>Create or import a proposal first.</translation>
+    </message>
+    <message>
+        <source>Edit proposal</source>
+        <translation>Edit proposal</translation>
+    </message>
+
+    <message>
+        <source>Keep existing objects; apply proposal separately</source>
+        <translation>Keep existing objects; apply proposal separately</translation>
+    </message>
+    <message>
+        <source>Resolve object conflict</source>
+        <translation>Resolve object conflict</translation>
+    </message>
+    <message>
+        <source>Choose the current object to replace or remove:</source>
+        <translation>Choose the current object to replace or remove:</translation>
+    </message>
+
+    <message>
+        <source>Add Comment Here…</source>
+        <translation>Add Comment Here…</translation>
+    </message>
+    <message>
+        <source>Show Comments</source>
+        <translation>Show Comments</translation>
+    </message>
+    <message>
+        <source>Review Changes…</source>
+        <translation>Review Changes…</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Review</translation>
+    </message>
+
+    <message>
+        <source>Editing</source>
+        <translation>Editing</translation>
+    </message>
+    <message>
+        <source>Review &amp; Layers</source>
+        <translation>Review &amp; Layers</translation>
+    </message>
+    <message>
+        <source>Layers</source>
+        <translation>Layers</translation>
+    </message>
+    <message>
+        <source>Active layer</source>
+        <translation>Active layer</translation>
+    </message>
+    <message>
+        <source>Select a change to review.</source>
+        <translation>Select a change to review.</translation>
+    </message>
+
+    <message>
+        <source>Expanded</source>
+        <translation>Expanded</translation>
+    </message>
+    <message>
+        <source>Collapsed</source>
+        <translation>Collapsed</translation>
+    </message>
+    <message>
+        <source>Hidden</source>
+        <translation>Hidden</translation>
+    </message>
+
+    <message>
+        <source>Reference status</source>
+        <translation>Reference status</translation>
+    </message>
+    <message>
+        <source>Target missing</source>
+        <translation>Target missing</translation>
+    </message>
+    <message>
+        <source>Ambiguous target</source>
+        <translation>Ambiguous target</translation>
+    </message>
+    <message>
+        <source>Target modified</source>
+        <translation>Target modified</translation>
+    </message>
+
+    <message>
+        <source>All comments</source>
+        <translation>All comments</translation>
+    </message>
+    <message>
+        <source>Unresolved</source>
+        <translation>Unresolved</translation>
+    </message>
+    <message>
+        <source>Resolved</source>
+        <translation>Resolved</translation>
+    </message>
+
+    <message>
+        <source>Review &amp; Layers (Experimental)</source>
+        <translation>Review &amp; Layers (Experimental)</translation>
+    </message>
+    <message>
+        <source>Layers, Comments and Review… (Experimental)</source>
+        <translation>Layers, Comments and Review… (Experimental)</translation>
+    </message>
+    <message>
+        <source>Layers (Experimental)</source>
+        <translation>Layers (Experimental)</translation>
+    </message>
+    <message>
+        <source>Review (Experimental)</source>
+        <translation>Review (Experimental)</translation>
+    </message>
+    <message>
+        <source>Experimental: layers and .ccepr review. Use a chart copy and verify the result before replacing your chart.</source>
+        <translation>Experimental: layers and .ccepr review. Use a chart copy and verify the result before replacing your chart.</translation>
+    </message>
+
+    <message>
+        <source>Select Dependency Group</source>
+        <translation>Select Dependency Group</translation>
+    </message>
+    <message>
+        <source>Select the dependency group before applying these changes.</source>
+        <translation>Select the dependency group before applying these changes.</translation>
+    </message>
+    <message>
+        <source>No proposal to save.</source>
+        <translation>No proposal to save.</translation>
+    </message>
+</context>
+<context>
+    <name>CceReviewUi::IdentityDialog</name>
+    <message>
+        <source>Local identities</source>
+        <translation>Local identities</translation>
+    </message>
+    <message>
+        <source>Create</source>
+        <translation>Create</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>Rename</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Delete</translation>
+    </message>
+    <message>
+        <source>Set as current</source>
+        <translation>Set as current</translation>
+    </message>
+    <message>
+        <source>Current identity: none</source>
+        <translation>Current identity: none</translation>
+    </message>
+    <message>
+        <source>Current identity: %1</source>
+        <translation>Current identity: %1</translation>
+    </message>
+    <message>
+        <source>%1 (current)</source>
+        <translation>%1 (current)</translation>
+    </message>
+    <message>
+        <source>Identity store is unavailable.</source>
+        <translation>Identity store is unavailable.</translation>
+    </message>
+    <message>
+        <source>Create identity</source>
+        <translation>Create identity</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Name:</translation>
+    </message>
+    <message>
+        <source>Rename identity</source>
+        <translation>Rename identity</translation>
+    </message>
+    <message>
+        <source>Delete identity</source>
+        <translation>Delete identity</translation>
+    </message>
+    <message>
+        <source>Delete the local identity '%1'? Historical signatures will remain unchanged.</source>
+        <translation>Delete the local identity '%1'? Historical signatures will remain unchanged.</translation>
+    </message>
+</context>
+<context>
+    <name>CceReviewUi::NoteInspector</name>
+    <message>
+        <source>Type:</source>
+        <translation>Type:</translation>
+    </message>
+    <message>
+        <source>Beat (whole:numerator/denominator):</source>
+        <translation>Beat (whole:numerator/denominator):</translation>
+    </message>
+    <message>
+        <source>X (0–512):</source>
+        <translation>X (0–512):</translation>
+    </message>
+    <message>
+        <source>Rain end beat:</source>
+        <translation>Rain end beat:</translation>
+    </message>
+    <message>
+        <source>Sound file:</source>
+        <translation>Sound file:</translation>
+    </message>
+    <message>
+        <source>Sound volume (0–100):</source>
+        <translation>Sound volume (0–100):</translation>
+    </message>
+    <message>
+        <source>Sound offset (ms):</source>
+        <translation>Sound offset (ms):</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Apply</translation>
+    </message>
+    <message>
+        <source>—</source>
+        <translation>—</translation>
+    </message>
+    <message>
+        <source>Not applicable to all selected notes</source>
+        <translation>Not applicable to all selected notes</translation>
+    </message>
+    <message>
+        <source>Mixed</source>
+        <translation>Mixed</translation>
+    </message>
+    <message>
+        <source>Before: %1   After: %2</source>
+        <translation>Before: %1   After: %2</translation>
+    </message>
+    <message>
+        <source>Before: %1    After: %2</source>
+        <translation>Before: %1    After: %2</translation>
+    </message>
+    <message>
+        <source>Beat</source>
+        <translation>Beat</translation>
+    </message>
+    <message>
+        <source>X</source>
+        <translation>X</translation>
+    </message>
+    <message>
+        <source>Rain end beat</source>
+        <translation>Rain end beat</translation>
+    </message>
+    <message>
+        <source>Sound file</source>
+        <translation>Sound file</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>Volume</translation>
+    </message>
+    <message>
+        <source>Offset</source>
+        <translation>Offset</translation>
+    </message>
+    <message>
+        <source>No notes selected</source>
+        <translation>No notes selected</translation>
+    </message>
+    <message>
+        <source>This inspector is read-only.</source>
+        <translation>This inspector is read-only.</translation>
+    </message>
+    <message>
+        <source>No chart is available.</source>
+        <translation>No chart is available.</translation>
+    </message>
+    <message>
+        <source>Select one or more notes first.</source>
+        <translation>Select one or more notes first.</translation>
+    </message>
+    <message>
+        <source>Beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</source>
+        <translation>Beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</translation>
+    </message>
+    <message>
+        <source>X must be an integer from 0 to 512.</source>
+        <translation>X must be an integer from 0 to 512.</translation>
+    </message>
+    <message>
+        <source>Rain end beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</source>
+        <translation>Rain end beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</translation>
+    </message>
+    <message>
+        <source>Sound file cannot be empty.</source>
+        <translation>Sound file cannot be empty.</translation>
+    </message>
+    <message>
+        <source>Sound volume must be an integer from 0 to 100.</source>
+        <translation>Sound volume must be an integer from 0 to 100.</translation>
+    </message>
+    <message>
+        <source>Sound offset must be an integer number of milliseconds.</source>
+        <translation>Sound offset must be an integer number of milliseconds.</translation>
+    </message>
+    <message>
+        <source>X and Rain end beat can only be edited when every selected note supports them.</source>
+        <translation>X and Rain end beat can only be edited when every selected note supports them.</translation>
+    </message>
+    <message>
+        <source>Sound properties can only be edited when every selected note is a Sound note.</source>
+        <translation>Sound properties can only be edited when every selected note is a Sound note.</translation>
+    </message>
+    <message>
+        <source>Rain end beat can only be edited when every selected note is Rain.</source>
+        <translation>Rain end beat can only be edited when every selected note is Rain.</translation>
+    </message>
+    <message>
+        <source>The proposed values would make at least one selected note invalid.</source>
+        <translation>The proposed values would make at least one selected note invalid.</translation>
+    </message>
+    <message>
+        <source>The chart rejected this edit.</source>
+        <translation>The chart rejected this edit.</translation>
     </message>
 </context>
 </TS>

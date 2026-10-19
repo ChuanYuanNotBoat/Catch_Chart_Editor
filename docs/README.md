@@ -3,7 +3,7 @@
 > 当前版本：**Beta v1.11.2（2026-09-19）**
 > 仓库状态：**v1.11.2 后续维护（Unreleased）**
 > Git 标签：`v1.11.2`
-> 索引最后核对：2026-10-01
+> 索引最后核对：2026-10-19
 
 ## 用户文档
 
@@ -19,12 +19,12 @@
 | 文档 | 用途 |
 |------|------|
 | [AI_PROJECT_GUIDE.md](AI_PROJECT_GUIDE.md) | 当前源码结构、关键数据流、构建测试和维护约束 |
-| [ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md) | `.mc` / `.mcz`、模型、坐标、插件、sidecar 和 Malody 引擎兼容参考 |
+| [ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md) | `.mc` / `.mcz` / `.cceproj` / `.ccepr`、模型、坐标、插件、sidecar 和 Malody 引擎兼容参考 |
 | [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md) | 统一快捷键命令清单、上下文和保留手势 |
 | [BPM_ADVANCED_EDITOR.md](BPM_ADVANCED_EDITOR.md) | 非模态 BPM 曲线、手动测量、插值、预览应用和后台更新约束 |
 | [NOTE_CHAIN_EDITOR.md](NOTE_CHAIN_EDITOR.md) | 原生 C++ 曲线编辑器的状态、交互、持久化、撤销和性能约束 |
 | [Autotiming.md](Autotiming.md) | AutoTiming 自动节拍检测流程与公共接口 |
-| [AE_AC_GUI_BUGFIX_PLAN.md](AE_AC_GUI_BUGFIX_PLAN.md) | AE/AC 的 Normal、Advanced、Debug 三层界面、配置/Profile、时间与轨道基础、已知问题及实施顺序 |
+| [archive/AE_AC_GUI_BUGFIX_PLAN_2026-10-08.md](archive/AE_AC_GUI_BUGFIX_PLAN_2026-10-08.md) | 已完成的 AE/AC 界面与修复实施计划；当前行为见 ANALYSIS_EDITOR.md |
 | [ENGINEERING_TODO.md](ENGINEERING_TODO.md) | 已审计的性能/可靠性事项、验收门槛与未来重构决策 |
 | [LOCAL_REVIEW_IMPLEMENTATION.md](LOCAL_REVIEW_IMPLEMENTATION.md) | 本地身份、图层、独立评论、PR 编辑与多轮 `.ccepr` 的确认契约及实施阶段 |
 | [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) | 多难度、图层剪贴板/跨 MC 转移、Meta 同步、新建 MC、审图、版本、osu!ctb、移动端与通用核心的长期规划 |

@@ -926,6 +926,8 @@ void ChartCanvas::showStandardContextMenu(QMouseEvent *event)
 {
     QMenu menu(this);
     applyContextMenuTheme(&menu);
+    emit extendContextMenu(&menu,event->position());
+    if(!menu.isEmpty())menu.addSeparator();
     QAction *playFromRefAction = menu.addAction(tr("Play from Reference Time"));
     QAction *pasteAction = menu.addAction(tr("Paste"));
     pasteAction->setEnabled(m_selectionController && !m_selectionController->getClipboard().isEmpty());
@@ -1237,6 +1239,13 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
 
 void ChartCanvas::mousePressEvent(QMouseEvent *event)
 {
+    if (m_displayChart) {
+        if(event->button()==Qt::RightButton) {
+            QMenu menu(this);applyContextMenuTheme(&menu);emit extendContextMenu(&menu,event->position());
+            if(!menu.isEmpty())menu.exec(event->globalPos());event->accept();return;
+        }
+        event->ignore();return;
+    }
     setFocus();
 
     // NoteChain native: dispatch before plugin
@@ -1313,6 +1322,7 @@ void ChartCanvas::mousePressEvent(QMouseEvent *event)
 
 void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
 {
+    if (m_displayChart) { event->ignore(); return; }
     // NoteChain native: dispatch before plugin
     if (m_noteChainModeActive && m_noteChainEditor) {
         if (ChartCanvas_dispatchNoteChainMouseMove(this, event)) {
@@ -1561,6 +1571,7 @@ bool ChartCanvas::handleGenericDragRelease()
 
 void ChartCanvas::mouseReleaseEvent(QMouseEvent *event)
 {
+    if (m_displayChart) { event->ignore(); return; }
     // NoteChain native: dispatch before plugin
     if (m_noteChainModeActive && m_noteChainEditor) {
         if (ChartCanvas_dispatchNoteChainMouseRelease(this, event)) {

@@ -4185,6 +4185,94 @@ Do you want to rename the imported file?</source>
         <source>Audio Conversion</source>
         <translation>オーディオ変換</translation>
     </message>
+    <message>
+        <source>—</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>No</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>%1 items</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>%1 properties</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Title</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Original title</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Artist</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Original artist</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Difficulty name</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Creator</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Audio reference</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Background reference</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Preview time</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>First BPM</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Offset</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Fall speed</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Normal</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Rain</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Sound</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Mixed</source>
+        <translation type="unfinished" />
+    </message>
 </context>
 <context>
     <name>SpeedPopup</name>
@@ -6382,6 +6470,1039 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>End</source>
         <translation>終了</translation>
+    </message>
+</context>
+<context>
+    <name>CceReview::ReviewWorkspace</name>
+    <message>
+        <source>Document update failed: %1</source>
+        <translation>ドキュメントの更新に失敗しました: %1</translation>
+    </message>
+    <message>
+        <source>Choose an unlocked layer before editing.</source>
+        <translation>編集する前にロックされていないレイヤーを選択してください。</translation>
+    </message>
+    <message>
+        <source>Edit shared layer</source>
+        <translation>共有レイヤーを編集</translation>
+    </message>
+    <message>
+        <source>Layer “%1” is shared by %2 difficulties. Editing it affects all of them.</source>
+        <translation>レイヤー「%1」は%2個の譜面で共有されています。編集するとすべてに影響します。</translation>
+    </message>
+    <message>
+        <source>Edit Shared Layer</source>
+        <translation>共有レイヤーを編集</translation>
+    </message>
+    <message>
+        <source>Copy as Independent Layer</source>
+        <translation>独立したレイヤーとしてコピー</translation>
+    </message>
+    <message>
+        <source>Make layer independent</source>
+        <translation>レイヤーを独立させる</translation>
+    </message>
+    <message>
+        <source>Base is read only.</source>
+        <translation>ベースは読み取り専用です。</translation>
+    </message>
+    <message>
+        <source>Update project</source>
+        <translation>プロジェクトを更新</translation>
+    </message>
+    <message>
+        <source>Cannot read resource: %1</source>
+        <translation>リソースを読み込めません: %1</translation>
+    </message>
+    <message>
+        <source>Missing resource: %1</source>
+        <translation>リソースがありません: %1</translation>
+    </message>
+    <message>
+        <source>Project saved.</source>
+        <translation>プロジェクトを保存しました。</translation>
+    </message>
+    <message>
+        <source>Open project</source>
+        <translation>プロジェクトを開く</translation>
+    </message>
+    <message>
+        <source>Create or select a local identity first.</source>
+        <translation>先にローカルIDを作成または選択してください。</translation>
+    </message>
+    <message>
+        <source>Start or import a proposal first.</source>
+        <translation>先に提案を作成またはインポートしてください。</translation>
+    </message>
+    <message>
+        <source>Select a local identity first.</source>
+        <translation>先にローカルIDを選択してください。</translation>
+    </message>
+    <message>
+        <source>Cannot reconstruct the proposal.</source>
+        <translation>提案を再構築できません。</translation>
+    </message>
+    <message>
+        <source>Proposal exported.</source>
+        <translation>提案をエクスポートしました。</translation>
+    </message>
+    <message>
+        <source>Open the corresponding CCE project before importing this proposal.</source>
+        <translation>この提案をインポートする前に、対応するCCEプロジェクトを開いてください。</translation>
+    </message>
+    <message>
+        <source>This proposal's base does not match the current chart or audio.</source>
+        <translation>提案のベースが現在の譜面または音声と一致しません。</translation>
+    </message>
+    <message>
+        <source>Import proposal revision</source>
+        <translation>提案のリビジョンをインポート</translation>
+    </message>
+    <message>
+        <source>Revision conflicts require review: %1</source>
+        <translation>リビジョンに確認が必要な競合があります: %1</translation>
+    </message>
+    <message>
+        <source>Select at least one change to apply.</source>
+        <translation>適用する変更を1つ以上選択してください。</translation>
+    </message>
+    <message>
+        <source>Resolve the selected conflicts before applying.</source>
+        <translation>適用する前に選択した競合を解決してください。</translation>
+    </message>
+    <message>
+        <source>Apply reviewed changes</source>
+        <translation>確認済みの変更を適用</translation>
+    </message>
+    <message>
+        <source>Reviewed changes applied as one undoable operation.</source>
+        <translation>確認済みの変更を1回の取り消し可能な操作として適用しました。</translation>
+    </message>
+    <message>
+        <source>No proposal to rebase.</source>
+        <translation>リベースする提案がありません。</translation>
+    </message>
+    <message>
+        <source>Resolve conflicts before rebasing.</source>
+        <translation>リベースする前に競合を解決してください。</translation>
+    </message>
+    <message>
+        <source>Rebase proposal</source>
+        <translation>提案をリベース</translation>
+    </message>
+    <message>
+        <source>BASE — READ ONLY</source>
+        <translation>ベース — 読み取り専用</translation>
+    </message>
+    <message>
+        <source>Local comment</source>
+        <translation>ローカルコメント</translation>
+    </message>
+    <message>
+        <source>Project &amp; Review</source>
+        <translation>プロジェクトとレビュー</translation>
+    </message>
+    <message>
+        <source>Layers, Comments and Review…</source>
+        <translation>レイヤー、コメントとレビュー…</translation>
+    </message>
+    <message>
+        <source>Local Identities…</source>
+        <translation>ローカルID…</translation>
+    </message>
+    <message>
+        <source>Open CCE Project…</source>
+        <translation>CCEプロジェクトを開く…</translation>
+    </message>
+    <message>
+        <source>CCE Projects (*.cceproj)</source>
+        <translation>CCEプロジェクト (*.cceproj)</translation>
+    </message>
+    <message>
+        <source>Save Project…</source>
+        <translation>プロジェクトを保存…</translation>
+    </message>
+    <message>
+        <source>Export Difficulty as .mc…</source>
+        <translation>譜面を.mcとしてエクスポート…</translation>
+    </message>
+    <message>
+        <source>Export Selected Layer as .mc…</source>
+        <translation>選択レイヤーを.mcとしてエクスポート…</translation>
+    </message>
+    <message>
+        <source>Create Proposal…</source>
+        <translation>提案を作成…</translation>
+    </message>
+    <message>
+        <source>Create proposal</source>
+        <translation>提案を作成</translation>
+    </message>
+    <message>
+        <source>Description:</source>
+        <translation>説明:</translation>
+    </message>
+    <message>
+        <source>Import .ccepr…</source>
+        <translation>.cceprをインポート…</translation>
+    </message>
+    <message>
+        <source>Import proposal</source>
+        <translation>提案をインポート</translation>
+    </message>
+    <message>
+        <source>CCE Review Packages (*.ccepr)</source>
+        <translation>CCEレビューパッケージ (*.ccepr)</translation>
+    </message>
+    <message>
+        <source>Export .ccepr…</source>
+        <translation>.cceprをエクスポート…</translation>
+    </message>
+    <message>
+        <source>Export proposal</source>
+        <translation>提案をエクスポート</translation>
+    </message>
+    <message>
+        <source>Edit Proposal</source>
+        <translation>提案を編集</translation>
+    </message>
+    <message>
+        <source>Peek Base (hold)</source>
+        <translation>押してベースを確認</translation>
+    </message>
+    <message>
+        <source>Previous Comment</source>
+        <translation>前のコメント</translation>
+    </message>
+    <message>
+        <source>Next Comment</source>
+        <translation>次のコメント</translation>
+    </message>
+    <message>
+        <source>Previous Change</source>
+        <translation>前の変更</translation>
+    </message>
+    <message>
+        <source>Next Change</source>
+        <translation>次の変更</translation>
+    </message>
+    <message>
+        <source>Previous Conflict</source>
+        <translation>前の競合</translation>
+    </message>
+    <message>
+        <source>Next Conflict</source>
+        <translation>次の競合</translation>
+    </message>
+    <message>
+        <source>Recover Local Review Workspace…</source>
+        <translation>ローカルレビューワークスペースを復元…</translation>
+    </message>
+    <message>
+        <source>Layers and Chart Review</source>
+        <translation>レイヤーと譜面のレビュー</translation>
+    </message>
+    <message>
+        <source>Proposal Only</source>
+        <translation>提案のみ</translation>
+    </message>
+    <message>
+        <source>Diff Overlay</source>
+        <translation>差分オーバーレイ</translation>
+    </message>
+    <message>
+        <source>Base · Read Only</source>
+        <translation>ベース · 読み取り専用</translation>
+    </message>
+    <message>
+        <source>Peek Base</source>
+        <translation>ベースを確認</translation>
+    </message>
+    <message>
+        <source>New</source>
+        <translation>新規</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>名前を変更</translation>
+    </message>
+    <message>
+        <source>Duplicate</source>
+        <translation>複製</translation>
+    </message>
+    <message>
+        <source>Import .mc…</source>
+        <translation>.mcをインポート…</translation>
+    </message>
+    <message>
+        <source>Switch difficulty</source>
+        <translation>譜面を切り替え</translation>
+    </message>
+    <message>
+        <source>Layer</source>
+        <translation>レイヤー</translation>
+    </message>
+    <message>
+        <source>Visible</source>
+        <translation>表示</translation>
+    </message>
+    <message>
+        <source>Locked</source>
+        <translation>ロック</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>エクスポート</translation>
+    </message>
+    <message>
+        <source>Opacity %</source>
+        <translation>不透明度 %</translation>
+    </message>
+    <message>
+        <source>Shared by</source>
+        <translation>共有先</translation>
+    </message>
+    <message>
+        <source>Update layer binding</source>
+        <translation>レイヤーの割り当てを更新</translation>
+    </message>
+    <message>
+        <source>New Layer</source>
+        <translation>新しいレイヤー</translation>
+    </message>
+    <message>
+        <source>Share Existing…</source>
+        <translation>既存を共有…</translation>
+    </message>
+    <message>
+        <source>Make Independent</source>
+        <translation>独立させる</translation>
+    </message>
+    <message>
+        <source>Unbind</source>
+        <translation>割り当て解除</translation>
+    </message>
+    <message>
+        <source>Up</source>
+        <translation>上へ</translation>
+    </message>
+    <message>
+        <source>Down</source>
+        <translation>下へ</translation>
+    </message>
+    <message>
+        <source>Move Selection into Layer</source>
+        <translation>選択範囲をレイヤーへ移動</translation>
+    </message>
+    <message>
+        <source>Copy Selection into Layer</source>
+        <translation>選択範囲をレイヤーへコピー</translation>
+    </message>
+    <message>
+        <source>Export Layer…</source>
+        <translation>レイヤーをエクスポート…</translation>
+    </message>
+    <message>
+        <source>Live references (read only; excluded from statistics and export)</source>
+        <translation>ライブ参照（読み取り専用。統計とエクスポートから除外）</translation>
+    </message>
+    <message>
+        <source>Add Reference…</source>
+        <translation>参照を追加…</translation>
+    </message>
+    <message>
+        <source>Remove Reference</source>
+        <translation>参照を削除</translation>
+    </message>
+    <message>
+        <source>Remove reference</source>
+        <translation>参照を削除</translation>
+    </message>
+    <message>
+        <source>Layers &amp; Difficulties</source>
+        <translation>レイヤーと譜面</translation>
+    </message>
+    <message>
+        <source>Save Proposal as Difficulty</source>
+        <translation>提案を譜面として保存</translation>
+    </message>
+    <message>
+        <source> (proposal)</source>
+        <translation> (提案)</translation>
+    </message>
+    <message>
+        <source>Save proposal as difficulty</source>
+        <translation>提案を譜面として保存</translation>
+    </message>
+    <message>
+        <source>Rebase</source>
+        <translation>リベース</translation>
+    </message>
+    <message>
+        <source>All Changes</source>
+        <translation>すべての変更</translation>
+    </message>
+    <message>
+        <source>Conflicts</source>
+        <translation>競合</translation>
+    </message>
+    <message>
+        <source>Data</source>
+        <translation>データ</translation>
+    </message>
+    <message>
+        <source>Change</source>
+        <translation>変更</translation>
+    </message>
+    <message>
+        <source>Before</source>
+        <translation>変更前</translation>
+    </message>
+    <message>
+        <source>After</source>
+        <translation>変更後</translation>
+    </message>
+    <message>
+        <source>Decision</source>
+        <translation>判断</translation>
+    </message>
+    <message>
+        <source>Apply state</source>
+        <translation>適用状態</translation>
+    </message>
+    <message>
+        <source>Accept</source>
+        <translation>承認</translation>
+    </message>
+    <message>
+        <source>Reject</source>
+        <translation>却下</translation>
+    </message>
+    <message>
+        <source>Pending</source>
+        <translation>保留</translation>
+    </message>
+    <message>
+        <source>Link as Move</source>
+        <translation>移動としてリンク</translation>
+    </message>
+    <message>
+        <source>Use Proposal</source>
+        <translation>提案を使用</translation>
+    </message>
+    <message>
+        <source>Keep Current</source>
+        <translation>現在の内容を維持</translation>
+    </message>
+    <message>
+        <source>Apply Selected</source>
+        <translation>選択した変更を適用</translation>
+    </message>
+    <message>
+        <source>Apply Accepted</source>
+        <translation>承認済みを適用</translation>
+    </message>
+    <message>
+        <source>Diff &amp; Conflict</source>
+        <translation>差分と競合</translation>
+    </message>
+    <message>
+        <source>Author</source>
+        <translation>作成者</translation>
+    </message>
+    <message>
+        <source>Comment</source>
+        <translation>コメント</translation>
+    </message>
+    <message>
+        <source>State</source>
+        <translation>状態</translation>
+    </message>
+    <message>
+        <source>Anchor</source>
+        <translation>アンカー</translation>
+    </message>
+    <message>
+        <source>Add Comment…</source>
+        <translation>コメントを追加…</translation>
+    </message>
+    <message>
+        <source>Add comment</source>
+        <translation>コメントを追加</translation>
+    </message>
+    <message>
+        <source>Comment:</source>
+        <translation>コメント:</translation>
+    </message>
+    <message>
+        <source>Reply…</source>
+        <translation>返信…</translation>
+    </message>
+    <message>
+        <source>Reply</source>
+        <translation>返信</translation>
+    </message>
+    <message>
+        <source>Reply:</source>
+        <translation>返信:</translation>
+    </message>
+    <message>
+        <source>Reply to comment</source>
+        <translation>コメントに返信</translation>
+    </message>
+    <message>
+        <source>Edit…</source>
+        <translation>編集…</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>削除</translation>
+    </message>
+    <message>
+        <source>Resolve</source>
+        <translation>解決</translation>
+    </message>
+    <message>
+        <source>Reopen</source>
+        <translation>再開</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>前へ</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>次へ</translation>
+    </message>
+    <message>
+        <source>Comments</source>
+        <translation>コメント</translation>
+    </message>
+    <message>
+        <source>Export Metadata</source>
+        <translation>メタデータをエクスポート</translation>
+    </message>
+    <message>
+        <source>Event Log</source>
+        <translation>イベントログ</translation>
+    </message>
+    <message>
+        <source>Author: %1</source>
+        <translation>作成者: %1</translation>
+    </message>
+    <message>
+        <source>No identity selected</source>
+        <translation>IDが選択されていません</translation>
+    </message>
+    <message>
+        <source> · whole difficulty</source>
+        <translation> · 譜面全体</translation>
+    </message>
+    <message>
+        <source> · %1 layers</source>
+        <translation> · %1レイヤー</translation>
+    </message>
+    <message>
+        <source>Ready to apply</source>
+        <translation>適用可能</translation>
+    </message>
+    <message>
+        <source>Revision conflict</source>
+        <translation>リビジョン競合</translation>
+    </message>
+    <message>
+        <source>Conflict</source>
+        <translation>競合</translation>
+    </message>
+    <message>
+        <source>Select one or more notes first.</source>
+        <translation>ノートを1つ以上選択してください。</translation>
+    </message>
+    <message>
+        <source>A Note anchor requires exactly one selected note.</source>
+        <translation>Noteアンカーにはノートを1つだけ選択してください。</translation>
+    </message>
+    <message>
+        <source>BPM entry</source>
+        <translation>BPM項目</translation>
+    </message>
+    <message>
+        <source>Entry:</source>
+        <translation>項目:</translation>
+    </message>
+    <message>
+        <source>Edit comment</source>
+        <translation>コメントを編集</translation>
+    </message>
+    <message>
+        <source>Delete comment</source>
+        <translation>コメントを削除</translation>
+    </message>
+    <message>
+        <source>Resolve comment</source>
+        <translation>コメントを解決</translation>
+    </message>
+    <message>
+        <source>Reopen comment</source>
+        <translation>コメントを再開</translation>
+    </message>
+    <message>
+        <source>Update review decision</source>
+        <translation>レビュー判断を更新</translation>
+    </message>
+    <message>
+        <source>Select one removal and one addition while editing the proposal.</source>
+        <translation>提案の編集中に削除と追加を1つずつ選択してください。</translation>
+    </message>
+    <message>
+        <source>Choose a Note removal and addition from the same layer.</source>
+        <translation>同じレイヤーからNoteの削除と追加を選択してください。</translation>
+    </message>
+    <message>
+        <source>Resolve revision conflict</source>
+        <translation>リビジョン競合を解決</translation>
+    </message>
+    <message>
+        <source>This object conflict requires editing the target or rebasing; it cannot be overwritten as one field.</source>
+        <translation>このオブジェクト競合は対象の編集またはリベースで解決してください。単一フィールドとして上書きできません。</translation>
+    </message>
+    <message>
+        <source>New layer</source>
+        <translation>新しいレイヤー</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>名前:</translation>
+    </message>
+    <message>
+        <source>Rename layer</source>
+        <translation>レイヤー名を変更</translation>
+    </message>
+    <message>
+        <source>Share existing layers</source>
+        <translation>既存のレイヤーを共有</translation>
+    </message>
+    <message>
+        <source>Keep at least one layer in a difficulty.</source>
+        <translation>各譜面には少なくとも1つのレイヤーが必要です。</translation>
+    </message>
+    <message>
+        <source>Edit project layers</source>
+        <translation>プロジェクトのレイヤーを編集</translation>
+    </message>
+    <message>
+        <source>Difficulty</source>
+        <translation>譜面</translation>
+    </message>
+    <message>
+        <source> copy</source>
+        <translation> のコピー</translation>
+    </message>
+    <message>
+        <source>Base</source>
+        <translation>ベース</translation>
+    </message>
+    <message>
+        <source>Edit project difficulty</source>
+        <translation>プロジェクトの譜面を編集</translation>
+    </message>
+    <message>
+        <source>Import difficulty</source>
+        <translation>譜面をインポート</translation>
+    </message>
+    <message>
+        <source>Malody Charts (*.mc)</source>
+        <translation>Malody譜面 (*.mc)</translation>
+    </message>
+    <message>
+        <source>Cannot read chart.</source>
+        <translation>譜面を読み込めません。</translation>
+    </message>
+    <message>
+        <source>Import or create another difficulty first.</source>
+        <translation>先に別の譜面をインポートまたは作成してください。</translation>
+    </message>
+    <message>
+        <source>Reference difficulty</source>
+        <translation>参照する譜面</translation>
+    </message>
+    <message>
+        <source>Source:</source>
+        <translation>参照元:</translation>
+    </message>
+    <message>
+        <source>Reference layers (select all for the whole difficulty)</source>
+        <translation>参照レイヤー（すべて選択すると譜面全体）</translation>
+    </message>
+    <message>
+        <source>Add live reference</source>
+        <translation>ライブ参照を追加</translation>
+    </message>
+    <message>
+        <source>Export Metadata Configuration</source>
+        <translation>エクスポートメタデータ設定</translation>
+    </message>
+    <message>
+        <source>Choose fields included in exported .mc files. Stored chart values remain independent.</source>
+        <translation>エクスポートする.mcファイルに含める項目を選択します。保存済み譜面の値には影響しません。</translation>
+    </message>
+    <message>
+        <source>Change export metadata configuration</source>
+        <translation>エクスポートメタデータ設定を変更</translation>
+    </message>
+    <message>
+        <source>Export chart</source>
+        <translation>譜面をエクスポート</translation>
+    </message>
+    <message>
+        <source>Chart exported.</source>
+        <translation>譜面をエクスポートしました。</translation>
+    </message>
+    <message>
+        <source>Save CCE project</source>
+        <translation>CCEプロジェクトを保存</translation>
+    </message>
+    <message>
+        <source>Save project</source>
+        <translation>プロジェクトを保存</translation>
+    </message>
+    <message>
+        <source>Save changes to the local project and review data?</source>
+        <translation>ローカルプロジェクトとレビューデータへの変更を保存しますか？</translation>
+    </message>
+    <message>
+        <source>Create or import a proposal first.</source>
+        <translation>先に提案を作成またはインポートしてください。</translation>
+    </message>
+    <message>
+        <source>Edit proposal</source>
+        <translation>提案を編集</translation>
+    </message>
+
+    <message>
+        <source>Keep existing objects; apply proposal separately</source>
+        <translation>既存オブジェクトを維持し、提案を別途適用</translation>
+    </message>
+    <message>
+        <source>Resolve object conflict</source>
+        <translation>オブジェクト競合を解決</translation>
+    </message>
+    <message>
+        <source>Choose the current object to replace or remove:</source>
+        <translation>置換または削除する現在のオブジェクトを選択してください:</translation>
+    </message>
+
+    <message>
+        <source>Add Comment Here…</source>
+        <translation>ここにコメントを追加…</translation>
+    </message>
+    <message>
+        <source>Show Comments</source>
+        <translation>コメントを表示</translation>
+    </message>
+    <message>
+        <source>Review Changes…</source>
+        <translation>変更をレビュー…</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>レビュー</translation>
+    </message>
+
+    <message>
+        <source>Editing</source>
+        <translation>編集</translation>
+    </message>
+    <message>
+        <source>Review &amp; Layers</source>
+        <translation>レビューとレイヤー</translation>
+    </message>
+    <message>
+        <source>Layers</source>
+        <translation>レイヤー</translation>
+    </message>
+    <message>
+        <source>Active layer</source>
+        <translation>アクティブレイヤー</translation>
+    </message>
+    <message>
+        <source>Select a change to review.</source>
+        <translation>レビューする変更を選択してください。</translation>
+    </message>
+
+    <message>
+        <source>Expanded</source>
+        <translation>展開</translation>
+    </message>
+    <message>
+        <source>Collapsed</source>
+        <translation>折りたたみ</translation>
+    </message>
+    <message>
+        <source>Hidden</source>
+        <translation>非表示</translation>
+    </message>
+
+    <message>
+        <source>Reference status</source>
+        <translation>参照状態</translation>
+    </message>
+    <message>
+        <source>Target missing</source>
+        <translation>対象が見つかりません</translation>
+    </message>
+    <message>
+        <source>Ambiguous target</source>
+        <translation>対象を特定できません</translation>
+    </message>
+    <message>
+        <source>Target modified</source>
+        <translation>対象が変更されました</translation>
+    </message>
+
+    <message>
+        <source>All comments</source>
+        <translation>すべてのコメント</translation>
+    </message>
+    <message>
+        <source>Unresolved</source>
+        <translation>未解決</translation>
+    </message>
+    <message>
+        <source>Resolved</source>
+        <translation>解決済み</translation>
+    </message>
+
+    <message>
+        <source>Review &amp; Layers (Experimental)</source>
+        <translation>レビューとレイヤー（実験的）</translation>
+    </message>
+    <message>
+        <source>Layers, Comments and Review… (Experimental)</source>
+        <translation>レイヤー、コメントとレビュー…（実験的）</translation>
+    </message>
+    <message>
+        <source>Layers (Experimental)</source>
+        <translation>レイヤー（実験的）</translation>
+    </message>
+    <message>
+        <source>Review (Experimental)</source>
+        <translation>レビュー（実験的）</translation>
+    </message>
+    <message>
+        <source>Experimental: layers and .ccepr review. Use a chart copy and verify the result before replacing your chart.</source>
+        <translation>実験的機能：レイヤーと.cceprレビュー。譜面のコピーを使ってロジック操作とGUIを十分にテストし、結果を確認してから元の譜面を置き換えてください。</translation>
+    </message>
+
+    <message>
+        <source>Select Dependency Group</source>
+        <translation>依存グループを選択</translation>
+    </message>
+    <message>
+        <source>Select the dependency group before applying these changes.</source>
+        <translation>これらの変更を適用する前に、依存グループを選択してください。</translation>
+    </message>
+    <message>
+        <source>No proposal to save.</source>
+        <translation>保存する提案がありません。</translation>
+    </message>
+</context>
+<context>
+    <name>CceReviewUi::IdentityDialog</name>
+    <message>
+        <source>Local identities</source>
+        <translation>ローカルID</translation>
+    </message>
+    <message>
+        <source>Create</source>
+        <translation>作成</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>名前を変更</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>削除</translation>
+    </message>
+    <message>
+        <source>Set as current</source>
+        <translation>現在のIDに設定</translation>
+    </message>
+    <message>
+        <source>Current identity: none</source>
+        <translation>現在のID: なし</translation>
+    </message>
+    <message>
+        <source>Current identity: %1</source>
+        <translation>現在のID: %1</translation>
+    </message>
+    <message>
+        <source>%1 (current)</source>
+        <translation>%1 (現在)</translation>
+    </message>
+    <message>
+        <source>Identity store is unavailable.</source>
+        <translation>IDストアを利用できません。</translation>
+    </message>
+    <message>
+        <source>Create identity</source>
+        <translation>IDを作成</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>名前:</translation>
+    </message>
+    <message>
+        <source>Rename identity</source>
+        <translation>ID名を変更</translation>
+    </message>
+    <message>
+        <source>Delete identity</source>
+        <translation>IDを削除</translation>
+    </message>
+    <message>
+        <source>Delete the local identity '%1'? Historical signatures will remain unchanged.</source>
+        <translation>ローカルID「%1」を削除しますか？過去の署名は変更されません。</translation>
+    </message>
+</context>
+<context>
+    <name>CceReviewUi::NoteInspector</name>
+    <message>
+        <source>Type:</source>
+        <translation>種類:</translation>
+    </message>
+    <message>
+        <source>Beat (whole:numerator/denominator):</source>
+        <translation>拍 (整数:分子/分母):</translation>
+    </message>
+    <message>
+        <source>X (0–512):</source>
+        <translation>X (0～512):</translation>
+    </message>
+    <message>
+        <source>Rain end beat:</source>
+        <translation>Rain終了拍:</translation>
+    </message>
+    <message>
+        <source>Sound file:</source>
+        <translation>Soundファイル:</translation>
+    </message>
+    <message>
+        <source>Sound volume (0–100):</source>
+        <translation>Sound音量 (0～100):</translation>
+    </message>
+    <message>
+        <source>Sound offset (ms):</source>
+        <translation>Soundオフセット (ms):</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>適用</translation>
+    </message>
+    <message>
+        <source>—</source>
+        <translation>—</translation>
+    </message>
+    <message>
+        <source>Not applicable to all selected notes</source>
+        <translation>選択したすべてのノートには適用できません</translation>
+    </message>
+    <message>
+        <source>Mixed</source>
+        <translation>複数の値</translation>
+    </message>
+    <message>
+        <source>Before: %1   After: %2</source>
+        <translation>変更前: %1   変更後: %2</translation>
+    </message>
+    <message>
+        <source>Before: %1    After: %2</source>
+        <translation>変更前: %1    変更後: %2</translation>
+    </message>
+    <message>
+        <source>Beat</source>
+        <translation>拍</translation>
+    </message>
+    <message>
+        <source>X</source>
+        <translation>X</translation>
+    </message>
+    <message>
+        <source>Rain end beat</source>
+        <translation>Rain終了拍</translation>
+    </message>
+    <message>
+        <source>Sound file</source>
+        <translation>Soundファイル</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>音量</translation>
+    </message>
+    <message>
+        <source>Offset</source>
+        <translation>オフセット</translation>
+    </message>
+    <message>
+        <source>No notes selected</source>
+        <translation>ノートが選択されていません</translation>
+    </message>
+    <message>
+        <source>This inspector is read-only.</source>
+        <translation>このインスペクターは読み取り専用です。</translation>
+    </message>
+    <message>
+        <source>No chart is available.</source>
+        <translation>譜面がありません。</translation>
+    </message>
+    <message>
+        <source>Select one or more notes first.</source>
+        <translation>ノートを1つ以上選択してください。</translation>
+    </message>
+    <message>
+        <source>Beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</source>
+        <translation>拍は整数:分子/分母の形式で、分子は0以上、分母は正の数にしてください。</translation>
+    </message>
+    <message>
+        <source>X must be an integer from 0 to 512.</source>
+        <translation>Xは0～512の整数にしてください。</translation>
+    </message>
+    <message>
+        <source>Rain end beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</source>
+        <translation>Rain終了拍は整数:分子/分母の形式で、分子は0以上、分母は正の数にしてください。</translation>
+    </message>
+    <message>
+        <source>Sound file cannot be empty.</source>
+        <translation>Soundファイルを空にすることはできません。</translation>
+    </message>
+    <message>
+        <source>Sound volume must be an integer from 0 to 100.</source>
+        <translation>Sound音量は0～100の整数にしてください。</translation>
+    </message>
+    <message>
+        <source>Sound offset must be an integer number of milliseconds.</source>
+        <translation>Soundオフセットはミリ秒単位の整数にしてください。</translation>
+    </message>
+    <message>
+        <source>X and Rain end beat can only be edited when every selected note supports them.</source>
+        <translation>選択したすべてのノートが対応する場合のみ、XとRain終了拍を編集できます。</translation>
+    </message>
+    <message>
+        <source>Sound properties can only be edited when every selected note is a Sound note.</source>
+        <translation>選択したすべてのノートがSoundの場合のみ、Soundプロパティを編集できます。</translation>
+    </message>
+    <message>
+        <source>Rain end beat can only be edited when every selected note is Rain.</source>
+        <translation>選択したすべてのノートがRainの場合のみ、Rain終了拍を編集できます。</translation>
+    </message>
+    <message>
+        <source>The proposed values would make at least one selected note invalid.</source>
+        <translation>入力した値により無効になるノートがあります。</translation>
+    </message>
+    <message>
+        <source>The chart rejected this edit.</source>
+        <translation>譜面がこの編集を拒否しました。</translation>
     </message>
 </context>
 </TS>

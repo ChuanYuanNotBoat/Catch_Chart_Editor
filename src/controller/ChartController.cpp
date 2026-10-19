@@ -394,6 +394,7 @@ public:
 
 protected:
     ChartController *m_controller;
+    QString m_operationGroupId = Note::generateId();
 };
 
 // 添加单个音符命令
@@ -404,12 +405,14 @@ public:
     void undo() override
     {
         m_controller->m_chart.removeNote(m_note);
+        emit m_controller->noteOperationCommitted({m_note}, {}, {}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.addNote(m_note);
+        emit m_controller->noteOperationCommitted({}, {m_note}, {}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
@@ -427,12 +430,14 @@ public:
     void undo() override
     {
         m_controller->m_chart.removeNotes(m_notes);
+        emit m_controller->noteOperationCommitted(m_notes, {}, {}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.addNotes(m_notes);
+        emit m_controller->noteOperationCommitted({}, m_notes, {}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
@@ -449,12 +454,14 @@ public:
     void undo() override
     {
         m_controller->m_chart.addNote(m_note);
+        emit m_controller->noteOperationCommitted({}, {m_note}, {}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.removeNote(m_note);
+        emit m_controller->noteOperationCommitted({m_note}, {}, {}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
@@ -472,12 +479,14 @@ public:
     void undo() override
     {
         m_controller->m_chart.addNotes(m_notes);
+        emit m_controller->noteOperationCommitted({}, m_notes, {}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.removeNotes(m_notes);
+        emit m_controller->noteOperationCommitted(m_notes, {}, {}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
@@ -496,6 +505,7 @@ public:
     {
         m_controller->m_chart.replaceNotes(
             QList<QPair<Note, Note>>{qMakePair(m_new, m_original)});
+        emit m_controller->noteOperationCommitted({}, {}, {qMakePair(m_new, m_original)}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
@@ -503,6 +513,7 @@ public:
     {
         m_controller->m_chart.replaceNotes(
             QList<QPair<Note, Note>>{qMakePair(m_original, m_new)});
+        emit m_controller->noteOperationCommitted({}, {}, {qMakePair(m_original, m_new)}, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
@@ -524,12 +535,14 @@ public:
         for (const auto &change : m_changes)
             reverseChanges.append(qMakePair(change.second, change.first));
         m_controller->m_chart.replaceNotes(reverseChanges);
+        emit m_controller->noteOperationCommitted({}, {}, reverseChanges, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
     void redo() override
     {
         m_controller->m_chart.replaceNotes(m_changes);
+        emit m_controller->noteOperationCommitted({}, {}, m_changes, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
@@ -560,6 +573,7 @@ public:
         for (const auto &change : m_notesToMove)
             reverseMoves.append(qMakePair(change.second, change.first));
         m_controller->m_chart.applyNoteBatch(m_notesToRemove, m_notesToAdd, reverseMoves);
+        emit m_controller->noteOperationCommitted(m_notesToAdd, m_notesToRemove, reverseMoves, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
@@ -567,6 +581,7 @@ public:
     void redo() override
     {
         m_controller->m_chart.applyNoteBatch(m_notesToAdd, m_notesToRemove, m_notesToMove);
+        emit m_controller->noteOperationCommitted(m_notesToRemove, m_notesToAdd, m_notesToMove, m_operationGroupId);
         m_controller->publishChange(ChartChangeType::Notes);
         m_controller->notesChanged();
     }
@@ -743,6 +758,46 @@ public:
 };
 
 // ---------- ChartController 实现 ----------
+class ChartController::DocumentMutationCommand : public ChartController::ChartCommand
+{
+public:
+    DocumentMutationCommand(ChartController *controller, const QString &name, const Chart &after,
+                            std::function<void(bool)> auxiliary, bool reviewTransaction)
+        : ChartCommand(controller, name), m_before(controller->m_chart), m_after(after),
+          m_changes(chartChangeSet(m_before, after)), m_auxiliary(std::move(auxiliary)), m_reviewTransaction(reviewTransaction) {}
+    void undo() override { restore(false); }
+    void redo() override { restore(true); }
+    bool changesChart() const { return bool(m_changes); }
+    bool allowsReadOnlyUndo() const { return !changesChart() || m_reviewTransaction; }
+private:
+    void restore(bool forward)
+    {
+        if (m_auxiliary) m_auxiliary(forward);
+        m_controller->m_chart = forward ? m_after : m_before;
+        m_controller->publishChange(m_changes);
+        if (m_changes.testFlag(ChartChangeType::Notes)) emit m_controller->notesChanged();
+        if (m_changes.testFlag(ChartChangeType::Timing)) emit m_controller->bpmListChanged();
+        if (m_changes.testFlag(ChartChangeType::Metadata)) emit m_controller->metaDataChanged();
+    }
+    Chart m_before, m_after;
+    ChartChangeSet m_changes;
+    std::function<void(bool)> m_auxiliary;
+    bool m_reviewTransaction=false;
+};
+
+bool ChartController::allowEdit(const QVector<Note> &affected, bool addsNotes)
+{
+    return !m_readOnly && (!m_editGuard || m_editGuard(affected, addsNotes));
+}
+
+bool ChartController::applyDocumentMutation(const QString &name, const Chart &chart,
+                                           std::function<void(bool)> restoreAuxiliary, bool reviewTransaction)
+{
+    if (m_readOnly && chartChangeSet(m_chart, chart)) return false;
+    m_undoStack->push(new DocumentMutationCommand(this, name, chart, std::move(restoreAuxiliary),reviewTransaction));
+    return true;
+}
+
 ChartController::ChartController(QObject *parent) : QObject(parent)
 {
     qRegisterMetaType<ChartChange>();
@@ -771,11 +826,13 @@ void ChartController::publishChange(ChartChangeSet changes)
 
 void ChartController::addNote(const Note &note)
 {
+    if (!allowEdit({}, true)) return;
     m_undoStack->push(new AddNoteCommand(this, note));
 }
 
 void ChartController::addNotes(const QVector<Note> &notes)
 {
+    if (!allowEdit({}, true)) return;
     if (notes.isEmpty())
         return;
     m_undoStack->push(new AddNotesCommand(this, notes));
@@ -783,6 +840,7 @@ void ChartController::addNotes(const QVector<Note> &notes)
 
 void ChartController::removeNote(const Note &note)
 {
+    if (!allowEdit({note})) return;
     int idx = m_chart.notes().indexOf(note);
     if (idx != -1)
         m_undoStack->push(new RemoveNoteCommand(this, note));
@@ -790,6 +848,7 @@ void ChartController::removeNote(const Note &note)
 
 void ChartController::moveNote(const Note &original, const Note &newNote)
 {
+    if (!allowEdit({original})) return;
     if (original == newNote)
         return;
     m_undoStack->push(new MoveNoteCommand(this, original, newNote));
@@ -797,6 +856,9 @@ void ChartController::moveNote(const Note &original, const Note &newNote)
 
 void ChartController::moveNotes(const QList<QPair<Note, Note>> &changes)
 {
+    QVector<Note> affected;
+    for (const auto &change : changes) affected.append(change.first);
+    if (!allowEdit(affected)) return;
     if (changes.isEmpty())
         return;
 
@@ -812,6 +874,7 @@ void ChartController::moveNotes(const QList<QPair<Note, Note>> &changes)
 
 void ChartController::removeNotes(const QVector<Note> &notes)
 {
+    if (!allowEdit(notes)) return;
     if (notes.isEmpty())
         return;
     Logger::debug(QString("[ChartController] removeNotes: pushing command for %1 notes").arg(notes.size()));
@@ -820,11 +883,13 @@ void ChartController::removeNotes(const QVector<Note> &notes)
 
 void ChartController::addBpm(const BpmEntry &bpm)
 {
+    if (m_readOnly) return;
     m_undoStack->push(new AddBpmCommand(this, bpm));
 }
 
 void ChartController::removeBpm(int index)
 {
+    if (m_readOnly) return;
     if (index >= 0 && index < m_chart.bpmList().size())
     {
         m_undoStack->push(new RemoveBpmCommand(this, index, m_chart.bpmList()[index]));
@@ -833,6 +898,7 @@ void ChartController::removeBpm(int index)
 
 void ChartController::updateBpm(int index, const BpmEntry &bpm)
 {
+    if (m_readOnly) return;
     if (index >= 0 && index < m_chart.bpmList().size())
     {
         m_undoStack->push(new UpdateBpmCommand(this, index, m_chart.bpmList()[index], bpm));
@@ -841,10 +907,12 @@ void ChartController::updateBpm(int index, const BpmEntry &bpm)
 
 void ChartController::setMetaData(const MetaData &meta)
 {
+    if (m_readOnly) return;
     m_undoStack->push(new SetMetaCommand(this, m_chart.meta(), meta));
 }
 bool ChartController::replaceBpmList(const QString &actionName, const QVector<BpmEntry> &entries)
 {
+    if (m_readOnly) return false;
     if (entries.isEmpty() || entries.size() > 100000 || bpmListsEqual(m_chart.bpmList(), entries))
         return false;
     for (int i = 0; i < entries.size(); ++i)
@@ -862,10 +930,19 @@ bool ChartController::replaceBpmList(const QString &actionName, const QVector<Bp
 
 void ChartController::undo()
 {
+    if (m_readOnly) {
+        const int index = m_undoStack->index() - 1;
+        const auto *command = index >= 0 ? dynamic_cast<const DocumentMutationCommand *>(m_undoStack->command(index)) : nullptr;
+        if (!command || !command->allowsReadOnlyUndo()) return;
+    }
     Logger::debug("ChartController::undo called");
+    const int previousIndex = m_undoStack->index();
+    const QString action = m_undoStack->undoText();
     try
     {
         m_undoStack->undo();
+        if (m_undoStack->index() != previousIndex)
+            emit historyOperationCommitted(true, action);
         Logger::debug("ChartController::undo completed");
     }
     catch (const std::exception &e)
@@ -882,10 +959,19 @@ void ChartController::undo()
 
 void ChartController::redo()
 {
+    if (m_readOnly) {
+        const auto *command = m_undoStack->index() < m_undoStack->count()
+            ? dynamic_cast<const DocumentMutationCommand *>(m_undoStack->command(m_undoStack->index())) : nullptr;
+        if (!command || !command->allowsReadOnlyUndo()) return;
+    }
     Logger::debug("ChartController::redo called");
+    const int previousIndex = m_undoStack->index();
+    const QString action = m_undoStack->redoText();
     try
     {
         m_undoStack->redo();
+        if (m_undoStack->index() != previousIndex)
+            emit historyOperationCommitted(false, action);
         Logger::debug("ChartController::redo completed");
     }
     catch (const std::exception &e)
@@ -952,6 +1038,11 @@ bool ChartController::loadChart(const QString &path)
         emit errorOccurred("Unknown exception loading chart");
         return false;
     }
+}
+
+void ChartController::clearUndoHistory()
+{
+    m_undoStack->clear();
 }
 
 bool ChartController::loadChartFromData(const QString &path, Chart loadedChart)
@@ -1033,6 +1124,7 @@ bool ChartController::saveChart(const QString &path)
 
 bool ChartController::applyExternalChartMutation(const QString &actionName, const Chart &mutatedChart)
 {
+    if (!allowEdit(m_chart.notes(), true)) return false;
     if (m_chart.notes().size() > kMaxOpaqueSnapshotNotes
         || mutatedChart.notes().size() > kMaxOpaqueSnapshotNotes)
     {
@@ -1046,6 +1138,7 @@ bool ChartController::applyExternalChartMutation(const QString &actionName, cons
 
 void ChartController::pushUndoMarker(const QString &actionName)
 {
+    if (m_readOnly) return;
     m_undoStack->push(new UndoMarkerCommand(actionName));
 }
 
@@ -1054,6 +1147,9 @@ bool ChartController::applyBatchEdit(const QString &actionName,
                                      const QVector<Note> &notesToRemove,
                                      const QList<QPair<Note, Note>> &notesToMove)
 {
+    QVector<Note> affected = notesToRemove;
+    for (const auto &move : notesToMove) affected.append(move.first);
+    if (!allowEdit(affected, !notesToAdd.isEmpty())) return false;
     QString invalidReason;
     if (!validateBatchEditPayload(notesToAdd, notesToRemove, notesToMove, m_chart, &invalidReason))
     {

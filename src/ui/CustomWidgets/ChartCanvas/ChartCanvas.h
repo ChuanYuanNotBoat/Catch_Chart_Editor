@@ -10,6 +10,7 @@
 #include <QMetaObject>
 #include <QPointer>
 #include <QTimer>
+#include <memory>
 #include "model/Note.h"
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
@@ -78,6 +79,9 @@ public:
     void beginPastePreview(const QVector<Note> &notes, const QPoint &cursorPos = QPoint());
     void setAnalysisNoteDraft(QVector<Note> notes);
     int analysisNoteDraftCount() const { return m_analysisNoteDraft.size(); }
+    void setDisplayChart(const Chart *readOnlyChart);
+    void setLayerPresentation(const QHash<QString, qreal> &opacityByRuntimeId)
+    { m_layerOpacity = opacityByRuntimeId; update(); }
 
     bool isVerticalFlip() const;
     void setVerticalFlip(bool flip);
@@ -135,6 +139,10 @@ public slots:
     void playFromReferenceLine();
 
 signals:
+    void extendContextMenu(QMenu *menu,const QPointF &position);
+    // Direct connections only: extensions paint in the existing frame, with
+    // no extra playback timer or whole-chart work inside paintEvent.
+    void paintReviewOverlay(QPainter *painter);
     void verticalFlipChanged(bool flipped);
     void currentTimeChanged(double timeMs);
     void scrollPositionChanged(double beat);
@@ -164,6 +172,8 @@ protected:
 
 
 private:
+    std::unique_ptr<Chart> m_displayChart;
+    QHash<QString, qreal> m_layerOpacity;
     ChartSpectrumOverlay *m_spectrumOverlay = nullptr;
     static constexpr int kLaneWidth = 512;
     static constexpr double kReferenceLineRatio = 0.8;

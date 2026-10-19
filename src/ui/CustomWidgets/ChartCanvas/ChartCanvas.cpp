@@ -194,12 +194,23 @@ ChartCanvas::~ChartCanvas()
 
 const Chart *ChartCanvas::chart() const
 {
+    if (m_displayChart) return m_displayChart.get();
     return m_chartController ? m_chartController->chart() : nullptr;
 }
 
 Chart *ChartCanvas::chart()
 {
+    if (m_displayChart) return m_displayChart.get();
     return m_chartController ? m_chartController->mutableChart() : nullptr;
+}
+
+void ChartCanvas::setDisplayChart(const Chart *readOnlyChart)
+{
+    cancelOperation();
+    m_displayChart = readOnlyChart ? std::make_unique<Chart>(*readOnlyChart) : nullptr;
+    invalidateChartCaches(true);
+    RainRewardGenerator::instance().invalidate();
+    update();
 }
 
 QVector<Note> *ChartCanvas::mutableNotes()
