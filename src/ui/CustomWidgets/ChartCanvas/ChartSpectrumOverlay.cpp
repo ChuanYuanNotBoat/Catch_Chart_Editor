@@ -105,7 +105,12 @@ void ChartSpectrumOverlay::setPlaybackController(PlaybackController *playback)
         disconnect(m_playback, nullptr, this, nullptr);
     m_playback = playback;
     if (playback)
+    {
         connect(playback, &PlaybackController::stateChanged, this, &ChartSpectrumOverlay::schedule);
+        // Playback follows the clock without emitting the general scroll signal
+        // on every frame. Coalesce requests after that frame updates the viewport.
+        connect(playback, &PlaybackController::playbackFrameTick, this, &ChartSpectrumOverlay::schedule);
+    }
 }
 
 void ChartSpectrumOverlay::refreshTiming()

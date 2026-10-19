@@ -3,6 +3,8 @@
 #include "audio/SpectrumService.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
+#include "controller/PlaybackController.h"
+#include "audio/AudioPlayer.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartSpectrumOverlay.h"
 #include "utils/Settings.h"
@@ -19,6 +21,21 @@
 #include <QTimer>
 #include <QtConcurrentRun>
 #include <cmath>
+
+class NativeTestCanvas final : public ChartCanvas
+{
+public:
+    ~NativeTestCanvas() override
+    {
+        if (isVisible())
+        {
+            hide();
+            // Deliver queued native hide/expose events before QWidget teardown.
+            if (QApplication::platformName() == "windows")
+                QTest::qWait(20);
+        }
+    }
+};
 
 class SpectrumOverlayTests : public QObject
 {
@@ -156,7 +173,7 @@ private slots:
     {
         ChartController controller;
         QVERIFY(controller.loadChartFromData(m_temp.filePath("fixture.mc"), chart()));
-        ChartCanvas canvas;
+        NativeTestCanvas canvas;
         canvas.setChartController(&controller);
         canvas.resize(640, 600);
         canvas.setTimeScale(1);
@@ -232,7 +249,7 @@ private slots:
     {
         ChartController controller;
         QVERIFY(controller.loadChartFromData(m_temp.filePath("fixture.mc"), chart()));
-        ChartCanvas canvas;
+        NativeTestCanvas canvas;
         canvas.setChartController(&controller);
         canvas.resize(640, 480);
         canvas.show();
@@ -265,7 +282,7 @@ private slots:
     }
     void optionalLayerHasNoWorkerWhenDisabled()
     {
-        ChartCanvas canvas;
+        NativeTestCanvas canvas;
         QVERIFY(!canvas.spectrumOverlayEnabled());
         QVERIFY(!canvas.findChild<ChartSpectrumOverlay *>());
         canvas.setSpectrumOverlayEnabled(true);
@@ -279,6 +296,39 @@ private slots:
         canvas.refreshRenderSettings();
         QVERIFY(!canvas.spectrumOverlayEnabled());
     }
+    void playbackFollowRequestsNewTilesWithoutManualScrolling()
+    {
+        ChartController controller;
+        QVERIFY(controller.loadChartFromData(m_temp.filePath("playback.mc"), chart()));
+        AudioPlayer audio;
+        PlaybackController playback(&audio);
+        NativeTestCanvas canvas;
+        canvas.setChartController(&controller);
+        canvas.setPlaybackController(&playback);
+        canvas.resize(640, 480);
+        canvas.setTimeScale(1);
+        canvas.show();
+        QVector<double> requests;
+        ChartSpectrumOverlay overlay(&canvas,[&](QObject *,const QString &,double start,double duration,auto,auto callback) {
+            requests.append(start);
+            callback(page(start, duration));
+        });
+        overlay.setChartController(&controller);
+        overlay.setPlaybackController(&playback);
+        QTRY_VERIFY(overlay.currentPage().valid());
+        QTest::qWait(150);
+        playback.stateChanged(PlaybackController::Playing);
+        // Settle the state-change request first: only the later playback frame
+        // can cause the new range request being asserted below.
+        QTest::qWait(50);
+        const auto originalCount = requests.size();
+        const auto originalScroll = canvas.scrollBeat();
+        playback.playbackFrameTick(20000, 1);
+        QVERIFY(canvas.scrollBeat() > originalScroll);
+        QTRY_VERIFY(requests.size() > originalCount);
+        QVERIFY(std::any_of(requests.cbegin() + originalCount, requests.cend(), [](double start) { return start >= 10000; }));
+        playback.stateChanged(PlaybackController::Stopped);
+    }
 };
 
 int main(int argc, char **argv)
@@ -288,6 +338,7 @@ int main(int argc, char **argv)
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
     QApplication app(argc, argv);
+    app.setQuitOnLastWindowClosed(false);
     SpectrumOverlayTests tests;
     return QTest::qExec(&tests, argc, argv);
 }
