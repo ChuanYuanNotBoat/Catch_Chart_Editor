@@ -198,12 +198,6 @@ const Chart *ChartCanvas::chart() const
     return m_chartController ? m_chartController->chart() : nullptr;
 }
 
-Chart *ChartCanvas::chart()
-{
-    if (m_displayChart) return m_displayChart.get();
-    return m_chartController ? m_chartController->mutableChart() : nullptr;
-}
-
 void ChartCanvas::setDisplayChart(const Chart *readOnlyChart)
 {
     cancelOperation();
@@ -211,12 +205,6 @@ void ChartCanvas::setDisplayChart(const Chart *readOnlyChart)
     invalidateChartCaches(true);
     RainRewardGenerator::instance().invalidate();
     update();
-}
-
-QVector<Note> *ChartCanvas::mutableNotes()
-{
-    Chart *c = chart();
-    return c ? &c->notes() : nullptr;
 }
 
 void ChartCanvas::rebuildBpmTimeCache() const

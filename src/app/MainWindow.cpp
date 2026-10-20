@@ -1528,7 +1528,6 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     Logger::info("MainWindow constructor called");
 
     d->chartController = chartCtrl;
-    d->statsSourceRevision = chartCtrl ? chartCtrl->revision() : 0;
     d->selectionController = selCtrl;
     d->playbackController = playCtrl;
     d->skin = skin;
@@ -1630,7 +1629,8 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     connect(d->statsWatcher, &QFutureWatcher<ChartStatistics>::finished, this, [this]()
             {
         const bool resultIsCurrent = d->chartController &&
-                                     d->statsFutureRevision == d->statsSourceRevision;
+            d->chartController->isCurrent(d->statsFutureVersion,
+                ChartChangeType::Notes | ChartChangeType::Timing);
         if (resultIsCurrent && d->statsPanel)
         {
             ChartStatistics displayStats = d->statsWatcher->result();
@@ -1696,7 +1696,6 @@ MainWindow::MainWindow(ChartController *chartCtrl,
         const bool timingChanged = change.affects(ChartChangeType::Timing);
         if (notesChanged || timingChanged)
         {
-            d->statsSourceRevision = change.revision;
             RainRewardGenerator::instance().invalidate();
         }
         if (notesChanged && d->selectionController && d->chartController &&
@@ -3173,22 +3172,18 @@ void MainWindow::refreshChartStatistics()
 {
     if (!d->statsPanel || !d->chartController || !d->statsWatcher)
         return;
-    const Chart *chart = d->chartController->chart();
-    if (!chart)
-        return;
     if (d->statsWatcher->isRunning())
     {
         d->statsRefreshPending = true;
         return;
     }
 
-    Chart snapshot = *chart;
-    const int offset = snapshot.meta().offset;
-    d->statsFutureRevision = d->statsSourceRevision;
+    auto snapshot = d->chartController->snapshot();
+    d->statsFutureVersion = snapshot.version();
     d->statsWatcher->setFuture(QtConcurrent::run(
-        [snapshot = std::move(snapshot), offset]()
+        [snapshot = std::move(snapshot)]()
         {
-            return ChartStatsCalculator::compute(&snapshot, offset);
+            return ChartStatsCalculator::compute(&snapshot.chart(), snapshot.chart().meta().offset);
         }));
 }
 

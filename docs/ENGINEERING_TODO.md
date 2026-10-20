@@ -1,6 +1,6 @@
 # Engineering TODO
 
-Last audited: 2026-10-20
+Last audited: 2026-10-21
 
 Target: Beta v1.11.2 maintenance line (`v2-main`)
 
@@ -196,7 +196,7 @@ core extraction comes later.
 - [ ] Introduce strong persistent IDs for document, difficulty, timeline and layer entities; match Notes from data without persistent Note IDs.
 - [x] Replace legacy Note/BPM floating-point ordering with normalized rational comparison (`BeatPosition`); preserve source triplets and use exact text-input range boundaries. Audio time caches and continuous curve geometry remain floating-point projections.
 - [x] Use runtime Note IDs for selection identity while retaining index-based render access; Note IDs remain runtime-only and are not serialized.
-- [ ] Add a read-only versioned document snapshot and remove UI access to unrestricted mutable Chart state.
+- [x] Add a read-only versioned `ChartSnapshot`/`ChartReadVersion`, remove `mutableChart`/canvas mutable access, and use source/domain revision guards for asynchronous statistics. Captures share Note/BPM storage; loading another chart invalidates old tokens. Project-wide read models and composition indices remain separate below.
 - [ ] Replace whole-Chart command snapshots with validated serializable deltas and inverse operations.
 - [ ] Split `MainWindow` incrementally into session, workspace, document, command, resource, diagnostics, and plugin-UI coordinators.
 - [x] Establish a no-QtWidgets QtCore CMake target (`CceReviewCore`) inside this repository; do not freeze or split its public ABI yet.

@@ -112,7 +112,7 @@ CCE 的长期目标不是只编辑一份 `.mc` 文件，而是成为面向 Catch
 
 - 绑定 Normal/Sound/Rain 和 `0..512` 的所谓通用模型。
 - 每次编辑保存整张 Chart 前后副本的历史实现。
-- 可绕过 revision/undo 的 `mutableChart()`。
+- 可绕过 revision/undo 的 `mutableChart()`（CCE 当前画布入口已移除，不能从旧核心重新引入）。
 - 按数组下标拉取快照、每次 revision 全量刷新客户端的 FFI 访问方式。
 - 旧 Qt transitional 源码副本。
 - 将文档或局部补丁更新等同于完整桌面语义同步的基线描述。
@@ -709,7 +709,7 @@ osu!ctb 支持必须区分：
 - 引入单调 revision 与 typed change set。
 - 将选择从数组下标迁移到 EntityId。
 - 建立事务/逆操作模型，逐步替代完整 Chart 快照。
-- 增加只读 snapshot/read model，关闭 UI 直接取得 mutable Chart 的路径。
+- 已增加活动谱面的只读 `ChartSnapshot`/`ChartReadVersion`，移除 UI 的 mutable Chart 入口；工程级 read model 与合成索引继续在 M2 收敛。
 - 按职责拆出 MainWindow 协调器。
 - 在同仓库建立无界面 CMake target。
 
@@ -946,7 +946,7 @@ osu!ctb 支持必须区分：
 后续按 M1–M4 的退出门槛继续收敛：
 
 1. 为持久实体 ID、单调 revision、typed change set 和通用事务/逆操作补齐契约；Note ID 继续只作运行期句柄。
-2. 建立版本化只读 Document Snapshot，逐步关闭 UI 对 unrestricted mutable Chart 的访问，并拆分 MainWindow 职责。
+2. 活动谱面的版本化只读 Snapshot 与 mutable Chart 入口关闭已完成；后续扩展工程级 read model，并继续拆分 MainWindow 职责。
 3. 补齐 Timeline 与 Meta Field Policy、项目格式迁移框架、revision 驱动的合成索引和 5k/20k/100k 操作及历史内存基准。
 4. 完成图层剪贴板、跨层/跨难度批量事务、Difficulty 生命周期、Layer Group、多谱提取和导出预览等完整工作流。
 5. 完成自动快照、命名 Checkpoint、恢复与长历史验证；确认事务应用、Undo/Redo 和故障恢复的退出门槛。

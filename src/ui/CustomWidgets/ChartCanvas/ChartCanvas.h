@@ -291,8 +291,6 @@ private:
 
     void rebuildNoteTimesCache();
     const Chart *chart() const;
-    Chart *chart();
-    QVector<Note> *mutableNotes();
 
     double effectiveVisibleBeatRange() const
     {

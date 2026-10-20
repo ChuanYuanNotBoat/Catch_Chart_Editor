@@ -608,15 +608,13 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
                 if (!chart())
                     return;
 
-                QVector<Note> *notesRef = mutableNotes();
-                if (!notesRef)
-                    return;
+                const auto &notes = chart()->notes();
                 QList<QPair<Note, Note>> changes;
                 for (int idx : targetIndices)
                 {
-                    if (idx < 0 || idx >= notesRef->size())
+                    if (idx < 0 || idx >= notes.size())
                         continue;
-                    const Note &original = (*notesRef)[idx];
+                    const Note &original = notes[idx];
                     if (original.type == NoteType::SOUND)
                         continue;
 
@@ -651,15 +649,13 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
         if (!chart())
             return;
 
-        QVector<Note> *notesRef = mutableNotes();
-        if (!notesRef)
-            return;
+        const auto &notes = chart()->notes();
         QList<QPair<Note, Note>> changes;
         for (int idx : targetIndices)
         {
-            if (idx < 0 || idx >= notesRef->size())
+            if (idx < 0 || idx >= notes.size())
                 continue;
-            const Note &original = (*notesRef)[idx];
+            const Note &original = notes[idx];
             if (original.type == NoteType::SOUND)
                 continue;
 

@@ -2,7 +2,7 @@
 
 > **目的**：完整描述当前编辑器的数据模型、文件格式、插件体系、坐标系统、外置 sidecar 文件格式等，为重构格式与导出到标准 mcz/mc 提供精确的结构定义。
 >
-> **版本**：Beta v1.11.2 + Unreleased maintenance | **最后更新**：2026-10-19
+> **版本**：Beta v1.11.2 + Unreleased maintenance | **最后更新**：2026-10-21
 >
 > ⚠️ **核心约束**：`.mc` 文件的 JSON 结构**永远不能更改**，必须保持与 Malody 官方格式完全兼容。所有扩展数据必须存放在 `.mcce-plugin/` 或独立辅助文件中。如果需要更改，则需要保证有可以导出为规范.mc/mcz的能力。
 >
@@ -1037,10 +1037,12 @@ src/
 - `Chart Workspace` Dock 是稳定的顶层 workbench part：禁止关闭、移动和浮动，使用 `420x300` 最低内容尺寸，全部 splitter 祖先不可折叠，目标区域只接受左/右侧拆分。恢复 ADS 状态后会重新应用约束并修复旧布局中的关闭状态。普通面板可从 `View -> Panels` 单独/批量恢复。
 - ADS 多窗口状态与经典四栏状态使用独立 Settings 键；经典状态包含 splitter 尺寸、Note/BPM/Meta 当前页和嵌入式插件区可见性，切换与重置不交叉覆盖。
 - `DockLayoutPolicy` 将 Timing、Playback Speed、Range、Mirror、Curve、Plugin Tools 和 Chart Statistics 标记为纵向紧凑内容；该限制只在主窗口停靠态生效，进入任意浮动容器后恢复原始 size policy/maximum height。普通编辑区吸收纵向空闲空间，因此关闭工具块不会把其余工具块或内部控件拉高。
-- `ChartController::chartChangeCommitted` 为每次成功加载或内容变更分配单调 revision，并携带 `notes/timing/metadata/resources` 类型化变更集；统计 stale-result 直接比较该 revision，画布、预览、密度、选择和 Rain Reward 按依赖域失效；无 revision 感知的旧消费者仍可使用 `chartChanged` 与 notes/BPM/meta 细分信号。
+- `ChartController::chartChangeCommitted` 为每次成功加载或内容变更分配单调 revision，并携带 `notes/timing/metadata/resources` 类型化变更集；画布、预览、密度、选择和 Rain Reward 按依赖域失效；无 revision 感知的旧消费者仍可使用 `chartChanged` 与 notes/BPM/meta 细分信号。
+- `ChartController::chart()` 只供同线程同步读取，已移除 `mutableChart()` 和画布的可变重载。需要脱离实时文档的数据通过 `snapshot()` 取得 `ChartSnapshot`：只读 Chart、捕获时文件路径及 `ChartReadVersion`。获取和复制快照共享 Qt 的 Note/BPM 容器，不重新组合或排序；后续编辑写时复制，旧快照可在控制器销毁后继续读取。快照只描述活动合成谱面，不取代未来工程级 `ComposedChartView`。
+- `ChartReadVersion` 包含当前数据 revision、各依赖域的最后修改 revision 与运行期来源令牌。`isCurrent(version)` 严格比较整个数据版本；带域筛选时只检查相应依赖。加载谱面会更换来源，同一路径重载及另一个控制器的相同 revision 均不能误认。令牌、版本和运行期 Note ID 不写入 `.mc`、工程或提案包；辅助评论操作若不改变谱面内容，不增加谱面 revision。
 - ChartCanvas 拖动以临时 Note 快照绘制，指针移动不修改 Chart；release 时经 `ChartController::moveNotes` 提交一个 Undo 命令。
 - Rain 绘制按开始拍有序索引查询，并用结束拍前缀最大值向前定位仍可能覆盖 viewport 的长 Rain。
-- `ChartStatsCalculator` 在 Qt Concurrent 工作线程上读取独立 Chart 快照和独立 `RainRewardGenerator`；`chartRevision` 不匹配的结果不会写回 UI。
+- `ChartStatsCalculator` 在 Qt Concurrent 工作线程上读取不可变 `ChartSnapshot` 和独立 `RainRewardGenerator`；主线程只保留轻量版本令牌，用 `notes|timing` 域检查后写回 UI。无关元数据编辑不废弃结果，音符、BPM、offset、撤销及切谱使旧结果失效。
 - `RainRewardGenerator::instance()` 只属于 UI 渲染缓存。后台分析必须使用独立实例，禁止跨线程共享 singleton。
 
 ### 11.1b Malody 引擎源码（格式相关）

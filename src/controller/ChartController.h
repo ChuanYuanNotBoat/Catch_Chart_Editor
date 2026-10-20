@@ -7,6 +7,7 @@
 #include <functional>
 #include "model/Chart.h"
 #include "controller/ChartChange.h"
+#include "document/ChartSnapshot.h"
 
 /**
  * @brief 谱面编辑控制器，负责所有修改操作，并管理撤销/重做栈。
@@ -29,11 +30,15 @@ public:
 
     // 获取当前谱面（只读）
     const Chart *chart() const { return &m_chart; }
-    Chart *mutableChart() { return &m_chart; }
+    // Capture on the controller thread; the returned value can be read by workers.
+    ChartSnapshot snapshot() const { return ChartSnapshot(m_chart, m_readVersion, m_currentChartPath); }
+    ChartReadVersion readVersion() const { return m_readVersion; }
+    bool isCurrent(const ChartReadVersion &version, ChartChangeSet domains = {}) const
+    { return m_readVersion.matches(version, domains); }
 
     // 获取当前谱面文件路径
     QString chartFilePath() const { return m_currentChartPath; }
-    quint64 revision() const { return m_revision; }
+    quint64 revision() const { return m_readVersion.revision(); }
     bool isReadOnly() const { return m_readOnly; }
     void setReadOnly(bool readOnly) { m_readOnly = readOnly; }
     using EditGuard = std::function<bool(const QVector<Note> &, bool)>;
@@ -114,7 +119,7 @@ private:
     Chart m_chart;
     QUndoStack *m_undoStack;
     QString m_currentChartPath; // 当前加载的谱面文件路径
-    quint64 m_revision = 0;
+    ChartReadVersion m_readVersion;
     bool m_readOnly = false;
     EditGuard m_editGuard;
     bool allowEdit(const QVector<Note> &affected = {}, bool addsNotes = false);

@@ -2,6 +2,7 @@
 
 #include "MainWindow.h"
 #include "model/ChartStatistics.h"
+#include "document/ChartSnapshot.h"
 #include <QHash>
 #include <QList>
 #include <QPointer>
@@ -175,8 +176,7 @@ public:
     ChartStatistics editStatistics;
     QString editStatisticsChartPath;
     QElapsedTimer editSessionTimer;
-    quint64 statsFutureRevision = 0;
-    quint64 statsSourceRevision = 0;
+    ChartReadVersion statsFutureVersion;
     bool statsRefreshPending = false;
     QQueue<std::function<void()>> documentTransactions;
     bool documentTransactionRunning = false;

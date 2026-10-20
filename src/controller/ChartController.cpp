@@ -800,6 +800,7 @@ bool ChartController::applyDocumentMutation(const QString &name, const Chart &ch
 
 ChartController::ChartController(QObject *parent) : QObject(parent)
 {
+    m_readVersion.m_source = std::make_shared<const ChartReadVersion::Source>();
     qRegisterMetaType<ChartChange>();
     m_undoStack = new QUndoStack(this);
     connect(m_undoStack, &QUndoStack::indexChanged, this, [this] { emit undoStateChanged(); });
@@ -814,7 +815,11 @@ void ChartController::publishChange(ChartChangeSet changes)
     if (changes)
     {
         ChartChange change;
-        change.revision = ++m_revision;
+        change.revision = ++m_readVersion.m_revision;
+        if (changes.testFlag(ChartChangeType::Notes)) m_readVersion.m_notes = change.revision;
+        if (changes.testFlag(ChartChangeType::Timing)) m_readVersion.m_timing = change.revision;
+        if (changes.testFlag(ChartChangeType::Metadata)) m_readVersion.m_metadata = change.revision;
+        if (changes.testFlag(ChartChangeType::Resources)) m_readVersion.m_resources = change.revision;
         change.types = changes;
         emit chartChangeCommitted(change);
     }
@@ -1056,6 +1061,7 @@ bool ChartController::loadChartFromData(const QString &path, Chart loadedChart)
 
         m_chart = std::move(loadedChart);
         m_currentChartPath = path;
+        m_readVersion.m_source = std::make_shared<const ChartReadVersion::Source>();
         Logger::debug("ChartController::loadChartFromData: Chart assigned to m_chart, path saved");
 
         m_undoStack->clear();
