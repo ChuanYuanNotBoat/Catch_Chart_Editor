@@ -109,6 +109,7 @@ namespace
 
         addRef(meta.value("audio").toString());
         addRef(meta.value("background").toString());
+        addRef(meta.value("cover").toString());
 
         const QJsonArray notes = root.value("note").toArray();
         for (const QJsonValue &v : notes)

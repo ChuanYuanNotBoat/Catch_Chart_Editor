@@ -97,6 +97,11 @@ void ChartCanvas::cancelIntervalSelection()
 
 void ChartCanvas::cancelOperation()
 {
+    if (!m_analysisNoteDraft.isEmpty())
+    {
+        setAnalysisNoteDraft({});
+        emit analysisNoteDraftCancelled();
+    }
     m_pendingMove = false;
     m_dragReferenceIndex = -1;
     m_selectionAtPress.clear();

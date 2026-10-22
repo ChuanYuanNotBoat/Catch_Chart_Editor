@@ -10,6 +10,7 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QTextEdit>
+#include <QTabBar>
 #include <QWidget>
 #include <utility>
 
@@ -53,7 +54,7 @@ bool isTextInput(QWidget *widget)
     for (QWidget *current = widget; current; current = current->parentWidget())
         if (qobject_cast<QLineEdit *>(current) || qobject_cast<QTextEdit *>(current) ||
             qobject_cast<QPlainTextEdit *>(current) || qobject_cast<QAbstractSpinBox *>(current) ||
-            qobject_cast<QComboBox *>(current))
+            qobject_cast<QComboBox *>(current) || qobject_cast<QTabBar *>(current))
             return true;
     return false;
 }
@@ -82,6 +83,8 @@ void CommandRouter::resetSequence()
 
 void CommandRouter::clear()
 {
+    const auto held=m_heldCommands.values();m_heldCommands.clear();
+    for(const auto &id:held)emit commandReleased(id);
     resetSequence();
     for (const Command &command : m_commands)
         if (command.action)
@@ -237,6 +240,8 @@ bool CommandRouter::eventFilter(QObject *watched, QEvent *event)
     const int key = keyEvent->key();
     if (event->type() == QEvent::KeyRelease)
     {
+        if (!keyEvent->isAutoRepeat() && m_heldCommands.contains(key))
+            emit commandReleased(m_heldCommands.take(key));
         if (key == Qt::Key_Control || key == Qt::Key_Shift || key == Qt::Key_Alt ||
             key == Qt::Key_AltGr || key == Qt::Key_Meta)
             emit modifierReleased(key);
@@ -288,7 +293,11 @@ bool CommandRouter::eventFilter(QObject *watched, QEvent *event)
             // Imported conflicting settings fail closed until the user resolves them.
             if (fullMatches == 1 && !partialMatch && matched->isEnabled() &&
                 (!keyEvent->isAutoRepeat() || matched->autoRepeat()))
+            {
+                for (const Command &command : m_commands)
+                    if (command.action == matched) { m_heldCommands.insert(key, command.id); break; }
                 matched->trigger();
+            }
         }
         else if (!keyEvent->isAutoRepeat())
         {

@@ -1,5 +1,6 @@
 ﻿#include "ChartCanvas.h"
 #include "controller/ChartController.h"
+#include "ChartSpectrumOverlay.h"
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "render/NoteRenderer.h"
@@ -53,6 +54,18 @@ public:
 private:
     PlaybackController *m_controller;
     qint64 m_frameSeq;
+};
+
+class NoteOpacityGuard final
+{
+public:
+    NoteOpacityGuard(QPainter &painter, qreal opacity)
+        : m_painter(painter), m_previous(painter.opacity())
+    { if (opacity != 1.0) m_painter.setOpacity(m_previous * opacity); }
+    ~NoteOpacityGuard() { if (m_painter.opacity() != m_previous) m_painter.setOpacity(m_previous); }
+private:
+    QPainter &m_painter;
+    qreal m_previous;
 };
 }
 
@@ -198,6 +211,8 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
     }
     const qint64 backgroundEndNs = paintMarkNs();
 
+    if (m_spectrumOverlay)
+        m_spectrumOverlay->paint(painter, QRectF(leftMargin(), 0, width() - leftMargin() - rightMargin(), height()));
     drawGrid(painter);
     const qint64 gridEndNs = paintMarkNs();
 
@@ -247,6 +262,9 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
             return;
 
         const Note &displayNote = previewNote ? *previewNote : notes[i];
+        const qreal layerOpacity = m_layerOpacity.value(displayNote.id, 1.0);
+        if (layerOpacity <= 0.0) return;
+        const NoteOpacityGuard opacityGuard(painter, layerOpacity);
         const NoteType type = displayNote.type;
         if (type == NoteType::SOUND)
             return;
@@ -363,6 +381,26 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         renderNoteAtIndex(m_rainTailDragIndex, &m_rainTailDragPreview);
     const qint64 notesEndNs = paintMarkNs();
 
+    if (!m_analysisNoteDraft.isEmpty())
+    {
+        painter.save();
+        painter.setOpacity(.8);
+        const QColor draftColor = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor()).dark
+            ? QColor(231, 132, 255) : QColor(132, 38, 165);
+        painter.setPen(QPen(draftColor, 2, Qt::DashLine));
+        painter.setBrush(QColor(177, 84, 211, 60));
+        auto first = std::lower_bound(m_analysisNoteDraftBeats.cbegin(), m_analysisNoteDraftBeats.cend(), startBeat - .5);
+        for (int i = int(first - m_analysisNoteDraftBeats.cbegin()); i < m_analysisNoteDraft.size(); ++i)
+        {
+            if (m_analysisNoteDraftBeats[i] > endBeat + .5) break;
+            const double x = lmargin + m_analysisNoteDraft[i].x / 512. * availableWidth;
+            const double y = baseY + sign * ((m_analysisNoteDraftBeats[i] - m_scrollBeat) * invVisibleRange * canvasHeight);
+            const double size = m_noteRenderer ? m_noteRenderer->getNoteSize() : 24;
+            painter.drawRoundedRect(QRectF(x - size / 2, y - size / 2, size, size), 3, 3);
+        }
+        painter.restore();
+    }
+
     if (m_isPasting && !m_pasteNotes.isEmpty())
         drawPastePreview(painter, canvasHeight, lmargin, availableWidth, invVisibleRange, baseY, sign);
 
@@ -437,6 +475,7 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     // NoteChain native: direct QPainter render (zero overlay serialization)
     ChartCanvas_drawNoteChainOverlay(this, &painter);
+    emit paintReviewOverlay(&painter);
 
     painter.setPen(Qt::white);
     painter.setBrush(QColor(0, 0, 0, 128));

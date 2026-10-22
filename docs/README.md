@@ -3,13 +3,14 @@
 > 当前版本：**Beta v1.11.2（2026-09-19）**
 > 仓库状态：**v1.11.2 后续维护（Unreleased）**
 > Git 标签：`v1.11.2`
-> 索引最后核对：2026-10-01
+> 索引最后核对：2026-10-23
 
 ## 用户文档
 
 | 文档 | 用途 |
 |------|------|
 | [help.md](help.md) | 菜单、可组合面板、画布操作、曲线工具、BPM、Meta、插件与快捷键 |
+| [CHART_MERGE.md](CHART_MERGE.md) | 多谱面排序合并、逐段倍速/音调/淡入淡出/间隔、MCZ 导出与分图层预览 |
 | [version.md](version.md) | 版本、兼容性和升级注意事项 |
 | [history.md](history.md) | 按版本维护的完整更新记录；当前维护内容位于顶部 `Unreleased` 段 |
 | [about.md](about.md) | 项目定位、支持范围、许可证与反馈入口 |
@@ -19,12 +20,17 @@
 | 文档 | 用途 |
 |------|------|
 | [AI_PROJECT_GUIDE.md](AI_PROJECT_GUIDE.md) | 当前源码结构、关键数据流、构建测试和维护约束 |
-| [ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md) | `.mc` / `.mcz`、模型、坐标、插件、sidecar 和 Malody 引擎兼容参考 |
+| [ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md) | `.mc` / `.mcz` / `.cceproj` / `.ccepr`、模型、坐标、插件、sidecar 和 Malody 引擎兼容参考 |
+| [DOCUMENT_TRANSACTIONS.md](DOCUMENT_TRANSACTIONS.md) | 活动谱面的只读版本、增量/逆操作、运行期句柄与严格序列化边界 |
 | [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md) | 统一快捷键命令清单、上下文和保留手势 |
+| [BPM_ADVANCED_EDITOR.md](BPM_ADVANCED_EDITOR.md) | 非模态 BPM 曲线、手动测量、插值、预览应用和后台更新约束 |
 | [NOTE_CHAIN_EDITOR.md](NOTE_CHAIN_EDITOR.md) | 原生 C++ 曲线编辑器的状态、交互、持久化、撤销和性能约束 |
 | [Autotiming.md](Autotiming.md) | AutoTiming 自动节拍检测流程与公共接口 |
+| [archive/AE_AC_GUI_BUGFIX_PLAN_2026-10-08.md](archive/AE_AC_GUI_BUGFIX_PLAN_2026-10-08.md) | 已完成的 AE/AC 界面与修复实施计划；当前行为见 ANALYSIS_EDITOR.md |
 | [ENGINEERING_TODO.md](ENGINEERING_TODO.md) | 已审计的性能/可靠性事项、验收门槛与未来重构决策 |
+| [LOCAL_REVIEW_IMPLEMENTATION.md](LOCAL_REVIEW_IMPLEMENTATION.md) | 本地身份、图层、独立评论、PR 编辑与多轮 `.ccepr` 的确认契约及实施阶段 |
 | [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) | 多难度、图层剪贴板/跨 MC 转移、Meta 同步、新建 MC、审图、版本、osu!ctb、移动端与通用核心的长期规划 |
+| [archive/BPM_LEGACY_REQUIREMENTS.md](archive/BPM_LEGACY_REQUIREMENTS.md) | 已废弃的旧 BPM 高级编辑需求及依赖记录；仅供二次设计参考，不属于当前实现范围 |
 | [../TESTING.md](../TESTING.md) | 自动化测试目标、命令、覆盖范围和手工回归清单 |
 
 ## 插件开发

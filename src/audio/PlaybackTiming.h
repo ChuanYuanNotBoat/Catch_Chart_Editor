@@ -31,7 +31,8 @@ inline ClockAdjustment adjustClockTowardObservation(double predictedMs,
                                                      double observedMs,
                                                      double playbackRate,
                                                      double currentRateCorrection,
-                                                     bool allowHardResync)
+                                                     bool allowHardResync,
+                                                     double observationGranularityMs = 0.0)
 {
     constexpr double kSlewConvergenceWallMs = 1500.0;
     constexpr double kSlewMaxRateFraction = 0.005;
@@ -45,11 +46,19 @@ inline ClockAdjustment adjustClockTowardObservation(double predictedMs,
         return {predicted, 0.0, false};
 
     const double observed = std::max(0.0, observedMs);
-    const double errorMs = observed - predicted;
+    // A processed-frame timestamp is not an instantaneous device clock.
+    // At low playback rates a single PCM frame can span almost a second of
+    // wall time. Correct only error outside its measured media-time bounds.
+    const double uncertainty = std::isfinite(observationGranularityMs)
+                                   ? std::max(0.0, observationGranularityMs)
+                                   : 0.0;
+    const double boundedObservation = std::clamp(
+        predicted, std::max(0.0, observed - uncertainty), observed + uncertainty);
+    const double errorMs = boundedObservation - predicted;
     const double absoluteErrorMs = std::abs(errorMs);
     const double hardResyncMs = std::max(50.0, 120.0 * rate);
     if (allowHardResync && absoluteErrorMs >= hardResyncMs)
-        return {observed, 0.0, true};
+        return {boundedObservation, 0.0, true};
 
     const double deadZoneMs = std::max(0.15, 0.75 * rate);
     double targetRateCorrection = 0.0;

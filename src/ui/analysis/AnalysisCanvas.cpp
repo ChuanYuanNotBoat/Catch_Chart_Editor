@@ -9,26 +9,33 @@
 #include <QMenu>
 #include <algorithm>
 #include <cmath>
-namespace
-{
-QColor spectrumColor(float db)
-{
-    const double v = std::clamp((db + 90.0) / 90.0, 0.0, 1.0);
-    return QColor::fromRgbF(std::clamp(2.4 * v - 1.0, 0.0, 1.0), std::clamp(1.9 * v - 0.3, 0.0, 1.0),
-                            std::clamp(3 * v, 0.04, 1.0) * (1 - 0.65 * v));
-}
-} // namespace
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QPainterPath>
+#include <QThread>
+#include <QtConcurrent/QtConcurrentRun>
 AnalysisCanvas::AnalysisCanvas(ChartController *chart, SelectionController *selection, ChartCanvas *main,
                                QWidget *parent)
-    : QWidget(parent), m_chart(chart), m_selection(selection), m_main(main)
+    : TimingEditorCanvas(parent), m_chart(chart), m_selection(selection), m_main(main)
 {
     setObjectName("analysis.canvas");
     setMinimumWidth(180);
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
-    connect(chart, &ChartController::chartChanged, this, [this] {
-        rebuildChartCache();
+    m_spectrumViewportPool.setMaxThreadCount(1);
+    m_spectrumViewportPool.setThreadPriority(QThread::LowestPriority);
+    m_spectrumViewportWatcher = new QFutureWatcher<QImage>(this);
+    m_spectrumViewportTimer = new QTimer(this);
+    m_spectrumViewportTimer->setSingleShot(true);
+    m_spectrumViewportClock.start();
+    m_playbackViewportClock.start();
+    connect(m_spectrumViewportTimer, &QTimer::timeout, this, &AnalysisCanvas::startSpectrumViewportRender);
+    connect(m_spectrumViewportWatcher, &QFutureWatcher<QImage>::finished, this,
+            &AnalysisCanvas::finishSpectrumViewportRender);
+    connect(chart, &ChartController::chartChangeCommitted, this, [this](const ChartChange &change) {
+        if (change.affects(ChartChangeType::Notes) || change.affects(ChartChangeType::Timing))
+            rebuildChartCache(change.affects(ChartChangeType::Timing));
         update();
     });
     connect(chart, &ChartController::chartLoaded, this, &AnalysisCanvas::cancelGesture);
@@ -53,23 +60,11 @@ int AnalysisCanvas::spectrumWidth() const
 }
 double AnalysisCanvas::timeAtBeat(double beat) const
 {
-    if (m_bpm.isEmpty())
-        return 0;
-    auto it = std::upper_bound(m_bpm.cbegin(), m_bpm.cend(), beat,
-                               [](double b, const auto &e) { return b < e.beatPos; });
-    if (it != m_bpm.cbegin())
-        --it;
-    return it->bpm > 0 ? it->accumulatedMs + (beat - it->beatPos) * 60000 / it->bpm : it->accumulatedMs;
+    return m_transform.audioAtBeat(beat);
 }
 double AnalysisCanvas::beatAtTime(double ms) const
 {
-    if (m_bpm.isEmpty())
-        return 0;
-    auto it = std::upper_bound(m_bpm.cbegin(), m_bpm.cend(), ms,
-                               [](double t, const auto &e) { return t < e.accumulatedMs; });
-    if (it != m_bpm.cbegin())
-        --it;
-    return it->beatPos + (ms - it->accumulatedMs) * it->bpm / 60000;
+    return m_transform.beatAtAudio(ms);
 }
 double AnalysisCanvas::timeAtY(double y) const
 {
@@ -79,7 +74,8 @@ double AnalysisCanvas::timeAtY(double y) const
         return timeAtBeat(m_main->chartYToBeat(ratio * m_main->height()));
     if (m_main->isVerticalFlip())
         ratio = 1 - ratio;
-    return m_viewStart + ratio * h * m_msPerPixel;
+    return m_musicalView ? timeAtBeat(m_viewBeatStart + ratio * h * m_beatsPerPixel)
+                         : m_viewStart + ratio * h * m_msPerPixel;
 }
 double AnalysisCanvas::yAtTime(double ms) const
 {
@@ -89,34 +85,138 @@ double AnalysisCanvas::yAtTime(double ms) const
         ratio = m_main->chartBeatToY(beatAtTime(ms)) / qMax(1, m_main->height());
     else
     {
-        ratio = (ms - m_viewStart) / (h * m_msPerPixel);
+        ratio = m_musicalView ? (beatAtTime(ms) - m_viewBeatStart) / (h * m_beatsPerPixel)
+                              : (ms - m_viewStart) / (h * m_msPerPixel);
         if (m_main->isVerticalFlip())
             ratio = 1 - ratio;
     }
     return headerHeight + ratio * h;
 }
-void AnalysisCanvas::alignViewport()
+void AnalysisCanvas::alignViewport(bool centerOnPlayhead)
 {
+    centerOnPlayhead = centerOnPlayhead || m_playbackActive;
+    const double anchor = centerOnPlayhead ? .5 : (m_main->isVerticalFlip() ? .2 : .8);
     const double span = qMax(1, height() - headerHeight) * m_msPerPixel;
-    m_viewStart = qMax(0.0, m_current - span * (m_main->isVerticalFlip() ? 0.2 : 0.8));
+    const double audioAnchor = m_main->isVerticalFlip() ? 1.0 - anchor : anchor;
+    m_viewStart = qMax(0.0, m_current - span * audioAnchor);
+    m_viewBeatStart = qMax(beatAtTime(0), beatAtTime(m_current)
+                                              - qMax(1, height() - headerHeight) * m_beatsPerPixel * audioAnchor);
 }
 void AnalysisCanvas::setCurrentTime(double ms)
 {
     if (!std::isfinite(ms))
         return;
     m_current = qMax(0.0, ms);
-    alignViewport();
+    bool viewportMoved = !m_playbackActive;
+    if (!m_playbackActive)
+        alignViewport();
+    else if (!m_syncView)
+    {
+        const double h = qMax(1, height() - headerHeight);
+        double position = m_musicalView ? (beatAtTime(m_current) - m_viewBeatStart) / (h * m_beatsPerPixel)
+                                        : (m_current - m_viewStart) / (h * m_msPerPixel);
+        if (m_main->isVerticalFlip())
+            position = 1.0 - position;
+        if (position < .25 || position > .75)
+        {
+            const double previousStart = m_viewStart;
+            const double previousBeatStart = m_viewBeatStart;
+            alignViewport(true);
+            viewportMoved = previousStart != m_viewStart || previousBeatStart != m_viewBeatStart;
+        }
+    }
     update();
-    emit viewportChanged();
+    if (viewportMoved || !m_playbackActive || m_playbackViewportClock.elapsed() >= 80)
+    {
+        m_playbackViewportClock.restart();
+        emit viewportChanged();
+    }
+}
+void AnalysisCanvas::setPlaybackActive(bool active)
+{
+    if (m_playbackActive == active)
+        return;
+    m_playbackActive = active;
+    if (active)
+    {
+        m_asyncSpectrumViewport = true;
+        if (!m_syncView)
+        {
+            alignViewport(true);
+            m_playbackViewportClock.restart();
+            emit viewportChanged();
+        }
+    }
+    update();
 }
 void AnalysisCanvas::setMillisecondsPerPixel(double value)
 {
     if (!std::isfinite(value))
         return;
     m_msPerPixel = qBound(0.1, value, 100.0);
+    m_musicalView = false;
+    m_trackScene.setTransformIdentity("audio-seconds:v1");
     alignViewport();
     update();
     emit viewportChanged();
+}
+void AnalysisCanvas::setBeatsPerPixel(double value)
+{
+    if (!std::isfinite(value))
+        return;
+    m_beatsPerPixel = qBound(.0001, value, 10.);
+    m_musicalView = true;
+    m_trackScene.setTransformIdentity(m_transform.identity());
+    alignViewport();
+    update();
+    emit viewportChanged();
+}
+void AnalysisCanvas::setMusicalView(bool enabled)
+{
+    if (enabled == m_musicalView)
+        return;
+    const double first = timeAtY(headerHeight), last = timeAtY(height()),
+                 middle = timeAtY((height() + headerHeight) / 2.);
+    const double h = qMax(1, height() - headerHeight);
+    m_musicalView = enabled;
+    m_trackScene.setTransformIdentity(enabled ? m_transform.identity() : QStringLiteral("audio-seconds:v1"));
+    if (enabled)
+    {
+        m_beatsPerPixel = qBound(.0001, qAbs(beatAtTime(last) - beatAtTime(first)) / h, 10.);
+        m_viewBeatStart = beatAtTime(middle) - h * m_beatsPerPixel / 2;
+    }
+    else
+    {
+        m_msPerPixel = qBound(.1, qAbs(last - first) / h, 100.);
+        m_viewStart = middle - h * m_msPerPixel / 2;
+    }
+    update();
+    emit viewportChanged();
+}
+void AnalysisCanvas::setTempoMapPreview(const AutoTiming2TempoMap &map)
+{
+    m_modelPreview = map;
+    update();
+}
+void AnalysisCanvas::setAnalysisTracks(const QVector<analysis::AnalysisTrack> &tracks, const QJsonArray &regions)
+{
+    auto data = tracks;
+    if (!regions.isEmpty() && !std::any_of(data.begin(), data.end(), [](const auto &track) {
+            return track.kind == analysis::TrackKind::Regions;
+        }))
+        data += analysis::diagnosticTracks({{"uncertainRegions", regions}});
+    m_trackScene.setTracks(std::move(data));
+    m_trackScene.setTransformIdentity(m_musicalView ? m_transform.identity() : QStringLiteral("audio-seconds:v1"));
+    update();
+}
+void AnalysisCanvas::deleteSelectedNotes()
+{
+    QVector<Note> notes;
+    for (int i : m_selection->selectedIndices())
+        if (i >= 0 && i < m_chart->chart()->notes().size())
+            notes.append(m_chart->chart()->notes()[i]);
+    if (!notes.isEmpty())
+        m_chart->removeNotes(notes);
 }
 void AnalysisCanvas::setNoteLaneWidth(int width)
 {
@@ -200,46 +300,83 @@ void AnalysisCanvas::setMeasurementOverlay(std::optional<double> start, std::opt
 }
 void AnalysisCanvas::clearSpectrum()
 {
-    m_spectrum = {};
-    m_leftImage = {};
-    m_rightImage = {};
+    m_spectrumTiles.clear();
+    m_spectrum.reset();
+    m_spectrumRaster = {};
+    m_pendingSpectrumViewport.reset();
+    m_spectrumViewport.clear();
+    ++m_spectrumRevision;
+    update();
+}
+void AnalysisCanvas::setSpectrumTile(std::shared_ptr<const analysis::StereoSpectrum> data,
+                                     analysis::SpectrumRaster raster)
+{
+    if (!data || !data->valid() || !raster.valid())
+        return;
+    for (const auto &tile : m_spectrumTiles)
+        if (tile.spectrum == data || std::abs(tile.spectrum->startSeconds - data->startSeconds) < 1e-8)
+            return;
+    if (!m_spectrum)
+    {
+        m_spectrum = data;
+        m_spectrumRaster = raster;
+    }
+    m_spectrumTiles.append({std::move(data), std::move(raster)});
+    // A maximum 100-second visible range fits in 51 fine blocks. Keep room for
+    // neighbouring blocks; old off-screen tiles are the first to leave.
+    const double a = timeAtY(headerHeight) / 1000, b = timeAtY(height()) / 1000;
+    while (m_spectrumTiles.size() > 56)
+    {
+        auto victim = std::find_if(m_spectrumTiles.begin(), m_spectrumTiles.end(), [a, b](const auto &tile) {
+            const auto &s = *tile.spectrum;
+            return s.startSeconds >= qMax(a, b) || s.startSeconds + s.durationSeconds <= qMin(a, b);
+        });
+        if (victim == m_spectrumTiles.end())
+            victim = m_spectrumTiles.begin();
+        m_spectrumTiles.erase(victim);
+    }
+    m_asyncSpectrumViewport = true;
+    ++m_spectrumRevision;
+    m_status.clear();
     update();
 }
 void AnalysisCanvas::setSpectrum(analysis::StereoSpectrum data)
 {
-    m_spectrum = std::move(data);
-    const size_t bins = m_spectrum.frequencies.size(), frames = m_spectrum.frames.size();
-    if (!m_spectrum.valid() || !bins || frames > 12000 || bins > 4096 ||
-        !std::isfinite(m_spectrum.hopSeconds) || m_spectrum.hopSeconds <= 0 ||
-        !std::isfinite(m_spectrum.startSeconds) || m_spectrum.startSeconds < 0 ||
-        m_spectrum.leftDb.size() != frames * bins || m_spectrum.rightDb.size() != frames * bins)
+    // Compatibility for callers with small fixtures; production supplies the
+    // raster prepared by SpectrumService's worker.
+    auto raster = analysis::prepareSpectrumRaster(data);
+    setSpectrumPage(std::make_shared<const analysis::StereoSpectrum>(std::move(data)), std::move(raster));
+}
+void AnalysisCanvas::setSpectrumPage(std::shared_ptr<const analysis::StereoSpectrum> data,
+                                     analysis::SpectrumRaster raster)
+{
+    if (!data || !data->valid() || !raster.valid() || raster.left.width() != int(data->frequencies.size())
+        || raster.left.height() != int(data->frames.size()) || raster.right.size() != raster.left.size())
     {
+        clearSpectrum();
         m_status = tr("Invalid spectrum result");
-        m_spectrum = {};
-        m_leftImage = {};
-        m_rightImage = {};
         update();
         return;
     }
-    m_leftImage = QImage(int(bins), int(frames), QImage::Format_RGB32);
-    m_rightImage = QImage(int(bins), int(frames), QImage::Format_RGB32);
-    for (size_t y = 0; y < frames; ++y)
-    {
-        auto *l = reinterpret_cast<QRgb *>(m_leftImage.scanLine(int(y))),
-             *r = reinterpret_cast<QRgb *>(m_rightImage.scanLine(int(y)));
-        for (size_t x = 0; x < bins; ++x)
-        {
-            l[x] = spectrumColor(m_spectrum.leftDb[y * bins + x]).rgb();
-            r[x] = spectrumColor(m_spectrum.rightDb[y * bins + x]).rgb();
-        }
-    }
+    m_spectrum = std::move(data);
+    m_spectrumRaster = std::move(raster);
+    m_pendingSpectrumViewport.reset();
+    ++m_spectrumRevision;
+    if (m_spectrumTiles.isEmpty())
+        m_spectrumViewport.clear();
     m_status.clear();
     update();
 }
-void AnalysisCanvas::rebuildChartCache()
+void AnalysisCanvas::rebuildChartCache(bool timingChanged)
 {
+    const auto previousTransform = m_transform.identity();
     const auto *chart = m_chart->chart();
-    m_bpm = MathUtils::buildBpmTimeCache(chart->bpmList(), chart->meta().offset);
+    if (timingChanged || m_bpm.isEmpty())
+    {
+        m_bpm = MathUtils::buildBpmTimeCache(chart->bpmList(), chart->meta().offset);
+        m_transform.setChart(m_bpm);
+    }
+    m_trackScene.setTransformIdentity(m_musicalView ? m_transform.identity() : QStringLiteral("audio-seconds:v1"));
     const auto &notes = chart->notes();
     m_starts.resize(notes.size());
     m_ends.resize(notes.size());
@@ -255,53 +392,153 @@ void AnalysisCanvas::rebuildChartCache()
     m_noteIndex.build(ids, m_starts, m_ends);
     m_tailOriginal.reset();
     m_tailPreview.reset();
+    if (previousTransform != m_transform.identity())
+    {
+        alignViewport();
+        emit viewportChanged();
+    }
 }
 void AnalysisCanvas::drawSpectrum(QPainter &p)
 {
-    const int sw = spectrumWidth(), gutter = 16, chWidth = (sw - 2 * gutter - 8) / 2;
-    const int x[2] = {gutter, sw / 2 + 4};
-    if (m_leftImage.isNull())
+    const int sw = spectrumWidth();
+    if (!m_spectrumRaster.valid())
     {
         p.setPen(QColor(145, 161, 181));
         p.drawText(QRect(12, 45, sw - 24, 140), Qt::TextWordWrap,
                    m_status.isEmpty() ? tr("Load chart audio to inspect stereo spectrum") : m_status);
         return;
     }
-    for (int y = headerHeight; y < height(); ++y)
+    const auto &data = spectrum();
+    const QSize logicalSize(sw, qMax(1, height() - headerHeight));
+    const double dpr = devicePixelRatioF();
+    const QString transform = m_syncView      ? "shared:" + m_transform.identity()
+                              : m_musicalView ? "musical:" + m_transform.identity()
+                                              : "audio-seconds:v1";
+    const qint64 physicalPixels = qint64(std::ceil(logicalSize.width() * dpr))
+                                  * qint64(std::ceil(logicalSize.height() * dpr));
+    if (m_playbackActive || physicalPixels > 750000)
+        m_asyncSpectrumViewport = true;
+    if (!m_asyncSpectrumViewport)
     {
-        const int frame =
-            int(std::floor((timeAtY(y) / 1000 - m_spectrum.startSeconds) / m_spectrum.hopSeconds));
-        if (frame < 0 || frame >= m_leftImage.height())
-            continue;
-        p.drawImage(QRect(x[0], y, chWidth, 1), m_leftImage, QRect(0, frame, m_leftImage.width(), 1));
-        p.drawImage(QRect(x[1], y, chWidth, 1), m_rightImage, QRect(0, frame, m_rightImage.width(), 1));
-        const auto &f = m_spectrum.frames[size_t(frame)];
-        p.setPen(QColor(70, 187, 171, 190));
-        p.drawLine(1, y, qRound(qMin(1.f, f.leftPeak) * (gutter - 2)), y);
-        p.drawLine(sw / 2 - gutter, y, sw / 2 - gutter + qRound(qMin(1.f, f.rightPeak) * (gutter - 2)), y);
-        p.setPen(QColor(204, 232, 159, 220));
-        p.drawPoint(qRound(qMin(1.f, f.leftRms) * (gutter - 2)), y);
-        p.drawPoint(sw / 2 - gutter + qRound(qMin(1.f, f.rightRms) * (gutter - 2)), y);
+        const auto &image = m_spectrumViewport.image(data, m_spectrumRaster, m_spectrumRevision, logicalSize, dpr,
+                                                     transform, timeAtY(headerHeight), timeAtY(height()),
+                                                     [this](double y) { return timeAtY(headerHeight + y); });
+        p.drawImage(QPointF(0, headerHeight), image);
     }
-    if (chWidth > 110 && !m_spectrum.frequencies.empty())
+    else
     {
-        const double low = m_spectrum.frequencies.front(), high = m_spectrum.frequencies.back();
+        auto request = SpectrumViewport::makeRenderRequest(m_spectrum, m_spectrumRaster, m_spectrumRevision,
+                                                            logicalSize, dpr, transform,
+                                                            [this](double y) { return timeAtY(headerHeight + y); },
+                                                            m_spectrumTiles);
+        if (!m_spectrumViewport.matches(request))
+        {
+            m_pendingSpectrumViewport = request;
+            scheduleSpectrumViewportRender();
+        }
+        else
+            m_pendingSpectrumViewport.reset();
+        if (m_spectrumViewport.canDisplayFor(request))
+            p.drawImage(QPointF(0, headerHeight), m_spectrumViewport.cachedImage());
+    }
+    const auto channels = spectrumChannelRects(sw, height() - headerHeight);
+    if (channels[0].width() > 110 && !data.frequencies.empty())
+    {
+        const double low = data.frequencies.front(), high = data.frequencies.back();
         for (int ch = 0; ch < 2; ++ch)
         {
-            p.fillRect(QRect(x[ch], height() - 17, chWidth, 17), QColor(19, 24, 33, 215));
+            const int x = channels[ch].left(), chWidth = channels[ch].width();
+            p.fillRect(QRect(x, height() - 17, chWidth, 17), QColor(19, 24, 33, 215));
             p.setPen(QColor(164, 180, 198));
             for (double hz : {100., 1000., 10000.})
             {
                 if (hz < low || hz > high)
                     continue;
                 const QString label = hz < 1000 ? tr("100 Hz") : hz < 10000 ? tr("1 kHz") : tr("10 kHz");
-                const int tick = x[ch] + qRound(std::log(hz / low) / std::log(high / low) * chWidth);
+                const int tick = x + qRound(std::log(hz / low) / std::log(high / low) * chWidth);
                 const int labelWidth = p.fontMetrics().horizontalAdvance(label);
-                p.drawText(qBound(x[ch], tick - labelWidth / 2, x[ch] + chWidth - labelWidth), height() - 4,
-                           label);
+                p.drawText(qBound(x, tick - labelWidth / 2, x + chWidth - labelWidth), height() - 4, label);
             }
         }
     }
+}
+void AnalysisCanvas::scheduleSpectrumViewportRender()
+{
+    if (!m_pendingSpectrumViewport || !m_spectrumViewportWatcher || m_spectrumViewportWatcher->isRunning()
+        || m_activeSpectrumViewport || m_spectrumViewportTimer->isActive())
+        return;
+    constexpr int refreshIntervalMs = 66;
+    const int delay = qMax(0, refreshIntervalMs - int(m_spectrumViewportClock.elapsed()));
+    if (delay == 0)
+        startSpectrumViewportRender();
+    else
+        m_spectrumViewportTimer->start(delay);
+}
+void AnalysisCanvas::startSpectrumViewportRender()
+{
+    if (!m_pendingSpectrumViewport || !m_spectrumViewportWatcher || m_spectrumViewportWatcher->isRunning()
+        || m_activeSpectrumViewport)
+        return;
+    auto request = std::move(*m_pendingSpectrumViewport);
+    m_pendingSpectrumViewport.reset();
+    m_activeSpectrumViewport = request;
+    m_spectrumViewportClock.restart();
+    m_spectrumViewportWatcher->setFuture(QtConcurrent::run(&m_spectrumViewportPool, [request = std::move(request)] {
+        return SpectrumViewport::render(request);
+    }));
+}
+void AnalysisCanvas::finishSpectrumViewportRender()
+{
+    if (!m_activeSpectrumViewport)
+        return;
+    const auto request = std::move(*m_activeSpectrumViewport);
+    m_activeSpectrumViewport.reset();
+    const QImage image = m_spectrumViewportWatcher->result();
+    if (!image.isNull() && request.page == m_spectrumRevision)
+        m_spectrumViewport.setRenderedImage(request, image);
+    if (m_pendingSpectrumViewport && m_spectrumViewport.matches(*m_pendingSpectrumViewport))
+        m_pendingSpectrumViewport.reset();
+    update();
+    scheduleSpectrumViewportRender();
+}
+void AnalysisCanvas::drawAnalysis(QPainter &p)
+{
+    const double a = timeAtY(headerHeight) / 1000, b = timeAtY(height()) / 1000, low = qMin(a, b), high = qMax(a, b);
+    p.save();
+    p.setClipRect(QRect(0, headerHeight, spectrumWidth(), height() - headerHeight));
+    m_trackScene.draw(p, QRectF(0, headerHeight, spectrumWidth(), height() - headerHeight), low, high,
+                      [this](double seconds) {
+                          return yAtTime(seconds * 1000);
+                      });
+    if (m_modelPreview.available)
+    {
+        int budget = 1024;
+        p.setPen(QPen(QColor(112, 241, 163), 1, Qt::DashLine));
+        for (const auto &s : m_modelPreview.segments)
+        {
+            if (s.endSeconds <= low || s.startSeconds >= high || s.endSeconds <= s.startSeconds
+                || s.endBeat <= s.startBeat)
+                continue;
+            auto phase = [&](double seconds) {
+                double x = qBound(0., (seconds - s.startSeconds) / (s.endSeconds - s.startSeconds), 1.);
+                return s.startBeat + x * (s.phaseLinear + x * (s.phaseQuadratic + x * s.phaseCubic));
+            };
+            double first = phase(low), last = phase(high),
+                   stride = qMax(1., std::ceil((last - first) / qMax(1, (height() - headerHeight) / 8)));
+            for (double beat = std::ceil(first / stride) * stride; beat <= last && budget > 0; beat += stride, --budget)
+            {
+                auto ms = analysis::MusicalTimeTransform::audioAtModelBeat(m_modelPreview, beat);
+                if (ms)
+                {
+                    double y = yAtTime(*ms);
+                    p.drawLine(QPointF(0, y), QPointF(spectrumWidth(), y));
+                }
+            }
+            if (budget <= 0)
+                break;
+        }
+    }
+    p.restore();
 }
 void AnalysisCanvas::drawTiming(QPainter &p)
 {
@@ -454,7 +691,9 @@ void AnalysisCanvas::drawNotes(QPainter &p)
             if (e.end < low || e.start > high)
                 continue;
             const Note &n = m_tailPreview && m_tailOriginal && notes[e.index].id == m_tailOriginal->id ? *m_tailPreview
-                                                                                                       : notes[e.index];
+                            : m_movePreview && m_moveOriginal && notes[e.index].id == m_moveOriginal->id
+                                ? *m_movePreview
+                                : notes[e.index];
             if (n.isRainNote() != rainPass)
                 continue;
             const double y = yAtTime(timeAtBeat(n.getStartBeat()));
@@ -479,6 +718,20 @@ void AnalysisCanvas::drawNotes(QPainter &p)
         p.setPen(QPen(QColor(105, 169, 255), 1, Qt::DashLine));
         p.drawLine(QPointF(spectrumWidth(), y), QPointF(width(), y));
     }
+    p.setPen(QPen(QColor(231, 132, 255), 2, Qt::DashLine));
+    p.setBrush(QColor(177, 84, 211, 60));
+    auto first = std::lower_bound(m_noteDraftTimes.cbegin(), m_noteDraftTimes.cend(), low);
+    for (auto it = first; it != m_noteDraftTimes.cend() && *it <= high; ++it)
+        p.drawRoundedRect(QRectF(x - 14, yAtTime(*it) - 5, 28, 10), 3, 3);
+}
+void AnalysisCanvas::setNoteDraft(QVector<Note> notes)
+{
+    m_noteDraftTimes.clear();
+    if (notes.size() <= 4096)
+        for (const auto &note : notes)
+            if (note.isNormal() && note.isValid()) m_noteDraftTimes.append(timeAtBeat(note.getStartBeat()));
+    std::sort(m_noteDraftTimes.begin(), m_noteDraftTimes.end());
+    update();
 }
 void AnalysisCanvas::paintEvent(QPaintEvent *)
 {
@@ -497,12 +750,13 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
         shade(m_loopStart, m_loopEnd, QColor(86, 217, 172, 23));
     drawTiming(p);
     drawTimingPreview(p);
+    drawAnalysis(p);
     drawNotes(p);
     p.setPen(QPen(QColor(255, 119, 113), 1.5));
     p.drawLine(QPointF(0, yAtTime(m_current)), QPointF(width(), yAtTime(m_current)));
     drawMeasurement(p);
     drawInterpolation(p);
-    if (!m_status.isEmpty() && !m_leftImage.isNull())
+    if (!m_status.isEmpty() && m_spectrumRaster.valid())
     {
         const QRect status(8, headerHeight + 6, spectrumWidth() - 16, 42);
         p.fillRect(status, QColor(19, 24, 33, 225));
@@ -512,7 +766,8 @@ void AnalysisCanvas::paintEvent(QPaintEvent *)
     p.setClipping(false);
     p.fillRect(QRect(0, 0, width(), headerHeight), QColor(30, 38, 50));
     p.setPen(QColor(201, 215, 231));
-    QString spectrumTitle = m_spectrum.sourceChannels == 1 ? tr("Spectrum · Mono → L / R") : tr("Spectrum · L / R");
+    QString spectrumTitle = spectrum().sourceChannels == 1 ? tr("Spectrum · Mono → L / R") : tr("Spectrum · L / R");
+    if (!m_noteDraftTimes.isEmpty()) spectrumTitle += tr(" · Draft: %1").arg(m_noteDraftTimes.size());
     if (m_timingPreview)
     {
         spectrumTitle += tr(" · Preview %1 BPM").arg(m_timingPreview->bpm, 0, 'f', 3);
@@ -568,9 +823,16 @@ int AnalysisCanvas::hitNote(double y) const
 }
 void AnalysisCanvas::cancelGesture()
 {
+    if (!m_noteDraftTimes.isEmpty())
+    {
+        m_noteDraftTimes.clear();
+        emit noteDraftCancelled();
+    }
     m_rainAnchor.reset();
     m_tailOriginal.reset();
     m_tailPreview.reset();
+    m_moveOriginal.reset();
+    m_movePreview.reset();
     m_resizeDivider = false;
     m_selectingRange = false;
     m_measureDragging = 0;
@@ -667,6 +929,19 @@ void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
     }
     if (pos.x() < spectrumWidth() || e->button() == Qt::MiddleButton)
     {
+        if (e->button() == Qt::LeftButton && e->modifiers() == Qt::NoModifier)
+        {
+            const double a = timeAtY(headerHeight) / 1000, b = timeAtY(height()) / 1000;
+            if (auto hit = m_trackScene.hit(pos, QRectF(0, headerHeight, spectrumWidth(), height() - headerHeight),
+                                            qMin(a, b), qMax(a, b), [this](double seconds) {
+                                                return yAtTime(seconds * 1000);
+                                            }))
+            {
+                emit analysisObjectSelected(hit->trackId, hit->handle, hit->details);
+                emit seekRequested(qMax(0., hit->seconds * 1000));
+                return;
+            }
+        }
         if (e->button() == Qt::LeftButton || e->button() == Qt::MiddleButton)
             emit seekRequested(qMax(0.0, timeAtY(pos.y())));
         return;
@@ -702,6 +977,13 @@ void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
         {
             m_tailOriginal = note;
             m_tailPreview = note;
+            m_gestureRevision = m_chart->revision();
+        }
+        else if (!(e->modifiers() & Qt::ControlModifier))
+        {
+            m_moveOriginal = note;
+            m_movePreview = note;
+            m_gestureRevision = m_chart->revision();
         }
         return;
     }
@@ -729,6 +1011,41 @@ void AnalysisCanvas::mousePressEvent(QMouseEvent *e)
 }
 void AnalysisCanvas::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_moveOriginal)
+    {
+        if (m_gestureRevision != m_chart->revision())
+        {
+            cancelGesture();
+            return;
+        }
+        auto cursor = snappedNoteAtY(e->position().y());
+        auto moved = *m_moveOriginal;
+        if (cursor.startPosition() == moved.startPosition())
+        {
+            m_movePreview = moved;
+            update();
+            return;
+        }
+        moved.beatNum = cursor.beatNum;
+        moved.numerator = cursor.numerator;
+        moved.denominator = cursor.denominator;
+        if (moved.isRainNote())
+        {
+            auto span = analysis::subtractBeats(
+                {m_moveOriginal->endBeatNum, m_moveOriginal->endNumerator, m_moveOriginal->endDenominator},
+                {m_moveOriginal->beatNum, m_moveOriginal->numerator, m_moveOriginal->denominator});
+            auto end = span ? analysis::addBeatSpan({moved.beatNum, moved.numerator, moved.denominator}, *span)
+                            : std::optional<analysis::BeatTriplet>();
+            if (!end)
+                return;
+            moved.endBeatNum = end->whole;
+            moved.endNumerator = end->numerator;
+            moved.endDenominator = end->denominator;
+        }
+        m_movePreview = moved;
+        update();
+        return;
+    }
     if (m_measureDragging)
     {
         if (m_measureDragging == 1)
@@ -750,6 +1067,11 @@ void AnalysisCanvas::mouseMoveEvent(QMouseEvent *e)
     }
     if (m_tailOriginal)
     {
+        if (m_gestureRevision != m_chart->revision())
+        {
+            cancelGesture();
+            return;
+        }
         const Note tail = snappedNoteAtY(e->position().y());
         Note n = *m_tailOriginal;
         n.endBeatNum = tail.beatNum;
@@ -770,6 +1092,14 @@ void AnalysisCanvas::mouseReleaseEvent(QMouseEvent *e)
         return;
     m_resizeDivider = false;
     m_measureDragging = 0;
+    if (m_moveOriginal && m_movePreview)
+    {
+        auto original = *m_moveOriginal, moved = *m_movePreview;
+        m_moveOriginal.reset();
+        m_movePreview.reset();
+        if (m_gestureRevision == m_chart->revision() && original != moved)
+            m_chart->moveNote(original, moved);
+    }
     if (m_selectingRange)
     {
         m_selectingRange = false;
@@ -780,7 +1110,7 @@ void AnalysisCanvas::mouseReleaseEvent(QMouseEvent *e)
         const auto original = *m_tailOriginal, changed = *m_tailPreview;
         m_tailOriginal.reset();
         m_tailPreview.reset();
-        if (original != changed)
+        if (m_gestureRevision == m_chart->revision() && original != changed)
             m_chart->moveNote(original, changed);
     }
 }
@@ -791,25 +1121,21 @@ void AnalysisCanvas::wheelEvent(QWheelEvent *e)
     {
         if (m_syncView)
             m_main->setTimeScale(m_main->timeScale() * std::pow(1.15, d));
+        else if (m_musicalView)
+            setBeatsPerPixel(m_beatsPerPixel * std::pow(1.15, -d));
         else
             setMillisecondsPerPixel(m_msPerPixel * std::pow(1.15, -d));
     }
     else
-        emit seekRequested(qMax(0.0, m_current + d * m_msPerPixel * 45));
+        emit seekRequested(qMax(0.0, m_musicalView ? timeAtBeat(beatAtTime(m_current) + d * m_beatsPerPixel * 45)
+                                                   : m_current + d * m_msPerPixel * 45));
     e->accept();
 }
-void AnalysisCanvas::keyPressEvent(QKeyEvent *e)
+void AnalysisCanvas::cancelInteraction()
 {
-    if (e->key() == Qt::Key_Escape)
-    {
-        cancelGesture();
-        if (m_measurePicking)
-            emit measurementCancelRequested();
-        if (m_interpolationPicking) emit interpolationPickCancelled();
-        e->accept();
-    }
-    else
-        QWidget::keyPressEvent(e);
+    cancelGesture();
+    if (m_measurePicking) emit measurementCancelRequested();
+    if (m_interpolationPicking) emit interpolationPickCancelled();
 }
 bool AnalysisCanvas::event(QEvent *event)
 {
@@ -827,6 +1153,6 @@ bool AnalysisCanvas::event(QEvent *event)
 }
 void AnalysisCanvas::resizeEvent(QResizeEvent *)
 {
-    alignViewport();
+    alignViewport(m_playbackActive && !m_syncView);
     emit viewportChanged();
 }

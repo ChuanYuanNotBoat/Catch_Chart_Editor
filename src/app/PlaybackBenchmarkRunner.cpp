@@ -9,6 +9,8 @@
 #include "utils/Logger.h"
 #include "utils/MathUtils.h"
 #include "utils/PlaybackStutterProbe.h"
+#include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
+#include "ui/CustomWidgets/ChartCanvas/ChartSpectrumOverlay.h"
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -42,6 +44,10 @@ namespace
     constexpr auto kStartOption = "benchmark-start-ms";
     constexpr auto kSpeedOption = "benchmark-speed";
     constexpr auto kOutputOption = "benchmark-output";
+    constexpr auto kSpectrumOption = "benchmark-spectrum-overlay";
+    constexpr auto kSettingsOption = "benchmark-settings-dir";
+    constexpr auto kWindowSizeOption = "benchmark-window-size";
+    constexpr auto kMuteOption = "benchmark-mute";
 
     bool parseInteger(const QString &text, qint64 minimum, qint64 maximum,
                       qint64 *result, const QString &optionName, QString *errorMessage)
@@ -82,6 +88,14 @@ PlaybackBenchmarkRunner::PlaybackBenchmarkRunner(Application *application,
 
 void PlaybackBenchmarkRunner::addCommandLineOptions(QCommandLineParser &parser)
 {
+    parser.addOption(QCommandLineOption(kMuteOption,
+        QStringLiteral("Mute music and hit sounds for this benchmark without changing saved preferences.")));
+    parser.addOption(QCommandLineOption(kSpectrumOption,
+        QStringLiteral("Include the main editor spectrum overlay without changing saved preferences.")));
+    parser.addOption(QCommandLineOption(kSettingsOption,
+        QStringLiteral("Use an isolated INI settings directory for reproducible benchmarks."), QStringLiteral("path")));
+    parser.addOption(QCommandLineOption(kWindowSizeOption,
+        QStringLiteral("Use an explicit benchmark window size, including offscreen runs."), QStringLiteral("WIDTHxHEIGHT")));
     parser.addOption(QCommandLineOption(
         kChartOption,
         QStringLiteral("Run an automated playback benchmark using an extracted .mc chart."),
@@ -138,6 +152,22 @@ bool PlaybackBenchmarkRunner::optionsFromParser(const QCommandLineParser &parser
     PlaybackBenchmarkOptions parsed;
     parsed.chartPath = QFileInfo(parser.value(kChartOption)).absoluteFilePath();
     parsed.outputPath = parser.value(kOutputOption).trimmed();
+    parsed.spectrumOverlay = parser.isSet(kSpectrumOption);
+    parsed.muted = parser.isSet(kMuteOption);
+    parsed.settingsDirectory = parser.value(kSettingsOption);
+    if (parser.isSet(kWindowSizeOption))
+    {
+        const auto parts = parser.value(kWindowSizeOption).split('x');
+        bool widthOk = false, heightOk = false;
+        const int width = parts.value(0).toInt(&widthOk), height = parts.value(1).toInt(&heightOk);
+        if (parts.size() != 2 || !widthOk || !heightOk || width < 640 || height < 400 || width > 8192 || height > 8192)
+        {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("--benchmark-window-size requires WIDTHxHEIGHT between 640x400 and 8192x8192.");
+            return false;
+        }
+        parsed.windowSize = QSize(width, height);
+    }
 
     qint64 value = 0;
     if (!parseInteger(parser.value(kFpsOption), 0, 120, &value, kFpsOption, errorMessage))
@@ -200,7 +230,13 @@ void PlaybackBenchmarkRunner::start()
     m_watchdogTimer->start(qMax(30000, m_options.durationMs + m_options.warmupMs + 20000));
 
     MainWindow *window = m_application->mainWindow();
-    window->showMaximized();
+    if (m_options.windowSize.isValid())
+    {
+        window->showNormal();
+        window->resize(m_options.windowSize);
+    }
+    else
+        window->showMaximized();
     window->raise();
     window->activateWindow();
     QCoreApplication::processEvents();
@@ -211,6 +247,14 @@ void PlaybackBenchmarkRunner::start()
         fail(loadError.isEmpty() ? QStringLiteral("Failed to load benchmark chart.") : loadError);
         return;
     }
+    if (auto *canvas = window->findChild<ChartCanvas *>())
+    {
+        canvas->setSpectrumOverlayEnabled(m_options.spectrumOverlay);
+        if (m_options.muted)
+            canvas->setNoteSoundVolume(0);
+    }
+    if (m_options.muted)
+        m_application->playbackController()->audioPlayer()->setMuted(true);
     waitForAudio();
 }
 
@@ -341,6 +385,10 @@ void PlaybackBenchmarkRunner::beginMeasurement()
     metadata.insert("effective_fps", controller->effectiveFrameRate());
     metadata.insert("display_refresh_hz", screen ? screen->refreshRate() : 0.0);
     metadata.insert("playback_speed", m_options.speed);
+    metadata.insert("spectrum_overlay", m_options.spectrumOverlay);
+    metadata.insert("muted", audio->isMuted());
+    const auto *overlay = window->findChild<ChartSpectrumOverlay *>();
+    metadata.insert("spectrum_page_ready", overlay && overlay->currentPage().valid());
     metadata.insert("warmup_ms", m_options.warmupMs);
     metadata.insert("injected_ui_stall_ms", m_options.injectedUiStallMs);
     metadata.insert("requested_duration_ms", m_options.durationMs);

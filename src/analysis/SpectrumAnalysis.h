@@ -2,6 +2,7 @@
 #include <atomic>
 #include <string>
 #include <vector>
+#include <limits>
 namespace analysis
 {
 struct SpectrumFrame
@@ -20,5 +21,7 @@ struct StereoSpectrum
     bool valid() const { return error.empty() && !frames.empty(); }
 };
 StereoSpectrum analyzeStereo(const std::vector<float> &interleaved, int sampleRate, int channels,
-                             double startSeconds = 0, const std::atomic<bool> *cancel = nullptr);
+                             double startSeconds = 0, const std::atomic<bool> *cancel = nullptr,
+                             size_t firstFrame = 0, size_t frameCount = std::numeric_limits<size_t>::max(),
+                             double frameStepSeconds = 0);
 } // namespace analysis

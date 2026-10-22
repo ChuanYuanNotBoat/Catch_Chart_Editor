@@ -6,6 +6,7 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QMetaObject>
 #include <QPointer>
 #include <QProgressDialog>
@@ -120,7 +121,7 @@ struct VorbisEncoder
     ~VorbisEncoder() { cleanup(); }
 };
 
-bool writePage(QFile &out, const ogg_page &page)
+bool writePage(QIODevice &out, const ogg_page &page)
 {
     return out.write(reinterpret_cast<const char *>(page.header), page.header_len) ==
                static_cast<qint64>(page.header_len) &&
@@ -128,7 +129,7 @@ bool writePage(QFile &out, const ogg_page &page)
                static_cast<qint64>(page.body_len);
 }
 
-bool writeHeaderPages(QFile &out, VorbisEncoder &enc, QString *outError)
+bool writeHeaderPages(QIODevice &out, VorbisEncoder &enc, QString *outError)
 {
     ogg_packet headerMain;
     ogg_packet headerComments;
@@ -157,7 +158,7 @@ bool writeHeaderPages(QFile &out, VorbisEncoder &enc, QString *outError)
 }
 
 // Drains all pending analysis blocks/packets into Ogg pages.
-bool drainEncoder(QFile &out, VorbisEncoder &enc, bool flush, QString *outError)
+bool drainEncoder(QIODevice &out, VorbisEncoder &enc, bool flush, QString *outError)
 {
     ogg_packet packet;
     ogg_page page;
@@ -207,6 +208,39 @@ int resampledFrameCount(double pos, double step, int inFrames)
 
 namespace AudioConverter
 {
+bool encodePcmToOgg(const QVector<float> &samples, int channels, int sampleRate,
+                    const QString &path, QString *error, const std::function<bool(float)> &progress)
+{
+    QSaveFile out(path);
+    VorbisEncoder enc;
+    if (channels <= 0 || samples.isEmpty() || samples.size()%channels ||
+        !out.open(QIODevice::WriteOnly) || !enc.init(channels, sampleRate))
+    {
+        if (error) *error = QObject::tr("Cannot create merged OGG audio.");
+        return false;
+    }
+    if (!writeHeaderPages(out, enc, error)) return false;
+    const qsizetype frames = samples.size()/channels;
+    for (qsizetype start = 0; start < frames; start += 4096)
+    {
+        if (progress && !progress(float(start)/frames)) return false;
+        const int count = int(qMin<qsizetype>(4096, frames-start));
+        float **pcm = vorbis_analysis_buffer(&enc.vd, count);
+        for (int ch = 0; ch < channels; ++ch)
+            for (int j = 0; j < count; ++j)
+                pcm[ch][j] = qBound(-1.0f, samples[(start+j)*channels+ch], 1.0f);
+        vorbis_analysis_wrote(&enc.vd, count);
+        if (!drainEncoder(out, enc, false, error)) return false;
+    }
+    vorbis_analysis_wrote(&enc.vd, 0);
+    if (!drainEncoder(out, enc, true, error) || !out.commit())
+    {
+        if (error && error->isEmpty()) *error = out.errorString();
+        return false;
+    }
+    return true;
+}
+
 bool isOggFile(const QString &path)
 {
     QFile file(path);

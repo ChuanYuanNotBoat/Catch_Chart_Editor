@@ -2,10 +2,14 @@
 #include <QWidget>
 #include <QJsonObject>
 #include <QHash>
+#include <QThreadPool>
 #include <memory>
 #include <atomic>
 #include "audio/BpmDetector.h"
+#include "analysis/AnalysisSession.h"
+#include "audio/SpectrumService.h"
 class AnalysisCanvas;
+class NoteGenerationPanel;
 class ChartController;
 class SelectionController;
 class PlaybackController;
@@ -19,24 +23,38 @@ class QPushButton;
 class QCheckBox;
 class QDoubleSpinBox;
 class QTableWidget;
+class QTabWidget;
 class QPlainTextEdit;
 class QTimer;
 class CommandRouter;
 class TransientPanel;
 class TimingToolsPanel;
 class TimingInterpolationPanel;
+class AnalysisConfigPanel;
+class AnalysisWorkbench;
+class AudioOverview;
+class QComboBox;
 // A second workspace over the same chart/playback controllers, not a chart copy.
 class AnalysisEditor : public QWidget
 {
     Q_OBJECT
   public:
-    AnalysisEditor(ChartController *, SelectionController *, PlaybackController *, ChartCanvas *,
-                   LongRangeSelector *, QWidget *parent = nullptr);
-    ~AnalysisEditor() override;
-    AnalysisCanvas *canvas() const { return m_canvas; }
+      using SpectrumRunner = std::function<void(QObject *, const QString &, double, double,
+                                                std::shared_ptr<std::atomic<bool>>, SpectrumService::PageCallback)>;
+      AnalysisEditor(ChartController *, SelectionController *, PlaybackController *, ChartCanvas *, LongRangeSelector *,
+                     QWidget *parent = nullptr, SpectrumRunner = {});
+      ~AnalysisEditor() override;
+      AnalysisCanvas *canvas() const
+      {
+          return m_canvas;
+      }
     // Small extension point for future numeric/debug panels; never overlays the spectrum.
     void addAnalysisPanel(const QString &title, QWidget *panel, bool rightSide = false);
     void showTimingResult(const BpmDetector::DetectionResult &, const QString &pipelineError = {});
+    QJsonObject resultDiagnostics() const
+    {
+        return m_diagnostics;
+    }
 
   protected:
     void showEvent(QShowEvent *) override;
@@ -64,6 +82,12 @@ class AnalysisEditor : public QWidget
     void selectDiagnosticWindow(const QJsonObject &);
     void selectTimingCandidate(const QJsonObject &);
     void updateTimingPreview();
+    void invalidateTimingConfiguration();
+    void setInterfaceLevel(int);
+    void updateAnalysisDisplay();
+    void inspectHypothesis(int);
+    void requestOverview();
+    void applyTempoMap();
     ChartController *m_chart;
     SelectionController *m_selection;
     PlaybackController *m_playback;
@@ -71,8 +95,25 @@ class AnalysisEditor : public QWidget
     LongRangeSelector *m_range;
     AnalysisCanvas *m_canvas;
     TransientPanel *m_transient;
+    NoteGenerationPanel *m_generationPanel;
     TimingToolsPanel *m_timingTools;
     TimingInterpolationPanel *m_interpolation;
+    AnalysisConfigPanel *m_configPanel;
+    AnalysisWorkbench *m_workbench = nullptr;
+    AudioOverview *m_overview;
+    QComboBox *m_level, *m_timeView;
+    QTabWidget *m_timingTables;
+    QCheckBox *m_preferLocal, *m_modelGrid, *m_showTracks;
+    QPushButton *m_applyMap;
+    analysis::AnalysisSession m_session;
+    BpmDetector::DetectionResult m_result;
+    AutoTiming2TempoMap m_inspectedMap;
+    QJsonObject m_inspectedDiagnostics;
+    QJsonObject m_selectedEvidence;
+    int m_interfaceLevel = 0;
+    std::shared_ptr<std::atomic<bool>> m_overviewCancel;
+    std::shared_ptr<const analysis::StereoSpectrum> m_currentSpectrum;
+    bool m_overviewBusy = false;
     QSplitter *m_panels, *m_work;
     QTabBar *m_leftTabs, *m_rightTabs;
     QStackedWidget *m_leftPanels, *m_rightPanels;
@@ -83,13 +124,17 @@ class AnalysisEditor : public QWidget
     QPlainTextEdit *m_raw;
     QHash<QString, QTableWidget *> m_tables;
     QTimer *m_spectrumTimer;
+    QTimer *m_overviewRetryTimer = nullptr;
+    QThreadPool m_overviewPool;
     CommandRouter *m_router;
     QJsonObject m_diagnostics;
     QJsonObject m_selectedCandidate;
     QString m_audioPath, m_sourceIdentity, m_spectrumFailureKey;
-    std::shared_ptr<std::atomic<bool>> m_spectrumCancel, m_timingCancel;
-    quint64 m_sourceGeneration = 0, m_timingGeneration = 0, m_spectrumGeneration = 0;
+    std::shared_ptr<std::atomic<bool>> m_spectrumCancel;
+    SpectrumRunner m_spectrumRunner;
+    QVector<SpectrumService::Page> m_spectrumPages;
+    quint64 m_sourceGeneration = 0, m_spectrumGeneration = 0;
     double m_pendingStart = 0, m_pendingDuration = 0, m_cachedEofMs = -1;
-    bool m_timingBusy = false, m_spectrumBusy = false, m_restored = false;
+    bool m_timingBusy = false, m_spectrumBusy = false, m_restored = false, m_transientDeferred = false;
     int m_leftOpen = -1, m_rightOpen = -1;
 };

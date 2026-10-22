@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <QVector>
 #include <functional>
 
 class QObject;
@@ -13,6 +14,11 @@ namespace AudioConverter
 // purpose: Malody only supports Vorbis-in-Ogg, so such files must be
 // transcoded first.
 bool isOggFile(const QString &path);
+
+// Interleaved floating-point PCM, encoded atomically without a second decode.
+bool encodePcmToOgg(const QVector<float> &pcm, int channels, int sampleRate,
+                    const QString &outputPath, QString *error = nullptr,
+                    const std::function<bool(float)> &progress = {});
 
 // Blocking conversion of any audio file decodable by QAudioDecoder
 // (mp3 / wav / flac / m4a / aac / ...) into an OGG Vorbis file

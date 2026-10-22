@@ -9,6 +9,8 @@
 
 当前工作树在 Beta v1.11.2 发布候选上继续维护；本版本变更见 [history.md](history.md) 顶部的 `Beta v1.11.2` 记录，后续维护内容写入顶部 `Unreleased` 段，已冻结的历史版本不回填后续内容。
 
+Unreleased 新增[谱面合并与分图层预览](CHART_MERGE.md)，入口为文件菜单中的“合并谱面…”。
+
 ## 兼容性
 
 - 谱面：保持 Malody Catch `.mc` JSON 兼容，不写入编辑器私有字段。

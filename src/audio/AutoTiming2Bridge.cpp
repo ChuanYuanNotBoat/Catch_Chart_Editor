@@ -3,6 +3,19 @@
 #include "autotiming/Analysis.h"
 
 #include <stdexcept>
+#include <QSet>
+#include <QtGlobal>
+#include <type_traits>
+#include <cmath>
+
+QString AutoTiming2Bridge::algorithmVersion()
+{
+#ifdef CCE_AUTOTIMING_CORE_VERSION
+    return QString::fromLatin1(CCE_AUTOTIMING_CORE_VERSION);
+#else
+    return QStringLiteral("unverified-build");
+#endif
+}
 
 namespace
 {
@@ -68,6 +81,18 @@ namespace
         out.state = toStringField(p.state);
         out.propagationReason = toStringField(p.propagationReason);
         out.multiScalePhaseRefined = p.multiScalePhaseRefined;
+        return out;
+    }
+
+    AutoTiming2Candidate mapCandidate(const autotiming::GlobalTempoCandidate &candidate)
+    {
+        AutoTiming2Candidate out;
+        out.bpm = candidate.bpm;
+        out.score = candidate.relativeScore;
+        out.harmonicFamilyId = candidate.harmonicFamilyId == autotiming::NoTempoFamily
+                                  ? qsizetype(-1) : qsizetype(candidate.harmonicFamilyId);
+        out.harmonicRatioToFamily = candidate.harmonicRatioToFamily;
+        for (std::size_t id : candidate.supportingWindowIds) out.supportingWindowIds.append(qsizetype(id));
         return out;
     }
 
@@ -198,6 +223,7 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
     try
     {
         autotiming::AnalysisOptions native;
+        native.maximumWindowWorkerCount = static_cast<std::size_t>(qBound(1, options.maximumWorkerThreads, 4));
         if (!options.windowSpecs.isEmpty())
         {
             native.windowSpecs.clear();
@@ -216,6 +242,8 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             }
         }
         native.preferLocalTempoEvidence = options.preferLocalTempoEvidence;
+        native.enableMetricalHypotheses = options.enableMetricalHypotheses;
+        native.enableMetricalDiversity = options.enableMetricalDiversity;
         native.minimumWindowSeconds = options.minimumWindowSeconds;
         native.minimumTempoBpm = options.minimumTempoBpm;
         native.maximumTempoBpm = options.maximumTempoBpm;
@@ -223,6 +251,65 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
         native.maximumTrackedGapSeconds = options.maximumTrackedGapSeconds;
         native.enableComplexSubdivisionAnalysis =
             options.enableComplexSubdivisionAnalysis;
+
+        QSet<QString> applied;
+        auto apply = [&](const char *key, auto &target) {
+            if (!options.internalOptions.contains(key))
+                return;
+            const auto v = options.internalOptions.value(key);
+            using T = std::decay_t<decltype(target)>;
+            if constexpr (std::is_same_v<T, bool>)
+            {
+                if (!v.isBool())
+                    throw std::invalid_argument("Invalid boolean internal option");
+                target = v.toBool();
+            }
+            else
+            {
+                if (!v.isDouble() || !std::isfinite(v.toDouble()) || v.toDouble() < 0 || v.toDouble() > 100000
+                    || (std::is_integral_v<T> && std::floor(v.toDouble()) != v.toDouble()))
+                    throw std::invalid_argument("Invalid numeric internal option");
+                target = static_cast<T>(v.toDouble());
+            }
+            applied.insert(QString::fromLatin1(key));
+        };
+#define APPLY_INTERNAL(field) apply(#field, native.field)
+        APPLY_INTERNAL(enableFineTempoTracking);
+        APPLY_INTERNAL(enableMetricalHypotheses);
+        APPLY_INTERNAL(enableMetricalDiversity);
+        APPLY_INTERNAL(fineTempoWindowSeconds);
+        APPLY_INTERNAL(fineTempoHopSeconds);
+        APPLY_INTERNAL(minimumWindowSeconds);
+        APPLY_INTERNAL(tempoAgreementTolerance);
+        APPLY_INTERNAL(anchorReliabilityThreshold);
+        APPLY_INTERNAL(minimumOnsetPeriodicityScore);
+        APPLY_INTERNAL(maximumLocalTempoCandidates);
+        APPLY_INTERNAL(maximumGlobalTempoCandidates);
+        APPLY_INTERNAL(maximumPhaseBackPropagationSeconds);
+        APPLY_INTERNAL(maximumContinuousTempoSlopeOctavesPerSecond);
+        APPLY_INTERNAL(tempoTransitionPenalty);
+        APPLY_INTERNAL(tempoSlopeChangePenalty);
+        APPLY_INTERNAL(phaseTransitionPenalty);
+        APPLY_INTERNAL(maximumPeriodicityLayers);
+        APPLY_INTERNAL(enableHighRateRhythmAnalysis);
+        APPLY_INTERNAL(minimumHighRhythmRateBpm);
+        APPLY_INTERNAL(maximumHighRhythmRateBpm);
+        APPLY_INTERNAL(minimumRhythmPeriodicityScore);
+        APPLY_INTERNAL(maximumLocalRhythmCandidates);
+        APPLY_INTERNAL(minimumRhythmLayerConfidence);
+        APPLY_INTERNAL(strongRhythmLayerConfidence);
+        APPLY_INTERNAL(minimumSemanticRhythmPhaseConfidence);
+        APPLY_INTERNAL(minimumSemanticRhythmPulseCoverage);
+        APPLY_INTERNAL(minimumSemanticRhythmTransientDensityCoverage);
+        APPLY_INTERNAL(minimumRhythmLayerSupportWindows);
+        APPLY_INTERNAL(maximumRhythmProfiles);
+        APPLY_INTERNAL(minimumSemanticSubdivision);
+        APPLY_INTERNAL(maximumSubdivision);
+        APPLY_INTERNAL(maximumPolyrhythmTerm);
+        APPLY_INTERNAL(maximumPolyrhythmLayersPerProfile);
+#undef APPLY_INTERNAL
+        if (applied.size() != options.internalOptions.size())
+            throw std::invalid_argument("Unsupported internal option for this Core build");
 
         const autotiming::AudioView view{mono.constData(),
                                          static_cast<std::size_t>(mono.size()),
@@ -265,6 +352,16 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
         }
         outSummary.tempoTrack = mapTrack(result.tempoTrack);
         outSummary.tempoMap = mapTempoMap(result.tempoMap, options);
+        outSummary.selection.evaluated = result.selection.evaluated;
+        outSummary.selection.ambiguous = result.selection.ambiguous;
+        outSummary.selection.selectedBpm = result.selection.selectedBpm;
+        outSummary.selection.referenceWindowCount = qsizetype(result.selection.referenceWindowCount);
+        for (const auto &candidate : result.selection.candidates)
+            outSummary.selection.candidates.append(mapCandidate(candidate));
+
+        for (const auto &relation : result.selection.ambiguityRelations)
+            outSummary.selection.ambiguityRelations.append({relation.firstBpm, relation.secondBpm,
+                relation.ratioNumerator, relation.ratioDenominator, relation.firstSupport, relation.secondSupport});
 
         outSummary.tempoHypotheses.reserve(result.tempoHypotheses.size());
         for (const autotiming::TempoTrackHypothesis &h : result.tempoHypotheses)
@@ -381,9 +478,32 @@ bool AutoTiming2Bridge::analyzeMono(const QVector<float> &mono,
             out.reliability = w.reliability;
             out.selectedAsAnchor = w.selectedAsAnchor;
             out.estimatorMessage = QString::fromStdString(w.estimatorMessage);
+            out.signalMetrics = {{"rmsDb", w.signal.rmsDb},
+                                 {"peakAmplitude", w.signal.peakAmplitude},
+                                 {"silenceRatio", w.signal.silenceRatio},
+                                 {"clippingRatio", w.signal.clippingRatio},
+                                 {"dynamicRangeDb", w.signal.dynamicRangeDb},
+                                 {"transientDensityHz", w.signal.transientDensityHz},
+                                 {"signalScore", w.signal.signalScore},
+                                 {"transientScore", w.signal.transientScore}};
+            for (auto reason : w.reasons)
+                out.evidenceReasons.append(QString::fromLatin1(autotiming::toString(reason)));
+            for (const auto &c : w.rhythmCandidates)
+                out.rawRhythmCandidates.append(QJsonObject{{"rateBpm", c.rateBpm},
+                                                           {"periodSeconds", c.periodSeconds},
+                                                           {"pulseTimeSeconds", c.pulseTimeSeconds},
+                                                           {"uncertaintyBpm", c.uncertaintyBpm},
+                                                           {"phaseConfidence", c.phaseConfidence},
+                                                           {"pulseCoverage", c.pulseCoverage},
+                                                           {"transientDensityCoverage", c.transientDensityCoverage},
+                                                           {"score", c.score}});
             out.tempoCandidates.reserve(w.tempoCandidates.size());
             for (const autotiming::TempoCandidate &c : w.tempoCandidates)
                 out.tempoCandidates.append(mapCandidate(c));
+            for (const autotiming::TempoCandidate &c : w.metricalCandidates)
+                out.metricalCandidates.append(mapCandidate(c));
+            for (double bpm : w.regularizedObservationBpms) out.regularizedObservationBpms.append(bpm);
+            for (double bpm : w.metricalObservationBpms) out.metricalObservationBpms.append(bpm);
             outSummary.windows.append(out);
         }
 
@@ -484,6 +604,13 @@ void AutoTiming2Bridge::translateTimeline(AutoTiming2Summary &summary, double of
     }
     for (AutoTiming2Window &window : summary.windows)
     {
+        for (qsizetype i = 0; i < window.rawRhythmCandidates.size(); ++i)
+        {
+            auto c = window.rawRhythmCandidates[i].toObject();
+            if (c.value("pulseTimeSeconds").isDouble())
+                c["pulseTimeSeconds"] = c.value("pulseTimeSeconds").toDouble() + offsetSeconds;
+            window.rawRhythmCandidates[i] = c;
+        }
         window.startSeconds += offsetSeconds;
         window.endSeconds += offsetSeconds;
         for (AutoTiming2Candidate &candidate : window.tempoCandidates)
@@ -491,5 +618,7 @@ void AutoTiming2Bridge::translateTimeline(AutoTiming2Summary &summary, double of
             if (candidate.hasPulseTime)
                 candidate.pulseTimeSeconds += offsetSeconds;
         }
+        for (AutoTiming2Candidate &candidate : window.metricalCandidates)
+            if (candidate.hasPulseTime) candidate.pulseTimeSeconds += offsetSeconds;
     }
 }

@@ -29,6 +29,10 @@ public:
 
     bool hyperfruitOutlineEnabled() const;
     void setHyperfruitOutlineEnabled(bool enabled);
+    int hyperfruitJudgeLevel() const;
+    void setHyperfruitJudgeLevel(int level);
+    bool hyperfruitProJudge() const;
+    void setHyperfruitProJudge(bool enabled);
 
     bool rainRewardPreviewEnabled() const;
     void setRainRewardPreviewEnabled(bool enabled);
@@ -80,6 +84,8 @@ public:
     void setEditorGridDivision(int division);
     bool editorGridSnapEnabled() const;
     void setEditorGridSnapEnabled(bool enabled);
+    bool editorDragGridSnapEnabled() const;
+    void setEditorDragGridSnapEnabled(bool enabled);
     double editorTimeScale() const;
     void setEditorTimeScale(double scale);
     int mirrorAxisX() const;
@@ -91,6 +97,8 @@ public:
 
     bool backgroundImageEnabled() const;
     void setBackgroundImageEnabled(bool enabled);
+    bool spectrumOverlayEnabled() const;
+    void setSpectrumOverlayEnabled(bool enabled);
 
     int backgroundImageBrightness() const;
     void setBackgroundImageBrightness(int brightness);

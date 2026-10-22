@@ -5,7 +5,7 @@
 | AutoTimingCore | `e47016ddfb24c4daf2d874164f3a64cc9346552c` | Git submodule | https://github.com/ChuanYuanNotBoat/AutoTimingCore | Legacy license not confirmed; see `AutoTimingCore/ATTRIBUTION.md` and `docs/AUTOTIMING_VENDORING.md` | Legacy BPM detection and AutoTiming 2 analysis |
 | QtAdvancedDockingSystem | 5.1.1 | Vendored source | https://github.com/githubuser0xFFFF/Qt-Advanced-Docking-System | LGPL-2.1-or-later (exception, see its LICENSE) | Dockable panels |
 | libogg | 1.3.5 | Vendored source | https://github.com/xiph/ogg (tag v1.3.5) | BSD-style (see `libogg/COPYING`) | Ogg bitstream muxing for audio conversion |
-| libvorbis | 1.3.7 | Vendored source | https://github.com/xiph/vorbis (tag v1.3.7) | BSD-style (see `libvorbis/COPYING`) | Ogg Vorbis encoder for audio conversion |
+| libvorbis | 1.3.7 | Vendored source | https://github.com/xiph/vorbis (tag v1.3.7) | BSD-style (see `libvorbis/COPYING`) | Ogg Vorbis encoding and seekable spectrum decoding |
 
 ## AutoTimingCore
 

@@ -27,7 +27,7 @@ QString dialogStyleSheet(const QColor &background);
 
 // Minimal application-wide stylesheet that forces theme colors onto controls
 // that the native Windows style paints without consulting QPalette: message
-// boxes, push buttons, check/radio indicators and context menus. Regenerated
+// boxes, push buttons, tabs, check/radio indicators and context menus. Regenerated
 // by applySidebarTheme() whenever the theme changes.
 QString applicationStyleSheet(const QColor &background);
 

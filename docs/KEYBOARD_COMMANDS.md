@@ -1,6 +1,6 @@
 # 统一快捷键命令
 
-最后核对：2026-10-01。默认键以 Windows 为例，标准 New/Open/Save/Undo 等组合
+最后核对：2026-10-19。默认键以 Windows 为例，标准 New/Open/Save/Undo 等组合
 使用 Qt 的平台默认值。`Settings -> Keyboard Shortcuts... -> Shortcut Reference`
 直接读取运行时注册表，显示当前绑定、默认值与作用范围，是当前配置的权威入口。
 
@@ -12,8 +12,15 @@
 | `file.open_chart` | 打开谱面 | Ctrl+O | 编辑器窗口 |
 | `file.open_imported_charts` | 打开已导入谱面 | Ctrl+Shift+O | 编辑器窗口 |
 | `file.reload_chart` | 刷新谱面 | F5 | 编辑器窗口 |
+| `file.merge_charts` | 合并谱面 | 未设置 | 编辑器窗口 |
 | `file.save` | 保存 | Ctrl+S | 编辑器窗口 |
 | `file.exit` | 退出 | Ctrl+Q | 编辑器窗口 |
+| `review.workspace` | 打开审阅 | 未设置 | 编辑器窗口 |
+| `review.addComment` | 为选区或当前位置添加评论 | Ctrl+Alt+M | 编辑器窗口 |
+| `review.peekBase` | 按住查看只读基准 | `\` | 编辑器窗口 |
+| `review.layers` / `review.newLayer` | 图层设置 / 新建图层 | 未设置 | 编辑器窗口 |
+| `review.layerVisible` / `review.layerLocked` | 切换活动图层显示 / 锁定 | 未设置 | 编辑器窗口 |
+| `review.accept` / `review.reject` / `review.applyAccepted` | 接受 / 拒绝 / 应用已接受修改 | 未设置 | 编辑器窗口 |
 | `edit.undo` | 撤销 | Ctrl+Z | 编辑区域 |
 | `edit.redo` | 重做 | Ctrl+Y | 编辑区域 |
 | `edit.copy` | 复制音符/区间 | Ctrl+C | 编辑区域 |
@@ -38,6 +45,12 @@
 
 ## 上下文与冲突
 
+AE 的取消命令也使用 `edit.cancel`，用于取消测量/拖动和清除生成草稿；改绑或禁用后不再由画布硬编码的 Esc 绕过。草稿可从任一编辑区取消，清除两个窗口的预览，不修改谱面或撤销栈。
+
+BPM 高级编辑窗口独立注册 `edit.undo`、`edit.redo`、`edit.cancel` 和
+`playback.play_pause`，使用共享撤销及播放控制器。取消清除本窗口的预览和拾取；
+输入控件继续保留自己的编辑按键，窗口中的命令不接管主编辑区操作。
+
 - 所有宿主命令由 `src/controller/CommandRouter` 注册、持久化并派发；菜单和工具
   按钮继续使用同一个 QAction 回调，画布不再自行匹配默认快捷键。
 - 编辑器窗口包含归属于主窗口的 ADS 浮动面板。文件命令可在普通输入控件中使用；
@@ -54,6 +67,9 @@
 - F8 手动卡顿标记命令、菜单与采样日志已移除；F8 没有默认用途，可自行绑定。
 
 ## 保留的控件与鼠标行为
+
+顶栏仅切换工具页，具体审阅和图层操作位于面板。其余工程、提案导入/导出、评论/修改/冲突导航命令
+均在快捷键设置的实时命令表中列出，可以自行绑定。画布右键的添加评论使用实际点击位置。
 
 文本编辑、对话框确认/取消、菜单导航和控件焦点移动使用 Qt 原生行为，
 不作为宿主命令重定义。快捷键设置中的无修饰 Backspace 专用于清空当前输入。

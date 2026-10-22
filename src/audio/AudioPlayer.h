@@ -22,6 +22,8 @@ public:
     qint64 duration() const;
     void setSpeed(double speed); // 0.1 ~ 10.0
     double speed() const;
+    void setMuted(bool muted);
+    bool isMuted() const;
 
     bool isPlaying() const;
     bool isPaused() const;
@@ -49,6 +51,7 @@ public:
     bool audioCorrectionEnabled() const;
     qint64 adjustedPosition() const;
     void setAdjustedPosition(qint64 adjustedMs);
+    double positionGranularityMs() const { return m_positionGranularityMs; }
 
 signals:
     void positionChanged(qint64 position);
@@ -73,6 +76,9 @@ private:
     int m_audioLatency;
     int m_userOffset;
     bool m_audioCorrectionEnabled;
+    // QMediaPlayer's FFmpeg position advances at processed-frame boundaries.
+    // This is measurement uncertainty, never an output-latency correction.
+    double m_positionGranularityMs = 0.0;
 
     void cancelPendingLoad();
     void disconnectLoadSignals();

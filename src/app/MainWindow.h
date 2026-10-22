@@ -60,12 +60,14 @@ private slots:
     void saveChartAs();
     void exportMcz();
     void exportMczPure();
+    void mergeCharts();
     void undo();
     void redo();
     void toggleColorMode(bool on);
     void toggleTimelineDivisionColorMode(bool on);
     void openTimelineDivisionColorSettings();
     void toggleHyperfruitMode(bool on);
+    void configureHyperfruitJudge();
     void toggleRainRewardPreview(bool on);
     void toggleVerticalFlip(bool flipped);
     void togglePlayback();

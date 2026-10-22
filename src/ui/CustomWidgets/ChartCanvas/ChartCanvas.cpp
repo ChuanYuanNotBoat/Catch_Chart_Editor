@@ -1,5 +1,6 @@
 #include "ChartCanvas.h"
 #include "controller/ChartController.h"
+#include "ChartSpectrumOverlay.h"
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "audio/NoteSoundPlayer.h"
@@ -66,6 +67,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_timeDivision(Settings::instance().editorTimeDivision()),
       m_gridDivision(Settings::instance().editorGridDivision()),
       m_gridSnap(Settings::instance().editorGridSnapEnabled()),
+      m_dragGridSnap(Settings::instance().editorDragGridSnapEnabled()),
       m_scrollBeat(0),
       m_baseVisibleBeatRange(10),
       m_timeScale(Settings::instance().editorTimeScale()),
@@ -155,6 +157,14 @@ ChartCanvas::ChartCanvas(QWidget *parent)
 
     m_noteRenderer->setNoteSize(Settings::instance().noteSize());
     m_noteSoundPlayer = new NoteSoundPlayer(this);
+    // Audio submissions must keep running while presentation waits for paint.
+    // This timer still shares the UI event loop; it cannot hide a UI-thread stall.
+    m_noteSoundTimer.setTimerType(Qt::PreciseTimer);
+    m_noteSoundTimer.setInterval(1);
+    connect(&m_noteSoundTimer, &QTimer::timeout, this, [this] {
+        if (m_playbackController && m_isPlaying)
+            advanceNoteSoundClock(m_playbackController->currentTime());
+    });
     m_noteSoundPlayer->setVolumePercent(Settings::instance().noteSoundVolume());
     const QString noteSoundPath = Settings::instance().noteSoundPath();
     m_noteSoundPlayer->setSoundFile(noteSoundPath);
@@ -184,18 +194,17 @@ ChartCanvas::~ChartCanvas()
 
 const Chart *ChartCanvas::chart() const
 {
+    if (m_displayChart) return m_displayChart.get();
     return m_chartController ? m_chartController->chart() : nullptr;
 }
 
-Chart *ChartCanvas::chart()
+void ChartCanvas::setDisplayChart(const Chart *readOnlyChart)
 {
-    return m_chartController ? m_chartController->mutableChart() : nullptr;
-}
-
-QVector<Note> *ChartCanvas::mutableNotes()
-{
-    Chart *c = chart();
-    return c ? &c->notes() : nullptr;
+    cancelOperation();
+    m_displayChart = readOnlyChart ? std::make_unique<Chart>(*readOnlyChart) : nullptr;
+    invalidateChartCaches(true);
+    RainRewardGenerator::instance().invalidate();
+    update();
 }
 
 void ChartCanvas::rebuildBpmTimeCache() const
@@ -403,6 +412,11 @@ void ChartCanvas::setChartController(ChartController *controller)
 {
     if (m_chartController == controller)
         return;
+    if (!m_analysisNoteDraft.isEmpty())
+    {
+        setAnalysisNoteDraft({});
+        emit analysisNoteDraftCancelled();
+    }
 
     if (m_chartController)
     {
@@ -410,6 +424,8 @@ void ChartCanvas::setChartController(ChartController *controller)
         disconnect(m_chartController, &ChartController::chartLoaded, this, nullptr);
     }
     m_chartController = controller;
+    if (m_spectrumOverlay)
+        m_spectrumOverlay->setChartController(controller);
     m_chartRevision = controller ? controller->revision() : 0;
     if (m_noteChainEditor)
         m_noteChainEditor->setChartController(controller);
@@ -437,7 +453,8 @@ void ChartCanvas::setChartController(ChartController *controller)
             if (m_chartController && m_chartController->chart())
                 m_lastKnownBackgroundFile = currentBackgroundPath();
         });
-        m_hyperfruitDetector->setCS(3.2);
+        m_hyperfruitDetector->setJudgeLevel(Settings::instance().hyperfruitJudgeLevel(),
+                                           Settings::instance().hyperfruitProJudge());
         m_noteRenderer->setHyperfruitDetector(m_hyperfruitDetector);
 
         // Initialize background file tracking so note edits don't trigger unnecessary bg regen
@@ -450,6 +467,8 @@ void ChartCanvas::setChartController(ChartController *controller)
 
 void ChartCanvas::setPlaybackController(PlaybackController *controller)
 {
+    if (m_spectrumOverlay)
+        m_spectrumOverlay->setPlaybackController(controller);
     if (m_playbackController == controller)
         return;
 
@@ -459,14 +478,20 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
         disconnect(m_playbackController, &PlaybackController::playbackFrameTick, this, &ChartCanvas::onPlaybackFrameTick);
         disconnect(m_playbackController, &PlaybackController::stateChanged, this, nullptr);
         disconnect(m_playbackController, &PlaybackController::loopRangeChanged, this, nullptr);
+        disconnect(m_playbackController, &PlaybackController::seeked, this, nullptr);
     }
 
     m_playbackController = controller;
+    m_noteSoundTimer.stop();
     m_currentPlayTime = 0;
 
     if (m_playbackController)
     {
         connect(m_playbackController, &PlaybackController::loopRangeChanged, this, [this] { update(); });
+        connect(m_playbackController, &PlaybackController::seeked, this, [this](double timeMs) {
+            // A discontinuity is navigation, not a range of notes to catch up.
+            m_lastNoteSoundTimeMs = qMax(0.0, timeMs);
+        });
         attachDisplayFrameWindow();
         if (m_displayFrameScreen)
             m_playbackController->setDisplayRefreshRate(m_displayFrameScreen->refreshRate());
@@ -494,6 +519,8 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 const double startMs = m_playbackController ? m_playbackController->currentTime() : m_currentPlayTime;
                 m_currentPlayTime = qMax(0.0, startMs);
                 m_lastNoteSoundTimeMs = m_currentPlayTime;
+                resetNoteSoundProbeStats();
+                m_noteSoundTimer.start();
                 m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
                     m_playableNoteTimesMs.begin(),
                     m_playableNoteTimesMs.end(),
@@ -501,6 +528,7 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 requestNextFrame();
             } else {
                 m_isPlaying = false;
+                m_noteSoundTimer.stop();
                 m_lastPlaybackFrameSeq = -1;
                 m_lastPlaybackPredictedTimeMs = -1.0;
                 m_lastPlaybackTargetTimeMs = -1.0;
@@ -514,6 +542,7 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 m_lastPaintScrollBeat = 0.0;
                 m_lastPaintScrollVelocityPxPerSecond = -1.0;
                 m_lastNoteSoundTimeMs = m_currentPlayTime;
+                logNoteSoundProbeSummary();
                 snapPlayheadToGrid();
                 update();
             } });
@@ -608,7 +637,20 @@ void ChartCanvas::setTimeDivision(int division)
         invalidatePastePreviewCache();
         snapPlayheadToGrid();
         update();
+        emit timeDivisionChanged(division);
     }
+}
+
+void ChartCanvas::setAnalysisNoteDraft(QVector<Note> notes)
+{
+    if (notes.size() > 4096 || std::any_of(notes.cbegin(), notes.cend(), [](const auto &n) { return !n.isNormal() || !n.isValid(); }))
+        notes.clear();
+    std::stable_sort(notes.begin(), notes.end(), [](const auto &a, const auto &b) { return a.startPosition() < b.startPosition(); });
+    m_analysisNoteDraft = std::move(notes);
+    m_analysisNoteDraftBeats.clear();
+    m_analysisNoteDraftBeats.reserve(m_analysisNoteDraft.size());
+    for (const auto &note : m_analysisNoteDraft) m_analysisNoteDraftBeats.append(note.getStartBeat());
+    update();
 }
 
 void ChartCanvas::setGridDivision(int division)
@@ -629,6 +671,12 @@ void ChartCanvas::setGridSnap(bool snap)
         return;
     m_gridSnap = snap;
     Settings::instance().setEditorGridSnapEnabled(snap);
+}
+
+void ChartCanvas::setDragGridSnap(bool snap)
+{
+    m_dragGridSnap = snap;
+    Settings::instance().setEditorDragGridSnapEnabled(snap);
 }
 
 void ChartCanvas::setScrollPos(double timeMs)
@@ -697,6 +745,10 @@ void ChartCanvas::setNoteSize(int size)
 void ChartCanvas::refreshRenderSettings()
 {
     m_noteRenderer->refreshSettings();
+    m_hyperfruitDetector->setJudgeLevel(Settings::instance().hyperfruitJudgeLevel(),
+                                       Settings::instance().hyperfruitProJudge());
+    m_hyperCacheValid = false;
+    setSpectrumOverlayEnabled(Settings::instance().spectrumOverlayEnabled());
     invalidateGridCache();
     update();
 }
@@ -710,6 +762,24 @@ void ChartCanvas::setMode(Mode mode)
         m_rainFirst = true;
     }
     m_currentMode = mode;
+    update();
+}
+
+void ChartCanvas::setSpectrumOverlayEnabled(bool enabled)
+{
+    if (enabled == spectrumOverlayEnabled())
+        return;
+    if (enabled)
+    {
+        m_spectrumOverlay = new ChartSpectrumOverlay(this);
+        m_spectrumOverlay->setChartController(m_chartController);
+        m_spectrumOverlay->setPlaybackController(m_playbackController);
+    }
+    else
+    {
+        delete m_spectrumOverlay;
+        m_spectrumOverlay = nullptr;
+    }
     update();
 }
 

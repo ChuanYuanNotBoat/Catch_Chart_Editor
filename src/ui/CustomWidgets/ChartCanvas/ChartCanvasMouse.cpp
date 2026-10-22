@@ -417,7 +417,14 @@ void ChartCanvas::updateMoveSelection(const QPointF &currentPos)
         const double refSnappedBeat = MathUtils::beatToFloat(refSnapped.beatNum, refSnapped.numerator, refSnapped.denominator);
         appliedDeltaBeat = refSnappedBeat - refOriginalBeat;
     }
-    const double appliedDeltaX = m_moveDeltaXRaw;
+    double appliedDeltaX = m_moveDeltaXRaw;
+    if (m_dragGridSnap && m_dragReferenceIndex >= 0 && m_moveChanges.contains(m_dragReferenceIndex))
+    {
+        const Note &reference = m_moveChanges[m_dragReferenceIndex].first;
+        const int snappedX = MathUtils::snapXToGrid(qRound(reference.x + m_moveDeltaXRaw), m_gridDivision);
+        // Move the whole selection by one delta, preserving off-grid spacing.
+        appliedDeltaX = snappedX - reference.x;
+    }
 
     if (!chart())
         return;
@@ -601,15 +608,13 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
                 if (!chart())
                     return;
 
-                QVector<Note> *notesRef = mutableNotes();
-                if (!notesRef)
-                    return;
+                const auto &notes = chart()->notes();
                 QList<QPair<Note, Note>> changes;
                 for (int idx : targetIndices)
                 {
-                    if (idx < 0 || idx >= notesRef->size())
+                    if (idx < 0 || idx >= notes.size())
                         continue;
-                    const Note &original = (*notesRef)[idx];
+                    const Note &original = notes[idx];
                     if (original.type == NoteType::SOUND)
                         continue;
 
@@ -644,15 +649,13 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
         if (!chart())
             return;
 
-        QVector<Note> *notesRef = mutableNotes();
-        if (!notesRef)
-            return;
+        const auto &notes = chart()->notes();
         QList<QPair<Note, Note>> changes;
         for (int idx : targetIndices)
         {
-            if (idx < 0 || idx >= notesRef->size())
+            if (idx < 0 || idx >= notes.size())
                 continue;
-            const Note &original = (*notesRef)[idx];
+            const Note &original = notes[idx];
             if (original.type == NoteType::SOUND)
                 continue;
 
@@ -919,6 +922,8 @@ void ChartCanvas::showStandardContextMenu(QMouseEvent *event)
 {
     QMenu menu(this);
     applyContextMenuTheme(&menu);
+    emit extendContextMenu(&menu,event->position());
+    if(!menu.isEmpty())menu.addSeparator();
     QAction *playFromRefAction = menu.addAction(tr("Play from Reference Time"));
     QAction *pasteAction = menu.addAction(tr("Paste"));
     pasteAction->setEnabled(m_selectionController && !m_selectionController->getClipboard().isEmpty());
@@ -1230,6 +1235,13 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
 
 void ChartCanvas::mousePressEvent(QMouseEvent *event)
 {
+    if (m_displayChart) {
+        if(event->button()==Qt::RightButton) {
+            QMenu menu(this);applyContextMenuTheme(&menu);emit extendContextMenu(&menu,event->position());
+            if(!menu.isEmpty())menu.exec(event->globalPos());event->accept();return;
+        }
+        event->ignore();return;
+    }
     setFocus();
 
     // NoteChain native: dispatch before plugin
@@ -1306,6 +1318,7 @@ void ChartCanvas::mousePressEvent(QMouseEvent *event)
 
 void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
 {
+    if (m_displayChart) { event->ignore(); return; }
     // NoteChain native: dispatch before plugin
     if (m_noteChainModeActive && m_noteChainEditor) {
         if (ChartCanvas_dispatchNoteChainMouseMove(this, event)) {
@@ -1554,6 +1567,7 @@ bool ChartCanvas::handleGenericDragRelease()
 
 void ChartCanvas::mouseReleaseEvent(QMouseEvent *event)
 {
+    if (m_displayChart) { event->ignore(); return; }
     // NoteChain native: dispatch before plugin
     if (m_noteChainModeActive && m_noteChainEditor) {
         if (ChartCanvas_dispatchNoteChainMouseRelease(this, event)) {

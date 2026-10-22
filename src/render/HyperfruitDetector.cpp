@@ -4,18 +4,18 @@
 #include <cmath>
 #include <limits>
 
-HyperfruitDetector::HyperfruitDetector() : m_cs(3.8)
+HyperfruitDetector::HyperfruitDetector()
 {
 }
 
-void HyperfruitDetector::setCS(double cs)
+void HyperfruitDetector::setJudgeLevel(int level, bool pro)
 {
-    m_cs = cs;
-}
-
-double HyperfruitDetector::catcherWidth() const
-{
-    return 106.75 * (1.0 - 0.14 * (m_cs - 5));
+    // WidgetCatchField.JudgeScaler / GetCatcherHalfWidth, expressed on the
+    // editor's 512-wide field (Malody movement coordinates are 1024-wide).
+    constexpr double scales[] = {1.25, 1.1, 1.0, 0.92, 0.84};
+    if (level < 0 || level > 4)
+        level = 4;
+    m_catcherWidth = 96.0 * scales[level] * (pro ? 0.95 : 1.0);
 }
 
 QSet<int> HyperfruitDetector::detect(const QVector<Note> &notes,
@@ -30,7 +30,9 @@ QSet<int> HyperfruitDetector::detect(const QVector<Note> &notes,
     if (bpmCache.isEmpty())
         return hyperSet;
 
-    const double halfCatcherWidth = catcherWidth() / 2.0;
+    // Malody uses the actual catching width for hyperdash generation. osu!
+    // instead divides its catching width by 0.8; that adjustment is not used here.
+    const double halfCatcherWidth = m_catcherWidth / 2.0;
     const double graceTimeMs = 1000.0 / 60.0 / 4.0;
 
     int timelineDirection = 0;
@@ -99,7 +101,11 @@ QSet<int> HyperfruitDetector::detect(const QVector<Note> &notes,
                 continue;
 
             const int thisDirection = nextNote.x > currentNote.x ? 1 : -1;
-            const double timeToNext = static_cast<int>(nextMs) - static_cast<int>(currentMs) - graceTimeMs;
+            // ProcessorCatch uses the unrounded interval and skips intervals
+            // shorter than the grace period. Do not import osu!'s int truncation.
+            const double timeToNext = dt - graceTimeMs;
+            if (timeToNext <= 0.0)
+                continue;
             const double distanceToNext = std::abs(nextNote.x - currentNote.x) - (groupDirection == thisDirection ? groupExcess : halfCatcherWidth);
             const double distanceToHyper = timeToNext - distanceToNext;
 

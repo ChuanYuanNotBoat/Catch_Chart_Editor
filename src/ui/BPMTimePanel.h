@@ -3,6 +3,7 @@
 #include "CustomWidgets/RightPanel.h"
 #include "audio/BpmDetector.h"
 #include <QVector>
+#include <QPointer>
 
 class QListWidget;
 class QLineEdit;
@@ -10,6 +11,8 @@ class QDoubleSpinBox;
 class QPushButton;
 class QLabel;
 class PlaybackController;
+class ChartCanvas;
+class BpmAdvancedEditor;
 
 class BPMTimePanel : public RightPanel
 {
@@ -19,6 +22,7 @@ public:
     void setChartController(ChartController *controller) override;
     void setSelectionController(SelectionController *controller) override;
     void setPlaybackController(PlaybackController *controller);
+    void setMainCanvas(ChartCanvas *canvas) { m_mainCanvas = canvas; }
     void retranslateUi();
 
 private slots:
@@ -46,5 +50,8 @@ private:
     QPushButton *m_addBtn;
     QPushButton *m_removeBtn;
     QPushButton *m_measureBtn;
+    QPushButton *m_advancedBtn;
+    ChartCanvas *m_mainCanvas = nullptr;
+    QPointer<BpmAdvancedEditor> m_advancedEditor;
     int m_selectedIndex;
 };

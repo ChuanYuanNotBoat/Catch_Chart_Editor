@@ -2,6 +2,9 @@
 
 #include <QString>
 #include <QVector>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QStringList>
 
 #include <cstddef>
 #include <cstdint>
@@ -66,7 +69,13 @@ struct AutoTiming2Window
     double reliability = 0.0;
     bool selectedAsAnchor = false;
     QString estimatorMessage;
+    QJsonObject signalMetrics;
+    QStringList evidenceReasons;
+    QJsonArray rawRhythmCandidates;
     QVector<AutoTiming2Candidate> tempoCandidates;
+    QVector<AutoTiming2Candidate> metricalCandidates;
+    QVector<double> regularizedObservationBpms;
+    QVector<double> metricalObservationBpms;
 };
 
 struct AutoTiming2Family
@@ -240,12 +249,16 @@ struct AutoTiming2Confidence
 // upstream defaults.
 struct AutoTiming2Options
 {
+    // Keep the analysis worker pool bounded; playback callers can drop to one worker.
+    int maximumWorkerThreads = 2;
     // (durationSeconds, hopSeconds) pairs; empty -> upstream default scales
     // (8s/4s + 24s/12s + 48s/24s).
     QVector<QPair<double, double>> windowSpecs;
     // Prefer Core's local-evidence tempo curve when the caller has independent
     // evidence of structural tempo changes.
     bool preferLocalTempoEvidence = false;
+    bool enableMetricalHypotheses = true;
+    bool enableMetricalDiversity = true;
     double minimumWindowSeconds = 4.0;
     double minimumTempoBpm = 30.0;
     double maximumTempoBpm = 480.0;
@@ -257,6 +270,29 @@ struct AutoTiming2Options
     bool enableComplexSubdivisionAnalysis = false;
     double tempoMapMaximumTimeErrorMilliseconds = 1.0;
     qsizetype tempoMapMaximumEntries = 2048;
+    // Version-bound fields from the configuration descriptor registry. Unknown
+    // keys are rejected by the bridge instead of silently becoming defaults.
+    QJsonObject internalOptions;
+};
+
+struct AutoTiming2AmbiguityRelation
+{
+    double firstBpm = 0.0;
+    double secondBpm = 0.0;
+    quint32 ratioNumerator = 0;
+    quint32 ratioDenominator = 0;
+    double firstSupport = 0.0;
+    double secondSupport = 0.0;
+};
+
+struct AutoTiming2Selection
+{
+    bool evaluated = false;
+    bool ambiguous = false;
+    double selectedBpm = 0.0;
+    qsizetype referenceWindowCount = 0;
+    QVector<AutoTiming2Candidate> candidates;
+    QVector<AutoTiming2AmbiguityRelation> ambiguityRelations;
 };
 
 struct AutoTiming2Summary
@@ -277,6 +313,7 @@ struct AutoTiming2Summary
     QVector<AutoTiming2Anchor> anchors;
     QVector<AutoTiming2Window> windows;
     AutoTiming2Confidence confidence;
+    AutoTiming2Selection selection;
 
     // Diagnostics counters (probe-style).
     int windowCount = 0;
@@ -288,6 +325,7 @@ struct AutoTiming2Summary
 class AutoTiming2Bridge
 {
 public:
+    static QString algorithmVersion();
     // Analyze mono float PCM. sampleRate must be 32000/44100/48000 Hz; callers
     // must resample other rates beforehand (BpmDetector::analyzeFromFileDetailed
     // does this via the existing linear resampler). A structurally valid

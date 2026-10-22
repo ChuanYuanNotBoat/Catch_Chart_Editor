@@ -27,6 +27,7 @@ add_library(vorbis STATIC
     lib/lookup.c
     lib/bitrate.c
     lib/vorbisenc.c
+    lib/vorbisfile.c
 )
 add_library(Vorbis::vorbis ALIAS vorbis)
 

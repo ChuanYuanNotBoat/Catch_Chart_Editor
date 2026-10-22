@@ -190,8 +190,28 @@ BpmMeasureUtils::Recommendation BpmMeasureUtils::selectRecommendation(
     if (!result.hasAnalysis())
         return recommendation;
 
+    const auto &selection = result.analysis.selection;
+    if (selection.evaluated)
+    {
+        if (!isPositiveFinite(selection.selectedBpm))
+            return recommendation;
+        recommendation.available = true;
+        recommendation.bpm = selection.selectedBpm;
+        for (qsizetype i = 0; i < result.analysis.tempoCandidates.size(); ++i)
+        {
+            const auto &candidate = result.analysis.tempoCandidates[i];
+            if (isPositiveFinite(candidate.bpm) && std::abs(candidate.bpm / selection.selectedBpm - 1.0) < .015)
+            {
+                recommendation.candidateIndex = i;
+                recommendation.candidateScore = candidate.score;
+                recommendation.familyId = candidate.harmonicFamilyId;
+                break;
+            }
+        }
+    }
+
     double bestScore = -std::numeric_limits<double>::infinity();
-    for (qsizetype i = 0; i < result.analysis.tempoCandidates.size(); ++i)
+    for (qsizetype i = 0; !selection.evaluated && i < result.analysis.tempoCandidates.size(); ++i)
     {
         const AutoTiming2Candidate &candidate = result.analysis.tempoCandidates[i];
         if (!isPositiveFinite(candidate.bpm))
@@ -242,7 +262,7 @@ BpmMeasureUtils::Recommendation BpmMeasureUtils::selectRecommendation(
     }
 
     const AutoTiming2Confidence &confidence = result.analysis.confidence;
-    recommendation.quality = confidence.overall >= kSupportedOverallConfidence &&
+    recommendation.quality = !selection.ambiguous && confidence.overall >= kSupportedOverallConfidence &&
                                      confidence.tempo >= kSupportedTempoConfidence &&
                                      confidence.reliableCoverage >= kMinimumReliableCoverage
                                  ? EvidenceQuality::Supported
@@ -325,13 +345,10 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
     int firstBeatNum = 0;
     int firstBeatNumerator = 0;
     int firstBeatDenominator = 1;
-    MathUtils::msToBeat(
-        map.startSeconds * 1000.0 - offsetMs,
-        existingBpmList,
-        offsetMs,
-        firstBeatNum,
-        firstBeatNumerator,
-        firstBeatDenominator);
+    // Core anchors are absolute audio times. msToBeat already applies the
+    // chart offset; subtracting it here would erase that conversion.
+    MathUtils::msToBeat(map.startSeconds * 1000.0, existingBpmList, offsetMs, firstBeatNum, firstBeatNumerator,
+                        firstBeatDenominator);
     proposal.firstAnchorBeat = firstBeatNum +
                                static_cast<double>(firstBeatNumerator) / firstBeatDenominator;
 
@@ -484,12 +501,10 @@ BpmMeasureUtils::TimingMapProposal BpmMeasureUtils::buildTimingMapProposal(
         const double beat = proposal.firstAnchorBeat +
                             anchor.phaseBeat - map.startBeat;
         const BpmEntry position = makeBpmEntry(beat, anchor.modelBpm, options.maximumBeatDenominator);
-        const double projectedAudioMs = MathUtils::beatToMs(
-            position.beatNum,
-            position.numerator,
-            position.denominator,
-            normalized,
-            offsetMs) + offsetMs;
+        // beatToMs returns absolute audio time, including the chart offset,
+        // exactly as the canvas's note-time cache consumes it.
+        const double projectedAudioMs =
+            MathUtils::beatToMs(position.beatNum, position.numerator, position.denominator, normalized, offsetMs);
         maximumAnchorResidualMs = std::max(
             maximumAnchorResidualMs,
             std::fabs(projectedAudioMs - anchor.timeSeconds * 1000.0));

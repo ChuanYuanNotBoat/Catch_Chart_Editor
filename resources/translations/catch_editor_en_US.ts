@@ -412,6 +412,10 @@
         <source>Audio BPM detection failed.</source>
         <translation type="vanished">Audio BPM detection failed.</translation>
     </message>
+    <message>
+        <source>Advanced BPM editing…</source>
+        <translation>Advanced BPM editing…</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -865,6 +869,14 @@
         <source>AutoScroll: OFF</source>
         <translation>AutoScroll: OFF</translation>
     </message>
+    <message>
+        <source>Snap to Grid When Dragging</source>
+        <translation>Snap to Grid When Dragging</translation>
+    </message>
+    <message>
+        <source>Snap horizontal movement when dragging notes.</source>
+        <translation>Snap horizontal movement when dragging notes.</translation>
+    </message>
 </context>
 <context>
     <name>ChartStatsPanel</name>
@@ -1238,6 +1250,10 @@
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>Show Spectrum Overlay</source>
+        <translation>Show Spectrum Overlay</translation>
+    </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1765"/>
         <location filename="../../src/app/MainWindow.cpp" line="4565"/>
@@ -3165,6 +3181,46 @@ Open the **History** tab for collapsible long update notes.</translation>
         <source>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</source>
         <translation>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</translation>
     </message>
+    <message>
+        <source>Hyperfruit Judge...</source>
+        <translation>Hyperfruit Judge...</translation>
+    </message>
+    <message>
+        <source>Hyperfruit Judge</source>
+        <translation>Hyperfruit Judge</translation>
+    </message>
+    <message>
+        <source>Choose the Malody judge used for hyperfruit outlines in the canvas and preview. Default: E.</source>
+        <translation>Choose the Malody judge used for hyperfruit outlines in the canvas and preview. Default: E.</translation>
+    </message>
+    <message>
+        <source>Judge:</source>
+        <translation>Judge:</translation>
+    </message>
+    <message>
+        <source>Pro judge</source>
+        <translation>Pro judge</translation>
+    </message>
+    <message>
+        <source>Merge Charts...</source>
+        <translation>Merge Charts...</translation>
+    </message>
+    <message>
+        <source>Preview merged charts</source>
+        <translation>Preview merged charts</translation>
+    </message>
+    <message>
+        <source>Merge Charts</source>
+        <translation>Merge Charts</translation>
+    </message>
+    <message>
+        <source>Cannot import merged preview.</source>
+        <translation>Cannot import merged preview.</translation>
+    </message>
+    <message>
+        <source>Merged charts loaded with one layer per segment.</source>
+        <translation>Merged charts loaded with one layer per segment.</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>
@@ -3687,6 +3743,14 @@ Open the **History** tab for collapsible long update notes.</translation>
         <source>Curve Plugin Options</source>
         <translation>Curve Plugin Options</translation>
     </message>
+    <message>
+        <source>Snap to Grid When Dragging</source>
+        <translation>Snap to Grid When Dragging</translation>
+    </message>
+    <message>
+        <source>Snap horizontal movement when dragging notes.</source>
+        <translation>Snap horizontal movement when dragging notes.</translation>
+    </message>
 </context>
 <context>
     <name>PlaybackSpeedPanel</name>
@@ -4132,6 +4196,134 @@ Do you want to rename the imported file?</translation>
         <source>Audio Conversion</source>
         <translation>Audio Conversion</translation>
     </message>
+    <message>
+        <source>—</source>
+        <translation>—</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Yes</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>No</translation>
+    </message>
+    <message>
+        <source>%1 items</source>
+        <translation>%1 items</translation>
+    </message>
+    <message>
+        <source>%1 properties</source>
+        <translation>%1 properties</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>Title</translation>
+    </message>
+    <message>
+        <source>Original title</source>
+        <translation>Original title</translation>
+    </message>
+    <message>
+        <source>Artist</source>
+        <translation>Artist</translation>
+    </message>
+    <message>
+        <source>Original artist</source>
+        <translation>Original artist</translation>
+    </message>
+    <message>
+        <source>Difficulty name</source>
+        <translation>Difficulty name</translation>
+    </message>
+    <message>
+        <source>Creator</source>
+        <translation>Creator</translation>
+    </message>
+    <message>
+        <source>Audio reference</source>
+        <translation>Audio reference</translation>
+    </message>
+    <message>
+        <source>Background reference</source>
+        <translation>Background reference</translation>
+    </message>
+    <message>
+        <source>Preview time</source>
+        <translation>Preview time</translation>
+    </message>
+    <message>
+        <source>First BPM</source>
+        <translation>First BPM</translation>
+    </message>
+    <message>
+        <source>Offset</source>
+        <translation>Offset</translation>
+    </message>
+    <message>
+        <source>Fall speed</source>
+        <translation>Fall speed</translation>
+    </message>
+    <message>
+        <source>Normal</source>
+        <translation>Normal</translation>
+    </message>
+    <message>
+        <source>Rain</source>
+        <translation>Rain</translation>
+    </message>
+    <message>
+        <source>Sound</source>
+        <translation>Sound</translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation>Unknown</translation>
+    </message>
+    <message>
+        <source>Mixed</source>
+        <translation>Mixed</translation>
+    </message>
+    <message>
+        <source>Cannot import package: %1</source>
+        <translation>Cannot import package: %1</translation>
+    </message>
+    <message>
+        <source>No charts found: %1</source>
+        <translation>No charts found: %1</translation>
+    </message>
+    <message>
+        <source>Cannot create merge workspace.</source>
+        <translation>Cannot create merge workspace.</translation>
+    </message>
+    <message>
+        <source>Merge failed or cancelled.</source>
+        <translation>Merge failed or cancelled.</translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation>Cancelled</translation>
+    </message>
+    <message>
+        <source>Unsupported audio format or audio longer than 30 minutes.</source>
+        <translation>Unsupported audio format or audio longer than 30 minutes.</translation>
+    </message>
+    <message>
+        <source>Audio decoding timed out.</source>
+        <translation>Audio decoding timed out.</translation>
+    </message>
+    <message>
+        <source>Empty audio</source>
+        <translation>Empty audio</translation>
+    </message>
+    <message>
+        <source>Cannot copy image: %1</source>
+        <translation>Cannot copy image: %1</translation>
+    </message>
+    <message>
+        <source>Cannot create merged OGG audio.</source>
+        <translation>Cannot create merged OGG audio.</translation>
+    </message>
 </context>
 <context>
     <name>SpeedPopup</name>
@@ -4174,6 +4366,3413 @@ Do you want to rename the imported file?</translation>
     <message>
         <source>Disabled</source>
         <translation>Disabled</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisCanvas</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="270"/>
+        <source>Invalid spectrum result</source>
+        <translation>Invalid spectrum result</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="316"/>
+        <source>Load chart audio to inspect stereo spectrum</source>
+        <translation>Load chart audio to inspect stereo spectrum</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="342"/>
+        <source>100 Hz</source>
+        <translation>100 Hz</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="342"/>
+        <source>1 kHz</source>
+        <translation>1 kHz</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="342"/>
+        <source>10 kHz</source>
+        <translation>10 kHz</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="484"/>
+        <source>End %1 ms</source>
+        <translation>End %1 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="516"/>
+        <source>%1 [%2,%3,%4]</source>
+        <translation>%1 [%2,%3,%4]</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="516"/>
+        <source>Ramp Start</source>
+        <translation>Ramp Start</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="516"/>
+        <source>Ramp End</source>
+        <translation>Ramp End</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="601"/>
+        <source>Spectrum · Mono → L / R</source>
+        <translation>Spectrum · Mono → L / R</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="601"/>
+        <source>Spectrum · L / R</source>
+        <translation>Spectrum · L / R</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="604"/>
+        <source> · Preview %1 BPM</source>
+        <translation> · Preview %1 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="608"/>
+        <source>Measure · End / drag markers</source>
+        <translation>Measure · End / drag markers</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="608"/>
+        <source>Measure · pick Start (snap)</source>
+        <translation>Measure · pick Start (snap)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="609"/>
+        <source> · BPM interpolation</source>
+        <translation> · BPM interpolation</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="610"/>
+        <source>Interpolation · pick Start (snap)</source>
+        <translation>Interpolation · pick Start (snap)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="616"/>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="721"/>
+        <source>Rain</source>
+        <translation>Rain</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="616"/>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="721"/>
+        <source>Note</source>
+        <translation>Note</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisCanvas.cpp" line="835"/>
+        <source>Rain end must be later than its start</source>
+        <translation>Rain end must be later than its start</translation>
+    </message>
+    <message>
+        <source> · Draft: %1</source>
+        <translation> · Draft: %1</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisConfigPanel</name>
+    <message>
+        <source>Tempo</source>
+        <translation>Tempo</translation>
+    </message>
+    <message>
+        <source>Phase</source>
+        <translation>Phase</translation>
+    </message>
+    <message>
+        <source>Rhythm</source>
+        <translation>Rhythm</translation>
+    </message>
+    <message>
+        <source>Windows</source>
+        <translation>Windows</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Export</translation>
+    </message>
+    <message>
+        <source>Prefer local tempo evidence</source>
+        <translation>Prefer local tempo evidence</translation>
+    </message>
+    <message>
+        <source>Minimum tempo (BPM)</source>
+        <translation>Minimum tempo (BPM)</translation>
+    </message>
+    <message>
+        <source>Maximum tempo (BPM)</source>
+        <translation>Maximum tempo (BPM)</translation>
+    </message>
+    <message>
+        <source>Fine tempo tracking</source>
+        <translation>Fine tempo tracking</translation>
+    </message>
+    <message>
+        <source>Fine window (s)</source>
+        <translation>Fine window (s)</translation>
+    </message>
+    <message>
+        <source>Fine hop (s)</source>
+        <translation>Fine hop (s)</translation>
+    </message>
+    <message>
+        <source>Maximum tracked gap (s)</source>
+        <translation>Maximum tracked gap (s)</translation>
+    </message>
+    <message>
+        <source>Experimental subdivision analysis</source>
+        <translation>Experimental subdivision analysis</translation>
+    </message>
+    <message>
+        <source>BPM list error budget (ms)</source>
+        <translation>BPM list error budget (ms)</translation>
+    </message>
+    <message>
+        <source>Maximum BPM list entries</source>
+        <translation>Maximum BPM list entries</translation>
+    </message>
+    <message>
+        <source>Minimum window (s)</source>
+        <translation>Minimum window (s)</translation>
+    </message>
+    <message>
+        <source>Tempo agreement tolerance</source>
+        <translation>Tempo agreement tolerance</translation>
+    </message>
+    <message>
+        <source>Anchor reliability gate</source>
+        <translation>Anchor reliability gate</translation>
+    </message>
+    <message>
+        <source>Onset periodicity gate</source>
+        <translation>Onset periodicity gate</translation>
+    </message>
+    <message>
+        <source>Local candidate limit</source>
+        <translation>Local candidate limit</translation>
+    </message>
+    <message>
+        <source>Global candidate limit</source>
+        <translation>Global candidate limit</translation>
+    </message>
+    <message>
+        <source>Phase back-propagation (s)</source>
+        <translation>Phase back-propagation (s)</translation>
+    </message>
+    <message>
+        <source>Continuous slope (octaves/s)</source>
+        <translation>Continuous slope (octaves/s)</translation>
+    </message>
+    <message>
+        <source>Tempo transition penalty</source>
+        <translation>Tempo transition penalty</translation>
+    </message>
+    <message>
+        <source>Slope change penalty</source>
+        <translation>Slope change penalty</translation>
+    </message>
+    <message>
+        <source>Phase transition penalty</source>
+        <translation>Phase transition penalty</translation>
+    </message>
+    <message>
+        <source>Periodicity layer limit</source>
+        <translation>Periodicity layer limit</translation>
+    </message>
+    <message>
+        <source>High-rate rhythm analysis</source>
+        <translation>High-rate rhythm analysis</translation>
+    </message>
+    <message>
+        <source>Minimum high rhythm rate</source>
+        <translation>Minimum high rhythm rate</translation>
+    </message>
+    <message>
+        <source>Maximum high rhythm rate</source>
+        <translation>Maximum high rhythm rate</translation>
+    </message>
+    <message>
+        <source>Rhythm periodicity gate</source>
+        <translation>Rhythm periodicity gate</translation>
+    </message>
+    <message>
+        <source>Raw rhythm candidate limit</source>
+        <translation>Raw rhythm candidate limit</translation>
+    </message>
+    <message>
+        <source>Rhythm layer confidence gate</source>
+        <translation>Rhythm layer confidence gate</translation>
+    </message>
+    <message>
+        <source>Strong rhythm confidence gate</source>
+        <translation>Strong rhythm confidence gate</translation>
+    </message>
+    <message>
+        <source>Semantic phase gate</source>
+        <translation>Semantic phase gate</translation>
+    </message>
+    <message>
+        <source>Semantic pulse coverage gate</source>
+        <translation>Semantic pulse coverage gate</translation>
+    </message>
+    <message>
+        <source>Semantic transient density gate</source>
+        <translation>Semantic transient density gate</translation>
+    </message>
+    <message>
+        <source>Semantic support windows</source>
+        <translation>Semantic support windows</translation>
+    </message>
+    <message>
+        <source>Rhythm profile limit</source>
+        <translation>Rhythm profile limit</translation>
+    </message>
+    <message>
+        <source>Minimum semantic subdivision</source>
+        <translation>Minimum semantic subdivision</translation>
+    </message>
+    <message>
+        <source>Maximum subdivision</source>
+        <translation>Maximum subdivision</translation>
+    </message>
+    <message>
+        <source>Reserved polyrhythm term</source>
+        <translation>Reserved polyrhythm term</translation>
+    </message>
+    <message>
+        <source>Reserved polyrhythm layers</source>
+        <translation>Reserved polyrhythm layers</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="43"/>
+        <source>The global preset store is unreadable. Saving is disabled to preserve it; current/imported settings can still be used.</source>
+        <translation>The global preset store is unreadable. Saving is disabled to preserve it; current/imported settings can still be used.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="57"/>
+        <source>Save As…</source>
+        <translation>Save As…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="60"/>
+        <source>Copy preset…</source>
+        <translation>Copy preset…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="63"/>
+        <source>Import…</source>
+        <translation>Import…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="66"/>
+        <source>Export…</source>
+        <translation>Export…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="71"/>
+        <source>Save project override</source>
+        <translation>Save project override</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="72"/>
+        <source>Clear project override</source>
+        <translation>Clear project override</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="82"/>
+        <source>Open a chart and provide a valid configuration first.</source>
+        <translation>Open a chart and provide a valid configuration first.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="100"/>
+        <source>Project override saved. The .mc chart is unchanged.</source>
+        <translation>Project override saved. The .mc chart is unchanged.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="116"/>
+        <source>Project override cleared.</source>
+        <translation>Project override cleared.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="132"/>
+        <source>Reset section</source>
+        <translation>Reset section</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="132"/>
+        <source>Reset all</source>
+        <translation>Reset all</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="140"/>
+        <source>Current configuration reset; saved presets and project override are unchanged.</source>
+        <translation>Current configuration reset; saved presets and project override are unchanged.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="186"/>
+        <source> · Core build dependent</source>
+        <translation> · Core build dependent</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="186"/>
+        <source> · stable profile field</source>
+        <translation> · stable profile field</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="187"/>
+        <source>
+CCE Default: %1 · range %2–%3</source>
+        <translation>
+CCE Default: %1 · range %2–%3</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="193"/>
+        <source>Reset</source>
+        <translation>Reset</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="195"/>
+        <source>Restore this field to the CCE Default</source>
+        <translation>Restore this field to the CCE Default</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="212"/>
+        <source>Window duration / hop pairs in seconds, e.g. [[8,4],[24,12],[48,24]]</source>
+        <translation>Window duration / hop pairs in seconds, e.g. [[8,4],[24,12],[48,24]]</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="223"/>
+        <source>Configuration changed; analyze again.</source>
+        <translation>Configuration changed; analyze again.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="361"/>
+        <source>Analysis window schedule differs from Default.</source>
+        <translation>Analysis window schedule differs from Default.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="363"/>
+        <source>All visible fields use CCE Default values.</source>
+        <translation>All visible fields use CCE Default values.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="364"/>
+        <source>Changes from CCE Default:
+</source>
+        <translation>Changes from CCE Default:
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="367"/>
+        <source>Current configuration: modified
+</source>
+        <translation>Current configuration: modified
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="367"/>
+        <source>Current configuration: saved values
+</source>
+        <translation>Current configuration: saved values
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="368"/>
+        <source>Default is read-only. Project override: %1</source>
+        <translation>Default is read-only. Project override: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="368"/>
+        <source>active</source>
+        <translation>active</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="368"/>
+        <source>none</source>
+        <translation>none</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="370"/>
+        <source>
+Core: %1
+Snapshot: %2</source>
+        <translation>
+Core: %1
+Snapshot: %2</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="404"/>
+        <source>Invalid project analysis configuration. Restore or clear the sidecar before analyzing.</source>
+        <translation>Invalid project analysis configuration. Restore or clear the sidecar before analyzing.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="413"/>
+        <source>Project base snapshot hash does not match. Restore or clear the sidecar before analyzing.</source>
+        <translation>Project base snapshot hash does not match. Restore or clear the sidecar before analyzing.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="436"/>
+        <source>Using the saved project base; installed preset is missing or differs.</source>
+        <translation>Using the saved project base; installed preset is missing or differs.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="446"/>
+        <source>Project base preset is unavailable. Restore its snapshot or select a preset explicitly.</source>
+        <translation>Project base preset is unavailable. Restore its snapshot or select a preset explicitly.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="457"/>
+        <source>Unsupported/incomplete project analysis configuration.</source>
+        <translation>Unsupported/incomplete project analysis configuration.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="484"/>
+        <source>Project Debug overrides target another Core build and are inactive.</source>
+        <translation>Project Debug overrides target another Core build and are inactive.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="490"/>
+        <source>Project analysis configuration cannot be read (maximum 1 MiB).</source>
+        <translation>Project analysis configuration cannot be read (maximum 1 MiB).</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="501"/>
+        <source>Global preset store is unreadable; it will not be overwritten.</source>
+        <translation>Global preset store is unreadable; it will not be overwritten.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="514"/>
+        <source>Save analysis preset</source>
+        <translation>Save analysis preset</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="514"/>
+        <source>New name (Default is read-only)</source>
+        <translation>New name (Default is read-only)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="522"/>
+        <source>Choose an unused preset name.</source>
+        <translation>Choose an unused preset name.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="546"/>
+        <source>Preset saved.</source>
+        <translation>Preset saved.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="551"/>
+        <source>Import analysis profile</source>
+        <translation>Import analysis profile</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="551"/>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="610"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="557"/>
+        <source>Cannot read profile (maximum 1 MiB).</source>
+        <translation>Cannot read profile (maximum 1 MiB).</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="567"/>
+        <source>Invalid profile JSON; configuration unchanged.</source>
+        <translation>Invalid profile JSON; configuration unchanged.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="584"/>
+        <source>Replace current analysis configuration</source>
+        <translation>Replace current analysis configuration</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="585"/>
+        <source>%1 field(s) will change:
+%2
+%3
+Saved presets are preserved. This does not start an analysis.</source>
+        <translation>%1 field(s) will change:
+%2
+%3
+Saved presets are preserved. This does not start an analysis.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="609"/>
+        <source>Export effective profile</source>
+        <translation>Export effective profile</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="614"/>
+        <source>Effective profile exported.</source>
+        <translation>Effective profile exported.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisConfigPanel.cpp" line="634"/>
+        <source>Section reset in current configuration.</source>
+        <translation>Section reset in current configuration.</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisEditor</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="92"/>
+        <source>CCE — Analysis Editor</source>
+        <translation>CCE — Analysis Editor</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="99"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="498"/>
+        <source>Analysis Editor</source>
+        <translation>Analysis Editor</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="107"/>
+        <source>Normal</source>
+        <translation>Normal</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="107"/>
+        <source>Advanced</source>
+        <translation>Advanced</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="107"/>
+        <source>Debug</source>
+        <translation>Debug</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="111"/>
+        <source>Musical time</source>
+        <translation>Musical time</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="111"/>
+        <source>Audio time</source>
+        <translation>Audio time</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="113"/>
+        <source>Sync visible range</source>
+        <translation>Sync visible range</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="121"/>
+        <source>Independent vertical zoom. Ctrl + wheel also zooms.</source>
+        <translation>Independent vertical zoom. Ctrl + wheel also zooms.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="172"/>
+        <source>Measure</source>
+        <translation>Measure</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="173"/>
+        <source>AutoTiming</source>
+        <translation>AutoTiming</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="175"/>
+        <source>Interpolate</source>
+        <translation>Interpolate</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="177"/>
+        <source>Timing</source>
+        <translation>Timing</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="192"/>
+        <source>Transient</source>
+        <translation>Transient</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="199"/>
+        <source>Timbre</source>
+        <translation>Timbre</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="200"/>
+        <source>Future: spectral features, event groups and stereo characteristics.</source>
+        <translation>Future: spectral features, event groups and stereo characteristics.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="201"/>
+        <source>Tracks</source>
+        <translation>Tracks</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="201"/>
+        <source>Future: pseudo tracks, continuity and preferred track.</source>
+        <translation>Future: pseudo tracks, continuity and preferred track.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="203"/>
+        <source>Generation</source>
+        <translation>Generation</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="204"/>
+        <source>Future: density, importance and charting rules. Candidates will use ghost preview before a separate undoable commit.</source>
+        <translation>Future: density, importance and charting rules. Candidates will use ghost preview before a separate undoable commit.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="207"/>
+        <source>Diagnostics</source>
+        <translation>Diagnostics</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="239"/>
+        <source>Configuration</source>
+        <translation>Configuration</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="258"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="351"/>
+        <source>Play</source>
+        <translation>Play</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="264"/>
+        <source>Loop range</source>
+        <translation>Loop range</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="267"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="283"/>
+        <source>Undo</source>
+        <translation>Undo</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="267"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="285"/>
+        <source>Redo</source>
+        <translation>Redo</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="270"/>
+        <source>Note: left add / right delete · Rain: two clicks · Shift drag: time range</source>
+        <translation>Note: left add / right delete · Rain: two clicks · Shift drag: time range</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="287"/>
+        <source>Delete selected notes</source>
+        <translation>Delete selected notes</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="302"/>
+        <source>Play / Pause</source>
+        <translation>Play / Pause</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="351"/>
+        <source>Pause</source>
+        <translation>Pause</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="374"/>
+        <source> beat / px</source>
+        <translation> beat / px</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="374"/>
+        <source> ms / px</source>
+        <translation> ms / px</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="454"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="661"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="667"/>
+        <source> s</source>
+        <translation> s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="499"/>
+        <source>Analysis Editor · %1</source>
+        <translation>Analysis Editor · %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="536"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1059"/>
+        <source>Chart audio is unavailable</source>
+        <translation>Chart audio is unavailable</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="543"/>
+        <source>Zoom in to inspect spectrum (visible range ≤ 100 s)</source>
+        <translation>Zoom in to inspect spectrum (visible range ≤ 100 s)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="587"/>
+        <source>Stereo spectrum ready · gutters: peak / RMS</source>
+        <translation>Stereo spectrum ready · gutters: peak / RMS</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="614"/>
+        <source>Preloading adjacent spectrum…</source>
+        <translation>Preloading adjacent spectrum…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="616"/>
+        <source>Decoding stereo spectrum…</source>
+        <translation>Decoding stereo spectrum…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="643"/>
+        <source>Invalid spectrum result</source>
+        <translation>Invalid spectrum result</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="668"/>
+        <source>Audio start</source>
+        <translation>Audio start</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="669"/>
+        <source>Duration</source>
+        <translation>Duration</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="672"/>
+        <source>Use range</source>
+        <translation>Use range</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="672"/>
+        <source>Use visible</source>
+        <translation>Use visible</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="686"/>
+        <source>Enable experimental subdivision analysis</source>
+        <translation>Enable experimental subdivision analysis</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="688"/>
+        <source>Raw periodicity evidence is always available. Semantic rhythm profiles require Core&apos;s confidence gates.</source>
+        <translation>Raw periodicity evidence is always available. Semantic rhythm profiles require Core's confidence gates.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="691"/>
+        <source>Prefer local tempo evidence</source>
+        <translation>Prefer local tempo evidence</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="711"/>
+        <source>Analyze timing</source>
+        <translation>Analyze timing</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="713"/>
+        <source>Cancel / discard</source>
+        <translation>Cancel / discard</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="720"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1141"/>
+        <source>Analyze audio to inspect AutoTiming intermediate results.</source>
+        <translation>Analyze audio to inspect AutoTiming intermediate results.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="785"/>
+        <source>Candidates</source>
+        <translation>Candidates</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="789"/>
+        <source>Windows</source>
+        <translation>Windows</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="792"/>
+        <source>Window candidates</source>
+        <translation>Window candidates</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="795"/>
+        <source>Track</source>
+        <translation>Track</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="798"/>
+        <source>Segments</source>
+        <translation>Segments</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="800"/>
+        <source>Grid fit</source>
+        <translation>Grid fit</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="803"/>
+        <source>Periodicity evidence</source>
+        <translation>Periodicity evidence</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="807"/>
+        <source>Subdivision evidence</source>
+        <translation>Subdivision evidence</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="810"/>
+        <source>Uncertainty</source>
+        <translation>Uncertainty</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="813"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="958"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1134"/>
+        <source>Select a candidate or an analysis window to inspect its phase.</source>
+        <translation>Select a candidate or an analysis window to inspect its phase.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="820"/>
+        <source>Preview candidate grid</source>
+        <translation>Preview candidate grid</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="823"/>
+        <source>Constant BPM reference at the reported absolute pulse. Cyan lines are limited to the analyzed range. Chart timing and placement snap stay unchanged.</source>
+        <translation>Constant BPM reference at the reported absolute pulse. Cyan lines are limited to the analyzed range. Chart timing and placement snap stay unchanged.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="825"/>
+        <source>Go to pulse</source>
+        <translation>Go to pulse</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="831"/>
+        <source>Preview fitted tempo map</source>
+        <translation>Preview fitted tempo map</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="833"/>
+        <source>Show analysis tracks</source>
+        <translation>Show analysis tracks</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="836"/>
+        <source>Preview and apply reliable tempo changes…</source>
+        <translation>Preview and apply reliable tempo changes…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="857"/>
+        <source>Double-click a window to inspect its local candidates and audio. Global candidates currently carry tempo only. Scores/costs are diagnostics, not probabilities.</source>
+        <translation>Double-click a window to inspect its local candidates and audio. Global candidates currently carry tempo only. Scores/costs are diagnostics, not probabilities.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="937"/>
+        <source>Window #%1 has no tempo candidates.</source>
+        <translation>Window #%1 has no tempo candidates.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="961"/>
+        <source>Window #%1 · %2–%3 s</source>
+        <translation>Window #%1 · %2–%3 s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="965"/>
+        <source>Global candidate</source>
+        <translation>Global candidate</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="967"/>
+        <source>%1
+%2 BPM · pulse %3
+Phase confidence %4 · legacy offset %5 ms</source>
+        <translation>%1
+%2 BPM · pulse %3
+Phase confidence %4 · legacy offset %5 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="970"/>
+        <source>%1 s</source>
+        <translation>%1 s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="970"/>
+        <source>unavailable (tempo only)</source>
+        <translation>unavailable (tempo only)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1014"/>
+        <source>Legacy: %1 BPM / offset %2 ms
+Analysis: %3 · %4 windows · confidence %5
+Grid max residual: %6 ms · BPM list model error: %7 ms</source>
+        <translation>Legacy: %1 BPM / offset %2 ms
+Analysis: %3 · %4 windows · confidence %5
+Grid max residual: %6 ms · BPM list model error: %7 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1016"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1018"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1023"/>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1026"/>
+        <source>unavailable</source>
+        <translation>unavailable</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1062"/>
+        <source>Requested interval exceeds the remaining audio. Choose an exact interval within the file.</source>
+        <translation>Requested interval exceeds the remaining audio. Choose an exact interval within the file.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1075"/>
+        <source>Analyzing… Cancel discards the result; an active Core calculation finishes in the background.</source>
+        <translation>Analyzing… Cancel discards the result; an active Core calculation finishes in the background.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1086"/>
+        <source>Previous analysis finished and was discarded. Analyze the current configuration when ready.</source>
+        <translation>Previous analysis finished and was discarded. Analyze the current configuration when ready.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1106"/>
+        <source>The previous analysis is still finishing.</source>
+        <translation>The previous analysis is still finishing.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1114"/>
+        <source>Result discarded. Waiting for the analysis worker to finish…</source>
+        <translation>Result discarded. Waiting for the analysis worker to finish…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1147"/>
+        <source>No diagnostic result to export</source>
+        <translation>No diagnostic result to export</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1150"/>
+        <source>Export diagnostic JSON</source>
+        <translation>Export diagnostic JSON</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1151"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1157"/>
+        <source>Export failed: %1</source>
+        <translation>Export failed: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1159"/>
+        <source>Diagnostic JSON exported</source>
+        <translation>Diagnostic JSON exported</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1249"/>
+        <source>Configuration/range changed. These results belong to the previous input settings; analyze again before preview or apply.</source>
+        <translation>Configuration/range changed. These results belong to the previous input settings; analyze again before preview or apply.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1296"/>
+        <source>Baseline observed tempo</source>
+        <translation>Baseline observed tempo</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1306"/>
+        <source>Selected periodicity evidence</source>
+        <translation>Selected periodicity evidence</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1344"/>
+        <source>Suggested tempo: %1 BPM
+</source>
+        <translation>Suggested tempo: %1 BPM
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1348"/>
+        <source>Tempo suggestion has supporting evidence.</source>
+        <translation>Tempo suggestion has supporting evidence.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1351"/>
+        <source>Tempo suggestion is uncertain; inspect coverage and competing candidates.</source>
+        <translation>Tempo suggestion is uncertain; inspect coverage and competing candidates.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1354"/>
+        <source>No supported tempo suggestion is available.</source>
+        <translation>No supported tempo suggestion is available.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1357"/>
+        <source>
+%1 tempo candidates · %2 analysis windows. Preview does not change the chart.</source>
+        <translation>
+%1 tempo candidates · %2 analysis windows. Preview does not change the chart.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1395"/>
+        <source>Preparing whole-audio RMS / peak overview…</source>
+        <translation>Preparing whole-audio RMS / peak overview…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1427"/>
+        <source>Apply AutoTiming tempo map</source>
+        <translation>Apply AutoTiming tempo map</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisEditor.cpp" line="1428"/>
+        <source>Replace only reliable tempo-change intervals from %1 to %2 seconds with %3 generated timing entries. Model error: %4 ms.</source>
+        <translation>Replace only reliable tempo-change intervals from %1 to %2 seconds with %3 generated timing entries. Model error: %4 ms.</translation>
+    </message>
+    <message>
+        <source>Cancel operation</source>
+        <translation>Cancel operation</translation>
+    </message>
+</context>
+<context>
+    <name>AnalysisWorkbench</name>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="42"/>
+        <source>Load record…</source>
+        <translation>Load record…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="42"/>
+        <source>Export diagnostics…</source>
+        <translation>Export diagnostics…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="46"/>
+        <source>Export comparison…</source>
+        <translation>Export comparison…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="56"/>
+        <source>Load a baseline first.</source>
+        <translation>Load a baseline first.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="59"/>
+        <source>Export local comparison</source>
+        <translation>Export local comparison</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="60"/>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="69"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="69"/>
+        <source>Load local analysis record</source>
+        <translation>Load local analysis record</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="107"/>
+        <source>Curves follow the spectrum time axis. Observation/model residuals are separate from reference accuracy. Orange regions: uncertainty; green grid: fitted model.</source>
+        <translation>Curves follow the spectrum time axis. Observation/model residuals are separate from reference accuracy. Orange regions: uncertainty; green grid: fitted model.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="115"/>
+        <source>Observed tempo (BPM)</source>
+        <translation>Observed tempo (BPM)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="116"/>
+        <source>Confidence (raw)</source>
+        <translation>Confidence (raw)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="117"/>
+        <source>Phase confidence (raw)</source>
+        <translation>Phase confidence (raw)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="118"/>
+        <source>Observation / model residual (ms)</source>
+        <translation>Observation / model residual (ms)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="119"/>
+        <source>Periodicity (events/min)</source>
+        <translation>Periodicity (events/min)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="120"/>
+        <source>Uncertainty regions</source>
+        <translation>Uncertainty regions</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="121"/>
+        <source>Baseline tempo (same input)</source>
+        <translation>Baseline tempo (same input)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="122"/>
+        <source>Spectrum RMS / peak</source>
+        <translation>Spectrum RMS / peak</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="123"/>
+        <source>Transient flux</source>
+        <translation>Transient flux</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="124"/>
+        <source>Transient peaks (accepted / rejected)</source>
+        <translation>Transient peaks (accepted / rejected)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="125"/>
+        <source>Candidate pulses</source>
+        <translation>Candidate pulses</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="151"/>
+        <source>Overview</source>
+        <translation>Overview</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="151"/>
+        <source>Tempo</source>
+        <translation>Tempo</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="151"/>
+        <source>Rhythm</source>
+        <translation>Rhythm</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="152"/>
+        <source>Overview / Compare</source>
+        <translation>Overview / Compare</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="153"/>
+        <source>Tempo / Phase</source>
+        <translation>Tempo / Phase</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="154"/>
+        <source>Rhythm / Evidence</source>
+        <translation>Rhythm / Evidence</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="159"/>
+        <source>Load existing records. No tests run when this page opens. Unannotated audio has no accuracy PASS.</source>
+        <translation>Load existing records. No tests run when this page opens. Unannotated audio has no accuracy PASS.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="165"/>
+        <source>Case / Mode</source>
+        <translation>Case / Mode</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="165"/>
+        <source>Recorded status</source>
+        <translation>Recorded status</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="165"/>
+        <source>Reference type</source>
+        <translation>Reference type</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="166"/>
+        <source>Strict max</source>
+        <translation>Strict max</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="166"/>
+        <source>Phase max (ms)</source>
+        <translation>Phase max (ms)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="166"/>
+        <source>Coverage / reason</source>
+        <translation>Coverage / reason</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="176"/>
+        <source>Current diagnostics</source>
+        <translation>Current diagnostics</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="181"/>
+        <source>Loaded record</source>
+        <translation>Loaded record</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="183"/>
+        <source>Reference</source>
+        <translation>Reference</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="184"/>
+        <source>Reference / Tests</source>
+        <translation>Reference / Tests</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="194"/>
+        <source>This case is not paired with the current audio hash. Audio navigation is unavailable.</source>
+        <translation>This case is not paired with the current audio hash. Audio navigation is unavailable.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="290"/>
+        <source>Final selected result</source>
+        <translation>Final selected result</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="295"/>
+        <source> (selected by Core)</source>
+        <translation> (selected by Core)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="295"/>
+        <source> (alternative)</source>
+        <translation> (alternative)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="308"/>
+        <source>unavailable</source>
+        <translation>unavailable</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="315"/>
+        <source>Analyze audio to inspect results.</source>
+        <translation>Analyze audio to inspect results.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="316"/>
+        <source>Legacy BPM: %1 · Legacy offset: %2 ms
+Analysis: %3 · Core: %4
+Requested: %5 ms + %6 ms · Actual: %7 ms + %8 s
+Input: %9
+Config hash: %10
+Observation/model |residual| P50 / P90 / max: %11 / %12 / %13 ms
+BPM list/model error: %14 ms · not reference accuracy</source>
+        <translation>Legacy BPM: %1 · Legacy offset: %2 ms
+Analysis: %3 · Core: %4
+Requested: %5 ms + %6 ms · Actual: %7 ms + %8 s
+Input: %9
+Config hash: %10
+Observation/model |residual| P50 / P90 / max: %11 / %12 / %13 ms
+BPM list/model error: %14 ms · not reference accuracy</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="328"/>
+        <source>Result state: %1
+</source>
+        <translation>Result state: %1
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="353"/>
+        <source>Load a same-input baseline to compare. Scores and costs are not probabilities.</source>
+        <translation>Load a same-input baseline to compare. Scores and costs are not probabilities.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="360"/>
+        <source>Same decoded input verified; options and Core versions are recorded independently.
+</source>
+        <translation>Same decoded input verified; options and Core versions are recorded independently.
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="361"/>
+        <source>Inputs are not verified identical. Browsing only; accuracy comparison unavailable.
+</source>
+        <translation>Inputs are not verified identical. Browsing only; accuracy comparison unavailable.
+</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="366"/>
+        <source>Current coverage: %1–%2 s; baseline: %3–%4 s
+Common interval: %5; unmatched edges retained.
+Current config: %6; baseline config: %7
+Current Core: %8; baseline Core: %9</source>
+        <translation>Current coverage: %1–%2 s; baseline: %3–%4 s
+Common interval: %5; unmatched edges retained.
+Current config: %6; baseline config: %7
+Current Core: %8; baseline Core: %9</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="370"/>
+        <source>none</source>
+        <translation>none</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="382"/>
+        <source>Cannot read record (maximum 32 MiB).</source>
+        <translation>Cannot read record (maximum 32 MiB).</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="390"/>
+        <source>Invalid record JSON.</source>
+        <translation>Invalid record JSON.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="397"/>
+        <source>Unsupported diagnostics schema; current results unchanged.</source>
+        <translation>Unsupported diagnostics schema; current results unchanged.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="406"/>
+        <source>Incomplete comparison record.</source>
+        <translation>Incomplete comparison record.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="415"/>
+        <source>Unsupported nested diagnostics schema; records unchanged.</source>
+        <translation>Unsupported nested diagnostics schema; records unchanged.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="427"/>
+        <source>Expected diagnostics or a corpus/benchmark summary.</source>
+        <translation>Expected diagnostics or a corpus/benchmark summary.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AnalysisWorkbench.cpp" line="478"/>
+        <source>Showing %1 of %2 existing records. Statuses are recorded results, not a new verification. Source/reference pairing is required before accuracy or navigation. No test was started.</source>
+        <translation>Showing %1 of %2 existing records. Statuses are recorded results, not a new verification. Source/reference pairing is required before accuracy or navigation. No test was started.</translation>
+    </message>
+    <message>
+        <source>Several beat interpretations remain plausible. Inspect the alternatives.
+</source>
+        <translation>Several beat interpretations remain plausible. Inspect the alternatives.
+</translation>
+    </message>
+    <message>
+        <source>Stable beat interpretation</source>
+        <translation>Stable beat interpretation</translation>
+    </message>
+    <message>
+        <source>Alternative beat path</source>
+        <translation>Alternative beat path</translation>
+    </message>
+    <message>
+        <source>Whole-song interpretation</source>
+        <translation>Whole-song interpretation</translation>
+    </message>
+    <message>
+        <source>Local tempo changes</source>
+        <translation>Local tempo changes</translation>
+    </message>
+</context>
+<context>
+    <name>AudioOverview</name>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="12"/>
+        <source>Whole-audio relative energy (RMS / peak), not Note density or LUFS. Click or drag to navigate.</source>
+        <translation>Whole-audio relative energy (RMS / peak), not Note density or LUFS. Click or drag to navigate.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="71"/>
+        <source>Audio energy</source>
+        <translation>Audio energy</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="75"/>
+        <source>Link audio for whole-track navigation.</source>
+        <translation>Link audio for whole-track navigation.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/AudioOverview.cpp" line="114"/>
+        <source>%1 s</source>
+        <translation>%1 s</translation>
+    </message>
+</context>
+<context>
+    <name>TimingInterpolationPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="43"/>
+        <source>BPM varies linearly with beat. Stored segment BPMs match the exact curve duration; difficult regions subdivide locally to stay below the error limit.</source>
+        <translation>BPM varies linearly with beat. Stored segment BPMs match the exact curve duration; difficult regions subdivide locally to stay below the error limit.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="47"/>
+        <source>Pick Start on spectrum</source>
+        <translation>Pick Start on spectrum</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="68"/>
+        <source>Start beat</source>
+        <translation>Start beat</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="69"/>
+        <source>End beat</source>
+        <translation>End beat</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="81"/>
+        <source>Start BPM</source>
+        <translation>Start BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="82"/>
+        <source>End BPM</source>
+        <translation>End BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="85"/>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="89"/>
+        <source>Beat length</source>
+        <translation>Beat length</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="85"/>
+        <source>Start / End beat</source>
+        <translation>Start / End beat</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="85"/>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="91"/>
+        <source>Duration ms</source>
+        <translation>Duration ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="86"/>
+        <source>Range via</source>
+        <translation>Range via</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="94"/>
+        <source>Maximum spacing in beats; decimal or fraction. Default 1 beat.</source>
+        <translation>Maximum spacing in beats; decimal or fraction. Default 1 beat.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="95"/>
+        <source>Maximum gap</source>
+        <translation>Maximum gap</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="97"/>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="98"/>
+        <source>Error below</source>
+        <translation>Error below</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="100"/>
+        <source>Resume chart BPM at End</source>
+        <translation>Resume chart BPM at End</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="103"/>
+        <source>On: restore the original active BPM at End. Off: continue the specified End BPM. Later timing points keep their original beat coordinates and BPM.</source>
+        <translation>On: restore the original active BPM at End. Off: continue the specified End BPM. Later timing points keep their original beat coordinates and BPM.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="105"/>
+        <source>Preview interpolation</source>
+        <translation>Preview interpolation</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Beat</source>
+        <translation>Beat</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Audio ms</source>
+        <translation>Audio ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Stored BPM</source>
+        <translation>Stored BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="117"/>
+        <source>Error ms</source>
+        <translation>Error ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="123"/>
+        <source>Rebuild preview</source>
+        <translation>Rebuild preview</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="125"/>
+        <source>Apply interpolation…</source>
+        <translation>Apply interpolation…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="127"/>
+        <source>Export interpolation JSON…</source>
+        <translation>Export interpolation JSON…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="193"/>
+        <source>Chart changed. Rebuild preview before applying.</source>
+        <translation>Chart changed. Rebuild preview before applying.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="204"/>
+        <source>Updating preview…</source>
+        <translation>Updating preview…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="231"/>
+        <source>Enter valid beats, a positive length/gap and Start at or after the first timing.</source>
+        <translation>Enter valid beats, a positive length/gap and Start at or after the first timing.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="233"/>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="285"/>
+        <source>Existing timing contains duplicate/invalid points. Resolve them before applying.</source>
+        <translation>Existing timing contains duplicate/invalid points. Resolve them before applying.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="267"/>
+        <source>The complete timing list exceeds 100000 points.</source>
+        <translation>The complete timing list exceeds 100000 points.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="288"/>
+        <source>Stored chart timing or duration rounding exceeds the requested error bound.</source>
+        <translation>Stored chart timing or duration rounding exceeds the requested error bound.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="303"/>
+        <source>%1 → %2 · %3 segments
+Curve %4 → %5 BPM · %6 ms
+Maximum interior error %7 ms; node drift %8 ms; duration residual %9 ms.
+Replace %10 timing points in range. %11 Notes keep their beat coordinates.
+At End: %12. Later timing beats/BPM stay unchanged; audio times may move.%13</source>
+        <translation>%1 → %2 · %3 segments
+Curve %4 → %5 BPM · %6 ms
+Maximum interior error %7 ms; node drift %8 ms; duration residual %9 ms.
+Replace %10 timing points in range. %11 Notes keep their beat coordinates.
+At End: %12. Later timing beats/BPM stay unchanged; audio times may move.%13</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="311"/>
+        <source>resume chart BPM</source>
+        <translation>resume chart BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="311"/>
+        <source>continue End BPM</source>
+        <translation>continue End BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="312"/>
+        <source>
+Table shows the first 200 points; JSON includes every point.</source>
+        <translation>
+Table shows the first 200 points; JSON includes every point.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="332"/>
+        <source>Apply BPM interpolation</source>
+        <translation>Apply BPM interpolation</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="333"/>
+        <source>Replace %1 timing points with %2 points in %3 → %4?</source>
+        <translation>Replace %1 timing points with %2 points in %3 → %4?</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="366"/>
+        <source>Export interpolation JSON</source>
+        <translation>Export interpolation JSON</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="366"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingInterpolationPanel.cpp" line="371"/>
+        <source>Export failed: %1</source>
+        <translation>Export failed: %1</translation>
+    </message>
+    <message>
+        <source>Pick Start in timing view</source>
+        <translation>Pick Start in timing view</translation>
+    </message>
+    <message>
+        <source>Preview cancelled. Rebuild preview to continue.</source>
+        <translation>Preview cancelled. Rebuild preview to continue.</translation>
+    </message>
+</context>
+<context>
+    <name>TimingToolsPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="27"/>
+        <source>Pick Start on the chart grid, then End freely on the spectrum. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</source>
+        <translation>Pick Start on the chart grid, then End freely on the spectrum. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="31"/>
+        <source>Pick Start → End</source>
+        <translation>Pick Start → End</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="35"/>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="167"/>
+        <source>Click the spectrum to choose Start</source>
+        <translation>Click the spectrum to choose Start</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="39"/>
+        <source>Start beat</source>
+        <translation>Start beat</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="44"/>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="47"/>
+        <source>End audio time</source>
+        <translation>End audio time</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="50"/>
+        <source>1, 0.5, 1/3, 4…</source>
+        <translation>1, 0.5, 1/3, 4…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="51"/>
+        <source>Measured interval in beats. Positive decimal or fraction; default 1 beat.</source>
+        <translation>Measured interval in beats. Positive decimal or fraction; default 1 beat.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="52"/>
+        <source>Beat span</source>
+        <translation>Beat span</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="54"/>
+        <source>Preview measured grid</source>
+        <translation>Preview measured grid</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="67"/>
+        <source>Copy BPM</source>
+        <translation>Copy BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="70"/>
+        <source>Apply BPM at Start</source>
+        <translation>Apply BPM at Start</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="73"/>
+        <source>Clear / measure again</source>
+        <translation>Clear / measure again</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="164"/>
+        <source>[%1, %2, %3] · %4 ms</source>
+        <translation>[%1, %2, %3] · %4 ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="168"/>
+        <source>Enter a positive decimal or fraction (up to 9 decimal places).</source>
+        <translation>Enter a positive decimal or fraction (up to 9 decimal places).</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="169"/>
+        <source>Default interval: 1 beat. Enable Pick to begin.</source>
+        <translation>Default interval: 1 beat. Enable Pick to begin.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="170"/>
+        <source>Start selected. Click End freely on the spectrum.</source>
+        <translation>Start selected. Click End freely on the spectrum.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="171"/>
+        <source>End must follow Start; BPM must be 0.001–10000.</source>
+        <translation>End must follow Start; BPM must be 0.001–10000.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="172"/>
+        <source>Δt %1 ms · %2/%3 beat
+%4 BPM</source>
+        <translation>Δt %1 ms · %2/%3 beat
+%4 BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="180"/>
+        <source>Multiple timing points share Start. Resolve them before applying.</source>
+        <translation>Multiple timing points share Start. Resolve them before applying.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="181"/>
+        <source>Update the existing timing at Start; preserve its beat triplet.</source>
+        <translation>Update the existing timing at Start; preserve its beat triplet.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="182"/>
+        <source>Add one timing point at Start.</source>
+        <translation>Add one timing point at Start.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="186"/>
+        <source>
+Start must be at or after the first chart timing point.</source>
+        <translation>
+Start must be at or after the first chart timing point.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="192"/>
+        <source>
+The next timing at [%1, %2, %3] remains in place.</source>
+        <translation>
+The next timing at [%1, %2, %3] remains in place.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="196"/>
+        <source> The measured interval crosses it; shorten Beat span before applying.</source>
+        <translation> The measured interval crosses it; shorten Beat span before applying.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="201"/>
+        <source>
+Applying changes later audio times, keeps note beats and offset, and is undoable.</source>
+        <translation>
+Applying changes later audio times, keeps note beats and offset, and is undoable.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="211"/>
+        <source>Start [%1,%2,%3]</source>
+        <translation>Start [%1,%2,%3]</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="242"/>
+        <source>Apply measured BPM</source>
+        <translation>Apply measured BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingToolsPanel.cpp" line="243"/>
+        <source>Set %1 BPM at [%2, %3, %4]?</source>
+        <translation>Set %1 BPM at [%2, %3, %4]?</translation>
+    </message>
+    <message>
+        <source>Pick Start on the chart grid, then End freely in the timing view. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</source>
+        <translation>Pick Start on the chart grid, then End freely in the timing view. Drag either marker to adjust. Ctrl + wheel zooms; Tab edits Beat span.</translation>
+    </message>
+    <message>
+        <source>Click the timing view to choose Start</source>
+        <translation>Click the timing view to choose Start</translation>
+    </message>
+    <message>
+        <source>Start selected. Click End freely in the timing view.</source>
+        <translation>Start selected. Click End freely in the timing view.</translation>
+    </message>
+</context>
+<context>
+    <name>TransientPanel</name>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="169"/>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="170"/>
+        <source>Relative threshold</source>
+        <translation>Relative threshold</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="171"/>
+        <source>Minimum interval</source>
+        <translation>Minimum interval</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="173"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="272"/>
+        <source>Waiting for stereo spectrum…</source>
+        <translation>Waiting for stereo spectrum…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <source>All</source>
+        <translation>All</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Low</source>
+        <translation>Low</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Mid</source>
+        <translation>Mid</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="184"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>High</source>
+        <translation>High</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="204"/>
+        <source>Curves</source>
+        <translation>Curves</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="208"/>
+        <source>Show rejected peaks</source>
+        <translation>Show rejected peaks</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Audio s</source>
+        <translation>Audio s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Result</source>
+        <translation>Result</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Strength</source>
+        <translation>Strength</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="215"/>
+        <source>Width ms</source>
+        <translation>Width ms</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="226"/>
+        <source>Peaks</source>
+        <translation>Peaks</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="228"/>
+        <source>Export transient JSON…</source>
+        <translation>Export transient JSON…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="231"/>
+        <source>Display-band spectral flux; low &lt;250 Hz, mid &lt;2 kHz. Threshold is relative to the loaded audio page. Width measures the onset peak, not sound duration. Double-click a peak to inspect audio.</source>
+        <translation>Display-band spectral flux; low &lt;250 Hz, mid &lt;2 kHz. Threshold is relative to the loaded audio page. Width measures the onset peak, not sound duration. Double-click a peak to inspect audio.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="296"/>
+        <source>Analyzing transients…</source>
+        <translation>Analyzing transients…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="324"/>
+        <source>%1 detected / %2 rejected · hop %3 ms · audio %4–%5 s</source>
+        <translation>%1 detected / %2 rejected · hop %3 ms · audio %4–%5 s</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="439"/>
+        <source>Export transient JSON</source>
+        <translation>Export transient JSON</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="440"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="446"/>
+        <source>Export failed: %1</source>
+        <translation>Export failed: %1</translation>
+    </message>
+</context>
+<context>
+    <name>TransientPlot</name>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="80"/>
+        <source>Audio seconds / onset strength →</source>
+        <translation>Audio seconds / onset strength →</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="83"/>
+        <source>Load audio to inspect transients</source>
+        <translation>Load audio to inspect transients</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="138"/>
+        <source>Click to seek · All threshold: dashed</source>
+        <translation>Click to seek · All threshold: dashed</translation>
+    </message>
+</context>
+<context>
+    <name>NoteGenerationPanel</name>
+    <message>
+        <source>Build ordinary-note drafts from detected transients. Review the ghosts in both editors, then add the checked notes. X layout remains a manual charting choice.</source>
+        <translation>Build ordinary-note drafts from detected transients. Review the ghosts in both editors, then add the checked notes. X layout remains a manual charting choice.</translation>
+    </message>
+    <message>
+        <source>Visible interval</source>
+        <translation>Visible interval</translation>
+    </message>
+    <message>
+        <source>Selected range</source>
+        <translation>Selected range</translation>
+    </message>
+    <message>
+        <source>Analyzed page</source>
+        <translation>Analyzed page</translation>
+    </message>
+    <message>
+        <source>All detected peaks</source>
+        <translation>All detected peaks</translation>
+    </message>
+    <message>
+        <source>Low-dominant peaks</source>
+        <translation>Low-dominant peaks</translation>
+    </message>
+    <message>
+        <source>Mid-dominant peaks</source>
+        <translation>Mid-dominant peaks</translation>
+    </message>
+    <message>
+        <source>High-dominant peaks</source>
+        <translation>High-dominant peaks</translation>
+    </message>
+    <message>
+        <source>Fraction of the strongest detected peak in this range.</source>
+        <translation>Fraction of the strongest detected peak in this range.</translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <source>Peaks farther from the current chart grid are skipped.</source>
+        <translation>Peaks farther from the current chart grid are skipped.</translation>
+    </message>
+    <message>
+        <source>Range</source>
+        <translation>Range</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Source</translation>
+    </message>
+    <message>
+        <source>X position</source>
+        <translation>X position</translation>
+    </message>
+    <message>
+        <source>Relative strength</source>
+        <translation>Relative strength</translation>
+    </message>
+    <message>
+        <source>Maximum snap distance</source>
+        <translation>Maximum snap distance</translation>
+    </message>
+    <message>
+        <source>Build draft preview</source>
+        <translation>Build draft preview</translation>
+    </message>
+    <message>
+        <source>Wait for transient analysis, then build a draft.</source>
+        <translation>Wait for transient analysis, then build a draft.</translation>
+    </message>
+    <message>
+        <source>Keep / audio s</source>
+        <translation>Keep / audio s</translation>
+    </message>
+    <message>
+        <source>Chart beat</source>
+        <translation>Chart beat</translation>
+    </message>
+    <message>
+        <source>Snap ms</source>
+        <translation>Snap ms</translation>
+    </message>
+    <message>
+        <source>Add checked notes (one undo)</source>
+        <translation>Add checked notes (one undo)</translation>
+    </message>
+    <message>
+        <source>Discard draft</source>
+        <translation>Discard draft</translation>
+    </message>
+    <message>
+        <source>Build a draft to review before adding notes.</source>
+        <translation>Build a draft to review before adding notes.</translation>
+    </message>
+    <message>
+        <source>The chart, source or analysis changed. Build a new preview.</source>
+        <translation>The chart, source or analysis changed. Build a new preview.</translation>
+    </message>
+    <message>
+        <source>Select a non-empty time range first.</source>
+        <translation>Select a non-empty time range first.</translation>
+    </message>
+    <message>
+        <source>The range is not fully analyzed. Load that interval or choose Analyzed page.</source>
+        <translation>The range is not fully analyzed. Load that interval or choose Analyzed page.</translation>
+    </message>
+    <message>
+        <source>More than 4096 notes. Narrow the range or raise the strength filter.</source>
+        <translation>More than 4096 notes. Narrow the range or raise the strength filter.</translation>
+    </message>
+    <message>
+        <source>The analysis range or chart timing is invalid.</source>
+        <translation>The analysis range or chart timing is invalid.</translation>
+    </message>
+    <message>
+        <source>Frozen range %1–%2 s · %3 notes · filtered %4 · off-grid %5 · occupied %6 · merged %7. Grid: 1/%8.</source>
+        <translation>Frozen range %1–%2 s · %3 notes · filtered %4 · off-grid %5 · occupied %6 · merged %7. Grid: 1/%8.</translation>
+    </message>
+    <message>
+        <source>Add %1 checked notes (one undo)</source>
+        <translation>Add %1 checked notes (one undo)</translation>
+    </message>
+    <message>
+        <source>Generate notes from transients</source>
+        <translation>Generate notes from transients</translation>
+    </message>
+    <message>
+        <source>The draft could not be added. Build a new preview.</source>
+        <translation>The draft could not be added. Build a new preview.</translation>
+    </message>
+    <message>
+        <source>Added %1 notes. Undo removes this batch.</source>
+        <translation>Added %1 notes. Undo removes this batch.</translation>
+    </message>
+</context>
+<context>
+    <name>BpmAdvancedEditor</name>
+    <message>
+        <source>Advanced BPM editing</source>
+        <translation>Advanced BPM editing</translation>
+    </message>
+    <message>
+        <source>The curve follows the main editor view. Click a timing point to inspect and seek; middle-click seeks freely. Wheel scrolls; Ctrl + wheel zooms. Preview does not edit the chart.</source>
+        <translation>The curve follows the main editor view. Click a timing point to inspect and seek; middle-click seeks freely. Wheel scrolls; Ctrl + wheel zooms. Preview does not edit the chart.</translation>
+    </message>
+    <message>
+        <source>Select a chart timing point to inspect its exact beat and BPM.</source>
+        <translation>Select a chart timing point to inspect its exact beat and BPM.</translation>
+    </message>
+    <message>
+        <source>Curve</source>
+        <translation>Curve</translation>
+    </message>
+    <message>
+        <source>Manual measurement</source>
+        <translation>Manual measurement</translation>
+    </message>
+    <message>
+        <source>Interpolation</source>
+        <translation>Interpolation</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>Undo</translation>
+    </message>
+    <message>
+        <source>Redo</source>
+        <translation>Redo</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>Beat [%1, %2, %3]
+%4 BPM</source>
+        <translation>Beat [%1, %2, %3]
+%4 BPM</translation>
+    </message>
+    <message>
+        <source>Cancel preview</source>
+        <translation>Cancel preview</translation>
+    </message>
+    <message>
+        <source>Play / Pause</source>
+        <translation>Play / Pause</translation>
+    </message>
+</context>
+<context>
+    <name>BpmCurveCanvas</name>
+    <message>
+        <source>Chart BPM</source>
+        <translation>Chart BPM</translation>
+    </message>
+    <message>
+        <source>Ideal curve</source>
+        <translation>Ideal curve</translation>
+    </message>
+    <message>
+        <source>Stored points</source>
+        <translation>Stored points</translation>
+    </message>
+    <message>
+        <source>%1 BPM</source>
+        <translation>%1 BPM</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Start</translation>
+    </message>
+    <message>
+        <source>End</source>
+        <translation>End</translation>
+    </message>
+</context>
+<context>
+    <name>CceReview::ReviewWorkspace</name>
+    <message>
+        <source>Document update failed: %1</source>
+        <translation>Document update failed: %1</translation>
+    </message>
+    <message>
+        <source>Choose an unlocked layer before editing.</source>
+        <translation>Choose an unlocked layer before editing.</translation>
+    </message>
+    <message>
+        <source>Edit shared layer</source>
+        <translation>Edit shared layer</translation>
+    </message>
+    <message>
+        <source>Layer “%1” is shared by %2 difficulties. Editing it affects all of them.</source>
+        <translation>Layer “%1” is shared by %2 difficulties. Editing it affects all of them.</translation>
+    </message>
+    <message>
+        <source>Edit Shared Layer</source>
+        <translation>Edit Shared Layer</translation>
+    </message>
+    <message>
+        <source>Copy as Independent Layer</source>
+        <translation>Copy as Independent Layer</translation>
+    </message>
+    <message>
+        <source>Make layer independent</source>
+        <translation>Make layer independent</translation>
+    </message>
+    <message>
+        <source>Base is read only.</source>
+        <translation>Base is read only.</translation>
+    </message>
+    <message>
+        <source>Update project</source>
+        <translation>Update project</translation>
+    </message>
+    <message>
+        <source>Cannot read resource: %1</source>
+        <translation>Cannot read resource: %1</translation>
+    </message>
+    <message>
+        <source>Missing resource: %1</source>
+        <translation>Missing resource: %1</translation>
+    </message>
+    <message>
+        <source>Project saved.</source>
+        <translation>Project saved.</translation>
+    </message>
+    <message>
+        <source>Open project</source>
+        <translation>Open project</translation>
+    </message>
+    <message>
+        <source>Create or select a local identity first.</source>
+        <translation>Create or select a local identity first.</translation>
+    </message>
+    <message>
+        <source>Start or import a proposal first.</source>
+        <translation>Start or import a proposal first.</translation>
+    </message>
+    <message>
+        <source>Select a local identity first.</source>
+        <translation>Select a local identity first.</translation>
+    </message>
+    <message>
+        <source>Cannot reconstruct the proposal.</source>
+        <translation>Cannot reconstruct the proposal.</translation>
+    </message>
+    <message>
+        <source>Proposal exported.</source>
+        <translation>Proposal exported.</translation>
+    </message>
+    <message>
+        <source>Open the corresponding CCE project before importing this proposal.</source>
+        <translation>Open the corresponding CCE project before importing this proposal.</translation>
+    </message>
+    <message>
+        <source>This proposal's base does not match the current chart or audio.</source>
+        <translation>This proposal's base does not match the current chart or audio.</translation>
+    </message>
+    <message>
+        <source>Import proposal revision</source>
+        <translation>Import proposal revision</translation>
+    </message>
+    <message>
+        <source>Revision conflicts require review: %1</source>
+        <translation>Revision conflicts require review: %1</translation>
+    </message>
+    <message>
+        <source>Select at least one change to apply.</source>
+        <translation>Select at least one change to apply.</translation>
+    </message>
+    <message>
+        <source>Resolve the selected conflicts before applying.</source>
+        <translation>Resolve the selected conflicts before applying.</translation>
+    </message>
+    <message>
+        <source>Apply reviewed changes</source>
+        <translation>Apply reviewed changes</translation>
+    </message>
+    <message>
+        <source>Reviewed changes applied as one undoable operation.</source>
+        <translation>Reviewed changes applied as one undoable operation.</translation>
+    </message>
+    <message>
+        <source>No proposal to rebase.</source>
+        <translation>No proposal to rebase.</translation>
+    </message>
+    <message>
+        <source>Resolve conflicts before rebasing.</source>
+        <translation>Resolve conflicts before rebasing.</translation>
+    </message>
+    <message>
+        <source>Rebase proposal</source>
+        <translation>Rebase proposal</translation>
+    </message>
+    <message>
+        <source>BASE — READ ONLY</source>
+        <translation>BASE — READ ONLY</translation>
+    </message>
+    <message>
+        <source>Local comment</source>
+        <translation>Local comment</translation>
+    </message>
+    <message>
+        <source>Project &amp; Review</source>
+        <translation>Project &amp; Review</translation>
+    </message>
+    <message>
+        <source>Layers, Comments and Review…</source>
+        <translation>Layers, Comments and Review…</translation>
+    </message>
+    <message>
+        <source>Local Identities…</source>
+        <translation>Local Identities…</translation>
+    </message>
+    <message>
+        <source>Open CCE Project…</source>
+        <translation>Open CCE Project…</translation>
+    </message>
+    <message>
+        <source>CCE Projects (*.cceproj)</source>
+        <translation>CCE Projects (*.cceproj)</translation>
+    </message>
+    <message>
+        <source>Save Project…</source>
+        <translation>Save Project…</translation>
+    </message>
+    <message>
+        <source>Export Difficulty as .mc…</source>
+        <translation>Export Difficulty as .mc…</translation>
+    </message>
+    <message>
+        <source>Export Selected Layer as .mc…</source>
+        <translation>Export Selected Layer as .mc…</translation>
+    </message>
+    <message>
+        <source>Create Proposal…</source>
+        <translation>Create Proposal…</translation>
+    </message>
+    <message>
+        <source>Create proposal</source>
+        <translation>Create proposal</translation>
+    </message>
+    <message>
+        <source>Description:</source>
+        <translation>Description:</translation>
+    </message>
+    <message>
+        <source>Import .ccepr…</source>
+        <translation>Import .ccepr…</translation>
+    </message>
+    <message>
+        <source>Import proposal</source>
+        <translation>Import proposal</translation>
+    </message>
+    <message>
+        <source>CCE Review Packages (*.ccepr)</source>
+        <translation>CCE Review Packages (*.ccepr)</translation>
+    </message>
+    <message>
+        <source>Export .ccepr…</source>
+        <translation>Export .ccepr…</translation>
+    </message>
+    <message>
+        <source>Export proposal</source>
+        <translation>Export proposal</translation>
+    </message>
+    <message>
+        <source>Edit Proposal</source>
+        <translation>Edit Proposal</translation>
+    </message>
+    <message>
+        <source>Peek Base (hold)</source>
+        <translation>Peek Base (hold)</translation>
+    </message>
+    <message>
+        <source>Previous Comment</source>
+        <translation>Previous Comment</translation>
+    </message>
+    <message>
+        <source>Next Comment</source>
+        <translation>Next Comment</translation>
+    </message>
+    <message>
+        <source>Previous Change</source>
+        <translation>Previous Change</translation>
+    </message>
+    <message>
+        <source>Next Change</source>
+        <translation>Next Change</translation>
+    </message>
+    <message>
+        <source>Previous Conflict</source>
+        <translation>Previous Conflict</translation>
+    </message>
+    <message>
+        <source>Next Conflict</source>
+        <translation>Next Conflict</translation>
+    </message>
+    <message>
+        <source>Recover Local Review Workspace…</source>
+        <translation>Recover Local Review Workspace…</translation>
+    </message>
+    <message>
+        <source>Layers and Chart Review</source>
+        <translation>Layers and Chart Review</translation>
+    </message>
+    <message>
+        <source>Proposal Only</source>
+        <translation>Proposal Only</translation>
+    </message>
+    <message>
+        <source>Diff Overlay</source>
+        <translation>Diff Overlay</translation>
+    </message>
+    <message>
+        <source>Base · Read Only</source>
+        <translation>Base · Read Only</translation>
+    </message>
+    <message>
+        <source>Peek Base</source>
+        <translation>Peek Base</translation>
+    </message>
+    <message>
+        <source>New</source>
+        <translation>New</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>Rename</translation>
+    </message>
+    <message>
+        <source>Duplicate</source>
+        <translation>Duplicate</translation>
+    </message>
+    <message>
+        <source>Import .mc…</source>
+        <translation>Import .mc…</translation>
+    </message>
+    <message>
+        <source>Switch difficulty</source>
+        <translation>Switch difficulty</translation>
+    </message>
+    <message>
+        <source>Layer</source>
+        <translation>Layer</translation>
+    </message>
+    <message>
+        <source>Visible</source>
+        <translation>Visible</translation>
+    </message>
+    <message>
+        <source>Locked</source>
+        <translation>Locked</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Export</translation>
+    </message>
+    <message>
+        <source>Opacity %</source>
+        <translation>Opacity %</translation>
+    </message>
+    <message>
+        <source>Shared by</source>
+        <translation>Shared by</translation>
+    </message>
+    <message>
+        <source>Update layer binding</source>
+        <translation>Update layer binding</translation>
+    </message>
+    <message>
+        <source>New Layer</source>
+        <translation>New Layer</translation>
+    </message>
+    <message>
+        <source>Share Existing…</source>
+        <translation>Share Existing…</translation>
+    </message>
+    <message>
+        <source>Make Independent</source>
+        <translation>Make Independent</translation>
+    </message>
+    <message>
+        <source>Unbind</source>
+        <translation>Unbind</translation>
+    </message>
+    <message>
+        <source>Up</source>
+        <translation>Up</translation>
+    </message>
+    <message>
+        <source>Down</source>
+        <translation>Down</translation>
+    </message>
+    <message>
+        <source>Move Selection into Layer</source>
+        <translation>Move Selection into Layer</translation>
+    </message>
+    <message>
+        <source>Copy Selection into Layer</source>
+        <translation>Copy Selection into Layer</translation>
+    </message>
+    <message>
+        <source>Export Layer…</source>
+        <translation>Export Layer…</translation>
+    </message>
+    <message>
+        <source>Live references (read only; excluded from statistics and export)</source>
+        <translation>Live references (read only; excluded from statistics and export)</translation>
+    </message>
+    <message>
+        <source>Add Reference…</source>
+        <translation>Add Reference…</translation>
+    </message>
+    <message>
+        <source>Remove Reference</source>
+        <translation>Remove Reference</translation>
+    </message>
+    <message>
+        <source>Remove reference</source>
+        <translation>Remove reference</translation>
+    </message>
+    <message>
+        <source>Layers &amp; Difficulties</source>
+        <translation>Layers &amp; Difficulties</translation>
+    </message>
+    <message>
+        <source>Save Proposal as Difficulty</source>
+        <translation>Save Proposal as Difficulty</translation>
+    </message>
+    <message>
+        <source> (proposal)</source>
+        <translation> (proposal)</translation>
+    </message>
+    <message>
+        <source>Save proposal as difficulty</source>
+        <translation>Save proposal as difficulty</translation>
+    </message>
+    <message>
+        <source>Rebase</source>
+        <translation>Rebase</translation>
+    </message>
+    <message>
+        <source>All Changes</source>
+        <translation>All Changes</translation>
+    </message>
+    <message>
+        <source>Conflicts</source>
+        <translation>Conflicts</translation>
+    </message>
+    <message>
+        <source>Data</source>
+        <translation>Data</translation>
+    </message>
+    <message>
+        <source>Change</source>
+        <translation>Change</translation>
+    </message>
+    <message>
+        <source>Before</source>
+        <translation>Before</translation>
+    </message>
+    <message>
+        <source>After</source>
+        <translation>After</translation>
+    </message>
+    <message>
+        <source>Decision</source>
+        <translation>Decision</translation>
+    </message>
+    <message>
+        <source>Apply state</source>
+        <translation>Apply state</translation>
+    </message>
+    <message>
+        <source>Accept</source>
+        <translation>Accept</translation>
+    </message>
+    <message>
+        <source>Reject</source>
+        <translation>Reject</translation>
+    </message>
+    <message>
+        <source>Pending</source>
+        <translation>Pending</translation>
+    </message>
+    <message>
+        <source>Link as Move</source>
+        <translation>Link as Move</translation>
+    </message>
+    <message>
+        <source>Use Proposal</source>
+        <translation>Use Proposal</translation>
+    </message>
+    <message>
+        <source>Keep Current</source>
+        <translation>Keep Current</translation>
+    </message>
+    <message>
+        <source>Apply Selected</source>
+        <translation>Apply Selected</translation>
+    </message>
+    <message>
+        <source>Apply Accepted</source>
+        <translation>Apply Accepted</translation>
+    </message>
+    <message>
+        <source>Diff &amp; Conflict</source>
+        <translation>Diff &amp; Conflict</translation>
+    </message>
+    <message>
+        <source>Author</source>
+        <translation>Author</translation>
+    </message>
+    <message>
+        <source>Comment</source>
+        <translation>Comment</translation>
+    </message>
+    <message>
+        <source>State</source>
+        <translation>State</translation>
+    </message>
+    <message>
+        <source>Anchor</source>
+        <translation>Anchor</translation>
+    </message>
+    <message>
+        <source>Add Comment…</source>
+        <translation>Add Comment…</translation>
+    </message>
+    <message>
+        <source>Add comment</source>
+        <translation>Add comment</translation>
+    </message>
+    <message>
+        <source>Comment:</source>
+        <translation>Comment:</translation>
+    </message>
+    <message>
+        <source>Reply…</source>
+        <translation>Reply…</translation>
+    </message>
+    <message>
+        <source>Reply</source>
+        <translation>Reply</translation>
+    </message>
+    <message>
+        <source>Reply:</source>
+        <translation>Reply:</translation>
+    </message>
+    <message>
+        <source>Reply to comment</source>
+        <translation>Reply to comment</translation>
+    </message>
+    <message>
+        <source>Edit…</source>
+        <translation>Edit…</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Delete</translation>
+    </message>
+    <message>
+        <source>Resolve</source>
+        <translation>Resolve</translation>
+    </message>
+    <message>
+        <source>Reopen</source>
+        <translation>Reopen</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Previous</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Next</translation>
+    </message>
+    <message>
+        <source>Comments</source>
+        <translation>Comments</translation>
+    </message>
+    <message>
+        <source>Export Metadata</source>
+        <translation>Export Metadata</translation>
+    </message>
+    <message>
+        <source>Event Log</source>
+        <translation>Event Log</translation>
+    </message>
+    <message>
+        <source>Author: %1</source>
+        <translation>Author: %1</translation>
+    </message>
+    <message>
+        <source>No identity selected</source>
+        <translation>No identity selected</translation>
+    </message>
+    <message>
+        <source> · whole difficulty</source>
+        <translation> · whole difficulty</translation>
+    </message>
+    <message>
+        <source> · %1 layers</source>
+        <translation> · %1 layers</translation>
+    </message>
+    <message>
+        <source>Ready to apply</source>
+        <translation>Ready to apply</translation>
+    </message>
+    <message>
+        <source>Revision conflict</source>
+        <translation>Revision conflict</translation>
+    </message>
+    <message>
+        <source>Conflict</source>
+        <translation>Conflict</translation>
+    </message>
+    <message>
+        <source>Select one or more notes first.</source>
+        <translation>Select one or more notes first.</translation>
+    </message>
+    <message>
+        <source>A Note anchor requires exactly one selected note.</source>
+        <translation>A Note anchor requires exactly one selected note.</translation>
+    </message>
+    <message>
+        <source>BPM entry</source>
+        <translation>BPM entry</translation>
+    </message>
+    <message>
+        <source>Entry:</source>
+        <translation>Entry:</translation>
+    </message>
+    <message>
+        <source>Edit comment</source>
+        <translation>Edit comment</translation>
+    </message>
+    <message>
+        <source>Delete comment</source>
+        <translation>Delete comment</translation>
+    </message>
+    <message>
+        <source>Resolve comment</source>
+        <translation>Resolve comment</translation>
+    </message>
+    <message>
+        <source>Reopen comment</source>
+        <translation>Reopen comment</translation>
+    </message>
+    <message>
+        <source>Update review decision</source>
+        <translation>Update review decision</translation>
+    </message>
+    <message>
+        <source>Select one removal and one addition while editing the proposal.</source>
+        <translation>Select one removal and one addition while editing the proposal.</translation>
+    </message>
+    <message>
+        <source>Choose a Note removal and addition from the same layer.</source>
+        <translation>Choose a Note removal and addition from the same layer.</translation>
+    </message>
+    <message>
+        <source>Resolve revision conflict</source>
+        <translation>Resolve revision conflict</translation>
+    </message>
+    <message>
+        <source>This object conflict requires editing the target or rebasing; it cannot be overwritten as one field.</source>
+        <translation>This object conflict requires editing the target or rebasing; it cannot be overwritten as one field.</translation>
+    </message>
+    <message>
+        <source>New layer</source>
+        <translation>New layer</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Name:</translation>
+    </message>
+    <message>
+        <source>Rename layer</source>
+        <translation>Rename layer</translation>
+    </message>
+    <message>
+        <source>Share existing layers</source>
+        <translation>Share existing layers</translation>
+    </message>
+    <message>
+        <source>Keep at least one layer in a difficulty.</source>
+        <translation>Keep at least one layer in a difficulty.</translation>
+    </message>
+    <message>
+        <source>Edit project layers</source>
+        <translation>Edit project layers</translation>
+    </message>
+    <message>
+        <source>Difficulty</source>
+        <translation>Difficulty</translation>
+    </message>
+    <message>
+        <source> copy</source>
+        <translation> copy</translation>
+    </message>
+    <message>
+        <source>Base</source>
+        <translation>Base</translation>
+    </message>
+    <message>
+        <source>Edit project difficulty</source>
+        <translation>Edit project difficulty</translation>
+    </message>
+    <message>
+        <source>Import difficulty</source>
+        <translation>Import difficulty</translation>
+    </message>
+    <message>
+        <source>Malody Charts (*.mc)</source>
+        <translation>Malody Charts (*.mc)</translation>
+    </message>
+    <message>
+        <source>Cannot read chart.</source>
+        <translation>Cannot read chart.</translation>
+    </message>
+    <message>
+        <source>Import or create another difficulty first.</source>
+        <translation>Import or create another difficulty first.</translation>
+    </message>
+    <message>
+        <source>Reference difficulty</source>
+        <translation>Reference difficulty</translation>
+    </message>
+    <message>
+        <source>Source:</source>
+        <translation>Source:</translation>
+    </message>
+    <message>
+        <source>Reference layers (select all for the whole difficulty)</source>
+        <translation>Reference layers (select all for the whole difficulty)</translation>
+    </message>
+    <message>
+        <source>Add live reference</source>
+        <translation>Add live reference</translation>
+    </message>
+    <message>
+        <source>Export Metadata Configuration</source>
+        <translation>Export Metadata Configuration</translation>
+    </message>
+    <message>
+        <source>Choose fields included in exported .mc files. Stored chart values remain independent.</source>
+        <translation>Choose fields included in exported .mc files. Stored chart values remain independent.</translation>
+    </message>
+    <message>
+        <source>Change export metadata configuration</source>
+        <translation>Change export metadata configuration</translation>
+    </message>
+    <message>
+        <source>Export chart</source>
+        <translation>Export chart</translation>
+    </message>
+    <message>
+        <source>Chart exported.</source>
+        <translation>Chart exported.</translation>
+    </message>
+    <message>
+        <source>Save CCE project</source>
+        <translation>Save CCE project</translation>
+    </message>
+    <message>
+        <source>Save project</source>
+        <translation>Save project</translation>
+    </message>
+    <message>
+        <source>Save changes to the local project and review data?</source>
+        <translation>Save changes to the local project and review data?</translation>
+    </message>
+    <message>
+        <source>Create or import a proposal first.</source>
+        <translation>Create or import a proposal first.</translation>
+    </message>
+    <message>
+        <source>Edit proposal</source>
+        <translation>Edit proposal</translation>
+    </message>
+
+    <message>
+        <source>Keep existing objects; apply proposal separately</source>
+        <translation>Keep existing objects; apply proposal separately</translation>
+    </message>
+    <message>
+        <source>Resolve object conflict</source>
+        <translation>Resolve object conflict</translation>
+    </message>
+    <message>
+        <source>Choose the current object to replace or remove:</source>
+        <translation>Choose the current object to replace or remove:</translation>
+    </message>
+
+    <message>
+        <source>Add Comment Here…</source>
+        <translation>Add Comment Here…</translation>
+    </message>
+    <message>
+        <source>Show Comments</source>
+        <translation>Show Comments</translation>
+    </message>
+    <message>
+        <source>Review Changes…</source>
+        <translation>Review Changes…</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Review</translation>
+    </message>
+
+    <message>
+        <source>Editing</source>
+        <translation>Editing</translation>
+    </message>
+    <message>
+        <source>Review &amp; Layers</source>
+        <translation>Review &amp; Layers</translation>
+    </message>
+    <message>
+        <source>Layers</source>
+        <translation>Layers</translation>
+    </message>
+    <message>
+        <source>Active layer</source>
+        <translation>Active layer</translation>
+    </message>
+    <message>
+        <source>Select a change to review.</source>
+        <translation>Select a change to review.</translation>
+    </message>
+
+    <message>
+        <source>Expanded</source>
+        <translation>Expanded</translation>
+    </message>
+    <message>
+        <source>Collapsed</source>
+        <translation>Collapsed</translation>
+    </message>
+    <message>
+        <source>Hidden</source>
+        <translation>Hidden</translation>
+    </message>
+
+    <message>
+        <source>Reference status</source>
+        <translation>Reference status</translation>
+    </message>
+    <message>
+        <source>Target missing</source>
+        <translation>Target missing</translation>
+    </message>
+    <message>
+        <source>Ambiguous target</source>
+        <translation>Ambiguous target</translation>
+    </message>
+    <message>
+        <source>Target modified</source>
+        <translation>Target modified</translation>
+    </message>
+
+    <message>
+        <source>All comments</source>
+        <translation>All comments</translation>
+    </message>
+    <message>
+        <source>Unresolved</source>
+        <translation>Unresolved</translation>
+    </message>
+    <message>
+        <source>Resolved</source>
+        <translation>Resolved</translation>
+    </message>
+
+    <message>
+        <source>Review &amp; Layers (Experimental)</source>
+        <translation>Review &amp; Layers (Experimental)</translation>
+    </message>
+    <message>
+        <source>Layers, Comments and Review… (Experimental)</source>
+        <translation>Layers, Comments and Review… (Experimental)</translation>
+    </message>
+    <message>
+        <source>Layers (Experimental)</source>
+        <translation>Layers (Experimental)</translation>
+    </message>
+    <message>
+        <source>Review (Experimental)</source>
+        <translation>Review (Experimental)</translation>
+    </message>
+    <message>
+        <source>Experimental: layers and .ccepr review. Use a chart copy and verify the result before replacing your chart.</source>
+        <translation>Experimental: layers and .ccepr review. Use a chart copy and verify the result before replacing your chart.</translation>
+    </message>
+
+    <message>
+        <source>Select Dependency Group</source>
+        <translation>Select Dependency Group</translation>
+    </message>
+    <message>
+        <source>Select the dependency group before applying these changes.</source>
+        <translation>Select the dependency group before applying these changes.</translation>
+    </message>
+    <message>
+        <source>No proposal to save.</source>
+        <translation>No proposal to save.</translation>
+    </message>
+</context>
+<context>
+    <name>CceReviewUi::IdentityDialog</name>
+    <message>
+        <source>Local identities</source>
+        <translation>Local identities</translation>
+    </message>
+    <message>
+        <source>Create</source>
+        <translation>Create</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>Rename</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Delete</translation>
+    </message>
+    <message>
+        <source>Set as current</source>
+        <translation>Set as current</translation>
+    </message>
+    <message>
+        <source>Current identity: none</source>
+        <translation>Current identity: none</translation>
+    </message>
+    <message>
+        <source>Current identity: %1</source>
+        <translation>Current identity: %1</translation>
+    </message>
+    <message>
+        <source>%1 (current)</source>
+        <translation>%1 (current)</translation>
+    </message>
+    <message>
+        <source>Identity store is unavailable.</source>
+        <translation>Identity store is unavailable.</translation>
+    </message>
+    <message>
+        <source>Create identity</source>
+        <translation>Create identity</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Name:</translation>
+    </message>
+    <message>
+        <source>Rename identity</source>
+        <translation>Rename identity</translation>
+    </message>
+    <message>
+        <source>Delete identity</source>
+        <translation>Delete identity</translation>
+    </message>
+    <message>
+        <source>Delete the local identity '%1'? Historical signatures will remain unchanged.</source>
+        <translation>Delete the local identity '%1'? Historical signatures will remain unchanged.</translation>
+    </message>
+</context>
+<context>
+    <name>CceReviewUi::NoteInspector</name>
+    <message>
+        <source>Type:</source>
+        <translation>Type:</translation>
+    </message>
+    <message>
+        <source>Beat (whole:numerator/denominator):</source>
+        <translation>Beat (whole:numerator/denominator):</translation>
+    </message>
+    <message>
+        <source>X (0–512):</source>
+        <translation>X (0–512):</translation>
+    </message>
+    <message>
+        <source>Rain end beat:</source>
+        <translation>Rain end beat:</translation>
+    </message>
+    <message>
+        <source>Sound file:</source>
+        <translation>Sound file:</translation>
+    </message>
+    <message>
+        <source>Sound volume (0–100):</source>
+        <translation>Sound volume (0–100):</translation>
+    </message>
+    <message>
+        <source>Sound offset (ms):</source>
+        <translation>Sound offset (ms):</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Apply</translation>
+    </message>
+    <message>
+        <source>—</source>
+        <translation>—</translation>
+    </message>
+    <message>
+        <source>Not applicable to all selected notes</source>
+        <translation>Not applicable to all selected notes</translation>
+    </message>
+    <message>
+        <source>Mixed</source>
+        <translation>Mixed</translation>
+    </message>
+    <message>
+        <source>Before: %1   After: %2</source>
+        <translation>Before: %1   After: %2</translation>
+    </message>
+    <message>
+        <source>Before: %1    After: %2</source>
+        <translation>Before: %1    After: %2</translation>
+    </message>
+    <message>
+        <source>Beat</source>
+        <translation>Beat</translation>
+    </message>
+    <message>
+        <source>X</source>
+        <translation>X</translation>
+    </message>
+    <message>
+        <source>Rain end beat</source>
+        <translation>Rain end beat</translation>
+    </message>
+    <message>
+        <source>Sound file</source>
+        <translation>Sound file</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>Volume</translation>
+    </message>
+    <message>
+        <source>Offset</source>
+        <translation>Offset</translation>
+    </message>
+    <message>
+        <source>No notes selected</source>
+        <translation>No notes selected</translation>
+    </message>
+    <message>
+        <source>This inspector is read-only.</source>
+        <translation>This inspector is read-only.</translation>
+    </message>
+    <message>
+        <source>No chart is available.</source>
+        <translation>No chart is available.</translation>
+    </message>
+    <message>
+        <source>Select one or more notes first.</source>
+        <translation>Select one or more notes first.</translation>
+    </message>
+    <message>
+        <source>Beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</source>
+        <translation>Beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</translation>
+    </message>
+    <message>
+        <source>X must be an integer from 0 to 512.</source>
+        <translation>X must be an integer from 0 to 512.</translation>
+    </message>
+    <message>
+        <source>Rain end beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</source>
+        <translation>Rain end beat must use whole:numerator/denominator with a non-negative numerator and positive denominator.</translation>
+    </message>
+    <message>
+        <source>Sound file cannot be empty.</source>
+        <translation>Sound file cannot be empty.</translation>
+    </message>
+    <message>
+        <source>Sound volume must be an integer from 0 to 100.</source>
+        <translation>Sound volume must be an integer from 0 to 100.</translation>
+    </message>
+    <message>
+        <source>Sound offset must be an integer number of milliseconds.</source>
+        <translation>Sound offset must be an integer number of milliseconds.</translation>
+    </message>
+    <message>
+        <source>X and Rain end beat can only be edited when every selected note supports them.</source>
+        <translation>X and Rain end beat can only be edited when every selected note supports them.</translation>
+    </message>
+    <message>
+        <source>Sound properties can only be edited when every selected note is a Sound note.</source>
+        <translation>Sound properties can only be edited when every selected note is a Sound note.</translation>
+    </message>
+    <message>
+        <source>Rain end beat can only be edited when every selected note is Rain.</source>
+        <translation>Rain end beat can only be edited when every selected note is Rain.</translation>
+    </message>
+    <message>
+        <source>The proposed values would make at least one selected note invalid.</source>
+        <translation>The proposed values would make at least one selected note invalid.</translation>
+    </message>
+    <message>
+        <source>The chart rejected this edit.</source>
+        <translation>The chart rejected this edit.</translation>
+    </message>
+</context>
+<context>
+    <name>ChartMergeDialog</name>
+    <message>
+        <source>Merge Charts</source>
+        <translation>Merge Charts</translation>
+    </message>
+    <message>
+        <source>Import Charts / Packages...</source>
+        <translation>Import Charts / Packages...</translation>
+    </message>
+    <message>
+        <source>Import Charts / Packages</source>
+        <translation>Import Charts / Packages</translation>
+    </message>
+    <message>
+        <source>Charts (*.mc *.mcz *.zip)</source>
+        <translation>Charts (*.mc *.mcz *.zip)</translation>
+    </message>
+    <message>
+        <source>Choose from Library...</source>
+        <translation>Choose from Library...</translation>
+    </message>
+    <message>
+        <source>Choose Chart Folder</source>
+        <translation>Choose Chart Folder</translation>
+    </message>
+    <message>
+        <source>Add Selected</source>
+        <translation>Add Selected</translation>
+    </message>
+    <message>
+        <source>Song / Difficulty</source>
+        <translation>Song / Difficulty</translation>
+    </message>
+    <message>
+        <source>Notes / Rain</source>
+        <translation>Notes / Rain</translation>
+    </message>
+    <message>
+        <source>BPM</source>
+        <translation>BPM</translation>
+    </message>
+    <message>
+        <source>Playable Duration</source>
+        <translation>Playable Duration</translation>
+    </message>
+    <message>
+        <source>Merge order — select a segment to edit its settings:</source>
+        <translation>Merge order — select a segment to edit its settings:</translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation>Duration</translation>
+    </message>
+    <message>
+        <source>Speed / Pitch</source>
+        <translation>Speed / Pitch</translation>
+    </message>
+    <message>
+        <source>First → Last Note</source>
+        <translation>First → Last Note</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>Move Up</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>Move Down</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Remove</translation>
+    </message>
+    <message>
+        <source>Change pitch with speed</source>
+        <translation>Change pitch with speed</translation>
+    </message>
+    <message>
+        <source>Segment speed</source>
+        <translation>Segment speed</translation>
+    </message>
+    <message>
+        <source>Fade in</source>
+        <translation>Fade in</translation>
+    </message>
+    <message>
+        <source>Fade out</source>
+        <translation>Fade out</translation>
+    </message>
+    <message>
+        <source>Gap to next segment</source>
+        <translation>Gap to next segment</translation>
+    </message>
+    <message>
+        <source>First song title</source>
+        <translation>First song title</translation>
+    </message>
+    <message>
+        <source>First song artist</source>
+        <translation>First song artist</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>Title</translation>
+    </message>
+    <message>
+        <source>Artist</source>
+        <translation>Artist</translation>
+    </message>
+    <message>
+        <source>Creator</source>
+        <translation>Creator</translation>
+    </message>
+    <message>
+        <source>Difficulty</source>
+        <translation>Difficulty</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation>Browse...</translation>
+    </message>
+    <message>
+        <source>Choose Image</source>
+        <translation>Choose Image</translation>
+    </message>
+    <message>
+        <source>Images (*.png *.jpg *.jpeg *.webp)</source>
+        <translation>Images (*.png *.jpg *.jpeg *.webp)</translation>
+    </message>
+    <message>
+        <source>Background</source>
+        <translation>Background</translation>
+    </message>
+    <message>
+        <source>Cover</source>
+        <translation>Cover</translation>
+    </message>
+    <message>
+        <source>Gap = previous last note (including Rain end) → next first note. Intros and tails each use up to half the gap. Fades stay outside playable notes. Uncheck pitch change to preserve pitch. Maximum merged audio: 30 minutes.</source>
+        <translation>Gap = previous last note (including Rain end) → next first note. Intros and tails each use up to half the gap. Fades stay outside playable notes. Uncheck pitch change to preserve pitch. Maximum merged audio: 30 minutes.</translation>
+    </message>
+    <message>
+        <source>Merge</source>
+        <translation>Merge</translation>
+    </message>
+    <message>
+        <source>Export MCZ...</source>
+        <translation>Export MCZ...</translation>
+    </message>
+    <message>
+        <source>Preview in CCE</source>
+        <translation>Preview in CCE</translation>
+    </message>
+    <message>
+        <source>Cancel Task</source>
+        <translation>Cancel Task</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>Task cancelled. Settings retained.</source>
+        <translation>Task cancelled. Settings retained.</translation>
+    </message>
+    <message>
+        <source>Merge complete. Export the package or preview it in CCE with one layer per segment.</source>
+        <translation>Merge complete. Export the package or preview it in CCE with one layer per segment.</translation>
+    </message>
+    <message>
+        <source>Importing charts...</source>
+        <translation>Importing charts...</translation>
+    </message>
+    <message>
+        <source>Select difficulties, then click Add Selected.</source>
+        <translation>Select difficulties, then click Add Selected.</translation>
+    </message>
+    <message>
+        <source>Shift</source>
+        <translation>Shift</translation>
+    </message>
+    <message>
+        <source>Preserve</source>
+        <translation>Preserve</translation>
+    </message>
+    <message>
+        <source>Add charts to start.</source>
+        <translation>Add charts to start.</translation>
+    </message>
+    <message>
+        <source>%1 segments · %2 playable notes · last note at %3 (audio tail may extend further)</source>
+        <translation>%1 segments · %2 playable notes · last note at %3 (audio tail may extend further)</translation>
+    </message>
+    <message>
+        <source>Merging charts and audio...</source>
+        <translation>Merging charts and audio...</translation>
+    </message>
+    <message>
+        <source>Export Merged Package</source>
+        <translation>Export Merged Package</translation>
+    </message>
+    <message>
+        <source>Malody Package (*.mcz)</source>
+        <translation>Malody Package (*.mcz)</translation>
+    </message>
+    <message>
+        <source>Exporting package...</source>
+        <translation>Exporting package...</translation>
+    </message>
+    <message>
+        <source>Exported: %1</source>
+        <translation>Exported: %1</translation>
+    </message>
+    <message>
+        <source>Package export failed.</source>
+        <translation>Package export failed.</translation>
     </message>
 </context>
 </TS>

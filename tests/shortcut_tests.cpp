@@ -10,6 +10,11 @@
 #include "ui/LongRangeSelector.h"
 #include "ui/dialogs/BpmMeasureDialog.h"
 #include "utils/Settings.h"
+#include "review/ReviewWorkspace.h"
+#include "document/ProjectStorage.h"
+#include "file/ChartIO.h"
+#include "ui/review/NoteInspector.h"
+#include "ui/ChartStatsPanel.h"
 
 #include <DockManager.h>
 #include <DockWidget.h>
@@ -19,10 +24,15 @@
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
+#include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSettings>
+#include <QScrollArea>
+#include <QToolBar>
+#include <QTabBar>
+#include <QComboBox>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -48,6 +58,10 @@ private:
     {
         widget->window()->show();
         widget->window()->activateWindow();
+        // Native shortcut dispatch requires an active window; a fixed delay
+        // alone can send keys before Windows completes activation.
+        if (QGuiApplication::platformName() == QStringLiteral("windows"))
+            QVERIFY(QTest::qWaitForWindowActive(widget->window()));
         widget->setFocus();
         QTest::qWait(30);
     }
@@ -97,8 +111,8 @@ private slots:
     {
         QVERIFY(!m_router->action("playback.mark_manual_jerk"));
         QVERIFY(m_router->applyBindings({{"edit.delete", QKeySequence("Ctrl+D")},
-                                        {"edit.undo", QKeySequence("Ctrl+U")},
-                                        {"edit.redo", QKeySequence("Ctrl+R")}}));
+                                         {"edit.undo", QKeySequence("Ctrl+U")},
+                                         {"edit.redo", QKeySequence("Ctrl+R")}}));
         m_selection.select(0);
         QTest::keyClick(m_canvas, Qt::Key_Delete);
         QCOMPARE(m_chart.chart()->notes().size(), 3);
@@ -133,7 +147,9 @@ private slots:
         CommandRouter restarted(&otherWindow);
         QAction deleteAction(&otherWindow);
         int activations = 0;
-        connect(&deleteAction, &QAction::triggered, this, [&]() { ++activations; });
+        connect(&deleteAction, &QAction::triggered, this, [&]() {
+            ++activations;
+        });
         restarted.registerAction(&deleteAction, "edit.delete", QKeySequence(Qt::Key_Delete));
         QVERIFY(deleteAction.shortcut().isEmpty());
         otherWindow.show();
@@ -149,8 +165,8 @@ private slots:
     {
         const QKeySequence oldUndo = m_router->action("edit.undo")->shortcut();
         QString error;
-        QVERIFY(!m_router->applyBindings({{"edit.undo", QKeySequence("Ctrl+K")},
-                                         {"edit.copy", QKeySequence("Ctrl+K, Ctrl+C")}}, &error));
+        QVERIFY(!m_router->applyBindings(
+            {{"edit.undo", QKeySequence("Ctrl+K")}, {"edit.copy", QKeySequence("Ctrl+K, Ctrl+C")}}, &error));
         QVERIFY(!error.isEmpty());
         QCOMPARE(m_router->action("edit.undo")->shortcut(), oldUndo);
         QVERIFY(m_router->applyBindings({{"edit.undo", QKeySequence("Ctrl+K, Ctrl+U")}}));
@@ -160,8 +176,8 @@ private slots:
         QTest::keyClick(m_canvas, Qt::Key_U, Qt::ControlModifier);
         QCOMPARE(m_chart.chart()->notes().size(), 3);
         // Curve and process-tool commit share Enter in mutually exclusive modes.
-        QVERIFY(m_router->validateBindings({{"curve.commit", QKeySequence(Qt::Key_Return)},
-                                            {"plugin.commit", QKeySequence(Qt::Key_Return)}}));
+        QVERIFY(m_router->validateBindings(
+            {{"curve.commit", QKeySequence(Qt::Key_Return)}, {"plugin.commit", QKeySequence(Qt::Key_Return)}}));
         QSignalSpy curveCommit(m_router->action("curve.commit"), &QAction::triggered);
         QSignalSpy pluginCommit(m_router->action("plugin.commit"), &QAction::triggered);
         QTest::keyClick(m_canvas, Qt::Key_Return);
@@ -209,8 +225,7 @@ private slots:
         const int limit = std::numeric_limits<int>::max();
         Chart chart;
         chart.addBpm(BpmEntry(0, 0, 1, 120));
-        chart.setNotes({Note(0, limit - 2, limit - 1, 400),
-                        Note(0, limit - 1, limit, 10),
+        chart.setNotes({Note(0, limit - 2, limit - 1, 400), Note(0, limit - 1, limit, 10),
                         Note(0, limit - 2, limit - 1, 0, limit - 1, limit, 256)});
         QVERIFY(m_chart.loadChartFromData({}, chart));
         LongRangeSelector selector;
@@ -283,8 +298,8 @@ private slots:
         editor->state().selectAnchor(editor->state().anchorAt(0).id);
         QVERIFY(editor->hasSelectedItems());
         QVERIFY(m_router->applyBindings({{"edit.delete", QKeySequence("Ctrl+D")},
-                                        {"edit.undo", QKeySequence("Ctrl+U")},
-                                        {"curve.delete", QKeySequence()}}));
+                                         {"edit.undo", QKeySequence("Ctrl+U")},
+                                         {"curve.delete", QKeySequence()}}));
         QTest::keyClick(m_canvas, Qt::Key_Delete);
         QTest::keyClick(m_canvas, Qt::Key_Backspace);
         QCOMPARE(editor->state().anchors().size(), 1);
@@ -340,9 +355,8 @@ private slots:
         focus(button);
         QSignalSpy cycles(m_canvas, &ChartCanvas::modeCycleRequested);
         const auto halfDetent = [this]() {
-            QWheelEvent event(QPointF(10, 10), m_canvas->mapToGlobal(QPoint(10, 10)),
-                              QPoint(), QPoint(0, 60), Qt::NoButton, Qt::AltModifier,
-                              Qt::NoScrollPhase, false);
+            QWheelEvent event(QPointF(10, 10), m_canvas->mapToGlobal(QPoint(10, 10)), QPoint(), QPoint(0, 60),
+                              Qt::NoButton, Qt::AltModifier, Qt::NoScrollPhase, false);
             QApplication::sendEvent(m_canvas, &event);
         };
         halfDetent();
@@ -439,6 +453,140 @@ private slots:
     void cleanupTestCase()
     {
         m_window.reset();
+    }
+    void projectReviewUsesSeparatePersistenceFromLegacyChartRecovery()
+    {
+        ChartController chart;
+        SelectionController selection;
+        AudioPlayer audio;
+        PlaybackController playback(&audio);
+        Chart initial;
+        initial.addBpm(BpmEntry(0, 0, 1, 120));
+        initial.addNotes({Note(2, 0, 1, 100), Note(3, 0, 1, 200), Note(4, 0, 1, 300)});
+        QVERIFY(chart.loadChartFromData({}, initial));
+        MainWindow window(&chart, &selection, &playback, new Skin);
+        QApplication::processEvents(); // Finish startup recovery before starting a new session.
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        QString error;
+        const QString source = temp.filePath("source.mc");
+        QVERIFY(ChartIO::save(source, *chart.chart()));
+        QVERIFY2(window.loadChartForAutomation(source, &error), qPrintable(error));
+        auto *review = window.findChild<CceReview::ReviewWorkspace *>();
+        QVERIFY(review);
+        CceDocument::ProjectBundle bundle;
+        bundle.project = CceDocument::Project::fromChart(*chart.chart());
+        const QString project = temp.filePath("project.cceproj");
+        QVERIFY2(CceDocument::writeProject(project, bundle, &error), qPrintable(error));
+        QVERIFY2(review->openProject(project, &error), qPrintable(error));
+        chart.addNote(Note(30, 0, 1, 222));
+        QVERIFY(review->dirty());
+        QVERIFY2(review->saveProject(project, &error), qPrintable(error));
+        QTest::qWait(850);
+        CceDocument::ProjectBundle restored;
+        QVERIFY2(CceDocument::readProject(project, restored, &error), qPrintable(error));
+        QCOMPARE(restored.project.compose(restored.project.activeDifficultyId).notes().size(), 4);
+        Chart unchanged;
+        QVERIFY(ChartIO::load(source, unchanged, false));
+        QCOMPARE(unchanged.notes().size(), 3);
+    }
+    void noteInspectorUsesTheNotePaneInsteadOfCompactStatistics()
+    {
+        auto *inspector = m_window->findChild<CceReviewUi::NoteInspector *>();
+        QVERIFY(inspector);
+        auto *notes = m_window->findChild<NoteEditPanel *>();
+        QVERIFY(notes);
+        QVERIFY(notes->isAncestorOf(inspector));
+        auto *statistics = m_window->findChild<ChartStatsPanel *>();
+        QVERIFY(statistics);
+        QVERIFY(!statistics->isAncestorOf(inspector));
+        QWidget *parent = notes->parentWidget();
+        while (parent && !qobject_cast<QScrollArea *>(parent))
+            parent = parent->parentWidget();
+        QVERIFY2(parent, "The properties form must remain inside the existing scrollable Note pane");
+    }
+    void toolbarOnlySwitchesToolPagesAndCommentShortcutRemainsRebindable()
+    {
+        auto *review = m_router->action("review.workspace");
+        auto *comment = m_router->action("review.addComment");
+        QVERIFY(review);
+        QVERIFY(comment);
+        QCOMPARE(comment->shortcut(), QKeySequence("Ctrl+Alt+M"));
+        auto *tabs = m_window->findChild<QTabBar *>("reviewToolbarTabs");
+        QVERIFY(tabs);
+        QCOMPARE(tabs->count(), 5);
+        QVERIFY(tabs->tabText(4).contains("Experimental"));
+        for (auto *toolbar : m_window->findChildren<QToolBar *>())
+        {
+            QCOMPARE(toolbar->actions().size(), 1);
+            QCOMPARE(toolbar->widgetForAction(toolbar->actions().first()), tabs);
+            QVERIFY(!toolbar->actions().contains(review));
+            QVERIFY(!toolbar->actions().contains(comment));
+            QVERIFY(toolbar->findChildren<QComboBox *>().isEmpty());
+        }
+        QVERIFY(m_router->applyBindings({{"review.addComment", QKeySequence("Ctrl+Shift+J")}}));
+        QCOMPARE(comment->shortcut(), QKeySequence("Ctrl+Shift+J"));
+        QSignalSpy opened(review, &QAction::triggered);
+        QTest::mouseClick(tabs, Qt::LeftButton, Qt::NoModifier, tabs->tabRect(4).center());
+        QCOMPARE(opened.count(), 1);
+        auto *panel = m_window->findChild<QDialog *>("reviewWorkspaceWindow");
+        QVERIFY(panel);
+        QVERIFY(panel->isVisible());
+        for (const auto &id : {"review.startButton", "review.importButton", "review.exportButton"})
+        {
+            auto *entry = panel->findChild<QPushButton *>(id);
+            QVERIFY(entry && entry->isEnabled());
+        }
+        panel->hide();
+        QTest::mouseClick(tabs, Qt::LeftButton, Qt::NoModifier, tabs->tabRect(4).center());
+        QCOMPARE(opened.count(), 2);
+        QVERIFY(panel->isVisible());
+        QVERIFY(m_router->action("review.accept"));
+        const auto screenshots = qEnvironmentVariable("CCE_REVIEW_SCREENSHOT_DIR");
+        if (!screenshots.isEmpty())
+        {
+            m_window->resize(1280, 800);
+            QTest::qWait(60);
+            QVERIFY(m_window->grab().save(screenshots + "/review-toolbar.png"));
+        }
+        QTest::mouseClick(tabs, Qt::LeftButton, Qt::NoModifier, tabs->tabRect(0).center());
+        QCOMPARE(tabs->currentIndex(), 0);
+        QVERIFY(!panel->isVisible());
+        focus(tabs);
+        QSignalSpy seek(&m_playback, &PlaybackController::positionChanged);
+        QTest::keyClick(tabs, Qt::Key_Right);
+        QCOMPARE(tabs->currentIndex(), 1);
+        QCOMPARE(seek.count(), 0);
+        QEvent languageChange(QEvent::LanguageChange);
+        QApplication::sendEvent(m_window.get(), &languageChange);
+        tabs = m_window->findChild<QTabBar *>("reviewToolbarTabs");
+        QVERIFY(tabs);
+        QCOMPARE(tabs->count(), 5);
+        for (auto *toolbar : m_window->findChildren<QToolBar *>())
+            QCOMPARE(toolbar->actions().size(), 1);
+        panel->show();
+        QSignalSpy create(m_router->action("review.start"), &QAction::triggered);
+        QTimer::singleShot(0, [] {
+            if (auto *dialog = qobject_cast<QInputDialog *>(QApplication::activeModalWidget()))
+                dialog->reject();
+        });
+        QTest::mouseClick(panel->findChild<QPushButton *>("review.startButton"), Qt::LeftButton);
+        QCOMPARE(create.count(), 1);
+        panel->hide();
+    }
+    void reviewShortcutsPreserveTextInput()
+    {
+        QLineEdit input(m_window.get());
+        input.move(100, 100);
+        input.show();
+        focus(&input);
+        QSignalSpy peek(m_router->action("review.peekBase"), &QAction::triggered);
+        QSignalSpy comment(m_router->action("review.addComment"), &QAction::triggered);
+        QTest::keyClick(&input, Qt::Key_Backslash);
+        QCOMPARE(input.text(), QString("\\"));
+        QCOMPARE(peek.count(), 0);
+        QTest::keyClick(&input, Qt::Key_M, Qt::ControlModifier | Qt::AltModifier);
+        QCOMPARE(comment.count(), 0);
     }
 };
 

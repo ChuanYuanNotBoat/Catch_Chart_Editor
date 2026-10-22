@@ -82,6 +82,7 @@ signals:
     void timeDivisionChanged(int division);
     void gridDivisionChanged(int division);
     void gridSnapChanged(bool enabled);
+    void dragGridSnapChanged(bool enabled);
     void deleteOnceRequested();
     void copyRequested();
     void mirrorAxisChanged(int axisX);

@@ -91,10 +91,15 @@ void ChartCanvas::showGridSettings()
     QFormLayout form(&dialog);
     QCheckBox *snapCheck = new QCheckBox(tr("Enable Grid Snap"));
     snapCheck->setChecked(m_gridSnap);
+    QCheckBox *dragSnapCheck = new QCheckBox(tr("Snap to Grid When Dragging"));
+    dragSnapCheck->setObjectName("dragGridSnapCheck");
+    dragSnapCheck->setToolTip(tr("Snap horizontal movement when dragging notes."));
+    dragSnapCheck->setChecked(m_dragGridSnap);
     QSpinBox *divisionSpin = new QSpinBox;
     divisionSpin->setRange(4, 64);
     divisionSpin->setValue(m_gridDivision);
     form.addRow(tr("Snap to Grid:"), snapCheck);
+    form.addRow(dragSnapCheck);
     form.addRow(tr("Grid Divisions (4-64):"), divisionSpin);
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -105,6 +110,7 @@ void ChartCanvas::showGridSettings()
     if (dialog.exec() == QDialog::Accepted)
     {
         setGridSnap(snapCheck->isChecked());
+        setDragGridSnap(dragSnapCheck->isChecked());
         setGridDivision(divisionSpin->value());
     }
 }
@@ -336,14 +342,6 @@ void ChartCanvas::onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq)
             PlaybackStutterProbe::recordCounter("canvas.tick_out_of_order", 1, true);
         return;
     }
-
-    // The visual target is sampled for the upcoming presentation refresh and
-    // is intentionally a little ahead of wall time. Note sounds must follow
-    // the current audio clock instead of that future visual sample.
-    const double noteSoundTimeMs = m_playbackController
-                                       ? m_playbackController->currentTime()
-                                       : predictedTimeMs;
-    advanceNoteSoundClock(noteSoundTimeMs);
 
     double previousScrollBeat = 0.0;
     double previousPlayheadYPx = -1.0;

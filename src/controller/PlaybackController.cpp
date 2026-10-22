@@ -342,6 +342,7 @@ void PlaybackController::seekTo(double timeMs)
     m_awaitingInitialAudioProgress = (m_state == Playing);
     m_audioProgressStartMs = static_cast<double>(targetMs);
     applySeekNow(targetMs, "direct");
+    emit seeked(static_cast<double>(targetMs));
     emit positionChanged(static_cast<double>(targetMs));
 }
 
@@ -726,7 +727,8 @@ void PlaybackController::applyObservedTimeToAnchor(double observedMs,
             clampedObserved,
             m_speed,
             m_frameRateCorrection,
-            allowHardResync);
+            allowHardResync,
+            m_audioPlayer->positionGranularityMs());
 
     if (PlaybackStutterProbe::enabled())
     {
@@ -735,6 +737,10 @@ void PlaybackController::applyObservedTimeToAnchor(double observedMs,
             absoluteErrorMs,
             qMax(0.25, 4.0 * m_speed),
             true);
+        PlaybackStutterProbe::recordValue(
+            "playback.audio_clock_error_signed_ms", errorMs, -1.0, true);
+        PlaybackStutterProbe::recordValue(
+            "playback.audio_position_granularity_ms", m_audioPlayer->positionGranularityMs(), -1.0, true);
     }
 
     m_frameRateCorrection = adjustment.rateCorrection;

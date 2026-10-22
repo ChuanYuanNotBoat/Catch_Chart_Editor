@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QSize>
 
 class Application;
 class AudioPlayer;
@@ -12,12 +13,16 @@ struct PlaybackBenchmarkOptions
 {
     QString chartPath;
     QString outputPath;
+    QString settingsDirectory;
+    QSize windowSize;
     int frameRate = 120;
     int durationMs = 15000;
     int warmupMs = 3000;
     int injectedUiStallMs = 0;
     qint64 startMs = -1;
     double speed = 1.0;
+    bool spectrumOverlay = false;
+    bool muted = false;
 };
 
 class PlaybackBenchmarkRunner : public QObject

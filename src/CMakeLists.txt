@@ -1,3 +1,17 @@
+add_subdirectory(analysis/dsp)
+add_library(CceReviewCore STATIC
+    document/ChartDelta.cpp
+    document/DocumentModel.cpp
+    document/ProjectStorage.cpp
+    identity/LocalIdentityStore.cpp
+    review/ReviewCore.cpp
+    review/CommentModel.cpp
+)
+target_include_directories(CceReviewCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(CceReviewCore PUBLIC Qt6::Core)
+if(MSVC)
+    target_compile_options(CceReviewCore PRIVATE /utf-8)
+endif()
 set(SOURCES
     app/Application.cpp
     app/SessionPathUtils.cpp
@@ -6,6 +20,14 @@ set(SOURCES
     app/MainWindowLayout.cpp
     app/MainWindowDialogs.cpp
     app/MainWindowSkinAudio.cpp
+    review/ReviewWorkspace.cpp
+    review/ReviewResources.cpp
+    review/ReviewWorkspaceUi.cpp
+    review/ReviewWorkspaceToolbar.cpp
+    review/ReviewWorkspaceRender.cpp
+    ui/review/IdentityDialog.cpp
+    ui/review/NoteInspector.cpp
+    document/ExportPipeline.cpp
     model/Note.cpp
     model/BpmEntry.cpp
     model/MetaData.cpp
@@ -28,22 +50,44 @@ set(SOURCES
     file/ProjectIO.cpp
     file/PluginLoader.cpp
     file/ChartFileSystem.cpp
-    analysis/SpectrumAnalysis.cpp
     analysis/TransientAnalysis.cpp
+    analysis/TransientNoteDraft.cpp
     analysis/TimingMeasurement.cpp
     analysis/TimingInterpolation.cpp
     analysis/AutoTimingDiagnostics.cpp
+    analysis/AnalysisConfig.cpp
+    analysis/AnalysisSession.cpp
+    analysis/AnalysisTracks.cpp
+    analysis/SpectrumRaster.cpp
+    analysis/MusicalTimeTransform.cpp
     audio/SpectrumService.cpp
+    audio/SpectrumTileCache.cpp
     ui/analysis/AnalysisCanvas.cpp
     ui/analysis/AnalysisEditor.cpp
+    ui/analysis/AnalysisConfigPanel.cpp
+    ui/analysis/AnalysisTrackScene.cpp
+    ui/analysis/SpectrumViewport.cpp
+    ui/analysis/AnalysisWorkbench.cpp
+    ui/analysis/AudioOverview.cpp
+    ui/analysis/TimingProposal.cpp
     ui/analysis/TransientPanel.cpp
+    ui/analysis/NoteGenerationPanel.cpp
     ui/analysis/TimingToolsPanel.cpp
     ui/analysis/TimingInterpolationPanel.cpp
+    ui/analysis/TimingEditorCanvas.h
+    ui/analysis/TimingPreviewJobs.cpp
+    ui/analysis/TimingInterpolationPreview.cpp
+    ui/bpm/BpmCurveCanvas.cpp
+    ui/bpm/BpmAdvancedEditor.cpp
     audio/AudioPlayer.cpp
     audio/NoteSoundPlayer.cpp
     audio/BpmDetector.cpp
     audio/AutoTiming2Bridge.cpp
     audio/AudioConverter.cpp
+    merge/ChartMerger.cpp
+    merge/MergeAudio.cpp
+    merge/MergeExport.cpp
+    ui/dialogs/ChartMergeDialog.cpp
     controller/CommandRouter.cpp
     controller/ChartController.cpp
     controller/SelectionController.cpp
@@ -76,6 +120,7 @@ set(SOURCES
     ui/DensityCurve.cpp
     ui/NoteItem.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvas.cpp
+    ui/CustomWidgets/ChartCanvas/ChartSpectrumOverlay.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasPlayback.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasPaste.cpp
     ui/CustomWidgets/ChartCanvas/ChartCanvasRender.cpp
@@ -109,11 +154,52 @@ if(MSVC)
 endif()
 
 add_library(CatchChartEditorRuntime STATIC ${SOURCES})
+execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${AUTOTIMINGCORE_SOURCE_DIR}"
+    OUTPUT_VARIABLE CCE_CORE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+execute_process(COMMAND git diff HEAD -- . ":(exclude)tests" ":(exclude)docs" WORKING_DIRECTORY "${AUTOTIMINGCORE_SOURCE_DIR}"
+    OUTPUT_VARIABLE CCE_CORE_DIFF ERROR_QUIET)
+if(NOT CCE_CORE_REVISION)
+    set(CCE_CORE_REVISION "unverified-build")
+endif()
+file(GLOB_RECURSE CCE_CORE_INPUTS CONFIGURE_DEPENDS
+    "${AUTOTIMINGCORE_SOURCE_DIR}/src/*.cpp" "${AUTOTIMINGCORE_SOURCE_DIR}/src/*.h"
+    "${AUTOTIMINGCORE_SOURCE_DIR}/include/*.h")
+list(APPEND CCE_CORE_INPUTS "${AUTOTIMINGCORE_SOURCE_DIR}/CMakeLists.txt")
+set(CCE_CORE_CONTENT "")
+foreach(CCE_CORE_INPUT IN LISTS CCE_CORE_INPUTS)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CCE_CORE_INPUT}")
+    file(SHA256 "${CCE_CORE_INPUT}" CCE_CORE_INPUT_HASH)
+    file(RELATIVE_PATH CCE_CORE_INPUT_NAME "${AUTOTIMINGCORE_SOURCE_DIR}" "${CCE_CORE_INPUT}")
+    string(APPEND CCE_CORE_CONTENT "${CCE_CORE_INPUT_NAME}:${CCE_CORE_INPUT_HASH}\n")
+endforeach()
+execute_process(COMMAND git ls-files --others --exclude-standard -- src include CMakeLists.txt
+    WORKING_DIRECTORY "${AUTOTIMINGCORE_SOURCE_DIR}" OUTPUT_VARIABLE CCE_CORE_UNTRACKED ERROR_QUIET)
+if(CCE_CORE_DIFF OR CCE_CORE_UNTRACKED)
+    string(SHA256 CCE_CORE_DIFF_HASH "${CCE_CORE_DIFF}\n${CCE_CORE_CONTENT}")
+    string(SUBSTRING "${CCE_CORE_DIFF_HASH}" 0 12 CCE_CORE_DIFF_HASH)
+    string(APPEND CCE_CORE_REVISION "+modified-${CCE_CORE_DIFF_HASH}")
+endif()
+target_compile_definitions(CatchChartEditorRuntime PRIVATE CCE_AUTOTIMING_CORE_VERSION="${CCE_CORE_REVISION}")
+execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    OUTPUT_VARIABLE CCE_HOST_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+execute_process(COMMAND git status --porcelain --untracked-files=normal WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    OUTPUT_VARIABLE CCE_HOST_STATUS ERROR_QUIET)
+if(NOT CCE_HOST_REVISION)
+    set(CCE_HOST_REVISION "unverified-build")
+elseif(CCE_HOST_STATUS)
+    string(APPEND CCE_HOST_REVISION "+working-tree")
+endif()
+target_compile_definitions(CatchChartEditorRuntime PRIVATE CCE_HOST_SOURCE_VERSION="${CCE_HOST_REVISION}")
+if(MSVC)
+    target_compile_options(CatchChartEditorRuntime PRIVATE /utf-8)
+endif()
 qt_add_executable(CatchChartEditor MANUAL_FINALIZATION main.cpp)
 target_link_libraries(CatchChartEditor PRIVATE CatchChartEditorRuntime)
 
 target_link_libraries(CatchChartEditorRuntime
     PUBLIC
+    CatchSpectrumDsp
+    CceReviewCore
     Qt6::Core
     Qt6::Widgets
     Qt6::Multimedia

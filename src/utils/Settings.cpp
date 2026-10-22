@@ -502,6 +502,28 @@ void Settings::setHyperfruitOutlineEnabled(bool enabled)
     m_settings.setValue("hyperfruitOutlineEnabled", enabled);
 }
 
+int Settings::hyperfruitJudgeLevel() const
+{
+    bool ok = false;
+    const int level = m_settings.value("render/hyperfruitJudgeLevel", 4).toInt(&ok);
+    return ok && level >= 0 && level <= 4 ? level : 4;
+}
+
+void Settings::setHyperfruitJudgeLevel(int level)
+{
+    m_settings.setValue("render/hyperfruitJudgeLevel", level >= 0 && level <= 4 ? level : 4);
+}
+
+bool Settings::hyperfruitProJudge() const
+{
+    return m_settings.value("render/hyperfruitProJudge", false).toBool();
+}
+
+void Settings::setHyperfruitProJudge(bool enabled)
+{
+    m_settings.setValue("render/hyperfruitProJudge", enabled);
+}
+
 bool Settings::rainRewardPreviewEnabled() const
 {
     return m_settings.value("render/rainRewardPreviewEnabled", false).toBool();
@@ -680,6 +702,16 @@ void Settings::setEditorGridSnapEnabled(bool enabled)
     m_settings.setValue("editor/gridSnapEnabled", enabled);
 }
 
+bool Settings::editorDragGridSnapEnabled() const
+{
+    return m_settings.value("editor/dragGridSnapEnabled", false).toBool();
+}
+
+void Settings::setEditorDragGridSnapEnabled(bool enabled)
+{
+    m_settings.setValue("editor/dragGridSnapEnabled", enabled);
+}
+
 double Settings::editorTimeScale() const
 {
     const double scale = m_settings.value("editor/timeScale", 2.25).toDouble();
@@ -725,6 +757,16 @@ void Settings::setMirrorPreviewVisible(bool visible)
 bool Settings::backgroundImageEnabled() const
 {
     return m_settings.value("view/backgroundImageEnabled", true).toBool();
+}
+
+bool Settings::spectrumOverlayEnabled() const
+{
+    return m_settings.value("view/spectrumOverlayEnabled", false).toBool();
+}
+
+void Settings::setSpectrumOverlayEnabled(bool enabled)
+{
+    m_settings.setValue("view/spectrumOverlayEnabled", enabled);
 }
 void Settings::setBackgroundImageEnabled(bool enabled)
 {

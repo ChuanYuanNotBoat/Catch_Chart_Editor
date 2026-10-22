@@ -6,7 +6,7 @@
 #include "analysis/TimingMeasurement.h"
 
 class ChartController;
-class AnalysisCanvas;
+class TimingEditorCanvas;
 class QLabel;
 class QLineEdit;
 class QDoubleSpinBox;
@@ -17,7 +17,7 @@ class TimingToolsPanel : public QWidget
 {
     Q_OBJECT
 public:
-    TimingToolsPanel(ChartController *, AnalysisCanvas *, QWidget *parent = nullptr);
+    TimingToolsPanel(ChartController *, TimingEditorCanvas *, QWidget *parent = nullptr);
     void clearMeasurement();
     void stopPicking();
     QJsonObject diagnostics() const;
@@ -34,7 +34,7 @@ private:
     int matchingTiming() const;
     double startTime() const;
     ChartController *m_chart;
-    AnalysisCanvas *m_canvas;
+    TimingEditorCanvas *m_canvas;
     QLabel *m_start, *m_summary, *m_effect;
     QLineEdit *m_span;
     QDoubleSpinBox *m_end;
@@ -43,4 +43,5 @@ private:
     std::optional<BpmEntry> m_startBeat;
     std::optional<double> m_endMs;
     analysis::TimingMeasurement m_result;
+    quint64 m_generation = 0;
 };

@@ -2,6 +2,7 @@
 
 #include "MainWindow.h"
 #include "model/ChartStatistics.h"
+#include "document/ChartSnapshot.h"
 #include <QHash>
 #include <QList>
 #include <QPointer>
@@ -40,9 +41,11 @@ class RealtimePreviewWidget;
 class PluginActionPanel;
 class ChartStatsPanel;
 class DetailedStatsDialog;
+class ChartMergeDialog;
 class WorkbenchLayout;
 class CommandRouter;
 class AnalysisEditor;
+namespace CceReview { class ReviewWorkspace; }
 
 namespace ads
 {
@@ -53,6 +56,7 @@ class CDockWidget;
 class MainWindow::Private
 {
 public:
+    CceReview::ReviewWorkspace *reviewWorkspace = nullptr;
     AnalysisEditor *analysisEditor = nullptr;
     ChartController *chartController = nullptr;
     SelectionController *selectionController = nullptr;
@@ -89,6 +93,7 @@ public:
     MetaEditPanel *metaPanel = nullptr;
     ChartStatsPanel *statsPanel = nullptr;
     DetailedStatsDialog *detailedStatsDialog = nullptr;
+    QPointer<ChartMergeDialog> chartMergeDialog;
     LeftPanel *leftPanel = nullptr;
     QAction *undoAction = nullptr;
     QAction *redoAction = nullptr;
@@ -173,8 +178,7 @@ public:
     ChartStatistics editStatistics;
     QString editStatisticsChartPath;
     QElapsedTimer editSessionTimer;
-    quint64 statsFutureRevision = 0;
-    quint64 statsSourceRevision = 0;
+    ChartReadVersion statsFutureVersion;
     bool statsRefreshPending = false;
     QQueue<std::function<void()>> documentTransactions;
     bool documentTransactionRunning = false;

@@ -13,6 +13,7 @@
 #include <QPainterPath>
 #include <QMouseEvent>
 #include <QTimer>
+#include <QThread>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -65,12 +66,12 @@ protected:
         if (qAbs(last - first) < 1e-9)
             return;
         auto yAt = [&](double t) {
-            return area.top() + (t - first) / (last - first) * area.height();
+            return area.top() + (canvas->yAtTime(t * 1000) - 28) / qMax(1, canvas->height() - 28) * area.height();
         };
         p.setPen(QColor(125, 132, 145));
         for (int i = 0; i <= 4; ++i)
         {
-            const double t = first + (last - first) * i / 4;
+            const double t = canvas->timeAtY(28 + (canvas->height() - 28) * i / 4.) / 1000;
             const double y = area.top() + area.height() * i / 4;
             p.drawText(QRectF(0, y - 9, 50, 18), Qt::AlignRight | Qt::AlignVCenter, QString::number(t, 'f', 2));
             p.setPen(QColor(44, 50, 62));
@@ -153,6 +154,8 @@ private:
 };
 TransientPanel::TransientPanel(AnalysisCanvas *canvas, QWidget *parent) : QWidget(parent), m_canvas(canvas)
 {
+    m_workerPool.setMaxThreadCount(1);
+    m_workerPool.setThreadPriority(QThread::LowestPriority);
     setObjectName("analysis.transientPanel");
     auto *layout = new QVBoxLayout(this);
     auto *form = new QFormLayout;
@@ -196,6 +199,7 @@ TransientPanel::TransientPanel(AnalysisCanvas *canvas, QWidget *parent) : QWidge
         connect(check, &QCheckBox::toggled, this, [this, i](bool on) {
             m_plot->visible[i] = on;
             m_plot->update();
+            emit tracksChanged();
         });
     }
     curvesLayout->addLayout(legend);
@@ -273,8 +277,32 @@ void TransientPanel::clearSource()
 }
 void TransientPanel::setSpectrum(const analysis::StereoSpectrum &spectrum)
 {
-    m_spectrum = std::make_shared<analysis::StereoSpectrum>(spectrum);
+    setSpectrum(std::make_shared<const analysis::StereoSpectrum>(spectrum));
+}
+void TransientPanel::setSpectrum(std::shared_ptr<const analysis::StereoSpectrum> spectrum)
+{
+    m_spectrum = std::move(spectrum);
     scheduleAnalysis();
+}
+void TransientPanel::setAnalysisSuspended(bool suspended)
+{
+    if (m_analysisSuspended == suspended)
+        return;
+    m_analysisSuspended = suspended;
+    if (suspended)
+    {
+        m_timer->stop();
+        if (m_busy && m_cancel)
+        {
+            m_cancel->store(true);
+            m_pending = bool(m_spectrum);
+        }
+        if (m_spectrum)
+            m_summary->setText(tr("Transient analysis paused during playback."));
+        return;
+    }
+    if (m_pending && !m_busy && !m_timer->isActive())
+        m_timer->start();
 }
 void TransientPanel::scheduleAnalysis()
 {
@@ -286,7 +314,9 @@ void TransientPanel::scheduleAnalysis()
     fillPeaks();
     m_plot->update();
     m_pending = bool(m_spectrum);
-    if (m_pending)
+    if (m_pending && m_analysisSuspended)
+        m_summary->setText(tr("Transient analysis paused during playback."));
+    else if (m_pending)
     {
         m_summary->setText(tr("Analyzing transients…"));
         m_timer->start();
@@ -294,7 +324,7 @@ void TransientPanel::scheduleAnalysis()
 }
 void TransientPanel::startAnalysis()
 {
-    if (m_busy || !m_pending || !m_spectrum)
+    if (m_busy || m_analysisSuspended || !m_pending || !m_spectrum)
         return;
     m_pending = false;
     m_busy = true;
@@ -325,10 +355,10 @@ void TransientPanel::startAnalysis()
                                    : QString::fromStdString(m_result.error));
             m_plot->update();
         }
-        if (m_pending && !m_timer->isActive())
+        if (m_pending && !m_analysisSuspended && !m_timer->isActive())
             m_timer->start();
     });
-    watcher->setFuture(QtConcurrent::run([spectrum, options, cancel] {
+    watcher->setFuture(QtConcurrent::run(&m_workerPool, [spectrum, options, cancel] {
         return analysis::analyzeTransients(*spectrum, options, cancel.get());
     }));
 }
@@ -357,6 +387,42 @@ void TransientPanel::fillPeaks()
             m_peaks->setItem(row, col, item);
         }
     }
+    emit tracksChanged();
+}
+QVector<analysis::AnalysisTrack> TransientPanel::tracks() const
+{
+    QJsonObject source;
+    if (m_spectrum)
+        source = {{"sampleRate", m_spectrum->sampleRate},
+                  {"hopSeconds", m_spectrum->hopSeconds},
+                  {"fftSize", m_spectrum->fftSize},
+                  {"audioStartSeconds", m_spectrum->startSeconds},
+                  {"audioDurationSeconds", m_spectrum->durationSeconds},
+                  {"relativeThreshold", m_threshold->value()},
+                  {"minimumIntervalSeconds", m_interval->value() / 1000}};
+    auto data = analysis::transientTracks(m_result, source);
+    for (qsizetype i = 0; i < qMin(qsizetype(4), data.size()); ++i)
+        data[i].visible = m_plot->visible[i];
+    if (!m_rejected->isChecked())
+        for (auto &track : data)
+            if (track.kind == analysis::TrackKind::Events)
+                track.events.erase(std::remove_if(track.events.begin(), track.events.end(),
+                                                  [](const auto &e) {
+                                                      return e.disposition != "Detected";
+                                                  }),
+                                   track.events.end());
+    return data;
+}
+void TransientPanel::selectPeakAt(double seconds)
+{
+    for (int row = 0; row < m_peaks->rowCount(); ++row)
+        if (m_peaks->item(row, 0) && qAbs(m_peaks->item(row, 0)->data(Qt::UserRole).toDouble() - seconds) < 1e-9)
+        {
+            m_peaks->setCurrentCell(row, 0);
+            m_plot->selectedTime = seconds;
+            m_plot->update();
+            return;
+        }
 }
 QJsonObject TransientPanel::diagnostics() const
 {

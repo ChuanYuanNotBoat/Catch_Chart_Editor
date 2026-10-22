@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
 project(CatchChartEditor VERSION 1.11.2 LANGUAGES C CXX)
 
 include(CTest)
@@ -56,6 +56,15 @@ endif()
 
 add_subdirectory(src)
 
+option(CATCHEDITOR_BUILD_AUDIO_PROBE "Build the manual Windows note-sound loopback probe" OFF)
+if(CATCHEDITOR_BUILD_AUDIO_PROBE AND WIN32)
+    if(Qt6_VERSION VERSION_LESS 6.10)
+        message(FATAL_ERROR "The manual audio probe requires Qt 6.10 or newer")
+    endif()
+    add_executable(NoteSoundTimingProbe tools/perf/note_sound_timing_probe.cpp)
+    target_link_libraries(NoteSoundTimingProbe PRIVATE CatchChartEditorRuntime ole32 uuid)
+endif()
+
 install(TARGETS CatchChartEditor DESTINATION bin)
 install(DIRECTORY resources/ DESTINATION share/${PROJECT_NAME})
 install(FILES
@@ -80,6 +89,82 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/plugins")
 endif()
 
 if(BUILD_TESTING)
+    function(add_local_review_test target source)
+        add_executable(${target} ${source})
+        target_link_libraries(${target} PRIVATE CatchChartEditorRuntime Qt6::Test)
+        if(MSVC)
+            target_compile_options(${target} PRIVATE /utf-8)
+        endif()
+        add_test(NAME ${target} COMMAND ${target})
+        get_target_property(_review_qmake Qt6::qmake IMPORTED_LOCATION)
+        execute_process(COMMAND "${_review_qmake}" -query QT_INSTALL_PLUGINS
+            OUTPUT_VARIABLE _review_plugins OUTPUT_STRIP_TRAILING_WHITESPACE)
+        set_tests_properties(${target} PROPERTIES TIMEOUT 180 ENVIRONMENT
+            "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=${_review_plugins}/platforms")
+        if(WIN32)
+            string(REPLACE ";" "\\;" _review_test_path "$ENV{PATH}")
+            set_tests_properties(${target} PROPERTIES ENVIRONMENT
+                "QT_QPA_PLATFORM=minimal;QT_QPA_FONTDIR=C:/Windows/Fonts;QT_QPA_PLATFORM_PLUGIN_PATH=${_review_plugins}/platforms;PATH=$<TARGET_FILE_DIR:Qt6::Core>\;${_review_test_path}")
+        endif()
+    endfunction()
+    add_local_review_test(LocalIdentityTests tests/local_identity_tests.cpp)
+    add_local_review_test(HyperfruitTests tests/hyperfruit_tests.cpp)
+    add_local_review_test(DocumentModelTests tests/document_model_tests.cpp)
+    add_local_review_test(ChartSnapshotTests tests/chart_snapshot_tests.cpp)
+    add_local_review_test(ChartDeltaTests tests/chart_delta_tests.cpp)
+    add_local_review_test(ChartMergeTests tests/chart_merge_tests.cpp)
+    add_local_review_test(ProjectStorageTests tests/project_storage_tests.cpp)
+    add_local_review_test(ReviewCoreTests tests/review_core_tests.cpp)
+    add_local_review_test(CommentModelTests tests/comment_model_tests.cpp)
+    add_local_review_test(ReviewInspectorTests tests/review_inspector_tests.cpp)
+    add_local_review_test(ExportPipelineTests tests/export_pipeline_tests.cpp)
+    add_local_review_test(ReviewWorkspaceTests tests/review_workspace_tests.cpp)
+    add_executable(GridDragTests tests/grid_drag_tests.cpp)
+    target_link_libraries(GridDragTests PRIVATE CatchChartEditorRuntime Qt6::Test)
+    add_test(NAME ui_grid_drag_tests COMMAND GridDragTests)
+    set_tests_properties(ui_grid_drag_tests PROPERTIES TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        string(REPLACE ";" "\\;" _grid_drag_test_path "$ENV{PATH}")
+        set_tests_properties(ui_grid_drag_tests PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=$<TARGET_FILE_DIR:Qt6::Core>\;${_grid_drag_test_path}")
+    endif()
+
+    add_executable(ResourceCopyTests tests/resource_copy_tests.cpp)
+    target_link_libraries(ResourceCopyTests PRIVATE CatchChartEditorRuntime Qt6::Test)
+    if(MSVC)
+        target_compile_options(ResourceCopyTests PRIVATE /utf-8)
+    endif()
+    add_test(NAME file_resource_copy_tests COMMAND ResourceCopyTests)
+    set_tests_properties(file_resource_copy_tests PROPERTIES TIMEOUT 45 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        string(REPLACE ";" "\\;" _resource_copy_test_path "$ENV{PATH}")
+        set_tests_properties(file_resource_copy_tests PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=$<TARGET_FILE_DIR:Qt6::Core>\;${_resource_copy_test_path}")
+    endif()
+
+    add_executable(BpmDetectorFileTests tests/bpm_detector_file_tests.cpp)
+    target_link_libraries(BpmDetectorFileTests PRIVATE CatchChartEditorRuntime Qt6::Test)
+    if(MSVC)
+        target_compile_options(BpmDetectorFileTests PRIVATE /utf-8)
+    endif()
+    add_test(NAME audio_bpm_detector_file_tests COMMAND BpmDetectorFileTests)
+    set_tests_properties(audio_bpm_detector_file_tests PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        string(REPLACE ";" "\\;" _bpm_file_test_path "$ENV{PATH}")
+        set_tests_properties(audio_bpm_detector_file_tests PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=$<TARGET_FILE_DIR:Qt6::Core>\;${_bpm_file_test_path}")
+    endif()
+
+    add_executable(PlaybackTimingTests tests/playback_timing_tests.cpp)
+    target_link_libraries(PlaybackTimingTests PRIVATE CatchChartEditorRuntime Qt6::Test)
+    add_test(NAME audio_playback_timing_tests COMMAND PlaybackTimingTests)
+    set_tests_properties(audio_playback_timing_tests PROPERTIES TIMEOUT 45 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        string(REPLACE ";" "\\;" _playback_test_path "$ENV{PATH}")
+        set_tests_properties(audio_playback_timing_tests PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=$<TARGET_FILE_DIR:Qt6::Core>\;${_playback_test_path}")
+    endif()
+
     add_executable(TimingInterpolationTests tests/timing_interpolation_tests.cpp src/analysis/TimingInterpolation.cpp)
     set_target_properties(TimingInterpolationTests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
     target_include_directories(TimingInterpolationTests PRIVATE src)
@@ -90,12 +175,34 @@ if(BUILD_TESTING)
     target_include_directories(TimingMeasurementTests PRIVATE src)
     add_test(NAME analysis_timing_measurement_tests COMMAND TimingMeasurementTests)
 
-    add_executable(SpectrumAnalysisTests tests/spectrum_analysis_tests.cpp src/analysis/SpectrumAnalysis.cpp)
+    add_executable(SpectrumAnalysisTests tests/spectrum_analysis_tests.cpp)
+    target_link_libraries(SpectrumAnalysisTests PRIVATE CatchSpectrumDsp)
     set_target_properties(SpectrumAnalysisTests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
     target_include_directories(SpectrumAnalysisTests PRIVATE src)
     add_test(NAME analysis_spectrum_tests COMMAND SpectrumAnalysisTests)
 
-    add_executable(TransientAnalysisTests tests/transient_analysis_tests.cpp src/analysis/TransientAnalysis.cpp src/analysis/SpectrumAnalysis.cpp)
+    add_executable(SpectrumOverlayTests tests/spectrum_overlay_tests.cpp)
+    target_link_libraries(SpectrumOverlayTests PRIVATE CatchChartEditorRuntime Qt6::Test)
+    add_test(NAME ui_spectrum_overlay_tests COMMAND SpectrumOverlayTests)
+    set_tests_properties(ui_spectrum_overlay_tests PROPERTIES TIMEOUT 90 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        # The Windows offscreen font backend can crash on consecutive bare
+        # ChartCanvas windows. Minimal retains pixel and event-loop checks.
+        string(REPLACE ";" "\\;" _spectrum_test_path "$ENV{PATH}")
+        set_tests_properties(ui_spectrum_overlay_tests PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=minimal;PATH=$<TARGET_FILE_DIR:Qt6::Core>\;${_spectrum_test_path}")
+        if(TARGET Qt6::QMinimalIntegrationPlugin)
+            add_custom_command(TARGET SpectrumOverlayTests POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:SpectrumOverlayTests>/platforms"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::QMinimalIntegrationPlugin>"
+                    "$<TARGET_FILE_DIR:SpectrumOverlayTests>/platforms"
+                COMMENT "Deploying the spectrum test platform plugin"
+            )
+        endif()
+    endif()
+
+    add_executable(TransientAnalysisTests tests/transient_analysis_tests.cpp src/analysis/TransientAnalysis.cpp)
+    target_link_libraries(TransientAnalysisTests PRIVATE CatchSpectrumDsp)
     set_target_properties(TransientAnalysisTests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
     target_include_directories(TransientAnalysisTests PRIVATE src)
     add_test(NAME analysis_transient_tests COMMAND TransientAnalysisTests)
@@ -104,6 +211,30 @@ if(BUILD_TESTING)
     target_link_libraries(AnalysisEditorTests PRIVATE CatchChartEditorRuntime Qt6::Test)
     add_test(NAME analysis_editor_tests COMMAND AnalysisEditorTests)
     set_tests_properties(analysis_editor_tests PROPERTIES TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        get_target_property(_ae_qmake Qt6::qmake IMPORTED_LOCATION)
+        get_filename_component(_ae_qt_bin "${_ae_qmake}" DIRECTORY)
+        if(CATCHEDITOR_ENABLE_WINDEPLOYQT AND EXISTS "${_ae_qt_bin}/windeployqt.exe")
+            add_custom_command(TARGET AnalysisEditorTests POST_BUILD
+                COMMAND "${_ae_qt_bin}/windeployqt.exe" --no-translations "$<TARGET_FILE:AnalysisEditorTests>"
+                COMMENT "Deploying the AE test runtime"
+            )
+        endif()
+        add_custom_command(TARGET AnalysisEditorTests POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:AnalysisEditorTests>"
+        )
+        if(TARGET Qt6::QOffscreenIntegrationPlugin)
+            add_custom_command(TARGET AnalysisEditorTests POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:AnalysisEditorTests>/platforms"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+                    "$<TARGET_FILE_DIR:AnalysisEditorTests>/platforms"
+            )
+            set_tests_properties(analysis_editor_tests PROPERTIES ENVIRONMENT
+                "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:AnalysisEditorTests>/platforms"
+            )
+        endif()
+    endif()
 
     add_executable(ShortcutTests tests/shortcut_tests.cpp)
     target_link_libraries(ShortcutTests PRIVATE CatchChartEditorRuntime Qt6::Test)
@@ -145,7 +276,7 @@ if(BUILD_TESTING)
 
     target_include_directories(CatchChartEditorTests PRIVATE src)
     target_link_libraries(CatchChartEditorTests
-        Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test Qt6::Multimedia Qt6::Concurrent Vorbis::vorbis)
+        CceReviewCore Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test Qt6::Multimedia Qt6::Concurrent Vorbis::vorbis)
 
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
     set_tests_properties(core_minimal_tests PROPERTIES TIMEOUT 60)
@@ -198,6 +329,7 @@ if(BUILD_TESTING)
     target_include_directories(MetaEditPanelTests PRIVATE src)
     target_link_libraries(MetaEditPanelTests
         PRIVATE
+        CceReviewCore
         Qt6::Core
         Qt6::Gui
         Qt6::Widgets
@@ -283,8 +415,6 @@ if(BUILD_TESTING)
 
     if(WIN32)
         target_link_libraries(DockingLayoutTests PRIVATE dwmapi)
-        set_tests_properties(analysis_editor_tests PROPERTIES
-            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
         set_tests_properties(core_minimal_tests PROPERTIES
             ENVIRONMENT "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$<TARGET_FILE_DIR:Qt6::Gui>;$ENV{PATH}")
         set_tests_properties(ui_docking_layout_tests PROPERTIES

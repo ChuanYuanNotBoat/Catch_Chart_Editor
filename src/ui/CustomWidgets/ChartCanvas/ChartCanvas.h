@@ -10,6 +10,7 @@
 #include <QMetaObject>
 #include <QPointer>
 #include <QTimer>
+#include <memory>
 #include "model/Note.h"
 #include "plugin/PluginInterface.h"
 #include "utils/MathUtils.h"
@@ -23,6 +24,7 @@ class NoteRenderer;
 class GridRenderer;
 class HyperfruitDetector;
 class BackgroundRenderer;
+class ChartSpectrumOverlay;
 class Skin;
 class PlaybackController;
 class NoteSoundPlayer;
@@ -60,6 +62,7 @@ public:
     void setTimeDivision(int division);
     void setGridDivision(int division);
     void setGridSnap(bool snap);
+    void setDragGridSnap(bool snap);
     void setScrollPos(double timeMs);
     void setNoteSize(int size);
     void refreshRenderSettings();
@@ -74,6 +77,11 @@ public:
     void pasteAtCursor(const QPoint &pos);
     void cancelOperation();
     void beginPastePreview(const QVector<Note> &notes, const QPoint &cursorPos = QPoint());
+    void setAnalysisNoteDraft(QVector<Note> notes);
+    int analysisNoteDraftCount() const { return m_analysisNoteDraft.size(); }
+    void setDisplayChart(const Chart *readOnlyChart);
+    void setLayerPresentation(const QHash<QString, qreal> &opacityByRuntimeId)
+    { m_layerOpacity = opacityByRuntimeId; update(); }
 
     bool isVerticalFlip() const;
     void setVerticalFlip(bool flip);
@@ -83,6 +91,8 @@ public:
     void setTimeScale(double scale);
     double timeScale() const { return m_timeScale; }
     void refreshBackground();
+    void setSpectrumOverlayEnabled(bool enabled);
+    bool spectrumOverlayEnabled() const { return m_spectrumOverlay != nullptr; }
     int mirrorAxisX() const { return m_mirrorAxisX; }
     bool isMirrorGuideVisible() const { return m_mirrorGuideVisible; }
     bool isMirrorPreviewVisible() const { return m_mirrorPreviewVisible; }
@@ -129,10 +139,16 @@ public slots:
     void playFromReferenceLine();
 
 signals:
+    void extendContextMenu(QMenu *menu,const QPointF &position);
+    // Direct connections only: extensions paint in the existing frame, with
+    // no extra playback timer or whole-chart work inside paintEvent.
+    void paintReviewOverlay(QPainter *painter);
     void verticalFlipChanged(bool flipped);
     void currentTimeChanged(double timeMs);
     void scrollPositionChanged(double beat);
     void timeScaleChanged(double scale);
+    void timeDivisionChanged(int division);
+    void analysisNoteDraftCancelled();
     void modeCycleRequested(int direction);
     void mirrorAxisChanged(int axisX);
     void statusMessage(const QString &msg); // Status bar message hook.
@@ -156,6 +172,9 @@ protected:
 
 
 private:
+    std::unique_ptr<Chart> m_displayChart;
+    QHash<QString, qreal> m_layerOpacity;
+    ChartSpectrumOverlay *m_spectrumOverlay = nullptr;
     static constexpr int kLaneWidth = 512;
     static constexpr double kReferenceLineRatio = 0.8;
     static constexpr int kScrollSignalIntervalMs = 33;
@@ -272,8 +291,6 @@ private:
 
     void rebuildNoteTimesCache();
     const Chart *chart() const;
-    Chart *chart();
-    QVector<Note> *mutableNotes();
 
     double effectiveVisibleBeatRange() const
     {
@@ -315,6 +332,8 @@ private:
     int m_pasteDragReferenceIndex;
     bool m_pasteSnapReferenceActive = false;
     QVector<Note> m_pastePreviewNotes;
+    QVector<Note> m_analysisNoteDraft;
+    QVector<double> m_analysisNoteDraftBeats;
     bool m_pastePreviewCacheValid = false;
     void cancelPaste();
     void beginDragPaste(const QPointF &startPos);
@@ -355,6 +374,7 @@ private:
     int m_timeDivision;
     int m_gridDivision;
     bool m_gridSnap;
+    bool m_dragGridSnap;
     double m_scrollBeat;
     double m_baseVisibleBeatRange;
     double m_timeScale;
@@ -468,6 +488,15 @@ private:
     QVector<double> m_playableNoteTimesMs;
     int m_nextPlayableNoteIndex;
     double m_lastNoteSoundTimeMs;
+    QTimer m_noteSoundTimer;
+    // Note-sound timing probe stats (accumulated only while the playback
+    // probe is enabled; summarized on playback stop/pause).
+    qint64 m_noteSoundProbeTriggers = 0;
+    qint64 m_noteSoundProbeRestarts = 0;
+    QVector<double> m_noteSoundProbeQuantMs;
+    double m_noteSoundProbeTickSumMs = 0.0;
+    qint64 m_noteSoundProbeTickCount = 0;
+    qint64 m_lastNoteSoundTickNs = 0;
 
     int leftMargin() const;
     int rightMargin() const;
@@ -475,6 +504,8 @@ private:
     void invalidateChartCaches(const ChartChange &change);
     void resetOverlayQueryState();
     void advanceNoteSoundClock(double playbackTimeMs);
+    void resetNoteSoundProbeStats();
+    void logNoteSoundProbeSummary();
     void advancePlaybackVisual(bool scheduleRepaint, bool recordProbe = true);
     void attachDisplayFrameWindow();
     void updateDisplayRefreshRate(QScreen *screen);

@@ -2,11 +2,11 @@
 
 > **目的**：完整描述当前编辑器的数据模型、文件格式、插件体系、坐标系统、外置 sidecar 文件格式等，为重构格式与导出到标准 mcz/mc 提供精确的结构定义。
 >
-> **版本**：Beta v1.11.2 + Unreleased maintenance | **最后更新**：2026-10-03
+> **版本**：Beta v1.11.2 + Unreleased maintenance | **最后更新**：2026-10-23
 >
 > ⚠️ **核心约束**：`.mc` 文件的 JSON 结构**永远不能更改**，必须保持与 Malody 官方格式完全兼容。所有扩展数据必须存放在 `.mcce-plugin/` 或独立辅助文件中。如果需要更改，则需要保证有可以导出为规范.mc/mcz的能力。
 >
-> 本文只描述当前已实现架构。未来的多难度工程、可复用图层、评论、版本、移动兼容与通用核心方向见 [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md)；规划中的工程格式不会改变标准 `.mc` 导出边界。
+> 本文只描述当前已实现架构。本地工程、图层和审阅见第 14 节；后续 Timeline、图层剪贴板、通用事务、移动兼容与核心拆分方向见 [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md)。工程格式与标准 `.mc` 导出边界独立。
 
 ---
 
@@ -25,6 +25,7 @@
 11. [关键文件路径速查](#11-关键文件路径速查)
 12. [附录 A：Malody 引擎 MCZ 解析机制](#12-附录-amalody-引擎-mcz-解析机制)
 13. [附录 B：osu! Catch the Beat 谱面解析](#13-附录-bosu-catch-the-beat-谱面解析)
+14. [本地工程、身份和审阅](#14-本地工程身份和审阅)
 
 ---
 
@@ -1019,6 +1020,9 @@ src/
 ├── controller/
 │   ├── ChartChange.h                            # revision 与类型化变更集
 │   └── ChartController.h / .cpp               # 编辑控制器 + Undo/Redo
+├── document/
+│   ├── ChartSnapshot.h                        # 活动谱面的只读快照与运行期版本
+│   └── ChartDelta.h / .cpp                    # 数据/位置增量、逆操作与本地 JSON
 ├── render/
 │   ├── NoteRenderer.h                          # 音符渲染
 │   ├── RainRewardGenerator.h / .cpp             # Catch Rain 奖励点确定性缓存
@@ -1033,13 +1037,16 @@ src/
 
 ### 11.1a MainWindow 与主编辑区性能边界
 
-- `Chart Workspace` Dock 是稳定的顶层 workbench part：禁止关闭、移动和浮动，使用 `420x300` 最低内容尺寸，全部 splitter 祖先不可折叠，目标区域只接受左/右侧拆分。恢复 ADS 状态后会重新应用约束并修复旧布局中的关闭状态。普通面板可从顶部 `Panels` 或 `View -> Panels` 单独/批量恢复。
+- `Chart Workspace` Dock 是稳定的顶层 workbench part：禁止关闭、移动和浮动，使用 `420x300` 最低内容尺寸，全部 splitter 祖先不可折叠，目标区域只接受左/右侧拆分。恢复 ADS 状态后会重新应用约束并修复旧布局中的关闭状态。普通面板可从 `View -> Panels` 单独/批量恢复。
 - ADS 多窗口状态与经典四栏状态使用独立 Settings 键；经典状态包含 splitter 尺寸、Note/BPM/Meta 当前页和嵌入式插件区可见性，切换与重置不交叉覆盖。
 - `DockLayoutPolicy` 将 Timing、Playback Speed、Range、Mirror、Curve、Plugin Tools 和 Chart Statistics 标记为纵向紧凑内容；该限制只在主窗口停靠态生效，进入任意浮动容器后恢复原始 size policy/maximum height。普通编辑区吸收纵向空闲空间，因此关闭工具块不会把其余工具块或内部控件拉高。
-- `ChartController::chartChangeCommitted` 为每次成功加载或内容变更分配单调 revision，并携带 `notes/timing/metadata/resources` 类型化变更集；统计 stale-result 直接比较该 revision，画布、预览、密度、选择和 Rain Reward 按依赖域失效；无 revision 感知的旧消费者仍可使用 `chartChanged` 与 notes/BPM/meta 细分信号。
+- `ChartController::chartChangeCommitted` 为每次成功加载或内容变更分配单调 revision，并携带 `notes/timing/metadata/resources` 类型化变更集；画布、预览、密度、选择和 Rain Reward 按依赖域失效；无 revision 感知的旧消费者仍可使用 `chartChanged` 与 notes/BPM/meta 细分信号。
+- `ChartController::chart()` 只供同线程同步读取，已移除 `mutableChart()` 和画布的可变重载。需要脱离实时文档的数据通过 `snapshot()` 取得 `ChartSnapshot`：只读 Chart、捕获时文件路径及 `ChartReadVersion`。获取和复制快照共享 Qt 的 Note/BPM 容器，不重新组合或排序；后续编辑写时复制，旧快照可在控制器销毁后继续读取。快照只描述活动合成谱面，不取代未来工程级 `ComposedChartView`。
+- `ChartReadVersion` 包含当前数据 revision、各依赖域的最后修改 revision 与运行期来源令牌。`isCurrent(version)` 严格比较整个数据版本；带域筛选时只检查相应依赖。加载谱面会更换来源，同一路径重载及另一个控制器的相同 revision 均不能误认。令牌、版本和运行期 Note ID 不写入 `.mc`、工程或提案包；辅助评论操作若不改变谱面内容，不增加谱面 revision。
+- `ChartDelta` 按原始 Note 数据和出现位置匹配，只保存变化片段及变化的 BPM/元数据/资源域；事务内位置关系可用于绑定当前句柄，JSON 不含 Note UUID。`applyTransaction` 拒绝来源或完整版本不符的候选，校验编辑保护后单次提交。document/不透明插件/旧批量历史不再保存整张 Chart 的前后副本，Undo/Redo 在移动历史游标前验证前置数据，失败保留原状态。辅助工程快照和完整命令 journal 仍待迁移；本地 delta JSON 不属于 `.mc` 或 `.ccepr`，详见 [DOCUMENT_TRANSACTIONS.md](DOCUMENT_TRANSACTIONS.md)。
 - ChartCanvas 拖动以临时 Note 快照绘制，指针移动不修改 Chart；release 时经 `ChartController::moveNotes` 提交一个 Undo 命令。
 - Rain 绘制按开始拍有序索引查询，并用结束拍前缀最大值向前定位仍可能覆盖 viewport 的长 Rain。
-- `ChartStatsCalculator` 在 Qt Concurrent 工作线程上读取独立 Chart 快照和独立 `RainRewardGenerator`；`chartRevision` 不匹配的结果不会写回 UI。
+- `ChartStatsCalculator` 在 Qt Concurrent 工作线程上读取不可变 `ChartSnapshot` 和独立 `RainRewardGenerator`；主线程只保留轻量版本令牌，用 `notes|timing` 域检查后写回 UI。无关元数据编辑不废弃结果，音符、BPM、offset、撤销及切谱使旧结果失效。
 - `RainRewardGenerator::instance()` 只属于 UI 渲染缓存。后台分析必须使用独立实例，禁止跨线程共享 singleton。
 
 ### 11.1b Malody 引擎源码（格式相关）
@@ -1581,3 +1588,53 @@ osu.Game/
 └── Rulesets/Objects/Legacy/
     └── ConvertHitObjectParser.cs    // HitObject 文本行解析 + path/curve
 ```
+
+## 14. 本地工程、身份和审阅
+
+`src/document/`、`src/identity/`、`src/review/ReviewCore.*` 和 `CommentModel.*` 构成仅依赖 QtCore 的
+`CceReviewCore` 静态目标。`ReviewWorkspace` 连接现有控制器、画布和命令系统；导出与 QWidget 界面位于宿主运行库。
+
+### 工程和导出
+
+`Project` 持有工程、Difficulty 和 Layer。Layer 保存 Note；Difficulty 保存元数据、BPM List、音频内容哈希、
+LayerBinding、只读 Reference 和导出字段配置。Binding 的显示、锁定、透明度、顺序与是否导出分别控制。
+Reference 要求两个难度具有相同且非空的音频哈希，按源难度最新内容绘制，不计入当前谱面统计或导出。
+
+`.cceproj` 当前为 `CCEPROJECT1\n` 魔数与 Qt `qCompress` 压缩的 JSON，根 formatVersion 和工程 schemaVersion 均为 1。
+根数据包括 `project`、`review`、按 SHA-256 寻址的资源内容以及逻辑相对路径到资源哈希的映射。
+资源文件上限 128 MiB、总资源和包展开上限 256 MiB。读取先验证到临时值；写入使用 `QSaveFile`。
+资源先写入临时目录，完整后再发布。既有资源内容不匹配时拒绝覆盖。
+
+Note 的 `id` 仅供运行时选择和命令使用，不写入工程、提案或评论锚点。导出通过 `ExportPipeline` 将指定难度或
+图层投影为标准 `.mc`，资源使用带内容哈希的文件名，谱面文件最后原子发布；`.mcz` 打包复用该投影。
+插件 sidecar 和不参与编辑的额外字段不纳入本轮新格式。
+
+### 身份、评论和修订
+
+`identities.cceidentity` 存放于应用数据目录，保存本地身份 UUID、显示名及活动身份；它只负责署名。
+评论分别保存 commentId、threadId、作者 UUID/名称快照、正文、时间戳、解决状态、删除标记及位置/数据锚点。
+明确的 Move 记录和唯一匹配用于重新定位；无法确定时保留最后位置并标记缺失或歧义。
+卡片位置、展开/隐藏状态存于本机设置，不写入提案。
+
+`.ccepr` 当前为 `CCEPR1\r\n` 魔数与压缩 JSON，formatVersion 为 1；压缩包上限 64 MiB、展开上限 128 MiB、
+单资源上限 48 MiB。提案保存 proposalId、revisionId、父修订、祖先与历史、不可变基准快照和哈希、结构化变化、
+评论、审阅决定、事件及资源。变化覆盖 Note、Timing、元数据、导出配置、图层/难度结构和资源引用。
+拍点按规范化有理数比较，重复 Note/BPM 作为多重集合计数；Note 不通过持久 UUID 匹配。
+
+每条 Change 可包含可选的 `dependencyGroupId` 与 `dependsOn`，分别表示依赖分组和所需的其他变更 ID；旧包缺少这两个字段时仍可读取，新包会显式保存依赖关系。应用跨图表修改时，必须主动选中完整依赖组；该组所需资源与修改在同一事务中校验并提交。
+
+直接编辑的移动记录保留 Move 意图；普通删除和新建保持 Remove + Add，可由用户明确关联。
+原样重导保留 revisionId；修改后产生包含父修订的新版本。导入先合并修订和评论，保留并行分支的冲突供审阅；
+真正应用另行执行三方比较。已接受内容改变后重置审阅状态。选择性应用和资源验证在同一文档命令中完成，
+整批修改与评论定位可以一次撤销/重做。Rebase 显式更新基准并重新定位评论。
+
+### 界面与后台任务
+
+顶栏仅提供音符、BPM、元数据、曲线和审阅与图层工具页选择，不放快捷动作、下拉框或展开控件；
+具体操作集中于工具面板和菜单，并复用命令注册表。
+画布右键可在点击位置创建评论，默认 `Ctrl+Alt+M` 为当前选区或位置创建评论。属性编辑位于可滚动的音符面板。
+Base 与按住 Peek Base 为只读，切换视图保留视口。
+
+Diff 与恢复写入使用后台值快照；过期 Diff 结果按 generation 拒绝。恢复文件位于应用本地数据目录的
+`local-review/recovery.cceproj`，通过“恢复本地审阅工作区”打开。绘制使用按修订建立的图层/参考与区间索引；
+评论按线程缓存并仅查询可见范围，逐帧不读取设置或重建整个谱面。

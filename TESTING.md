@@ -1,7 +1,22 @@
 # Testing Guide
 
 > 适用版本：Beta v1.11.2 + Unreleased maintenance
-> 最后核对：2026-10-03
+> 最后核对：2026-10-23
+
+## 谱面合并
+
+`ChartMergeTests` 覆盖只读来源导入、倍速与变调/保调、BPM/delay/offset 和零间隔的音符时间一致性、Rain 尾点、MCZ 往返、分段图层预览工程、取消时原子输出，以及预览/关闭重开后保留窗口参数。
+运行 `ctest --test-dir build_clion_msvc -C Debug -R '^ChartMergeTests$' --output-on-failure`；Release 同理。
+
+2026-10-23 验证：Debug 完整 CTest **38/38**（574.53 s），Release **38/38**（120.00 s）。
+最终合并集在两种配置均为 **21 项通过**，补充了无 delay 的零间隔分度与真实 MainWindow 导入，
+确认预览创建独立图层、合并工作目录移除后音频和工程仍可保存；中文深色窗口截图检查通过。
+日志位于忽略的 `build/merge-*`。首次并行 Debug 构建遇到 `CL.exe` 退出 `0xc0000005`，
+单任务重建及后续两种配置构建通过，未改动编译器或优化设置；这不代表该编译器异常已被修复。
+
+## 红果判定回归（2026-10-22）
+
+`HyperfruitTests` 覆盖 Malody A–E 判的红果临界距离、默认 E、Pro、非整数毫秒、跨零 offset、四分之一帧容差、多押、Rain、反向移动，以及设置对话框的默认值、保存和取消、两个视图的红果缓存刷新。通过 `ctest --test-dir build_clion_msvc -C Debug -R "^(HyperfruitTests|core_minimal_tests|utils_settings_transfer_tests)$" --output-on-failure` 运行。
 
 ## 测试目标
 
@@ -11,6 +26,110 @@
 - 同时验证 Debug 与 Release，避免只在单一配置中通过。
 
 ## 自动化目标
+
+### 只读文档快照
+
+`ChartSnapshotTests` 覆盖快照只读接口、控制器销毁后的数据保留、显式副本隔离、
+音符/BPM/元数据/资源域失效、Undo/Redo、文档事务、同路径重载、跨控制器来源、
+无效加载与辅助评论操作、后台读取，以及未启用本地身份/工程时的标准 `.mc` 保存与重开。
+5k/20k/100k 用例检查 1,000 次捕获共享底层 Note/BPM 存储并记录耗时，随后验证编辑不会修改旧快照。
+此快照只覆盖活动谱面；工程合成索引、工程域事务/逆操作与完整历史内存基准仍在 TODO 中。
+
+2026-10-21 验证：Release 完整 CTest 35/35（110.78 s），Debug 35/35（522.51 s）；
+两种配置的快照集均为 15 项通过（含 setup/cleanup 和三种规模）。Windows 原生窗口下，
+两种配置的快捷键集均为 19 项、网格/分组拖动集均为 12 项通过。
+Release 另运行 `realChartCopyRoundTripAndGui`：4,430 Note 的真实谱面只在临时副本中加载，
+验证无本地身份的旧 `.mc` 编辑保存、多轮提案回传、评论解决、应用/撤销及导出；
+原谱面与资源的 SHA-256 保持一致。构建、CTest 与定向输出保存在忽略的 `build/snapshot-*` 中。
+
+### 活动谱面的增量事务
+
+`ChartDeltaTests` 使用独立字段序列化作为结果校验，覆盖全量可编辑元数据、BPM 原始拍点、
+Note 原始顺序/重复数据/空句柄/无关字段、可空字符串、正反向序列化及绑定回放。
+损坏格式、非法目标、错误前置状态、过期或不同来源版本、编辑保护期间的重入修改均会被拒绝；
+故障注入检查 Undo/Redo 预检失败不移动历史、不修改辅助状态或 revision。
+另有固定种子的 200 轮混合编辑回放及 5k/20k/100k 检查：16 次远距离移动仅保留 32 个 Note 镜像，
+每次记录小于 1.8KB；真实 Project 解码重建所有句柄后，单个 Note 编辑仍只保留两个数据镜像，
+运行期句柄映射与序列化数据分开。详情见 [DOCUMENT_TRANSACTIONS.md](docs/DOCUMENT_TRANSACTIONS.md)。
+
+2026-10-23 当前基线验证（包含红果判定修复）：Debug 完整 CTest 37/37（562.37 s），
+Release 37/37（115.79 s）。Windows 原生快捷键在两种配置下均为 19 项、拖动均为 12 项通过；
+补充窗口激活等待后重跑了两种配置的原生快捷键集。
+Release 真实谱面副本复核 13.924 s，通过无身份旧 `.mc` 保存、多轮提案回传、评论、
+应用/撤销和导出；4,430 Note 的来源谱面及资源哈希保持不变。
+完整输出见忽略的 `build/delta-oct23-*`，构建输出见 `build/delta-resumed-build-*`。
+
+这些用例不代表完整 Workspace 长历史的内存验收：辅助 ProjectBundle 快照、原生命令 journal
+以及完整版本信封/持久恢复回放仍有后续工作。
+
+构建诊断保留：本轮 MSVC 14.51 Release 构建曾在未修改的宿主源码上出现编译器内部异常
+（`CL` 退出 `0xc0000005`，另一次在 Qt `qnamespace.h` 报 C1001）。改为逐文件单任务后，
+同一失败源文件使用相同编译选项直接编译成功，后续完整增量构建及 Release 回归通过。
+未确定根因，也未更换工具链或禁用优化；该诊断不等同于已永久修复编译器问题。
+构建输出及定向测试保存在忽略的 `build/delta-*` 中。
+
+2026-10-21 Debug 完整回归曾为 33/36，`ChartDeltaTests`、`ReviewCoreTests` 和
+`core_minimal_tests` 出现进程访问异常；第二轮为 35/36，仅增量集再次异常。
+单独运行分别通过 32、18、143 项，增量集在相同 CTest 启动方式下也通过；
+普通/禁用调试堆的调试器启动均正常退出，未捕获到可用于定位首次异常的栈。
+这些失败记录仍保留，根因未定，不能把单次重跑通过解释成已经修复。
+
+原生快捷键复核另曾有一次 BPM 本地撤销断言失败，单独重跑通过。夹具原先只固定等待
+30 ms，现于 Windows 下先等待实际窗口激活，再发送按键；早期失败输出同样保留。
+
+### 本地工程与审阅
+
+`LocalIdentityTests`、`DocumentModelTests`、`ProjectStorageTests`、`ReviewCoreTests`、
+`CommentModelTests`、`ReviewInspectorTests`、`ExportPipelineTests`、`ReviewWorkspaceTests`
+覆盖本地署名、共享图层、难度与引用、精确 Note/BPM 差异、元数据与导出配置、
+评论锚点、修订分叉与回传、包损坏回滚、资源校验、导出及应用/撤销。
+所有写入使用临时工程与资源，默认不访问安装实例的谱面库。Windows GUI 夹具使用
+Qt minimal 平台；可用 `ctest --test-dir build -C Debug -R 'Review|DocumentModel|ProjectStorage|CommentModel|LocalIdentity|ExportPipeline' --output-on-failure` 单独运行。
+
+本轮还覆盖未导出 Move 草稿的保存/恢复、资源替换冲突、选择性应用 Sound 资源与整批撤销、
+重开后 Sound 路径保持可移植、已接受内容改变后重新审阅、事件分支冲突及不可变修订 ID。
+`ui_shortcut_tests` 验证语言切换后命令唯一、顶栏仅有页签、面板内提案入口仍可使用、评论快捷键改绑、属性面板位置，
+以及工程编辑与旧 `.mc` 恢复写入的隔离。`ui_spectrum_overlay_tests` 验证播放跟随加载后续频谱。
+
+`ReviewCoreTests` 在 5k/20k/100k Note 上检查多重集合 Diff 与整批删除/合并；
+`ReviewWorkspaceTests` 在相同规模上绘制多个图层、活动 Reference、2,000 个评论线程（含回复），
+并检查属性查看及列表。2026-10-19 的 Release 合成夹具连续绘制 12 帧分别耗时 17/22/58 ms，
+仅作为可见区绘制的回归证据，不等同于带音频的完整谱面播放性能指标。
+
+可设置 `CCE_REVIEW_SCREENSHOT_DIR` 并直接运行 `ReviewWorkspaceTests reviewPanelRendersAndKeepsTheViewport`、
+`ShortcutTests toolbarOnlySwitchesToolPagesAndCommentShortcutRemainsRebindable` 导出本地检查截图；
+Windows 外观检查使用 `QT_QPA_PLATFORM=windows`，需要能找到 Qt 的平台插件。
+
+2026-10-20 验收记录：Release 与 Debug 完整 CTest 均为 34/34，通过耗时分别为 111.55 s、529.49 s。
+最新 GUI/副本、窗口销毁后 Undo 回调及频谱播放跟随调整另外执行定向检查。
+原生快捷键集在两种配置下均为 19 项通过，ReviewCore 为 18 项通过。
+原生 ReviewWorkspace 在启用真实副本后为 30 项通过（Debug 107.15 s）；原生频谱叠加集为 9 项通过。
+默认 CTest 不读取本机谱面，真实副本用例需显式设置下述环境变量后另行运行。
+
+保留早期失败记录：Debug 首轮曾为 33/34，ReviewCore 大谱面用例出现一次 `0xc0000005`，
+崩溃处理器仅给出 `SearchPathW` 附近的次级栈。单独重跑 5k/20k/100k、完整 Core 及后续完整 CTest 均通过，
+该次 Core 异常仍没有稳定复现或确定根因。
+另以 AddressSanitizer 检查 ReviewCore 的正常/冲突/包校验及 5k/20k 用例，15 项通过且未报告内存错误；
+ASan 的 100k 用例触发了 QtTest 的时限，不能计为 ASan 通过证据。未据此将首次崩溃归因于业务代码、编译器或硬件。
+
+原生窗口夹具另曾在连续销毁顶层 Canvas 后处理显示事件时崩溃，审阅与原有频谱夹具均可遇到。
+独立调试器、DLL 导出跳转解析及反汇编将位置定位为 Qt 6.10.2 `processExposeEvent` 对失效窗口数据的访问；
+不能把崩溃处理器给出的最近导出名 `QTextCharFormat::setFontLetterSpacingType` 当作实际函数。
+对应的 [Qt 源码](https://github.com/qt/qtbase/blob/v6.10.2/src/gui/kernel/qguiapplication.cpp#L3149) 用于核对事件处理路径，
+并不单独证明缺陷归属。夹具现于对象仍存活时隐藏窗口并完成原生事件处理，复现用例及原生频谱整组通过；
+恢复夹具清除自身测试目录中的旧备份，避免误读上一轮 100k Note 数据。生产代码没有加入等待或嵌套事件循环。
+
+副本验收可设置 `CCE_REVIEW_SOURCE_CHART` 为获准只读的真实 `.mc`。夹具先复制源文件夹中的文件到临时目录，
+加载器和所有编辑/保存操作只接触副本，结束时逐文件复核源目录 SHA-256。
+本机 `Catch the Glory / Deluge Lv.24`（4,430 Note）已通过旧 `.mc` 无身份编辑保存、
+第二难度导入与整谱 Reference、元数据/BPM/多选 Move、评论、GUI 接受与应用、整批撤销重做、
+解决状态回传、二次导出及 `.mc` 导出。来源谱面与资源的 SHA-256 保持不变。
+另外覆盖共享图层继续/独立复制/取消、无身份图层 GUI、隐藏与导出选项独立、资源失败时内存/审阅/撤销栈不变、
+提案另存难度保留配置并隔离同名资源、显式依赖组及分支合并后重建依赖、过期后台 Diff 不发布、
+评论卡片显示位置不改锚点和双击打开评论页、文本框快捷键兼容、销毁审阅窗口后回调失效保护。
+整谱 Reference 使用预计算时间映射；该副本的 Release 完整夹具由约 108 s 降至约 17 s。
+700 px 宽的审阅与图层窗口截图已检查，元数据列显示实际字段名，导出字段差异显示字段清单。
+真实谱面副本检查属于 Qt 原生窗口自动交互与截图检查；不能替代用户对全部手感和长时间使用的评价，功能仍标为实验性。
 
 ### `CatchChartEditorTests`
 
@@ -111,6 +230,29 @@ ctest --test-dir build -C Debug -R ui_docking_layout_tests --repeat until-fail:2
 
 ## Release 播放性能基准
 
+BPM 高级编辑的定向检查为 `AnalysisEditorTests` 中的
+`bpmAdvancedWindowKeepsMainEditorInteractive`、`bpmAdvancedMeasurementAndModelessApply`、
+`bpmAdvancedPreviewDoesNotBlockAndDropsStaleJobs`。覆盖真实入口、主区继续放置音符、
+精确拍点、非模态确认与导出、一次撤销、后台任务过期及关闭不等待。
+2026-10-18 的三个用例通过，记录在 `artifacts/bpm-advanced-final-tests.txt`；
+既有手动测量及插值撤销两个用例也定向通过，未运行完整回归或 AutoTiming 准确度测试。
+
+AE 生成草稿的定向检查可直接选择 `AnalysisEditorTests` 中的
+`transientDraftUsesChartTimingAndFiltersWithoutMutation`、
+`transientGenerationPreviewsCheckedNotesAndCommitsOneUndo` 和
+`transientGenerationRejectsStaleSourceAndHonorsCancelBinding`。
+这些用例使用人工频谱/瞬态夹具，覆盖网格与 offset、逐项勾选、双窗口只读预览、
+一次撤销、源文件替换和取消键改绑，不启动 AutoTiming 准确度或实曲测试。
+2026-10-18 的 Debug 六项定向检查及一次布局复核通过，记录在
+`artifacts/ae-generation-tests.txt` 和 `artifacts/ae-generation-layout-check.txt`。
+
+频谱优化另有 `analysis_spectrum_tests`、`analysis_transient_tests` 和
+`ui_spectrum_overlay_tests`；AE 与主编辑区共存由 `analysis_editor_tests` 覆盖。
+主编辑区频谱的播放对比可在以下命令中加入 `--benchmark-spectrum-overlay`，
+该选项不修改用户偏好。需要静音时追加 `--benchmark-mute`，音乐和打击音效均静音，
+播放计时与性能测量继续运行；追加 `--benchmark-window-size 2560x1440` 可验证大窗口。
+缓存与更新边界见 [频谱实现](docs/SPECTRUM_PIPELINE.md)。
+
 主编辑区或 MainWindow 高频路径有改动时，使用实际谱面运行内置基准。开发机的主要
 压力用例是 `Yugami - Nyanpasu- Lv.16`（4,461 notes、1 BPM）：
 
@@ -150,6 +292,68 @@ build\Release\CatchChartEditor.exe `
 `visual.scroll_step_change_pct`。音频后端首个位置样本可以延迟到达，但画面帧在等待期间
 必须继续推进，首次样本不得直接重设显示时钟。0.1×、0.25×、1×、2×、10× 至少各跑一次。
 
+## Note 音与播放时钟回归
+
+`audio_playback_timing_tests` 验证本地音频首段不丢失、解码帧粒度不会触发假时钟
+重同步、画面尚未确认绘制时音效仍继续，以及播放中跳转不集中补播跳过的 Note。
+测试使用临时 WAV 和隔离设置，不写入用户谱面。
+
+```powershell
+cmake --build build_clion_msvc --config Debug --target PlaybackTimingTests
+ctest --test-dir build_clion_msvc -C Debug -R audio_playback_timing_tests --output-on-failure
+```
+
+Windows / Qt 6.10+ 可启用独立诊断工具，记录解码帧 PTS、音频位置、预测时钟、每次
+音效提交和系统输出回环中的测试音起点。回环只保存检测时刻，不保存原始系统音频。
+该工具不加入默认构建或 CTest，不能用其音调检测结果自动校准 offset。
+密集场景可使用 `--interval-ms 20 --hit-file resources/note_sounds/kickwav.wav
+--muted --no-loopback`；加上 `--stall-ms 150` 单独检查 GUI 阻塞恢复后的过期音效合并。
+JSON 的 `voice_restart_count` 与逐次提交时刻用于区分声部满载和集中补播。
+
+```powershell
+cmake -S . -B build_clion_msvc -DCATCHEDITOR_BUILD_AUDIO_PROBE=ON
+cmake --build build_clion_msvc --config Debug --target NoteSoundTimingProbe
+build_clion_msvc\Debug\NoteSoundTimingProbe.exe --output artifacts\note-normal.json
+build_clion_msvc\Debug\NoteSoundTimingProbe.exe --paint-delay-ms 90 --output artifacts\note-paint90.json
+build_clion_msvc\Debug\NoteSoundTimingProbe.exe --speed 0.1 --no-loopback --output artifacts\note-slow.json
+python tools\perf\note_sound_probe_report.py artifacts\note-normal.json artifacts\note-paint90.json
+```
+
+`--streaming` 复现旧的 LowLatencyStreaming 输入配置；`--chart <path> --start-ms <ms>
+--no-loopback` 只读解析现有谱面及其音乐。工具读取真实谱面时只检查时间链路，不能
+通过音乐与测试音的混合检测来宣称真实声音已精确对齐。
+
+`submission_lateness_wall_ms` 只表示相对预测时钟的提交误差，不能等同于听感延迟。
+完整原因与证据见 [Note 音时序排查](docs/NOTE_SOUND_TIMING_INVESTIGATION.md)。
+
+## 音频导入与整曲测时回归
+
+`audio_bpm_detector_file_tests` 真实执行异步 WAV 转 OGG，再以新建谱面的整曲时长
+请求调用异步 BPM 检测；同时验证不同采样率、区间裁切和超出 64 位采样位置的
+错误返回。旧代码会在第一个整曲请求上触发 `qnumeric.h:516` 断言。
+
+```powershell
+cmake --build build_clion_msvc --config Debug --target BpmDetectorFileTests
+ctest --test-dir build_clion_msvc -C Debug -R audio_bpm_detector_file_tests --output-on-failure
+```
+
+默认仅使用临时文件。可设置 `CCE_BPM_IMPORT_AUDIO` 为本机已有音乐路径，附加只读
+整曲检测；该文件不会被转换、覆盖或修改。原因追踪见
+[音频导入崩溃排查](docs/AUDIO_IMPORT_CRASH_INVESTIGATION.md)。
+
+## 拖动吸附与资源复制回归
+
+`ui_grid_drag_tests` 验证放置吸附与拖动吸附的独立组合、单个/整组选中音符拖动、
+组内非网格间距的保留、单步撤销及两个网格设置入口。
+`file_resource_copy_tests` 验证已有目标音频不误报、缺失资源仍告警、Unicode 音频
+播放副本的创建/重载/释放，以及正式保存时复制工作目录中的背景和音效。
+可选设置 `CCE_RESOURCE_COPY_AUDIO` 指向已有 Unicode 路径音乐，附加只读播放验证。
+
+```powershell
+cmake --build build_clion_msvc --config Debug --target GridDragTests ResourceCopyTests SettingsTransferTests
+ctest --test-dir build_clion_msvc -C Debug -R "ui_grid_drag_tests|file_resource_copy_tests|utils_settings_transfer_tests" --output-on-failure
+```
+
 ## 手工回归清单
 
 自动化测试不替代以下真实交互：
@@ -166,7 +370,7 @@ build\Release\CatchChartEditor.exe `
 - 在新旧两种布局中验证 Playback Speed 的六个快捷按钮与 `0.1×–10×` 手动输入，确认输入边界、Playback 菜单双向同步、播放中切速和重启持久化；
 - 关闭 `View -> Enable Floating Windows`，确认界面恢复为引入 ADS 前的固定 Navigation / Preview / Workspace / 右编辑栏四栏布局，Note/BPM/Meta 只在同一右栏切换，没有任何 ADS 标题、标签或工具拆分块；右栏滚轮及纵向滚动条有效且始终没有横向滚动条；
 - 先分别设置经典模式的四栏宽度、Note/BPM/Meta 页和 Plugin Tools 开关，以及多窗口模式的停靠/浮窗/关闭状态；反复切换并重启，确认每种模式只恢复自己的最后状态，互不手动同步或覆盖；
-- 多窗口模式尝试关闭 `Chart Workspace`，确认主编辑区没有关闭入口；关闭其他面板后，分别从顶部 `Panels`、`View -> Panels` 和 `Reopen All Closed Panels` 恢复；
+- 多窗口模式尝试关闭 `Chart Workspace`，确认主编辑区没有关闭入口；关闭其他面板后，从 `View -> Panels`、对应工具页和 `Reopen All Closed Panels` 恢复；顶栏仅显示工具页切换；
 - 依次关闭 Timing、Playback Speed、Range、Mirror、Curve、Plugin Tools 或 Chart Statistics，确认相邻紧凑模块不被拉高；剩余空间由普通编辑面板吸收，纯工具浮窗中则表现为空白；
 - Navigation、Preview、Note、BPM、Meta 及插件面板的停靠、拆分、浮动、关闭、无需重启恢复和重启持久化；BPM/Meta 等完整面板另验证标签组合；
 - 关闭主窗口后确认 GUI、日志终端、外部插件子进程和主进程均结束；
@@ -188,7 +392,15 @@ build\Release\CatchChartEditor.exe `
 
 ## 常见失败
 
+- Windows 本机的 MSVC 14.51.36231 曾在 Debug 的 `<functional>`、UCRT 等不同位置报 `C1001`，也曾直接退出编译进程；14.44.35207 已通过本项目 Debug/Release 验证。若已安装该工具集，可用下面的命令重建 CMake 配置，再执行正常编译。`--fresh` 保留源码和输出目录，只重新生成构建配置；本地 VS Code 的 `cmake.toolset` 及 CMake preset 的 `toolset` 也应同步指定 `v143,version=14.44.35207`，避免 IDE 又选回默认工具集。
+
+  ```powershell
+  cmake --fresh -S . -B build -G "Visual Studio 18 2026" -A x64 -T "v143,version=14.44.35207" -DCMAKE_PREFIX_PATH=C:/Qt/6.10.2/msvc2022_64 -DBUILD_TESTING=ON
+  cmake --build build --config Debug --target CatchChartEditor --parallel 2
+  ```
+
 - `0xc0000135`：通常是 Qt DLL 不在测试进程 PATH；先确认 CMake 配置使用了正确 Qt。
+- 本机在 14.44 下也出现过不同旧文件中的随机 `C1001` / `0xc0000005`。2026-10-18 的相关 Debug 目标在仅限制构建子进程 CPU 亲和性、逐文件串行编译后通过；没有修改系统全局设置，也没有据报错位置改写业务代码。这只是本轮构建规避，不能据此确定工具链或硬件根因。构建记录见 `artifacts/spectrum-blocks-debug-build-affinity.log`。
 - UI 测试输出 `QWindowsWindow::setGeometry ... +0+0`：检查预览到真实浮动窗口是否丢失全局坐标。
 - 测试无输出但返回非零：直接运行对应可执行程序查看 stderr，例如 `build\Debug\DockingLayoutTests.exe`。
 - 只在 Release/Debug 失败：分别清查未初始化状态、断言、副作用时序和优化相关未定义行为。

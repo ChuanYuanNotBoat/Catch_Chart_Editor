@@ -4,7 +4,7 @@
 >
 > 制定日期：2026-09-10
 >
-> 最后补充：2026-09-11
+> 最后补充：2026-10-23
 >
 > 当前实现基线：Beta v1.11.2 后续维护线（`v2-main`）
 >
@@ -71,6 +71,7 @@ CCE 的长期目标不是只编辑一份 `.mc` 文件，而是成为面向 Catch
 - 备份和版本历史采用 Git-like 语义，但不要求内部真正依赖 Git。
 - 内部工程格式可以扩展或变化，只要始终能够导出标准 `.mc`。
 - 底层能力应尽量可供其他制谱器复用。
+- 本地身份、评论、工程、图层和审阅均为可选能力；旧 `.mc` 直接打开、编辑和保存不要求启用它们。可选性不削减新功能的完整范围。
 
 ### 3.2 优先级
 
@@ -112,7 +113,7 @@ CCE 的长期目标不是只编辑一份 `.mc` 文件，而是成为面向 Catch
 
 - 绑定 Normal/Sound/Rain 和 `0..512` 的所谓通用模型。
 - 每次编辑保存整张 Chart 前后副本的历史实现。
-- 可绕过 revision/undo 的 `mutableChart()`。
+- 可绕过 revision/undo 的 `mutableChart()`（CCE 当前画布入口已移除，不能从旧核心重新引入）。
 - 按数组下标拉取快照、每次 revision 全量刷新客户端的 FFI 访问方式。
 - 旧 Qt transitional 源码副本。
 - 将文档或局部补丁更新等同于完整桌面语义同步的基线描述。
@@ -184,7 +185,7 @@ Difficulty 自身不复制共享图层中的 Note。
 - 默认只读。
 - 不属于当前 Difficulty 的合成内容。
 - 永远不会被无意导出。
-- 可以将选中 Note 复制/提取到当前工程的某个图层，提取时生成新的持久 ID。
+- 可以将选中 Note 复制/提取到当前工程的某个图层，提取时生成新的运行期选择句柄；不保存永久 Note ID。
 
 ### 5.7 Export Profile
 
@@ -279,13 +280,13 @@ Document + Command + Read Model
 
 ### 7.1 持久实体标识
 
-工程内的 Project、Difficulty、Timeline、Layer、Note、Comment 和 Version 都使用持久 ID。标准 `.mc` 不携带编辑器 ID；首次导入时生成，之后保存在工程格式中。
+Project、Difficulty、Timeline、Layer、Comment 和 Version 使用持久 ID。Note 不引入永久身份：跨版本根据数据匹配，PR 编辑通过操作记录表达显式 Move。运行期选择使用的 Note ID 不写入工程或提案包。具体契约以 [本地审阅实施计划](LOCAL_REVIEW_IMPLEMENTATION.md) 为准。
 
 要求：
 
 - ID 不因排序、保存、重启或切换难度变化。
-- 复制 Note 生成新 ID；移动 Note 保留 ID。
-- 共享图层被多个难度引用时不复制其 Note ID。
+- 运行期复制 Note 生成新的选择句柄，移动保留句柄；句柄不持久化。
+- 共享图层只保存一份 Note 数据，跨版本依靠位置和内容匹配。
 - 旧 sidecar 关联数据导入时需要明确的匹配和迁移报告。
 
 ### 7.2 精确时间
@@ -348,10 +349,10 @@ ChartEntity
 - 始终存在一个活动 Difficulty 和一个活动可编辑 Layer。
 - 可跨多个未锁定图层框选和批量编辑。
 - 新建 Note 默认进入活动图层。
-- “移动到图层”保留 Note ID；“复制到图层”生成新 ID。
+- “移动到图层”保留运行期选择句柄；“复制到图层”生成新句柄，均不写入文件。
 - 复制/剪切/粘贴的剪贴板记录来源 Difficulty、Layer、Timeline、相对拍点和对象类型；粘贴目标默认是活动图层，也可在确认前改选目标图层。
 - 剪切、跨层移动和跨 Difficulty 转移必须是单个原子事务：目标写入失败时源内容不删除，Undo/Redo 一步恢复完整操作。
-- 跨 Difficulty 复制生成新 ID；跨 Difficulty 移动仅在同一工程内保留 ID，并同步迁移评论/选择等引用关系。
+- 跨 Difficulty 复制产生独立内容；移动需同步迁移评论/选择关系，不引入持久 Note ID。
 - 来源与目标 Timeline 不同时必须打开重映射预览，按绝对音频时间对齐并显示量化误差，禁止静默按拍号直接粘贴。
 - 锁定图层仍可显示和参与播放，但不能被编辑命令修改。
 - Solo/可见性只影响视图，是否导出由 Export Profile 独立决定。
@@ -480,7 +481,7 @@ Review Thread 至少包含：
 
 锚点同时保存：
 
-- 目标 Note ID 列表。
+- 目标图层、Note 内容快照及匹配状态；不保存永久 Note ID。
 - 时间点或时间范围。
 - 可选 X 点或 X 范围。
 - 创建时的范围快照。
@@ -707,9 +708,9 @@ osu!ctb 支持必须区分：
 - 引入强类型 `EntityId/LayerId/DifficultyId/TimelineId`。
 - 使用规范化有理数进行拍点比较和排序。
 - 引入单调 revision 与 typed change set。
-- 将选择从数组下标迁移到 EntityId。
-- 建立事务/逆操作模型，逐步替代完整 Chart 快照。
-- 增加只读 snapshot/read model，关闭 UI 直接取得 mutable Chart 的路径。
+- 选择已使用运行期 Note 句柄，不保存永久 Note ID；持久实体 ID 契约另行收敛。
+- 活动 Chart 的 document/不透明插件/旧批量命令已改用可序列化 `ChartDelta` 与逆操作，原始数据与顺序往返经过测试；辅助 `ProjectBundle` 状态、原生命令 journal 和持久恢复回放仍需继续迁移。详见 [DOCUMENT_TRANSACTIONS.md](DOCUMENT_TRANSACTIONS.md)。
+- 已增加活动谱面的只读 `ChartSnapshot`/`ChartReadVersion`，移除 UI 的 mutable Chart 入口；工程级 read model 与合成索引继续在 M2 收敛。
 - 按职责拆出 MainWindow 协调器。
 - 在同仓库建立无界面 CMake target。
 
@@ -941,15 +942,15 @@ osu!ctb 支持必须区分：
 
 ## 21. 下一步执行清单
 
-下一轮实现从 M1 开始，不直接先做图层 UI：
+本仓库已实现本地审阅与图层的首个可用闭环，包括运行期 Note ID 选择、单 `.mc` 导入为 Base Layer、Project/Layer 合成与标准 `.mc` 导出、评论/提案、离线包和合并基础。具体验收状态以 [ENGINEERING_TODO.md](ENGINEERING_TODO.md) 及对应测试为准；本节不再把已落地的图层 UI 或选择迁移列作未来步骤。
 
-1. 为持久 ID、精确 Beat、revision、typed change set、图层剪贴板和 Meta Field Policy 编写小型 RFC 与测试契约。
-2. 将 SelectionController 从索引身份逐步迁移为 Note ID，同时保留渲染索引缓存。
-3. 建立无界面事务接口和只读 Document Snapshot，先适配当前单 Chart。
-4. 将 MainWindow 的会话/文档职责迁出一个最小切片。
-5. 增加 5k/20k/100k 操作与历史内存基准。
-6. 设计单 Difficulty + Base Layer 的兼容模型和 `.mc` 投影测试。
-7. 完成上述门槛后再开始用户可见的图层面板。
+后续按 M1–M4 的退出门槛继续收敛：
+
+1. 在已有 Chart revision、typed change set 和 `ChartDelta` 基础上，继续补齐持久实体 ID、工程域事务/逆操作、可序列化命令 journal 与持久基准/恢复信封；Note ID 继续只作运行期句柄。
+2. 活动谱面的版本化只读 Snapshot 与 mutable Chart 入口关闭已完成；后续扩展工程级 read model，并继续拆分 MainWindow 职责。
+3. 补齐 Timeline 与 Meta Field Policy、项目格式迁移框架、revision 驱动的合成索引和 5k/20k/100k 操作及历史内存基准。
+4. 完成图层剪贴板、跨层/跨难度批量事务、Difficulty 生命周期、Layer Group、多谱提取和导出预览等完整工作流。
+5. 完成自动快照、命名 Checkpoint、恢复与长历史验证；确认事务应用、Undo/Redo 和故障恢复的退出门槛。
 
 每项落地都应同步更新 [ENGINEERING_TODO.md](ENGINEERING_TODO.md)、[history.md](history.md)、测试说明和相关架构参考。
 

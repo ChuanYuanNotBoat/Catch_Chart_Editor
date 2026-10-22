@@ -1,7 +1,9 @@
 // MainWindow.cpp - Main window implementation.
 #include "MainWindow.h"
+#include <QTemporaryDir>
 #include "ui/analysis/AnalysisEditor.h"
 #include "MainWindowPrivate.h"
+#include "review/ReviewWorkspace.h"
 #include "app/Application.h"
 #include "app/SessionPathUtils.h"
 #include "plugin/PluginManager.h"
@@ -18,6 +20,7 @@
 #include "ui/LeftPanel.h"
 #include "ui/ChartStatsPanel.h"
 #include "ui/dialogs/DetailedStatsDialog.h"
+#include "ui/dialogs/ChartMergeDialog.h"
 #include "model/ChartStatistics.h"
 #include "ui/dialogs/LogSettingsDialog.h"
 #include "controller/ChartController.h"
@@ -151,6 +154,27 @@ namespace
         return NativeWindowTheme::themeColorsFor(bg).text;
     }
 
+    void applyFloatingWindowPalette(
+        QWidget *window, const NativeWindowTheme::ThemeColors &theme)
+    {
+        if (!window)
+            return;
+
+        QPalette palette = window->palette();
+        palette.setColor(QPalette::Window, theme.window);
+        palette.setColor(QPalette::WindowText, theme.text);
+        palette.setColor(QPalette::Base, theme.base);
+        palette.setColor(QPalette::AlternateBase, theme.window);
+        palette.setColor(QPalette::Text, theme.text);
+        palette.setColor(QPalette::Button, theme.button);
+        palette.setColor(QPalette::ButtonText, theme.text);
+        palette.setColor(QPalette::Highlight, theme.highlight);
+        palette.setColor(QPalette::HighlightedText, theme.text);
+        window->setPalette(palette);
+        window->setAttribute(Qt::WA_StyledBackground, true);
+        window->setAutoFillBackground(true);
+    }
+
     void applyApplicationPaletteFor(const QColor &background)
     {
         const auto theme = NativeWindowTheme::themeColorsFor(background);
@@ -257,6 +281,7 @@ namespace
 
         return QString(
                    "ads--CDockContainerWidget, ads--CDockAreaWidget, ads--CDockWidget { background: %1; }"
+                   "ads--CFloatingDockContainer { background: %1; }"
                    "ads--CDockSplitter::handle { background: %6; }"
                    "ads--CDockSplitter[compactToolStack=\"true\"]::handle { background: transparent; }"
                    "ads--CDockAreaTitleBar { background: %1; border-bottom: 1px solid %7; }"
@@ -973,14 +998,16 @@ namespace
         return QDir::cleanPath(QDir(chartDir).filePath(resourceFile));
     }
 
-    void copyReferencedExternalResources(const QString &sourceChartPath, const QString &workingChartPath)
+    void copyReferencedExternalResources(const QString &sourceChartPath, const QString &targetChartPath)
     {
-        if (sourceChartPath.isEmpty() || workingChartPath.isEmpty())
+        if (sourceChartPath.isEmpty() || targetChartPath.isEmpty())
             return;
 
         const QString sourceChartDir = QFileInfo(sourceChartPath).absoluteDir().absolutePath();
-        const QString workingChartDir = QFileInfo(workingChartPath).absoluteDir().absolutePath();
-        const QString sessionRoot = workingSessionDirFromWorkingPath(workingChartPath);
+        // This is used both for imports into a session and for saves back to
+        // a library/Save As directory. Constrain copies to the chosen chart's
+        // directory; a save destination need not belong to a recovery session.
+        const QString targetChartDir = QFileInfo(targetChartPath).absoluteDir().absolutePath();
         const QStringList resources = collectReferencedResources(sourceChartPath);
         for (const QString &resource : resources)
         {
@@ -1019,10 +1046,10 @@ namespace
                 continue;
             }
 
-            const QString targetAbs = QDir::cleanPath(QDir(workingChartDir).absoluteFilePath(targetRelative));
-            if (!SessionPathUtils::isPathInsideRoot(sessionRoot, targetAbs))
+            const QString targetAbs = QDir::cleanPath(QDir(targetChartDir).absoluteFilePath(targetRelative));
+            if (!SessionPathUtils::isPathInsideRoot(targetChartDir, targetAbs))
             {
-                Logger::warn(QString("Skip copying referenced resource outside working session root: %1").arg(resource));
+                Logger::warn(QString("Skip copying referenced resource outside target chart directory: %1").arg(resource));
                 continue;
             }
 
@@ -1502,7 +1529,6 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     Logger::info("MainWindow constructor called");
 
     d->chartController = chartCtrl;
-    d->statsSourceRevision = chartCtrl ? chartCtrl->revision() : 0;
     d->selectionController = selCtrl;
     d->playbackController = playCtrl;
     d->skin = skin;
@@ -1604,7 +1630,8 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     connect(d->statsWatcher, &QFutureWatcher<ChartStatistics>::finished, this, [this]()
             {
         const bool resultIsCurrent = d->chartController &&
-                                     d->statsFutureRevision == d->statsSourceRevision;
+            d->chartController->isCurrent(d->statsFutureVersion,
+                ChartChangeType::Notes | ChartChangeType::Timing);
         if (resultIsCurrent && d->statsPanel)
         {
             ChartStatistics displayStats = d->statsWatcher->result();
@@ -1670,7 +1697,6 @@ MainWindow::MainWindow(ChartController *chartCtrl,
         const bool timingChanged = change.affects(ChartChangeType::Timing);
         if (notesChanged || timingChanged)
         {
-            d->statsSourceRevision = change.revision;
             RainRewardGenerator::instance().invalidate();
         }
         if (notesChanged && d->selectionController && d->chartController &&
@@ -1705,7 +1731,10 @@ MainWindow::MainWindow(ChartController *chartCtrl,
                 if (!chartPath.isEmpty() && !meta.audioFile.isEmpty())
                 {
                     const QString chartDir = QFileInfo(chartPath).absolutePath();
-                    const QString audioPath = QDir(chartDir).filePath(meta.audioFile);
+                    const QString explicitAudioSource = d->chartController->chart()->audioSourceFullPath();
+                    const QString audioPath = explicitAudioSource.isEmpty()
+                                                  ? QDir(chartDir).filePath(meta.audioFile)
+                                                  : explicitAudioSource;
                     if (QFile::exists(audioPath))
                     {
                         d->playbackController->audioPlayer()->load(audioPath);
@@ -1794,11 +1823,31 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     QTimer::singleShot(0, this, [this]()
                        { tryRecoverPreviousSession(); });
 
+    d->reviewWorkspace = new CceReview::ReviewWorkspace(d->chartController, d->selectionController,
+                                                       d->canvas, this);
+    d->reviewWorkspace->installMenus(d->commandRouter,d->mainToolBar);
+    connect(d->reviewWorkspace, &CceReview::ReviewWorkspace::statusMessage, this,
+            [this](const QString &message) { statusBar()->showMessage(message, 10000); });
+    connect(d->reviewWorkspace,&CceReview::ReviewWorkspace::projectOpened,this,[this](const QString &path) {
+        ++d->documentGeneration;
+        if(d->recoverySnapshotTimer)d->recoverySnapshotTimer->stop();
+        d->workingChartPath.clear();d->sourceChartPath.clear();d->currentChartPath=path;d->isModified=false;
+        d->editStatisticsChartPath.clear();
+        d->editSessionTimer.invalidate();
+        d->canvas->setSourceChartPath({});
+    });
+    if (auto *noteLayout = qobject_cast<QVBoxLayout *>(d->notePanel->layout()))
+        noteLayout->insertWidget(qMax(0,noteLayout->count()-1),d->reviewWorkspace->inspector());
+    if (auto *metaLayout = qobject_cast<QVBoxLayout *>(d->metaPanel->layout()))
+        metaLayout->insertWidget(qMax(0, metaLayout->count() - 1),
+                                 d->reviewWorkspace->createExportConfiguration(d->metaPanel));
     Logger::info("MainWindow constructor finished");
 }
 
 MainWindow::~MainWindow()
 {
+    delete d->reviewWorkspace;
+    d->reviewWorkspace = nullptr;
     if (d->pendingPluginRequestId != 0)
     {
         if (PluginManager *pm = activePluginManager())
@@ -1858,6 +1907,7 @@ void MainWindow::createMenus()
     createFileMenu();
     createEditMenu();
     createViewMenu();
+    if(d->reviewWorkspace)d->reviewWorkspace->installMenus(d->commandRouter,d->mainToolBar);
     createSettingsMenu();
     createPlaybackMenu();
     createToolsAndPluginsMenus();
@@ -1888,6 +1938,8 @@ void MainWindow::createFileMenu()
     fileMenu->addSeparator();
     QAction *exportAction = fileMenu->addAction(tr("&Export .mcz..."), this, &MainWindow::exportMcz);
     QAction *exportPureAction = fileMenu->addAction(tr("Export .mcz (&Pure)..."), this, &MainWindow::exportMczPure);
+    QAction *mergeAction = fileMenu->addAction(tr("Merge Charts..."), this, &MainWindow::mergeCharts);
+    registerShortcutAction(mergeAction, "file.merge_charts", {});
     fileMenu->addSeparator();
     QAction *switchDifficultyAction = fileMenu->addAction(tr("Switch &Difficulty..."), this, &MainWindow::switchDifficulty);
     fileMenu->addSeparator();
@@ -1958,8 +2010,7 @@ void MainWindow::createEditMenu()
     nextModeAction->setAutoRepeat(false);
     registerShortcutAction(nextModeAction, "edit.next_mode", QKeySequence(Qt::ALT | Qt::Key_Down));
 
-    // Explicit paste timing mode. The same action is visible in the Edit menu
-    // and the main toolbar so the active quantization cannot be missed.
+    // Explicit paste timing mode is available in the Edit and canvas menus.
     editMenu->addSeparator();
     if (!d->paste288Action)
     {
@@ -1976,8 +2027,6 @@ void MainWindow::createEditMenu()
         d->paste288Action->setChecked(Settings::instance().pasteUse288Division());
     }
     editMenu->addAction(d->paste288Action);
-    if (d->mainToolBar && !d->mainToolBar->actions().contains(d->paste288Action))
-        d->mainToolBar->addAction(d->paste288Action);
 }
 
 void MainWindow::createViewMenu()
@@ -2059,11 +2108,6 @@ void MainWindow::createViewMenu()
         d->panelsToolbarAction->setToolTip(
             tr("Open or restore panels and the main editor"));
         d->panelsToolbarAction->setMenu(d->panelsMenu);
-        if (d->mainToolBar
-            && !d->mainToolBar->actions().contains(d->panelsToolbarAction))
-        {
-            d->mainToolBar->addAction(d->panelsToolbarAction);
-        }
         updateToolDockActionVisibility();
         viewMenu->addSeparator();
         if (!d->moveViewAction)
@@ -2111,6 +2155,15 @@ void MainWindow::createViewMenu()
     connect(d->verticalFlipAction, &QAction::toggled, this, &MainWindow::toggleVerticalFlip);
 
     // Background image toggle.
+    QAction *spectrumAction = viewMenu->addAction(tr("Show Spectrum Overlay"));
+    spectrumAction->setObjectName(QStringLiteral("action.spectrum_overlay"));
+    spectrumAction->setCheckable(true);
+    spectrumAction->setChecked(Settings::instance().spectrumOverlayEnabled());
+    connect(spectrumAction, &QAction::toggled, this, [this](bool enabled) {
+        Settings::instance().setSpectrumOverlayEnabled(enabled);
+        if (d->canvas)
+            d->canvas->setSpectrumOverlayEnabled(enabled);
+    });
     QAction *bgImageAction = viewMenu->addAction(tr("Show Background Image"));
     bgImageAction->setCheckable(true);
     bgImageAction->setChecked(Settings::instance().backgroundImageEnabled());
@@ -2177,6 +2230,9 @@ void MainWindow::createSettingsMenu()
     connect(d->calibrateSkinAction, &QAction::triggered, this, &MainWindow::calibrateSkin);
     d->outlineAction = settingsMenu->addAction(tr("Outline Settings..."));
     connect(d->outlineAction, &QAction::triggered, this, &MainWindow::configureOutline);
+    QAction *hyperfruitJudgeAction = settingsMenu->addAction(tr("Hyperfruit Judge..."));
+    hyperfruitJudgeAction->setObjectName(QStringLiteral("hyperfruitJudgeAction"));
+    connect(hyperfruitJudgeAction, &QAction::triggered, this, &MainWindow::configureHyperfruitJudge);
     d->noteSoundVolumeAction = settingsMenu->addAction(tr("Note Sound Volume..."));
     connect(d->noteSoundVolumeAction, &QAction::triggered, this, &MainWindow::adjustNoteSoundVolume);
     QAction *sessionSettingsAction = settingsMenu->addAction(tr("Session Settings..."));
@@ -2590,6 +2646,7 @@ void MainWindow::createCentralArea()
             [this](ads::CFloatingDockContainer *floatingWindow)
             {
                 const auto theme = NativeWindowTheme::themeColorsFor(Settings::instance().backgroundColor());
+                applyFloatingWindowPalette(floatingWindow, theme);
                 NativeWindowTheme::apply(floatingWindow, theme.window, theme.text, theme.border, true);
             });
 
@@ -2611,6 +2668,7 @@ void MainWindow::createCentralArea()
     d->canvas->setColorMode(Settings::instance().colorNoteEnabled());
     d->canvas->setHyperfruitEnabled(Settings::instance().hyperfruitOutlineEnabled());
     d->canvas->setRainRewardPreviewEnabled(Settings::instance().rainRewardPreviewEnabled());
+    d->canvas->setSpectrumOverlayEnabled(Settings::instance().spectrumOverlayEnabled());
     if (d->skin)
         d->canvas->setSkin(d->skin);
     d->canvas->setNoteSize(Settings::instance().noteSize());
@@ -2748,6 +2806,7 @@ void MainWindow::createCentralArea()
             });
     d->bpmPanel->setChartController(d->chartController);
     d->bpmPanel->setPlaybackController(d->playbackController);
+    d->bpmPanel->setMainCanvas(d->canvas);
     d->metaPanel->setChartController(d->chartController);
     connect(d->metaPanel, &MetaEditPanel::backgroundResourceChanged, this,
             [this](const QString &fileName)
@@ -2795,6 +2854,7 @@ void MainWindow::createCentralArea()
             {
         Logger::info(QString("[Grid] MainWindow::gridSnapChanged signal received: %1").arg(on));
         d->canvas->setGridSnap(on); });
+    connect(d->notePanel, &NoteEditPanel::dragGridSnapChanged, d->canvas, &ChartCanvas::setDragGridSnap);
     connect(d->notePanel, &NoteEditPanel::modeChanged, d->canvas, [this](int mode)
             {
         if (mode == NoteEditPanel::PlaceAnchorMode)
@@ -3074,15 +3134,6 @@ void MainWindow::createCentralArea()
     ensureStatsDockAssigned();
 
     d->mainToolBar = addToolBar(tr("Tools"));
-    if (d->panelsToolbarAction)
-    {
-        d->mainToolBar->addAction(d->panelsToolbarAction);
-        if (auto *panelsButton = qobject_cast<QToolButton *>(
-                d->mainToolBar->widgetForAction(d->panelsToolbarAction)))
-        {
-            panelsButton->setPopupMode(QToolButton::InstantPopup);
-        }
-    }
     d->notePanelAction = d->mainToolBar->addAction(tr("Note"), [this]()
                                                    { showEditorPanel(d->notePanel); });
     d->bpmPanelAction = d->mainToolBar->addAction(tr("BPM"), [this]()
@@ -3117,9 +3168,8 @@ void MainWindow::createCentralArea()
             showEditorPanel(d->notePanel);
         if (d->pluginToolModeAction) { const QSignalBlocker b(d->pluginToolModeAction); d->pluginToolModeAction->setChecked(checked); }
     });
-    addToolBarBreak(Qt::TopToolBarArea);
-    d->pluginToolBar = addToolBar(tr("Plugins"));
-    d->pluginManagerToolbarAction = d->pluginToolBar->addAction(tr("Plugins"), this, &MainWindow::openPluginManager);
+    for (auto *action : {d->notePanelAction, d->bpmPanelAction, d->metaPanelAction, d->curvePanelAction})
+        action->setProperty("toolPage", true);
     setFloatingToolWindowsEnabled(Settings::instance().floatingToolWindowsEnabled());
     Logger::debug("Central area created with LeftPanel.");
 }
@@ -3128,22 +3178,18 @@ void MainWindow::refreshChartStatistics()
 {
     if (!d->statsPanel || !d->chartController || !d->statsWatcher)
         return;
-    const Chart *chart = d->chartController->chart();
-    if (!chart)
-        return;
     if (d->statsWatcher->isRunning())
     {
         d->statsRefreshPending = true;
         return;
     }
 
-    Chart snapshot = *chart;
-    const int offset = snapshot.meta().offset;
-    d->statsFutureRevision = d->statsSourceRevision;
+    auto snapshot = d->chartController->snapshot();
+    d->statsFutureVersion = snapshot.version();
     d->statsWatcher->setFuture(QtConcurrent::run(
-        [snapshot = std::move(snapshot), offset]()
+        [snapshot = std::move(snapshot)]()
         {
-            return ChartStatsCalculator::compute(&snapshot, offset);
+            return ChartStatsCalculator::compute(&snapshot.chart(), snapshot.chart().meta().offset);
         }));
 }
 
@@ -3317,6 +3363,7 @@ void MainWindow::saveDocumentAsync(const QString &path,
 
 void MainWindow::persistRecoveryState()
 {
+    if(d->reviewWorkspace && d->reviewWorkspace->projectMode())return;
     if (d->workingChartPath.isEmpty() || !d->isModified)
     {
         removeRecoveryState();
@@ -3339,6 +3386,7 @@ void MainWindow::persistRecoveryState()
 
 void MainWindow::scheduleRecoverySnapshot()
 {
+    if(d->reviewWorkspace && d->reviewWorkspace->projectMode())return;
     if (!d->isModified || d->workingChartPath.isEmpty() || !d->chartController)
         return;
     if (d->recoverySnapshotTimer)
@@ -3347,6 +3395,7 @@ void MainWindow::scheduleRecoverySnapshot()
 
 void MainWindow::flushRecoverySnapshot()
 {
+    if(d->reviewWorkspace && d->reviewWorkspace->projectMode())return;
     if (!d->isModified || d->workingChartPath.isEmpty() || !d->chartController)
         return;
     if (workingSessionDirFromWorkingPath(d->workingChartPath).isEmpty())
@@ -3576,11 +3625,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
     clearWorkingCopySession(true);
     event->accept();
 
-    // ADS keeps closed floating containers alive so their panels can be
-    // reopened.  Those hidden top-level windows make Qt's implicit
-    // quit-on-last-window-closed behavior platform dependent.  Closing the
-    // confirmed main editor window is an explicit application-exit request.
-    QCoreApplication::quit();
+    // ADS keeps floating containers alive so their panels can be reopened.
+    // Queue the exit after this close event so those top-level windows cannot
+    // keep the application event loop running after the editor is closed.
+    Logger::info("Main window close accepted; scheduling application exit.");
+    QTimer::singleShot(0, QCoreApplication::instance(), []()
+                       { QCoreApplication::exit(0); });
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
@@ -3624,6 +3674,8 @@ void MainWindow::dropEvent(QDropEvent *event)
 
 bool MainWindow::confirmSaveIfModified(const QString &reasonText)
 {
+    if (d->reviewWorkspace && d->reviewWorkspace->projectMode())
+        return d->reviewWorkspace->confirmClose();
     if (!d->isModified)
         return true;
 
@@ -3795,7 +3847,7 @@ void MainWindow::newChart()
         MetaData meta;
         meta.title = audioStem;
         meta.artist.clear();
-        meta.chartAuthor.clear();
+        meta.chartAuthor = d->reviewWorkspace ? d->reviewWorkspace->activeAuthorName() : QString();
         meta.difficulty = QStringLiteral("-New");
         meta.audioFile = resolvedTargetAudioName;
         meta.speed = 5;
@@ -3803,6 +3855,7 @@ void MainWindow::newChart()
 
         // Step 6: Create default chart and save to time-stamped .mc.
         Chart chart = ChartIO::createDefaultChart(meta);
+        chart.setAudioSourceFullPath(resolvedTargetAudioPath);
         const QString mcPath = QDir(resolvedSongDir).filePath(QString::number(timestamp) + ".mc");
         if (!ChartIO::save(mcPath, chart))
         {
@@ -3822,6 +3875,7 @@ void MainWindow::newChart()
         bpmProgress->show();
         const QPointer<QProgressDialog> progressGuard(bpmProgress);
 
+        Logger::info(QString("New chart - measuring audio timing: %1").arg(resolvedTargetAudioPath));
         BpmDetector::detectFromFileDetailedAsync(
             this,
             resolvedTargetAudioPath,
@@ -3833,7 +3887,7 @@ void MainWindow::newChart()
              meta,
              mcPath](bool detected,
                      BpmDetector::DetectionResult detResult,
-                     const QString &) mutable
+                     const QString &detectionError) mutable
             {
                 if (progressGuard)
                 {
@@ -3857,6 +3911,7 @@ void MainWindow::newChart()
                 }
                 else
                 {
+                    Logger::warn(QString("New chart - auto-timing failed: %1").arg(detectionError));
                     statusBar()->showMessage(
                         tr("Auto-timing skipped (detection failed). Default BPM=120."), 5000);
                 }
@@ -3918,6 +3973,7 @@ void MainWindow::newChart()
                             tr("Failed to convert audio to OGG:\n%1").arg(convertError));
                         return;
                     }
+                    Logger::info(QString("New chart - audio converted successfully: %1").arg(targetAudioPath));
                     finishNewChart(songDir, targetAudioName, targetAudioPath);
                 });
             return;
@@ -4595,6 +4651,9 @@ void MainWindow::switchDifficulty()
 
 void MainWindow::saveChart()
 {
+    if (d->reviewWorkspace && d->reviewWorkspace->projectMode()) {
+        d->reviewWorkspace->saveProjectDialog(); return;
+    }
     Logger::info("Save chart requested");
     QString currentPath = d->sourceChartPath;
     if (currentPath.isEmpty())
@@ -4659,6 +4718,9 @@ void MainWindow::saveChart()
 
 void MainWindow::saveChartAs()
 {
+    if (d->reviewWorkspace && d->reviewWorkspace->projectMode()) {
+        d->reviewWorkspace->saveProjectDialog(); return;
+    }
     Logger::info("Save chart as requested");
     QString fileName = QFileDialog::getSaveFileName(this, tr("Save Chart As"), Settings::instance().lastOpenPath(),
                                                     tr("Malody Catch Chart (*.mc);;All Files (*.*)"));
@@ -4708,6 +4770,38 @@ void MainWindow::saveChartAs()
             if (PluginManager *pm = activePluginManager())
                 pm->notifyChartSaved(fileName);
         });
+}
+
+void MainWindow::mergeCharts()
+{
+    if (!d->chartMergeDialog)
+    {
+        d->chartMergeDialog = new ChartMergeDialog(beatmapRootPath(), this);
+        connect(d->chartMergeDialog, &ChartMergeDialog::previewRequested, this, [this](const QString &path) {
+            if (!confirmSaveIfModified(tr("Preview merged charts"))) return;
+            // The merge workspace can be regenerated or closed independently.
+            // Keep the imported project saveable after its temporary files go away.
+            const QString root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+                                 + "/merged-charts/" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+            const QString imported = QDir(root).filePath("merged.cceproj");
+            QString error;
+            if (!QDir().mkpath(root) || !QFile::copy(path, imported))
+            {
+                QMessageBox::warning(this, tr("Merge Charts"), tr("Cannot import merged preview."));
+                return;
+            }
+            if (!d->reviewWorkspace->openProject(imported, &error))
+                QMessageBox::warning(this, tr("Merge Charts"), error);
+            else
+            {
+                d->reviewWorkspace->showPanel();
+                statusBar()->showMessage(tr("Merged charts loaded with one layer per segment."), 6000);
+            }
+        });
+    }
+    d->chartMergeDialog->show();
+    d->chartMergeDialog->raise();
+    d->chartMergeDialog->activateWindow();
 }
 
 void MainWindow::exportMcz()
@@ -4766,6 +4860,19 @@ void MainWindow::exportMczInternal(bool pureMode)
     {
         Logger::info(QString("MainWindow::exportMczInternal - Exporting to: %1 (mode=%2)")
                          .arg(fileName, pureMode ? "pure" : "full"));
+
+        if(d->reviewWorkspace && d->reviewWorkspace->projectMode()) {
+            QTemporaryDir staging;
+            QString error;
+            const QString chart=staging.filePath("chart.mc");
+            if(!staging.isValid() || !d->reviewWorkspace->exportChart(chart,{},&error) ||
+                !ProjectIO::exportToMczPure(fileName,chart)) {
+                QMessageBox::critical(this,tr("Error"),error.isEmpty()?tr("Failed to export chart to MCZ format."):error);
+                return;
+            }
+            statusBar()->showMessage(tr("Exported: %1").arg(fileName),3000);
+            return;
+        }
 
         // Export from the session working copy, not directly from the source directory.
         // currentChartPath is the last explicitly saved source .mc and can lag behind
@@ -6171,7 +6278,10 @@ void MainWindow::applySidebarTheme()
         if (d->floatingToolWindowsEnabled)
         {
             for (ads::CFloatingDockContainer *floatingWindow : d->dockManager->floatingWidgets())
+            {
+                applyFloatingWindowPalette(floatingWindow, theme);
                 NativeWindowTheme::apply(floatingWindow, panelBg, theme.text, panelBorder, true);
+            }
         }
     }
 

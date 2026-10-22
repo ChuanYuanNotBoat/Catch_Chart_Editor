@@ -41,6 +41,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - Place, move, select, copy, paste, mirror, and delete Normal / Sound / Rain notes.
 - BPM table editing, automatic BPM measurement, timeline navigation, and playback-speed control.
 - Skin rendering, division colors, Hyperfruit hints, background images, note sounds, and realtime preview.
+- Hyperfruit hints use Malody E judge by default; Settings → Hyperfruit Judge lets you select A–E and Pro for both the canvas and realtime preview.
 - Native curve-to-note workflow with per-segment density and curve/polyline shapes.
 - V3 curve sidecar under `.mcce-plugin/*.curve_tbd.json`, with CAS revision checks and legacy data import.
 - Native and JSON-lines process plugins, tool actions, floating panels, canvas overlays, and host batch edits.
