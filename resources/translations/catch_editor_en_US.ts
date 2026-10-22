@@ -3201,6 +3201,26 @@ Open the **History** tab for collapsible long update notes.</translation>
         <source>Pro judge</source>
         <translation>Pro judge</translation>
     </message>
+    <message>
+        <source>Merge Charts...</source>
+        <translation>Merge Charts...</translation>
+    </message>
+    <message>
+        <source>Preview merged charts</source>
+        <translation>Preview merged charts</translation>
+    </message>
+    <message>
+        <source>Merge Charts</source>
+        <translation>Merge Charts</translation>
+    </message>
+    <message>
+        <source>Cannot import merged preview.</source>
+        <translation>Cannot import merged preview.</translation>
+    </message>
+    <message>
+        <source>Merged charts loaded with one layer per segment.</source>
+        <translation>Merged charts loaded with one layer per segment.</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>
@@ -4263,6 +4283,46 @@ Do you want to rename the imported file?</translation>
     <message>
         <source>Mixed</source>
         <translation>Mixed</translation>
+    </message>
+    <message>
+        <source>Cannot import package: %1</source>
+        <translation>Cannot import package: %1</translation>
+    </message>
+    <message>
+        <source>No charts found: %1</source>
+        <translation>No charts found: %1</translation>
+    </message>
+    <message>
+        <source>Cannot create merge workspace.</source>
+        <translation>Cannot create merge workspace.</translation>
+    </message>
+    <message>
+        <source>Merge failed or cancelled.</source>
+        <translation>Merge failed or cancelled.</translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation>Cancelled</translation>
+    </message>
+    <message>
+        <source>Unsupported audio format or audio longer than 30 minutes.</source>
+        <translation>Unsupported audio format or audio longer than 30 minutes.</translation>
+    </message>
+    <message>
+        <source>Audio decoding timed out.</source>
+        <translation>Audio decoding timed out.</translation>
+    </message>
+    <message>
+        <source>Empty audio</source>
+        <translation>Empty audio</translation>
+    </message>
+    <message>
+        <source>Cannot copy image: %1</source>
+        <translation>Cannot copy image: %1</translation>
+    </message>
+    <message>
+        <source>Cannot create merged OGG audio.</source>
+        <translation>Cannot create merged OGG audio.</translation>
     </message>
 </context>
 <context>
@@ -7494,6 +7554,225 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>The chart rejected this edit.</source>
         <translation>The chart rejected this edit.</translation>
+    </message>
+</context>
+<context>
+    <name>ChartMergeDialog</name>
+    <message>
+        <source>Merge Charts</source>
+        <translation>Merge Charts</translation>
+    </message>
+    <message>
+        <source>Import Charts / Packages...</source>
+        <translation>Import Charts / Packages...</translation>
+    </message>
+    <message>
+        <source>Import Charts / Packages</source>
+        <translation>Import Charts / Packages</translation>
+    </message>
+    <message>
+        <source>Charts (*.mc *.mcz *.zip)</source>
+        <translation>Charts (*.mc *.mcz *.zip)</translation>
+    </message>
+    <message>
+        <source>Choose from Library...</source>
+        <translation>Choose from Library...</translation>
+    </message>
+    <message>
+        <source>Choose Chart Folder</source>
+        <translation>Choose Chart Folder</translation>
+    </message>
+    <message>
+        <source>Add Selected</source>
+        <translation>Add Selected</translation>
+    </message>
+    <message>
+        <source>Song / Difficulty</source>
+        <translation>Song / Difficulty</translation>
+    </message>
+    <message>
+        <source>Notes / Rain</source>
+        <translation>Notes / Rain</translation>
+    </message>
+    <message>
+        <source>BPM</source>
+        <translation>BPM</translation>
+    </message>
+    <message>
+        <source>Playable Duration</source>
+        <translation>Playable Duration</translation>
+    </message>
+    <message>
+        <source>Merge order — select a segment to edit its settings:</source>
+        <translation>Merge order — select a segment to edit its settings:</translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation>Duration</translation>
+    </message>
+    <message>
+        <source>Speed / Pitch</source>
+        <translation>Speed / Pitch</translation>
+    </message>
+    <message>
+        <source>First → Last Note</source>
+        <translation>First → Last Note</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>Move Up</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>Move Down</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Remove</translation>
+    </message>
+    <message>
+        <source>Change pitch with speed</source>
+        <translation>Change pitch with speed</translation>
+    </message>
+    <message>
+        <source>Segment speed</source>
+        <translation>Segment speed</translation>
+    </message>
+    <message>
+        <source>Fade in</source>
+        <translation>Fade in</translation>
+    </message>
+    <message>
+        <source>Fade out</source>
+        <translation>Fade out</translation>
+    </message>
+    <message>
+        <source>Gap to next segment</source>
+        <translation>Gap to next segment</translation>
+    </message>
+    <message>
+        <source>First song title</source>
+        <translation>First song title</translation>
+    </message>
+    <message>
+        <source>First song artist</source>
+        <translation>First song artist</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>Title</translation>
+    </message>
+    <message>
+        <source>Artist</source>
+        <translation>Artist</translation>
+    </message>
+    <message>
+        <source>Creator</source>
+        <translation>Creator</translation>
+    </message>
+    <message>
+        <source>Difficulty</source>
+        <translation>Difficulty</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation>Browse...</translation>
+    </message>
+    <message>
+        <source>Choose Image</source>
+        <translation>Choose Image</translation>
+    </message>
+    <message>
+        <source>Images (*.png *.jpg *.jpeg *.webp)</source>
+        <translation>Images (*.png *.jpg *.jpeg *.webp)</translation>
+    </message>
+    <message>
+        <source>Background</source>
+        <translation>Background</translation>
+    </message>
+    <message>
+        <source>Cover</source>
+        <translation>Cover</translation>
+    </message>
+    <message>
+        <source>Gap = previous last note (including Rain end) → next first note. Intros and tails each use up to half the gap. Fades stay outside playable notes. Uncheck pitch change to preserve pitch. Maximum merged audio: 30 minutes.</source>
+        <translation>Gap = previous last note (including Rain end) → next first note. Intros and tails each use up to half the gap. Fades stay outside playable notes. Uncheck pitch change to preserve pitch. Maximum merged audio: 30 minutes.</translation>
+    </message>
+    <message>
+        <source>Merge</source>
+        <translation>Merge</translation>
+    </message>
+    <message>
+        <source>Export MCZ...</source>
+        <translation>Export MCZ...</translation>
+    </message>
+    <message>
+        <source>Preview in CCE</source>
+        <translation>Preview in CCE</translation>
+    </message>
+    <message>
+        <source>Cancel Task</source>
+        <translation>Cancel Task</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>Task cancelled. Settings retained.</source>
+        <translation>Task cancelled. Settings retained.</translation>
+    </message>
+    <message>
+        <source>Merge complete. Export the package or preview it in CCE with one layer per segment.</source>
+        <translation>Merge complete. Export the package or preview it in CCE with one layer per segment.</translation>
+    </message>
+    <message>
+        <source>Importing charts...</source>
+        <translation>Importing charts...</translation>
+    </message>
+    <message>
+        <source>Select difficulties, then click Add Selected.</source>
+        <translation>Select difficulties, then click Add Selected.</translation>
+    </message>
+    <message>
+        <source>Shift</source>
+        <translation>Shift</translation>
+    </message>
+    <message>
+        <source>Preserve</source>
+        <translation>Preserve</translation>
+    </message>
+    <message>
+        <source>Add charts to start.</source>
+        <translation>Add charts to start.</translation>
+    </message>
+    <message>
+        <source>%1 segments · %2 playable notes · last note at %3 (audio tail may extend further)</source>
+        <translation>%1 segments · %2 playable notes · last note at %3 (audio tail may extend further)</translation>
+    </message>
+    <message>
+        <source>Merging charts and audio...</source>
+        <translation>Merging charts and audio...</translation>
+    </message>
+    <message>
+        <source>Export Merged Package</source>
+        <translation>Export Merged Package</translation>
+    </message>
+    <message>
+        <source>Malody Package (*.mcz)</source>
+        <translation>Malody Package (*.mcz)</translation>
+    </message>
+    <message>
+        <source>Exporting package...</source>
+        <translation>Exporting package...</translation>
+    </message>
+    <message>
+        <source>Exported: %1</source>
+        <translation>Exported: %1</translation>
+    </message>
+    <message>
+        <source>Package export failed.</source>
+        <translation>Package export failed.</translation>
     </message>
 </context>
 </TS>

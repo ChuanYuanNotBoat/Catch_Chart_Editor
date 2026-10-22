@@ -12,6 +12,7 @@
 | `file.open_chart` | 打开谱面 | Ctrl+O | 编辑器窗口 |
 | `file.open_imported_charts` | 打开已导入谱面 | Ctrl+Shift+O | 编辑器窗口 |
 | `file.reload_chart` | 刷新谱面 | F5 | 编辑器窗口 |
+| `file.merge_charts` | 合并谱面 | 未设置 | 编辑器窗口 |
 | `file.save` | 保存 | Ctrl+S | 编辑器窗口 |
 | `file.exit` | 退出 | Ctrl+Q | 编辑器窗口 |
 | `review.workspace` | 打开审阅 | 未设置 | 编辑器窗口 |

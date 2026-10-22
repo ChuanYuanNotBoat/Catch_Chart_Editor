@@ -3230,6 +3230,26 @@ Open the **History** tab for collapsible long update notes.</source>
         <source>Pro judge</source>
         <translation>Pro 判定</translation>
     </message>
+    <message>
+        <source>Merge Charts...</source>
+        <translation>合并谱面…</translation>
+    </message>
+    <message>
+        <source>Preview merged charts</source>
+        <translation>预览合并谱面</translation>
+    </message>
+    <message>
+        <source>Merge Charts</source>
+        <translation>合并谱面</translation>
+    </message>
+    <message>
+        <source>Cannot import merged preview.</source>
+        <translation>无法导入合并预览。</translation>
+    </message>
+    <message>
+        <source>Merged charts loaded with one layer per segment.</source>
+        <translation>合并谱面已载入，每段为一个独立图层。</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>
@@ -4300,6 +4320,46 @@ Do you want to rename the imported file?</source>
     <message>
         <source>Mixed</source>
         <translation>混合值</translation>
+    </message>
+    <message>
+        <source>Cannot import package: %1</source>
+        <translation>无法导入谱面包：%1</translation>
+    </message>
+    <message>
+        <source>No charts found: %1</source>
+        <translation>未找到谱面：%1</translation>
+    </message>
+    <message>
+        <source>Cannot create merge workspace.</source>
+        <translation>无法创建合并工作目录。</translation>
+    </message>
+    <message>
+        <source>Merge failed or cancelled.</source>
+        <translation>合并失败或已取消。</translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation>已取消</translation>
+    </message>
+    <message>
+        <source>Unsupported audio format or audio longer than 30 minutes.</source>
+        <translation>音频格式不支持或超过 30 分钟。</translation>
+    </message>
+    <message>
+        <source>Audio decoding timed out.</source>
+        <translation>音频解码超时。</translation>
+    </message>
+    <message>
+        <source>Empty audio</source>
+        <translation>音频内容为空</translation>
+    </message>
+    <message>
+        <source>Cannot copy image: %1</source>
+        <translation>无法复制图片：%1</translation>
+    </message>
+    <message>
+        <source>Cannot create merged OGG audio.</source>
+        <translation>无法创建合并 OGG 音频。</translation>
     </message>
 </context>
 <context>
@@ -7721,6 +7781,225 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>The chart rejected this edit.</source>
         <translation>谱面拒绝了本次修改。</translation>
+    </message>
+</context>
+<context>
+    <name>ChartMergeDialog</name>
+    <message>
+        <source>Merge Charts</source>
+        <translation>合并谱面</translation>
+    </message>
+    <message>
+        <source>Import Charts / Packages...</source>
+        <translation>导入谱面 / 谱面包…</translation>
+    </message>
+    <message>
+        <source>Import Charts / Packages</source>
+        <translation>导入谱面 / 谱面包</translation>
+    </message>
+    <message>
+        <source>Charts (*.mc *.mcz *.zip)</source>
+        <translation>谱面 (*.mc *.mcz *.zip)</translation>
+    </message>
+    <message>
+        <source>Choose from Library...</source>
+        <translation>从谱面库选择…</translation>
+    </message>
+    <message>
+        <source>Choose Chart Folder</source>
+        <translation>选择谱面文件夹</translation>
+    </message>
+    <message>
+        <source>Add Selected</source>
+        <translation>添加选中项</translation>
+    </message>
+    <message>
+        <source>Song / Difficulty</source>
+        <translation>歌曲 / 难度</translation>
+    </message>
+    <message>
+        <source>Notes / Rain</source>
+        <translation>普通音符 / Rain</translation>
+    </message>
+    <message>
+        <source>BPM</source>
+        <translation>BPM</translation>
+    </message>
+    <message>
+        <source>Playable Duration</source>
+        <translation>有效时长</translation>
+    </message>
+    <message>
+        <source>Merge order — select a segment to edit its settings:</source>
+        <translation>合并顺序——选择一段以调整其参数：</translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation>时长</translation>
+    </message>
+    <message>
+        <source>Speed / Pitch</source>
+        <translation>倍速 / 音调</translation>
+    </message>
+    <message>
+        <source>First → Last Note</source>
+        <translation>首音符 → 末音符</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>上移</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>下移</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>移除</translation>
+    </message>
+    <message>
+        <source>Change pitch with speed</source>
+        <translation>变速时改变音调</translation>
+    </message>
+    <message>
+        <source>Segment speed</source>
+        <translation>本段倍速</translation>
+    </message>
+    <message>
+        <source>Fade in</source>
+        <translation>淡入</translation>
+    </message>
+    <message>
+        <source>Fade out</source>
+        <translation>淡出</translation>
+    </message>
+    <message>
+        <source>Gap to next segment</source>
+        <translation>到下一段的间隔</translation>
+    </message>
+    <message>
+        <source>First song title</source>
+        <translation>默认使用第一首歌名</translation>
+    </message>
+    <message>
+        <source>First song artist</source>
+        <translation>默认使用第一首艺术家</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>标题</translation>
+    </message>
+    <message>
+        <source>Artist</source>
+        <translation>艺术家</translation>
+    </message>
+    <message>
+        <source>Creator</source>
+        <translation>制谱者</translation>
+    </message>
+    <message>
+        <source>Difficulty</source>
+        <translation>难度</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation>浏览…</translation>
+    </message>
+    <message>
+        <source>Choose Image</source>
+        <translation>选择图片</translation>
+    </message>
+    <message>
+        <source>Images (*.png *.jpg *.jpeg *.webp)</source>
+        <translation>图片 (*.png *.jpg *.jpeg *.webp)</translation>
+    </message>
+    <message>
+        <source>Background</source>
+        <translation>背景</translation>
+    </message>
+    <message>
+        <source>Cover</source>
+        <translation>封面</translation>
+    </message>
+    <message>
+        <source>Gap = previous last note (including Rain end) → next first note. Intros and tails each use up to half the gap. Fades stay outside playable notes. Uncheck pitch change to preserve pitch. Maximum merged audio: 30 minutes.</source>
+        <translation>间隔 = 上一段末音符（含 Rain 尾点）→ 下一段首音符。前奏和尾音各占用最多一半间隔；淡入淡出不影响可玩音符覆盖的音乐。不勾选变调即可保持音调。合并音频最长 30 分钟。</translation>
+    </message>
+    <message>
+        <source>Merge</source>
+        <translation>合并</translation>
+    </message>
+    <message>
+        <source>Export MCZ...</source>
+        <translation>导出 MCZ…</translation>
+    </message>
+    <message>
+        <source>Preview in CCE</source>
+        <translation>在 CCE 中预览</translation>
+    </message>
+    <message>
+        <source>Cancel Task</source>
+        <translation>取消任务</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Task cancelled. Settings retained.</source>
+        <translation>任务已取消，配置已保留。</translation>
+    </message>
+    <message>
+        <source>Merge complete. Export the package or preview it in CCE with one layer per segment.</source>
+        <translation>合并完成，可导出谱面包或在 CCE 中按来源分图层预览。</translation>
+    </message>
+    <message>
+        <source>Importing charts...</source>
+        <translation>正在导入谱面…</translation>
+    </message>
+    <message>
+        <source>Select difficulties, then click Add Selected.</source>
+        <translation>选择难度后点击“添加选中项”。</translation>
+    </message>
+    <message>
+        <source>Shift</source>
+        <translation>变调</translation>
+    </message>
+    <message>
+        <source>Preserve</source>
+        <translation>保调</translation>
+    </message>
+    <message>
+        <source>Add charts to start.</source>
+        <translation>请先添加谱面。</translation>
+    </message>
+    <message>
+        <source>%1 segments · %2 playable notes · last note at %3 (audio tail may extend further)</source>
+        <translation>%1 段 · %2 个可玩音符 · 末音符时间 %3（音频尾音可能更长）</translation>
+    </message>
+    <message>
+        <source>Merging charts and audio...</source>
+        <translation>正在合并谱面与音频…</translation>
+    </message>
+    <message>
+        <source>Export Merged Package</source>
+        <translation>导出合并谱面包</translation>
+    </message>
+    <message>
+        <source>Malody Package (*.mcz)</source>
+        <translation>Malody 谱面包 (*.mcz)</translation>
+    </message>
+    <message>
+        <source>Exporting package...</source>
+        <translation>正在导出谱面包…</translation>
+    </message>
+    <message>
+        <source>Exported: %1</source>
+        <translation>已导出：%1</translation>
+    </message>
+    <message>
+        <source>Package export failed.</source>
+        <translation>谱面包导出失败。</translation>
     </message>
 </context>
 </TS>

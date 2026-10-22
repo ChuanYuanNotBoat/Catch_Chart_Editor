@@ -10,6 +10,7 @@
 | 文档 | 用途 |
 |------|------|
 | [help.md](help.md) | 菜单、可组合面板、画布操作、曲线工具、BPM、Meta、插件与快捷键 |
+| [CHART_MERGE.md](CHART_MERGE.md) | 多谱面排序合并、逐段倍速/音调/淡入淡出/间隔、MCZ 导出与分图层预览 |
 | [version.md](version.md) | 版本、兼容性和升级注意事项 |
 | [history.md](history.md) | 按版本维护的完整更新记录；当前维护内容位于顶部 `Unreleased` 段 |
 | [about.md](about.md) | 项目定位、支持范围、许可证与反馈入口 |

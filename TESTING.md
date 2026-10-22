@@ -3,6 +3,17 @@
 > 适用版本：Beta v1.11.2 + Unreleased maintenance
 > 最后核对：2026-10-23
 
+## 谱面合并
+
+`ChartMergeTests` 覆盖只读来源导入、倍速与变调/保调、BPM/delay/offset 和零间隔的音符时间一致性、Rain 尾点、MCZ 往返、分段图层预览工程、取消时原子输出，以及预览/关闭重开后保留窗口参数。
+运行 `ctest --test-dir build_clion_msvc -C Debug -R '^ChartMergeTests$' --output-on-failure`；Release 同理。
+
+2026-10-23 验证：Debug 完整 CTest **38/38**（574.53 s），Release **38/38**（120.00 s）。
+最终合并集在两种配置均为 **21 项通过**，补充了无 delay 的零间隔分度与真实 MainWindow 导入，
+确认预览创建独立图层、合并工作目录移除后音频和工程仍可保存；中文深色窗口截图检查通过。
+日志位于忽略的 `build/merge-*`。首次并行 Debug 构建遇到 `CL.exe` 退出 `0xc0000005`，
+单任务重建及后续两种配置构建通过，未改动编译器或优化设置；这不代表该编译器异常已被修复。
+
 ## 红果判定回归（2026-10-22）
 
 `HyperfruitTests` 覆盖 Malody A–E 判的红果临界距离、默认 E、Pro、非整数毫秒、跨零 offset、四分之一帧容差、多押、Rain、反向移动，以及设置对话框的默认值、保存和取消、两个视图的红果缓存刷新。通过 `ctest --test-dir build_clion_msvc -C Debug -R "^(HyperfruitTests|core_minimal_tests|utils_settings_transfer_tests)$" --output-on-failure` 运行。

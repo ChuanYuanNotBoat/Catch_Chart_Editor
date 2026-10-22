@@ -84,6 +84,10 @@ set(SOURCES
     audio/BpmDetector.cpp
     audio/AutoTiming2Bridge.cpp
     audio/AudioConverter.cpp
+    merge/ChartMerger.cpp
+    merge/MergeAudio.cpp
+    merge/MergeExport.cpp
+    ui/dialogs/ChartMergeDialog.cpp
     controller/CommandRouter.cpp
     controller/ChartController.cpp
     controller/SelectionController.cpp

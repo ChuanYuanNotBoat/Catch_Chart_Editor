@@ -60,6 +60,7 @@ private slots:
     void saveChartAs();
     void exportMcz();
     void exportMczPure();
+    void mergeCharts();
     void undo();
     void redo();
     void toggleColorMode(bool on);

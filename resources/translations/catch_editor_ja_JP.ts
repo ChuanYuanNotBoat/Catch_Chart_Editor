@@ -3230,6 +3230,26 @@ Open the **History** tab for collapsible long update notes.</source>
         <source>Pro judge</source>
         <translation>Pro 判定</translation>
     </message>
+    <message>
+        <source>Merge Charts...</source>
+        <translation>譜面を結合…</translation>
+    </message>
+    <message>
+        <source>Preview merged charts</source>
+        <translation>結合譜面のプレビュー</translation>
+    </message>
+    <message>
+        <source>Merge Charts</source>
+        <translation>譜面を結合</translation>
+    </message>
+    <message>
+        <source>Cannot import merged preview.</source>
+        <translation>結合プレビューを読み込めません。</translation>
+    </message>
+    <message>
+        <source>Merged charts loaded with one layer per segment.</source>
+        <translation>区間ごとのレイヤーとして結合譜面を読み込みました。</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>
@@ -4292,6 +4312,46 @@ Do you want to rename the imported file?</source>
     <message>
         <source>Mixed</source>
         <translation type="unfinished" />
+    </message>
+    <message>
+        <source>Cannot import package: %1</source>
+        <translation>Cannot import package: %1</translation>
+    </message>
+    <message>
+        <source>No charts found: %1</source>
+        <translation>No charts found: %1</translation>
+    </message>
+    <message>
+        <source>Cannot create merge workspace.</source>
+        <translation>Cannot create merge workspace.</translation>
+    </message>
+    <message>
+        <source>Merge failed or cancelled.</source>
+        <translation>Merge failed or cancelled.</translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation>Cancelled</translation>
+    </message>
+    <message>
+        <source>Unsupported audio format or audio longer than 30 minutes.</source>
+        <translation>Unsupported audio format or audio longer than 30 minutes.</translation>
+    </message>
+    <message>
+        <source>Audio decoding timed out.</source>
+        <translation>Audio decoding timed out.</translation>
+    </message>
+    <message>
+        <source>Empty audio</source>
+        <translation>Empty audio</translation>
+    </message>
+    <message>
+        <source>Cannot copy image: %1</source>
+        <translation>Cannot copy image: %1</translation>
+    </message>
+    <message>
+        <source>Cannot create merged OGG audio.</source>
+        <translation>Cannot create merged OGG audio.</translation>
     </message>
 </context>
 <context>
@@ -7523,6 +7583,225 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>The chart rejected this edit.</source>
         <translation>譜面がこの編集を拒否しました。</translation>
+    </message>
+</context>
+<context>
+    <name>ChartMergeDialog</name>
+    <message>
+        <source>Merge Charts</source>
+        <translation>譜面を結合</translation>
+    </message>
+    <message>
+        <source>Import Charts / Packages...</source>
+        <translation>譜面・パッケージを読み込む…</translation>
+    </message>
+    <message>
+        <source>Import Charts / Packages</source>
+        <translation>譜面・パッケージを読み込む</translation>
+    </message>
+    <message>
+        <source>Charts (*.mc *.mcz *.zip)</source>
+        <translation>Charts (*.mc *.mcz *.zip)</translation>
+    </message>
+    <message>
+        <source>Choose from Library...</source>
+        <translation>ライブラリから選択…</translation>
+    </message>
+    <message>
+        <source>Choose Chart Folder</source>
+        <translation>譜面フォルダーを選択</translation>
+    </message>
+    <message>
+        <source>Add Selected</source>
+        <translation>選択項目を追加</translation>
+    </message>
+    <message>
+        <source>Song / Difficulty</source>
+        <translation>曲名 / 難易度</translation>
+    </message>
+    <message>
+        <source>Notes / Rain</source>
+        <translation>通常ノート / Rain</translation>
+    </message>
+    <message>
+        <source>BPM</source>
+        <translation>BPM</translation>
+    </message>
+    <message>
+        <source>Playable Duration</source>
+        <translation>プレイ時間</translation>
+    </message>
+    <message>
+        <source>Merge order — select a segment to edit its settings:</source>
+        <translation>結合順序 — 区間を選択して設定を変更：</translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation>時間</translation>
+    </message>
+    <message>
+        <source>Speed / Pitch</source>
+        <translation>速度 / 音程</translation>
+    </message>
+    <message>
+        <source>First → Last Note</source>
+        <translation>最初 → 最後のノート</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>上へ</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>下へ</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>削除</translation>
+    </message>
+    <message>
+        <source>Change pitch with speed</source>
+        <translation>速度とともに音程を変更</translation>
+    </message>
+    <message>
+        <source>Segment speed</source>
+        <translation>この区間の速度</translation>
+    </message>
+    <message>
+        <source>Fade in</source>
+        <translation>フェードイン</translation>
+    </message>
+    <message>
+        <source>Fade out</source>
+        <translation>フェードアウト</translation>
+    </message>
+    <message>
+        <source>Gap to next segment</source>
+        <translation>次の区間までの間隔</translation>
+    </message>
+    <message>
+        <source>First song title</source>
+        <translation>最初の曲名を使用</translation>
+    </message>
+    <message>
+        <source>First song artist</source>
+        <translation>最初のアーティストを使用</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>曲名</translation>
+    </message>
+    <message>
+        <source>Artist</source>
+        <translation>アーティスト</translation>
+    </message>
+    <message>
+        <source>Creator</source>
+        <translation>譜面作者</translation>
+    </message>
+    <message>
+        <source>Difficulty</source>
+        <translation>難易度</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation>参照…</translation>
+    </message>
+    <message>
+        <source>Choose Image</source>
+        <translation>画像を選択</translation>
+    </message>
+    <message>
+        <source>Images (*.png *.jpg *.jpeg *.webp)</source>
+        <translation>Images (*.png *.jpg *.jpeg *.webp)</translation>
+    </message>
+    <message>
+        <source>Background</source>
+        <translation>背景</translation>
+    </message>
+    <message>
+        <source>Cover</source>
+        <translation>カバー</translation>
+    </message>
+    <message>
+        <source>Gap = previous last note (including Rain end) → next first note. Intros and tails each use up to half the gap. Fades stay outside playable notes. Uncheck pitch change to preserve pitch. Maximum merged audio: 30 minutes.</source>
+        <translation>間隔は前の最終ノート（Rain 終端を含む）から次の最初のノートまでです。前奏と余韻はそれぞれ間隔の半分まで保持し、その範囲内でフェードします。音程の変更をオフにすると音程を維持します。結合音声は最大 30 分です。</translation>
+    </message>
+    <message>
+        <source>Merge</source>
+        <translation>結合</translation>
+    </message>
+    <message>
+        <source>Export MCZ...</source>
+        <translation>MCZ を書き出す…</translation>
+    </message>
+    <message>
+        <source>Preview in CCE</source>
+        <translation>CCE でプレビュー</translation>
+    </message>
+    <message>
+        <source>Cancel Task</source>
+        <translation>処理をキャンセル</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>閉じる</translation>
+    </message>
+    <message>
+        <source>Task cancelled. Settings retained.</source>
+        <translation>処理をキャンセルしました。設定は保持されています。</translation>
+    </message>
+    <message>
+        <source>Merge complete. Export the package or preview it in CCE with one layer per segment.</source>
+        <translation>結合が完了しました。書き出し、または区間別レイヤーで CCE にプレビューできます。</translation>
+    </message>
+    <message>
+        <source>Importing charts...</source>
+        <translation>譜面を読み込み中…</translation>
+    </message>
+    <message>
+        <source>Select difficulties, then click Add Selected.</source>
+        <translation>難易度を選んで「選択項目を追加」を押してください。</translation>
+    </message>
+    <message>
+        <source>Shift</source>
+        <translation>変更</translation>
+    </message>
+    <message>
+        <source>Preserve</source>
+        <translation>維持</translation>
+    </message>
+    <message>
+        <source>Add charts to start.</source>
+        <translation>譜面を追加してください。</translation>
+    </message>
+    <message>
+        <source>%1 segments · %2 playable notes · last note at %3 (audio tail may extend further)</source>
+        <translation>%1 区間・%2 ノート・最終ノート %3（音声の余韻を除く）</translation>
+    </message>
+    <message>
+        <source>Merging charts and audio...</source>
+        <translation>譜面と音声を結合中…</translation>
+    </message>
+    <message>
+        <source>Export Merged Package</source>
+        <translation>結合したパッケージを書き出す</translation>
+    </message>
+    <message>
+        <source>Malody Package (*.mcz)</source>
+        <translation>Malody Package (*.mcz)</translation>
+    </message>
+    <message>
+        <source>Exporting package...</source>
+        <translation>パッケージを書き出し中…</translation>
+    </message>
+    <message>
+        <source>Exported: %1</source>
+        <translation>書き出しました：%1</translation>
+    </message>
+    <message>
+        <source>Package export failed.</source>
+        <translation>パッケージの書き出しに失敗しました。</translation>
     </message>
 </context>
 </TS>

@@ -20,6 +20,7 @@
 #include "ui/LeftPanel.h"
 #include "ui/ChartStatsPanel.h"
 #include "ui/dialogs/DetailedStatsDialog.h"
+#include "ui/dialogs/ChartMergeDialog.h"
 #include "model/ChartStatistics.h"
 #include "ui/dialogs/LogSettingsDialog.h"
 #include "controller/ChartController.h"
@@ -1937,6 +1938,8 @@ void MainWindow::createFileMenu()
     fileMenu->addSeparator();
     QAction *exportAction = fileMenu->addAction(tr("&Export .mcz..."), this, &MainWindow::exportMcz);
     QAction *exportPureAction = fileMenu->addAction(tr("Export .mcz (&Pure)..."), this, &MainWindow::exportMczPure);
+    QAction *mergeAction = fileMenu->addAction(tr("Merge Charts..."), this, &MainWindow::mergeCharts);
+    registerShortcutAction(mergeAction, "file.merge_charts", {});
     fileMenu->addSeparator();
     QAction *switchDifficultyAction = fileMenu->addAction(tr("Switch &Difficulty..."), this, &MainWindow::switchDifficulty);
     fileMenu->addSeparator();
@@ -4767,6 +4770,38 @@ void MainWindow::saveChartAs()
             if (PluginManager *pm = activePluginManager())
                 pm->notifyChartSaved(fileName);
         });
+}
+
+void MainWindow::mergeCharts()
+{
+    if (!d->chartMergeDialog)
+    {
+        d->chartMergeDialog = new ChartMergeDialog(beatmapRootPath(), this);
+        connect(d->chartMergeDialog, &ChartMergeDialog::previewRequested, this, [this](const QString &path) {
+            if (!confirmSaveIfModified(tr("Preview merged charts"))) return;
+            // The merge workspace can be regenerated or closed independently.
+            // Keep the imported project saveable after its temporary files go away.
+            const QString root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+                                 + "/merged-charts/" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+            const QString imported = QDir(root).filePath("merged.cceproj");
+            QString error;
+            if (!QDir().mkpath(root) || !QFile::copy(path, imported))
+            {
+                QMessageBox::warning(this, tr("Merge Charts"), tr("Cannot import merged preview."));
+                return;
+            }
+            if (!d->reviewWorkspace->openProject(imported, &error))
+                QMessageBox::warning(this, tr("Merge Charts"), error);
+            else
+            {
+                d->reviewWorkspace->showPanel();
+                statusBar()->showMessage(tr("Merged charts loaded with one layer per segment."), 6000);
+            }
+        });
+    }
+    d->chartMergeDialog->show();
+    d->chartMergeDialog->raise();
+    d->chartMergeDialog->activateWindow();
 }
 
 void MainWindow::exportMcz()

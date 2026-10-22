@@ -41,6 +41,7 @@ class RealtimePreviewWidget;
 class PluginActionPanel;
 class ChartStatsPanel;
 class DetailedStatsDialog;
+class ChartMergeDialog;
 class WorkbenchLayout;
 class CommandRouter;
 class AnalysisEditor;
@@ -92,6 +93,7 @@ public:
     MetaEditPanel *metaPanel = nullptr;
     ChartStatsPanel *statsPanel = nullptr;
     DetailedStatsDialog *detailedStatsDialog = nullptr;
+    QPointer<ChartMergeDialog> chartMergeDialog;
     LeftPanel *leftPanel = nullptr;
     QAction *undoAction = nullptr;
     QAction *redoAction = nullptr;
