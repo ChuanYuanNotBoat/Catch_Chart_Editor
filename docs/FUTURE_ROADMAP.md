@@ -4,7 +4,7 @@
 >
 > 制定日期：2026-09-10
 >
-> 最后补充：2026-09-11
+> 最后补充：2026-10-23
 >
 > 当前实现基线：Beta v1.11.2 后续维护线（`v2-main`）
 >
@@ -71,6 +71,7 @@ CCE 的长期目标不是只编辑一份 `.mc` 文件，而是成为面向 Catch
 - 备份和版本历史采用 Git-like 语义，但不要求内部真正依赖 Git。
 - 内部工程格式可以扩展或变化，只要始终能够导出标准 `.mc`。
 - 底层能力应尽量可供其他制谱器复用。
+- 本地身份、评论、工程、图层和审阅均为可选能力；旧 `.mc` 直接打开、编辑和保存不要求启用它们。可选性不削减新功能的完整范围。
 
 ### 3.2 优先级
 
@@ -184,7 +185,7 @@ Difficulty 自身不复制共享图层中的 Note。
 - 默认只读。
 - 不属于当前 Difficulty 的合成内容。
 - 永远不会被无意导出。
-- 可以将选中 Note 复制/提取到当前工程的某个图层，提取时生成新的持久 ID。
+- 可以将选中 Note 复制/提取到当前工程的某个图层，提取时生成新的运行期选择句柄；不保存永久 Note ID。
 
 ### 5.7 Export Profile
 
@@ -707,8 +708,8 @@ osu!ctb 支持必须区分：
 - 引入强类型 `EntityId/LayerId/DifficultyId/TimelineId`。
 - 使用规范化有理数进行拍点比较和排序。
 - 引入单调 revision 与 typed change set。
-- 将选择从数组下标迁移到 EntityId。
-- 建立事务/逆操作模型，逐步替代完整 Chart 快照。
+- 选择已使用运行期 Note 句柄，不保存永久 Note ID；持久实体 ID 契约另行收敛。
+- 活动 Chart 的 document/不透明插件/旧批量命令已改用可序列化 `ChartDelta` 与逆操作，原始数据与顺序往返经过测试；辅助 `ProjectBundle` 状态、原生命令 journal 和持久恢复回放仍需继续迁移。详见 [DOCUMENT_TRANSACTIONS.md](DOCUMENT_TRANSACTIONS.md)。
 - 已增加活动谱面的只读 `ChartSnapshot`/`ChartReadVersion`，移除 UI 的 mutable Chart 入口；工程级 read model 与合成索引继续在 M2 收敛。
 - 按职责拆出 MainWindow 协调器。
 - 在同仓库建立无界面 CMake target。
@@ -945,7 +946,7 @@ osu!ctb 支持必须区分：
 
 后续按 M1–M4 的退出门槛继续收敛：
 
-1. 为持久实体 ID、单调 revision、typed change set 和通用事务/逆操作补齐契约；Note ID 继续只作运行期句柄。
+1. 在已有 Chart revision、typed change set 和 `ChartDelta` 基础上，继续补齐持久实体 ID、工程域事务/逆操作、可序列化命令 journal 与持久基准/恢复信封；Note ID 继续只作运行期句柄。
 2. 活动谱面的版本化只读 Snapshot 与 mutable Chart 入口关闭已完成；后续扩展工程级 read model，并继续拆分 MainWindow 职责。
 3. 补齐 Timeline 与 Meta Field Policy、项目格式迁移框架、revision 驱动的合成索引和 5k/20k/100k 操作及历史内存基准。
 4. 完成图层剪贴板、跨层/跨难度批量事务、Difficulty 生命周期、Layer Group、多谱提取和导出预览等完整工作流。

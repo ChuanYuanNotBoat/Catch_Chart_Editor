@@ -9,6 +9,8 @@
 #include "controller/ChartChange.h"
 #include "document/ChartSnapshot.h"
 
+namespace CceDocument { class ChartDelta; }
+
 /**
  * @brief 谱面编辑控制器，负责所有修改操作，并管理撤销/重做栈。
  *
@@ -21,8 +23,8 @@ class ChartController : public QObject
 {
     Q_OBJECT
 public:
-    // Opaque external mutations retain a full-chart fallback only below this
-    // bound; validated note deltas do not consume a second chart snapshot.
+    // Keep the existing opaque-input size bound; Undo retains changed data.
+    // The historical constant name remains source-compatible.
     static constexpr int kMaxOpaqueSnapshotNotes = 100000;
 
     explicit ChartController(QObject *parent = nullptr);
@@ -47,6 +49,8 @@ public:
     // restores auxiliary state before publishing the resulting chart change.
     bool applyDocumentMutation(const QString &name, const Chart &chart,
                                std::function<void(bool)> restoreAuxiliary, bool reviewTransaction = false);
+    bool applyTransaction(const QString &name, const ChartReadVersion &base,
+                          const CceDocument::ChartDelta &delta, QString *error = nullptr);
 
     // 编辑操作（都会自动压入撤销栈）
     void addNote(const Note &note);

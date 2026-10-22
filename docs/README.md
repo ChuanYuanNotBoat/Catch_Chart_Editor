@@ -3,7 +3,7 @@
 > 当前版本：**Beta v1.11.2（2026-09-19）**
 > 仓库状态：**v1.11.2 后续维护（Unreleased）**
 > Git 标签：`v1.11.2`
-> 索引最后核对：2026-10-19
+> 索引最后核对：2026-10-23
 
 ## 用户文档
 
@@ -20,6 +20,7 @@
 |------|------|
 | [AI_PROJECT_GUIDE.md](AI_PROJECT_GUIDE.md) | 当前源码结构、关键数据流、构建测试和维护约束 |
 | [ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md) | `.mc` / `.mcz` / `.cceproj` / `.ccepr`、模型、坐标、插件、sidecar 和 Malody 引擎兼容参考 |
+| [DOCUMENT_TRANSACTIONS.md](DOCUMENT_TRANSACTIONS.md) | 活动谱面的只读版本、增量/逆操作、运行期句柄与严格序列化边界 |
 | [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md) | 统一快捷键命令清单、上下文和保留手势 |
 | [BPM_ADVANCED_EDITOR.md](BPM_ADVANCED_EDITOR.md) | 非模态 BPM 曲线、手动测量、插值、预览应用和后台更新约束 |
 | [NOTE_CHAIN_EDITOR.md](NOTE_CHAIN_EDITOR.md) | 原生 C++ 曲线编辑器的状态、交互、持久化、撤销和性能约束 |

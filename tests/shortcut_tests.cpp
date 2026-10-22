@@ -58,6 +58,10 @@ private:
     {
         widget->window()->show();
         widget->window()->activateWindow();
+        // Native shortcut dispatch requires an active window; a fixed delay
+        // alone can send keys before Windows completes activation.
+        if (QGuiApplication::platformName() == QStringLiteral("windows"))
+            QVERIFY(QTest::qWaitForWindowActive(widget->window()));
         widget->setFocus();
         QTest::qWait(30);
     }

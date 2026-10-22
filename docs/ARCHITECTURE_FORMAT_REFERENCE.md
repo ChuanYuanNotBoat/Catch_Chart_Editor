@@ -2,7 +2,7 @@
 
 > **目的**：完整描述当前编辑器的数据模型、文件格式、插件体系、坐标系统、外置 sidecar 文件格式等，为重构格式与导出到标准 mcz/mc 提供精确的结构定义。
 >
-> **版本**：Beta v1.11.2 + Unreleased maintenance | **最后更新**：2026-10-21
+> **版本**：Beta v1.11.2 + Unreleased maintenance | **最后更新**：2026-10-23
 >
 > ⚠️ **核心约束**：`.mc` 文件的 JSON 结构**永远不能更改**，必须保持与 Malody 官方格式完全兼容。所有扩展数据必须存放在 `.mcce-plugin/` 或独立辅助文件中。如果需要更改，则需要保证有可以导出为规范.mc/mcz的能力。
 >
@@ -1020,6 +1020,9 @@ src/
 ├── controller/
 │   ├── ChartChange.h                            # revision 与类型化变更集
 │   └── ChartController.h / .cpp               # 编辑控制器 + Undo/Redo
+├── document/
+│   ├── ChartSnapshot.h                        # 活动谱面的只读快照与运行期版本
+│   └── ChartDelta.h / .cpp                    # 数据/位置增量、逆操作与本地 JSON
 ├── render/
 │   ├── NoteRenderer.h                          # 音符渲染
 │   ├── RainRewardGenerator.h / .cpp             # Catch Rain 奖励点确定性缓存
@@ -1040,6 +1043,7 @@ src/
 - `ChartController::chartChangeCommitted` 为每次成功加载或内容变更分配单调 revision，并携带 `notes/timing/metadata/resources` 类型化变更集；画布、预览、密度、选择和 Rain Reward 按依赖域失效；无 revision 感知的旧消费者仍可使用 `chartChanged` 与 notes/BPM/meta 细分信号。
 - `ChartController::chart()` 只供同线程同步读取，已移除 `mutableChart()` 和画布的可变重载。需要脱离实时文档的数据通过 `snapshot()` 取得 `ChartSnapshot`：只读 Chart、捕获时文件路径及 `ChartReadVersion`。获取和复制快照共享 Qt 的 Note/BPM 容器，不重新组合或排序；后续编辑写时复制，旧快照可在控制器销毁后继续读取。快照只描述活动合成谱面，不取代未来工程级 `ComposedChartView`。
 - `ChartReadVersion` 包含当前数据 revision、各依赖域的最后修改 revision 与运行期来源令牌。`isCurrent(version)` 严格比较整个数据版本；带域筛选时只检查相应依赖。加载谱面会更换来源，同一路径重载及另一个控制器的相同 revision 均不能误认。令牌、版本和运行期 Note ID 不写入 `.mc`、工程或提案包；辅助评论操作若不改变谱面内容，不增加谱面 revision。
+- `ChartDelta` 按原始 Note 数据和出现位置匹配，只保存变化片段及变化的 BPM/元数据/资源域；事务内位置关系可用于绑定当前句柄，JSON 不含 Note UUID。`applyTransaction` 拒绝来源或完整版本不符的候选，校验编辑保护后单次提交。document/不透明插件/旧批量历史不再保存整张 Chart 的前后副本，Undo/Redo 在移动历史游标前验证前置数据，失败保留原状态。辅助工程快照和完整命令 journal 仍待迁移；本地 delta JSON 不属于 `.mc` 或 `.ccepr`，详见 [DOCUMENT_TRANSACTIONS.md](DOCUMENT_TRANSACTIONS.md)。
 - ChartCanvas 拖动以临时 Note 快照绘制，指针移动不修改 Chart；release 时经 `ChartController::moveNotes` 提交一个 Undo 命令。
 - Rain 绘制按开始拍有序索引查询，并用结束拍前缀最大值向前定位仍可能覆盖 viewport 的长 Rain。
 - `ChartStatsCalculator` 在 Qt Concurrent 工作线程上读取不可变 `ChartSnapshot` 和独立 `RainRewardGenerator`；主线程只保留轻量版本令牌，用 `notes|timing` 域检查后写回 UI。无关元数据编辑不废弃结果，音符、BPM、offset、撤销及切谱使旧结果失效。

@@ -111,6 +111,7 @@ if(BUILD_TESTING)
     add_local_review_test(HyperfruitTests tests/hyperfruit_tests.cpp)
     add_local_review_test(DocumentModelTests tests/document_model_tests.cpp)
     add_local_review_test(ChartSnapshotTests tests/chart_snapshot_tests.cpp)
+    add_local_review_test(ChartDeltaTests tests/chart_delta_tests.cpp)
     add_local_review_test(ProjectStorageTests tests/project_storage_tests.cpp)
     add_local_review_test(ReviewCoreTests tests/review_core_tests.cpp)
     add_local_review_test(CommentModelTests tests/comment_model_tests.cpp)
@@ -274,7 +275,7 @@ if(BUILD_TESTING)
 
     target_include_directories(CatchChartEditorTests PRIVATE src)
     target_link_libraries(CatchChartEditorTests
-        Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test Qt6::Multimedia Qt6::Concurrent Vorbis::vorbis)
+        CceReviewCore Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test Qt6::Multimedia Qt6::Concurrent Vorbis::vorbis)
 
     add_test(NAME core_minimal_tests COMMAND CatchChartEditorTests)
     set_tests_properties(core_minimal_tests PROPERTIES TIMEOUT 60)
@@ -327,6 +328,7 @@ if(BUILD_TESTING)
     target_include_directories(MetaEditPanelTests PRIVATE src)
     target_link_libraries(MetaEditPanelTests
         PRIVATE
+        CceReviewCore
         Qt6::Core
         Qt6::Gui
         Qt6::Widgets

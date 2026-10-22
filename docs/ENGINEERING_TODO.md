@@ -1,6 +1,6 @@
 # Engineering TODO
 
-Last audited: 2026-10-21
+Last audited: 2026-10-23
 
 Target: Beta v1.11.2 maintenance line (`v2-main`)
 
@@ -89,7 +89,7 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 
 - [x] Add monotonic chart revisions and typed change sets (`notes`, `timing`, `metadata`, `resources`).
 - [x] Make render, statistics, density, selection, and reward caches revision-driven.
-- [x] Replace full-Chart plugin undo snapshots with validated delta commands where possible; retain a bounded fallback for opaque mutations.
+- [x] Replace full-Chart plugin undo snapshots with validated note commands and general `ChartDelta` records; retain the bounded opaque-input compatibility path without whole-Chart history snapshots.
 - [x] Move full-chart statistics off the UI thread with a snapshot/revision stale-result guard.
 - [x] Move expensive process-plugin work off the UI thread with cancellation, timeout, and bounded-payload guards.
 - [x] Add an interval index for rain rendering, preview lookup, hit testing, and audio scheduling.
@@ -197,7 +197,8 @@ core extraction comes later.
 - [x] Replace legacy Note/BPM floating-point ordering with normalized rational comparison (`BeatPosition`); preserve source triplets and use exact text-input range boundaries. Audio time caches and continuous curve geometry remain floating-point projections.
 - [x] Use runtime Note IDs for selection identity while retaining index-based render access; Note IDs remain runtime-only and are not serialized.
 - [x] Add a read-only versioned `ChartSnapshot`/`ChartReadVersion`, remove `mutableChart`/canvas mutable access, and use source/domain revision guards for asynchronous statistics. Captures share Note/BPM storage; loading another chart invalidates old tokens. Project-wide read models and composition indices remain separate below.
-- [ ] Replace whole-Chart command snapshots with validated serializable deltas and inverse operations.
+- [x] Replace whole-Chart command snapshots with validated serializable `ChartDelta` records and inverse operations for document/opaque-plugin/legacy batch commands. Preserve raw data, ordering and runtime handles in session; serialized replay binds by source data/position without Note IDs. See [DOCUMENT_TRANSACTIONS.md](DOCUMENT_TRANSACTIONS.md).
+- [ ] Replace auxiliary `ProjectBundle` history snapshots with project-domain transactions; unify native commands into a serializable journal with persistent base/revision envelopes and recovery replay, then measure complete Workspace long-history memory and interaction costs.
 - [ ] Split `MainWindow` incrementally into session, workspace, document, command, resource, diagnostics, and plugin-UI coordinators.
 - [x] Establish a no-QtWidgets QtCore CMake target (`CceReviewCore`) inside this repository; do not freeze or split its public ABI yet.
 - [x] Model an imported legacy `.mc` as one difficulty using one Base layer; document-model tests cover the composition and roundtrip behavior.

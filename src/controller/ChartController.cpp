@@ -1,5 +1,6 @@
 ﻿#include "ChartController.h"
 #include "file/ChartIO.h"
+#include "document/ChartDelta.h"
 #include "utils/Logger.h"
 #include "utils/PerformanceTimer.h"
 #include <QUndoCommand>
@@ -113,35 +114,6 @@ namespace
             .arg(note.offset);
     }
 
-    bool noteExactEqual(const Note &a, const Note &b)
-    {
-        return a.beatNum == b.beatNum &&
-               a.numerator == b.numerator &&
-               a.denominator == b.denominator &&
-               a.id == b.id &&
-               a.type == b.type &&
-               a.x == b.x &&
-               a.isRain == b.isRain &&
-               a.endBeatNum == b.endBeatNum &&
-               a.endNumerator == b.endNumerator &&
-               a.endDenominator == b.endDenominator &&
-               a.sound == b.sound &&
-               a.vol == b.vol &&
-               a.offset == b.offset;
-    }
-
-    bool notesEqual(const QVector<Note> &a, const QVector<Note> &b)
-    {
-        if (a.size() != b.size())
-            return false;
-        for (int index = 0; index < a.size(); ++index)
-        {
-            if (!noteExactEqual(a.at(index), b.at(index)))
-                return false;
-        }
-        return true;
-    }
-
     bool bpmListsEqual(const QVector<BpmEntry> &a, const QVector<BpmEntry> &b)
     {
         if (a.size() != b.size())
@@ -170,13 +142,6 @@ namespace
                a.speed == b.speed;
     }
 
-    bool resourceReferencesEqual(const Chart &a, const Chart &b)
-    {
-        return a.meta().audioFile == b.meta().audioFile &&
-               a.meta().backgroundFile == b.meta().backgroundFile &&
-               a.audioSourceFullPath() == b.audioSourceFullPath();
-    }
-
     ChartChangeSet metadataChangeSet(const MetaData &before, const MetaData &after)
     {
         ChartChangeSet changes;
@@ -191,22 +156,6 @@ namespace
         {
             changes |= ChartChangeType::Resources;
         }
-        return changes;
-    }
-
-    ChartChangeSet chartChangeSet(const Chart &before, const Chart &after)
-    {
-        ChartChangeSet changes;
-        if (!notesEqual(before.notes(), after.notes()))
-            changes |= ChartChangeType::Notes;
-        if (!bpmListsEqual(before.bpmList(), after.bpmList()) ||
-            before.meta().offset != after.meta().offset)
-        {
-            changes |= ChartChangeType::Timing;
-        }
-        changes |= metadataChangeSet(before.meta(), after.meta());
-        if (!resourceReferencesEqual(before, after))
-            changes |= ChartChangeType::Resources;
         return changes;
     }
 
@@ -391,6 +340,7 @@ class ChartController::ChartCommand : public QUndoCommand
 {
 public:
     ChartCommand(ChartController *controller, const QString &text) : QUndoCommand(text), m_controller(controller) {}
+    virtual bool canRestore(bool, QString *) const { return true; }
 
 protected:
     ChartController *m_controller;
@@ -712,37 +662,41 @@ class ChartController::ExternalMutationCommand : public ChartController::ChartCo
 public:
     ExternalMutationCommand(ChartController *controller,
                             const QString &actionName,
-                            const Chart &before,
-                            const Chart &after)
+                            CceDocument::ChartDelta delta)
         : ChartCommand(controller, actionName.isEmpty() ? "Plugin Mutation" : actionName),
-          m_before(before),
-          m_after(after),
-          m_changes(chartChangeSet(before, after))
+          m_delta(std::move(delta))
     {
     }
 
     void undo() override
     {
-        m_controller->m_chart = m_before;
-        m_controller->publishChange(m_changes);
-        m_controller->notesChanged();
-        m_controller->bpmListChanged();
-        m_controller->metaDataChanged();
+        restore(false);
     }
 
     void redo() override
     {
-        m_controller->m_chart = m_after;
-        m_controller->publishChange(m_changes);
+        restore(true);
+    }
+    bool canRestore(bool forward, QString *error) const override
+    { return (forward ? m_delta : m_delta.inverted()).canApplyTo(m_controller->m_chart,error); }
+
+private:
+    void restore(bool forward)
+    {
+        Chart next;
+        QString error;
+        if (!(forward ? m_delta : m_delta.inverted()).apply(m_controller->m_chart,next,&error))
+        {
+            emit m_controller->errorOccurred(error);
+            return;
+        }
+        m_controller->m_chart = std::move(next);
+        m_controller->publishChange(m_delta.changes());
         m_controller->notesChanged();
         m_controller->bpmListChanged();
         m_controller->metaDataChanged();
     }
-
-private:
-    Chart m_before;
-    Chart m_after;
-    ChartChangeSet m_changes;
+    CceDocument::ChartDelta m_delta;
 };
 
 class ChartController::UndoMarkerCommand : public QUndoCommand
@@ -761,26 +715,35 @@ public:
 class ChartController::DocumentMutationCommand : public ChartController::ChartCommand
 {
 public:
-    DocumentMutationCommand(ChartController *controller, const QString &name, const Chart &after,
+    DocumentMutationCommand(ChartController *controller, const QString &name, CceDocument::ChartDelta delta,
                             std::function<void(bool)> auxiliary, bool reviewTransaction)
-        : ChartCommand(controller, name), m_before(controller->m_chart), m_after(after),
-          m_changes(chartChangeSet(m_before, after)), m_auxiliary(std::move(auxiliary)), m_reviewTransaction(reviewTransaction) {}
+        : ChartCommand(controller, name), m_delta(std::move(delta)),
+          m_auxiliary(std::move(auxiliary)), m_reviewTransaction(reviewTransaction) {}
     void undo() override { restore(false); }
     void redo() override { restore(true); }
-    bool changesChart() const { return bool(m_changes); }
+    bool changesChart() const { return bool(m_delta.changes()); }
     bool allowsReadOnlyUndo() const { return !changesChart() || m_reviewTransaction; }
+    bool canRestore(bool forward, QString *error) const override
+    { return (forward ? m_delta : m_delta.inverted()).canApplyTo(m_controller->m_chart,error); }
 private:
     void restore(bool forward)
     {
+        Chart next;
+        QString error;
+        if (!(forward ? m_delta : m_delta.inverted()).apply(m_controller->m_chart,next,&error))
+        {
+            emit m_controller->errorOccurred(error);
+            return;
+        }
         if (m_auxiliary) m_auxiliary(forward);
-        m_controller->m_chart = forward ? m_after : m_before;
+        m_controller->m_chart = std::move(next);
+        const auto m_changes = m_delta.changes();
         m_controller->publishChange(m_changes);
         if (m_changes.testFlag(ChartChangeType::Notes)) emit m_controller->notesChanged();
         if (m_changes.testFlag(ChartChangeType::Timing)) emit m_controller->bpmListChanged();
         if (m_changes.testFlag(ChartChangeType::Metadata)) emit m_controller->metaDataChanged();
     }
-    Chart m_before, m_after;
-    ChartChangeSet m_changes;
+    CceDocument::ChartDelta m_delta;
     std::function<void(bool)> m_auxiliary;
     bool m_reviewTransaction=false;
 };
@@ -793,8 +756,29 @@ bool ChartController::allowEdit(const QVector<Note> &affected, bool addsNotes)
 bool ChartController::applyDocumentMutation(const QString &name, const Chart &chart,
                                            std::function<void(bool)> restoreAuxiliary, bool reviewTransaction)
 {
-    if (m_readOnly && chartChangeSet(m_chart, chart)) return false;
-    m_undoStack->push(new DocumentMutationCommand(this, name, chart, std::move(restoreAuxiliary),reviewTransaction));
+    CceDocument::ChartDelta delta;
+    QString error;
+    if (!CceDocument::ChartDelta::between(m_chart,chart,delta,&error))
+    {
+        emit errorOccurred(error);
+        return false;
+    }
+    if (m_readOnly && delta.changes()) return false;
+    m_undoStack->push(new DocumentMutationCommand(this, name, std::move(delta), std::move(restoreAuxiliary),reviewTransaction));
+    return true;
+}
+
+bool ChartController::applyTransaction(const QString &name, const ChartReadVersion &base,
+                                        const CceDocument::ChartDelta &delta, QString *error)
+{
+    auto reject = [error](const QString &message) { if (error) *error = message; return false; };
+    if (!isCurrent(base)) return reject(tr("The chart changed. Rebuild the transaction from the current chart."));
+    CceDocument::ChartDelta bound;
+    if (!delta.validateTargets(error) || !delta.bindTo(m_chart,bound,error)) return false;
+    if (!allowEdit(bound.affectedNotes(),bound.addsNotes())) return reject(tr("The chart or layer is read only."));
+    if (!isCurrent(base)) return reject(tr("The chart changed while checking the transaction."));
+    if (!bound.changes()) return true;
+    m_undoStack->push(new DocumentMutationCommand(this,name,std::move(bound),{},false));
     return true;
 }
 
@@ -943,6 +927,9 @@ void ChartController::undo()
     Logger::debug("ChartController::undo called");
     const int previousIndex = m_undoStack->index();
     const QString action = m_undoStack->undoText();
+    QString error;
+    const auto *command = previousIndex > 0 ? dynamic_cast<const ChartCommand *>(m_undoStack->command(previousIndex-1)) : nullptr;
+    if (command && !command->canRestore(false,&error)) { emit errorOccurred(error); return; }
     try
     {
         m_undoStack->undo();
@@ -972,6 +959,9 @@ void ChartController::redo()
     Logger::debug("ChartController::redo called");
     const int previousIndex = m_undoStack->index();
     const QString action = m_undoStack->redoText();
+    QString error;
+    const auto *command = previousIndex < m_undoStack->count() ? dynamic_cast<const ChartCommand *>(m_undoStack->command(previousIndex)) : nullptr;
+    if (command && !command->canRestore(true,&error)) { emit errorOccurred(error); return; }
     try
     {
         m_undoStack->redo();
@@ -1138,7 +1128,14 @@ bool ChartController::applyExternalChartMutation(const QString &actionName, cons
                          .arg(kMaxOpaqueSnapshotNotes));
         return false;
     }
-    m_undoStack->push(new ExternalMutationCommand(this, actionName, m_chart, mutatedChart));
+    CceDocument::ChartDelta delta;
+    QString error;
+    if (!CceDocument::ChartDelta::between(m_chart,mutatedChart,delta,&error))
+    {
+        emit errorOccurred(error);
+        return false;
+    }
+    m_undoStack->push(new ExternalMutationCommand(this, actionName, std::move(delta)));
     return true;
 }
 
@@ -1184,10 +1181,12 @@ bool ChartController::applyBatchEdit(const QString &actionName,
     Chart mutated = m_chart;
     mutated.applyNoteBatch(notesToAdd, notesToRemove, notesToMove);
 
-    m_undoStack->push(new ExternalMutationCommand(
-        this,
-        resolvedActionName,
-        m_chart,
-        mutated));
+    CceDocument::ChartDelta delta;
+    if (!CceDocument::ChartDelta::between(m_chart,mutated,delta,&invalidReason))
+    {
+        emit errorOccurred(invalidReason);
+        return false;
+    }
+    m_undoStack->push(new ExternalMutationCommand(this,resolvedActionName,std::move(delta)));
     return true;
 }

@@ -1,5 +1,6 @@
 add_subdirectory(analysis/dsp)
 add_library(CceReviewCore STATIC
+    document/ChartDelta.cpp
     document/DocumentModel.cpp
     document/ProjectStorage.cpp
     identity/LocalIdentityStore.cpp
