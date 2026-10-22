@@ -7,6 +7,7 @@
 #include "render/NoteRenderer.h"
 #include "render/RainRewardGenerator.h"
 #include "utils/MathUtils.h"
+#include "utils/Settings.h"
 #include "utils/PlaybackStutterProbe.h"
 #include <cmath>
 #include <limits>
@@ -54,7 +55,8 @@ RealtimePreviewWidget::RealtimePreviewWidget(QWidget *parent)
     setMinimumWidth(170);
     setMaximumWidth(260);
     setAttribute(Qt::WA_OpaquePaintEvent, true);
-    m_hyperfruitDetector->setCS(3.2);
+    m_hyperfruitDetector->setJudgeLevel(Settings::instance().hyperfruitJudgeLevel(),
+                                       Settings::instance().hyperfruitProJudge());
     // Preview uses unified fallback style only (no skin texture).
     m_noteRenderer->setSkin(nullptr);
     m_noteRenderer->setShowColors(false);
@@ -184,6 +186,9 @@ void RealtimePreviewWidget::setNoteSize(int size)
 void RealtimePreviewWidget::refreshRenderSettings()
 {
     m_noteRenderer->refreshSettings();
+    m_hyperfruitDetector->setJudgeLevel(Settings::instance().hyperfruitJudgeLevel(),
+                                       Settings::instance().hyperfruitProJudge());
+    invalidateHyperCache();
     scheduleUpdate();
 }
 

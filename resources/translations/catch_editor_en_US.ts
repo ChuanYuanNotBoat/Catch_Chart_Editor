@@ -3181,6 +3181,26 @@ Open the **History** tab for collapsible long update notes.</translation>
         <source>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</source>
         <translation>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</translation>
     </message>
+    <message>
+        <source>Hyperfruit Judge...</source>
+        <translation>Hyperfruit Judge...</translation>
+    </message>
+    <message>
+        <source>Hyperfruit Judge</source>
+        <translation>Hyperfruit Judge</translation>
+    </message>
+    <message>
+        <source>Choose the Malody judge used for hyperfruit outlines in the canvas and preview. Default: E.</source>
+        <translation>Choose the Malody judge used for hyperfruit outlines in the canvas and preview. Default: E.</translation>
+    </message>
+    <message>
+        <source>Judge:</source>
+        <translation>Judge:</translation>
+    </message>
+    <message>
+        <source>Pro judge</source>
+        <translation>Pro judge</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>

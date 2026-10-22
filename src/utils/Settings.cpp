@@ -502,6 +502,28 @@ void Settings::setHyperfruitOutlineEnabled(bool enabled)
     m_settings.setValue("hyperfruitOutlineEnabled", enabled);
 }
 
+int Settings::hyperfruitJudgeLevel() const
+{
+    bool ok = false;
+    const int level = m_settings.value("render/hyperfruitJudgeLevel", 4).toInt(&ok);
+    return ok && level >= 0 && level <= 4 ? level : 4;
+}
+
+void Settings::setHyperfruitJudgeLevel(int level)
+{
+    m_settings.setValue("render/hyperfruitJudgeLevel", level >= 0 && level <= 4 ? level : 4);
+}
+
+bool Settings::hyperfruitProJudge() const
+{
+    return m_settings.value("render/hyperfruitProJudge", false).toBool();
+}
+
+void Settings::setHyperfruitProJudge(bool enabled)
+{
+    m_settings.setValue("render/hyperfruitProJudge", enabled);
+}
+
 bool Settings::rainRewardPreviewEnabled() const
 {
     return m_settings.value("render/rainRewardPreviewEnabled", false).toBool();

@@ -2227,6 +2227,9 @@ void MainWindow::createSettingsMenu()
     connect(d->calibrateSkinAction, &QAction::triggered, this, &MainWindow::calibrateSkin);
     d->outlineAction = settingsMenu->addAction(tr("Outline Settings..."));
     connect(d->outlineAction, &QAction::triggered, this, &MainWindow::configureOutline);
+    QAction *hyperfruitJudgeAction = settingsMenu->addAction(tr("Hyperfruit Judge..."));
+    hyperfruitJudgeAction->setObjectName(QStringLiteral("hyperfruitJudgeAction"));
+    connect(hyperfruitJudgeAction, &QAction::triggered, this, &MainWindow::configureHyperfruitJudge);
     d->noteSoundVolumeAction = settingsMenu->addAction(tr("Note Sound Volume..."));
     connect(d->noteSoundVolumeAction, &QAction::triggered, this, &MainWindow::adjustNoteSoundVolume);
     QAction *sessionSettingsAction = settingsMenu->addAction(tr("Session Settings..."));

@@ -3210,6 +3210,26 @@ Open the **History** tab for collapsible long update notes.</source>
         <source>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</source>
         <translation>新しいキーを押すと現在の設定を置き換え、続けて入力すると最大4段のキーシーケンスになります。Backspace またはクリアボタンで無効化できます。設定はメニュー、キャンバス、フローティングパネルに共通です。入力欄とダイアログでは各自の編集キーが使われます。</translation>
     </message>
+    <message>
+        <source>Hyperfruit Judge...</source>
+        <translation>ハイパーフルーツ判定...</translation>
+    </message>
+    <message>
+        <source>Hyperfruit Judge</source>
+        <translation>ハイパーフルーツ判定</translation>
+    </message>
+    <message>
+        <source>Choose the Malody judge used for hyperfruit outlines in the canvas and preview. Default: E.</source>
+        <translation>キャンバスとプレビューのハイパーフルーツ表示に使う Malody の判定を選択します。初期値は E です。</translation>
+    </message>
+    <message>
+        <source>Judge:</source>
+        <translation>判定：</translation>
+    </message>
+    <message>
+        <source>Pro judge</source>
+        <translation>Pro 判定</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>

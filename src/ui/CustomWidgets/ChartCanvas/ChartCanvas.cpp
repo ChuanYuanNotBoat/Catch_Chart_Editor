@@ -453,7 +453,8 @@ void ChartCanvas::setChartController(ChartController *controller)
             if (m_chartController && m_chartController->chart())
                 m_lastKnownBackgroundFile = currentBackgroundPath();
         });
-        m_hyperfruitDetector->setCS(3.2);
+        m_hyperfruitDetector->setJudgeLevel(Settings::instance().hyperfruitJudgeLevel(),
+                                           Settings::instance().hyperfruitProJudge());
         m_noteRenderer->setHyperfruitDetector(m_hyperfruitDetector);
 
         // Initialize background file tracking so note edits don't trigger unnecessary bg regen
@@ -744,6 +745,9 @@ void ChartCanvas::setNoteSize(int size)
 void ChartCanvas::refreshRenderSettings()
 {
     m_noteRenderer->refreshSettings();
+    m_hyperfruitDetector->setJudgeLevel(Settings::instance().hyperfruitJudgeLevel(),
+                                       Settings::instance().hyperfruitProJudge());
+    m_hyperCacheValid = false;
     setSpectrumOverlayEnabled(Settings::instance().spectrumOverlayEnabled());
     invalidateGridCache();
     update();

@@ -9,12 +9,12 @@ class HyperfruitDetector
 {
 public:
     HyperfruitDetector();
-    void setCS(double cs);
+    // Malody judges A..E are 0..4. Invalid values fall back to E.
+    void setJudgeLevel(int level, bool pro = false);
     QSet<int> detect(const QVector<Note> &notes,
                      const QVector<BpmEntry> &bpmList,
                      int offset) const;
 
 private:
-    double m_cs;
-    double catcherWidth() const;
+    double m_catcherWidth = 96.0 * 0.84;
 };

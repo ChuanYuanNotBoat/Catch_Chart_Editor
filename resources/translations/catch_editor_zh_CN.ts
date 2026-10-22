@@ -3210,6 +3210,26 @@ Open the **History** tab for collapsible long update notes.</source>
         <source>Press a new shortcut to replace the current one; additional strokes form a sequence (up to four). Backspace or the clear button disables it. Bindings apply to menus, canvas and floating panels. Text inputs and dialogs keep their own editing keys.</source>
         <translation>按下新组合键替换当前快捷键；连续录入可组成最多四段序列。按 Backspace 或清空按钮可禁用。设置统一用于菜单、画布和浮动面板；输入框与对话框保留各自的编辑按键。</translation>
     </message>
+    <message>
+        <source>Hyperfruit Judge...</source>
+        <translation>红果判定...</translation>
+    </message>
+    <message>
+        <source>Hyperfruit Judge</source>
+        <translation>红果判定</translation>
+    </message>
+    <message>
+        <source>Choose the Malody judge used for hyperfruit outlines in the canvas and preview. Default: E.</source>
+        <translation>选择画布和实时预览标记红果时使用的 Malody 判定，默认为 E。</translation>
+    </message>
+    <message>
+        <source>Judge:</source>
+        <translation>判定：</translation>
+    </message>
+    <message>
+        <source>Pro judge</source>
+        <translation>Pro 判定</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>

@@ -3,6 +3,10 @@
 > 适用版本：Beta v1.11.2 + Unreleased maintenance
 > 最后核对：2026-10-21
 
+## 红果判定回归（2026-10-22）
+
+`HyperfruitTests` 覆盖 Malody A–E 判的红果临界距离、默认 E、Pro、非整数毫秒、跨零 offset、四分之一帧容差、多押、Rain、反向移动，以及设置对话框的默认值、保存和取消、两个视图的红果缓存刷新。通过 `ctest --test-dir build_clion_msvc -C Debug -R "^(HyperfruitTests|core_minimal_tests|utils_settings_transfer_tests)$" --output-on-failure` 运行。
+
 ## 测试目标
 
 - 保护 beat/ms 换算、谱面模型、控制器信号和文件 I/O 行为。

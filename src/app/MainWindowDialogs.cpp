@@ -1350,6 +1350,43 @@ void MainWindow::exportDiagnosticsReport()
     }
 }
 
+void MainWindow::configureHyperfruitJudge()
+{
+    QDialog dialog(this);
+    dialog.setObjectName(QStringLiteral("hyperfruitJudgeDialog"));
+    dialog.setWindowTitle(tr("Hyperfruit Judge"));
+    dialog.setStyleSheet(NativeWindowTheme::dialogStyleSheet(Settings::instance().backgroundColor()));
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *description = new QLabel(tr("Choose the Malody judge used for hyperfruit outlines in the canvas and preview. Default: E."), &dialog);
+    description->setWordWrap(true);
+    layout->addWidget(description);
+    auto *form = new QFormLayout;
+    auto *judge = new QComboBox(&dialog);
+    judge->setObjectName(QStringLiteral("hyperfruitJudgeLevel"));
+    judge->addItems({QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("C"),
+                     QStringLiteral("D"), QStringLiteral("E")});
+    judge->setCurrentIndex(Settings::instance().hyperfruitJudgeLevel());
+    form->addRow(tr("Judge:"), judge);
+    auto *pro = new QCheckBox(tr("Pro judge"), &dialog);
+    pro->setObjectName(QStringLiteral("hyperfruitProJudge"));
+    pro->setChecked(Settings::instance().hyperfruitProJudge());
+    form->addRow(pro);
+    layout->addLayout(form);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    Settings::instance().setHyperfruitJudgeLevel(judge->currentIndex());
+    Settings::instance().setHyperfruitProJudge(pro->isChecked());
+    if (d->canvas)
+        d->canvas->refreshRenderSettings();
+    if (d->previewWidget)
+        d->previewWidget->refreshRenderSettings();
+}
+
 void MainWindow::adjustNoteSize()
 {
     QDialog dialog(this);

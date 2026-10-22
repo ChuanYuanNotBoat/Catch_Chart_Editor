@@ -29,6 +29,10 @@ public:
 
     bool hyperfruitOutlineEnabled() const;
     void setHyperfruitOutlineEnabled(bool enabled);
+    int hyperfruitJudgeLevel() const;
+    void setHyperfruitJudgeLevel(int level);
+    bool hyperfruitProJudge() const;
+    void setHyperfruitProJudge(bool enabled);
 
     bool rainRewardPreviewEnabled() const;
     void setRainRewardPreviewEnabled(bool enabled);
