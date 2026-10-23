@@ -215,7 +215,8 @@ QJsonObject encodeNote(const Note &note, bool canonical)
     o.insert(QStringLiteral("type"), Note::noteTypeToInt(note.type));
     if (note.type == NoteType::RAIN)
     {
-        o.insert(QStringLiteral("x"), note.x);
+        if (!canonical)
+            o.insert(QStringLiteral("x"), note.x); // Preserve legacy data only for lossless storage.
         o.insert(QStringLiteral("endbeat"),
                  beatArray(note.endBeatNum, note.endNumerator, note.endDenominator, canonical));
     }
@@ -246,9 +247,9 @@ bool decodeNote(const QJsonObject &o, Note &note, QString *error)
     else if (type == 3)
     {
         int ew, en, ed;
-        if (!o.value(QStringLiteral("x")).isDouble() || !readBeat(o.value(QStringLiteral("endbeat")), ew, en, ed))
-            return fail(error, QStringLiteral("rain note requires x and endbeat"));
-        parsed = Note(w, n, d, ew, en, ed, o.value(QStringLiteral("x")).toInt());
+        if (!readBeat(o.value(QStringLiteral("endbeat")), ew, en, ed))
+            return fail(error, QStringLiteral("rain note requires endbeat"));
+        parsed = Note(w, n, d, ew, en, ed, o.value(QStringLiteral("x")).toInt(256));
     }
     else if (type == 1)
     {

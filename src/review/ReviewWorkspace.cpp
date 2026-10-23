@@ -146,11 +146,46 @@ ReviewWorkspace::ReviewWorkspace(ChartController *controller, SelectionControlle
         connect(canvas, &ChartCanvas::paintReviewOverlay, this, &ReviewWorkspace::paintOverlay, Qt::DirectConnection);
         canvas->installEventFilter(this);
         connect(canvas, &ChartCanvas::extendContextMenu, this, [this](QMenu *menu, const QPointF &position) {
-            auto *comment = menu->addAction(tr("Add Comment Here…"));
+            const int hit = m_canvas->commentNoteAt(position);
+            QRectF area;
+            const bool hasArea = m_canvas->selectedCommentRegion(area);
+            const QPointF chartPosition(m_canvas->chartCanvasXToLaneX(position.x()), m_canvas->chartYToBeat(position.y()));
+            double begin = 0, end = 0;
+            const bool inRange = hasArea ? area.contains(chartPosition)
+                : m_canvas->selectedBeatRange(begin, end) && chartPosition.y() >= begin && chartPosition.y() <= end;
+            if (hit >= 0 && !inRange && m_selection && !m_selection->selectedIndices().contains(hit))
+            {
+                m_canvas->clearSelectedCommentRegion();
+                m_canvas->clearRangeOverlay();
+                m_selection->select(hit);
+            }
+            const QString type = selectionAnchorType();
+            auto *comment = menu->addAction(type == "Region" ? tr("Comment on Selected Range…")
+                                            : type == "Note" || type == "NoteGroup"
+                                                ? tr("Comment on Selected Notes…") : tr("Add Comment Here…"));
             comment->setObjectName("review.context.addComment");
-            connect(comment, &QAction::triggered, this, [this, position] {
-                addCommentDialog(position);
+            connect(comment, &QAction::triggered, this, [this, position, type] {
+                addCommentDialog(position, type == "TimePoint" ? "TimePosition" : type);
             });
+            if (type == "Note" || type == "NoteGroup")
+            {
+                auto *region = menu->addAction(tr("Comment on Selection Bounds…"));
+                region->setObjectName("review.context.addRegionComment");
+                connect(region, &QAction::triggered, this, [this, position] { addCommentDialog(position, "Region"); });
+            }
+            if (type == "Region" && m_selection && !m_selection->selectedIndices().isEmpty())
+            {
+                auto *notes = menu->addAction(tr("Comment on Selected Notes…"));
+                notes->setObjectName("review.context.addNoteComment");
+                connect(notes, &QAction::triggered, this, [this, position] {
+                    addCommentDialog(position, m_selection->selectedIndices().size() == 1 ? "Note" : "NoteGroup");
+                });
+            }
+            if (type != "TimePoint")
+            {
+                auto *point = menu->addAction(tr("Comment at This Position…"));
+                connect(point, &QAction::triggered, this, [this, position] { addCommentDialog(position, "TimePosition"); });
+            }
             auto *comments = menu->addAction(tr("Show Comments"));
             comments->setObjectName("review.context.comments");
             connect(comments, &QAction::triggered, this, &ReviewWorkspace::showComments);
@@ -274,6 +309,7 @@ void ReviewWorkspace::chartLoaded()
     m_viewMode = 0;
     m_peeking = false;
     m_lastChart = chart;
+    loadChartReview();
     m_controller->setReadOnly(false);
     if (m_canvas)
         m_canvas->setDisplayChart(nullptr);
@@ -282,6 +318,7 @@ void ReviewWorkspace::chartLoaded()
     rebuildPresentation();
     refreshUi();
     ++m_generation;
+    emit workspaceChanged();
 }
 
 void ReviewWorkspace::chartChanged()
@@ -404,7 +441,8 @@ void ReviewWorkspace::recordOperation(const QVector<Note> &removed, const QVecto
         live.after = after ? encode(*after) : QJsonValue(QJsonValue::Undefined);
         const bool movedPosition = before && after
                                    && (before->beatNum != after->beatNum || before->numerator != after->numerator
-                                       || before->denominator != after->denominator || before->x != after->x);
+                                       || before->denominator != after->denominator
+                                       || (!before->isRainNote() && before->x != after->x));
         live.kind = before && after ? (movedPosition ? "Move" : "Modify") : before ? "Remove" : "Add";
         live.moveIntent = movedPosition;
         m_pendingOperations.append(live);
@@ -597,7 +635,7 @@ Chart ReviewWorkspace::activeChart(const CceDocument::ProjectBundle &bundle) con
     return chart;
 }
 
-void ReviewWorkspace::restoreBundle(const CceDocument::ProjectBundle &bundle)
+void ReviewWorkspace::restoreBundle(const CceDocument::ProjectBundle &bundle, bool projectMode)
 {
     m_restoring = true;
     m_bundle = bundle;
@@ -634,13 +672,15 @@ void ReviewWorkspace::restoreBundle(const CceDocument::ProjectBundle &bundle)
     const QString root = resourceCacheRoot(bundle) + "/" + bundle.project.projectId;
     for (auto it = bundle.resourcePaths.cbegin(); it != bundle.resourcePaths.cend(); ++it)
         m_resourceSources[it.key()] = QDir(root).filePath(it.key());
-    m_projectMode = true;
+    m_projectMode = projectMode;
     m_dirty = true;
     ++m_generation;
-    m_recoveryTimer.start();
+    if (m_projectMode)
+        m_recoveryTimer.start();
     emit workspaceChanged();
 }
-bool ReviewWorkspace::applyBundle(const QString &name, const CceDocument::ProjectBundle &after, QString *error)
+bool ReviewWorkspace::applyBundle(const QString &name, const CceDocument::ProjectBundle &after, QString *error,
+                                  bool preserveMode)
 {
     if (displayIsReadOnly() && !m_applyingReview && snapshot(after) != snapshot())
         return failure(error, tr("Base is read only."));
@@ -655,9 +695,10 @@ bool ReviewWorkspace::applyBundle(const QString &name, const CceDocument::Projec
     const QPointer<ReviewWorkspace> coordinator(this);
     if (!m_controller->applyDocumentMutation(
             name, chart,
-            [coordinator, before, after](bool forward) {
+            [coordinator, before, after, preserveMode](bool forward) {
                 if (coordinator)
-                    coordinator->restoreBundle(forward ? after : before);
+                    coordinator->restoreBundle(forward ? after : before,
+                                                preserveMode ? coordinator->m_projectMode : true);
             },
             m_applyingReview))
         return failure(error, tr("Base is read only."));
@@ -886,8 +927,90 @@ void ReviewWorkspace::commitReviewState(const QString &name, const QJsonArray &e
     after.review["events"] = log;
     after.review["revision"] = m_revision;
     QString error;
-    if (!applyBundle(name, after, &error))
+    if (!applyBundle(name, after, &error, true))
         report(error);
+}
+
+QJsonObject ReviewWorkspace::chartReviewState() const
+{
+    if (m_projectMode)
+        return {};
+    const auto &difficulty = m_bundle.project.difficulties.value(m_bundle.project.activeDifficultyId);
+    return {{"version", 1}, {"difficultyId", difficulty.difficultyId},
+            {"layerId", difficulty.bindings.isEmpty() ? QString() : difficulty.bindings.first().layerId},
+            {"review", m_bundle.review}};
+}
+
+bool ReviewWorkspace::writeChartReview(const QString &chartPath, const QJsonObject &state, QString *error)
+{
+    if (state.isEmpty())
+        return true;
+    const auto stem = QFileInfo(chartPath).completeBaseName();
+    const auto folder = QFileInfo(chartPath).absoluteDir().filePath(".mcce-plugin");
+    const auto path = QDir(folder).filePath(stem + ".review.json");
+    if (QFileInfo::exists(path))
+    {
+        QFile existing(path);
+        if (!existing.open(QIODevice::ReadOnly) || existing.size() > 32 * 1024 * 1024
+            || QJsonDocument::fromJson(existing.readAll()).object().value("version").toInt() != 1)
+            return failure(error, QObject::tr("Cannot overwrite an unreadable chart comments file: %1").arg(path));
+    }
+    if (state.value("review").toObject().value("comments").toArray().isEmpty() && !QFileInfo::exists(path))
+        return true;
+    if (!QDir().mkpath(folder))
+        return failure(error, QObject::tr("Cannot create the chart comments folder."));
+    QSaveFile file(path);
+    const auto bytes = QJsonDocument(state).toJson(QJsonDocument::Indented);
+    if (bytes.size() > 32 * 1024 * 1024)
+        return failure(error, QObject::tr("Chart comments exceed the supported file size."));
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())
+        return failure(error, QObject::tr("Cannot save chart comments: %1").arg(path));
+    return true;
+}
+
+void ReviewWorkspace::loadChartReview()
+{
+    const auto stem = QFileInfo(m_lastChartPath).completeBaseName();
+    const auto path = QFileInfo(m_lastChartPath).absoluteDir().filePath(".mcce-plugin/" + stem + ".review.json");
+    QFile file(path);
+    if (!file.exists())
+        return;
+    if (!file.open(QIODevice::ReadOnly) || file.size() > 32 * 1024 * 1024)
+    {
+        report(tr("Cannot read chart comments: %1").arg(path));
+        return;
+    }
+    const auto state = QJsonDocument::fromJson(file.readAll()).object();
+    const auto review = state.value("review").toObject();
+    if (state.value("version").toInt() != 1 || !review.value("comments").isArray())
+    {
+        report(tr("Invalid chart comments file: %1").arg(path));
+        return;
+    }
+    const auto difficulty = m_bundle.project.difficulties.value(m_bundle.project.activeDifficultyId);
+    const auto layer = difficulty.bindings.isEmpty() ? QString() : difficulty.bindings.first().layerId;
+    QJsonArray entries;
+    for (const auto &value : review.value("comments").toArray())
+    {
+        auto comment = value.toObject();
+        auto anchor = comment.value("anchor").toObject();
+        if (anchor.value("difficultyId") == state.value("difficultyId"))
+            anchor["difficultyId"] = difficulty.difficultyId;
+        QJsonArray targets;
+        for (const auto &targetValue : anchor.value("targets").toArray())
+        {
+            auto target = targetValue.toObject();
+            if (target.value("layerId") == state.value("layerId"))
+                target["layerId"] = layer;
+            targets.append(target);
+        }
+        if (anchor.contains("targets"))
+            anchor["targets"] = targets;
+        comment["anchor"] = anchor;
+        entries.append(comment);
+    }
+    m_bundle.review = review;
+    m_bundle.review["comments"] = relocateComments(entries, m_bundle.project, m_bundle.project);
 }
 
 bool ReviewWorkspace::startProposal(const QString &description, QString *error)

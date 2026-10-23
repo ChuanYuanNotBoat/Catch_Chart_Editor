@@ -32,6 +32,9 @@ class QToolBar;
 class QAction;
 class QPlainTextEdit;
 class QMouseEvent;
+class QMenu;
+class BPMTimePanel;
+class MetaEditPanel;
 namespace CceReviewUi
 {
 class NoteInspector;
@@ -51,6 +54,7 @@ public:
                     QMainWindow *window, const QString &identityPath = QString(), DiffRunner diffRunner = {});
     ~ReviewWorkspace() override;
     void installMenus(CommandRouter *router, QToolBar *toolbar = nullptr);
+    void installCommentSources(BPMTimePanel *bpmPanel, MetaEditPanel *metaPanel);
     QWidget *inspector() const;
     QWidget *createExportConfiguration(QWidget *parent);
     QString activeAuthorName() const;
@@ -78,6 +82,8 @@ public:
     bool setProject(const CceDocument::Project &project, QString *error = nullptr);
     bool openProject(const QString &path, QString *error = nullptr);
     bool saveProject(const QString &path, QString *error = nullptr);
+    QJsonObject chartReviewState() const;
+    static bool writeChartReview(const QString &chartPath, const QJsonObject &state, QString *error = nullptr);
     bool exportChart(const QString &path, const QStringList &layerIds = {}, QString *error = nullptr);
     bool importDifficultyFromPath(const QString &path, QString *error = nullptr);
     bool startProposal(const QString &description, QString *error = nullptr);
@@ -89,6 +95,7 @@ public:
     bool rebase(QString *error = nullptr);
     bool addCommentAtSelection(const QString &body, const QString &anchorType, QString *error = nullptr,
                                const QPointF &canvasPosition = QPointF(-1, -1));
+    bool addCommentForAnchor(const QString &body, const QJsonObject &anchor, QString *error = nullptr);
     void showPanel();
     void saveProjectDialog();
     bool confirmClose();
@@ -132,10 +139,14 @@ private:
     struct CommentCard
     {
         QString commentId, threadId, author, body, referenceStatus;
+        QColor authorColor;
         double beat = 0, laneX = -1;
         QPointF offset;
         QVector<QPointF> beforeTargets, afterTargets;
         QRectF region;
+        QRectF noteGroupBounds;
+        bool hasNoteGroup = false;
+        bool hasTimeline = false;
         bool hasRegion = false;
         bool expanded = true, resolved = false;
     };
@@ -149,8 +160,10 @@ private:
     void recordOperation(const QVector<Note> &removed, const QVector<Note> &added,
                          const QList<QPair<Note, Note>> &moved, const QString &group);
     bool guardEdit(const QVector<Note> &notes, bool adding);
-    bool applyBundle(const QString &name, const CceDocument::ProjectBundle &after, QString *error = nullptr);
-    void restoreBundle(const CceDocument::ProjectBundle &bundle);
+    bool applyBundle(const QString &name, const CceDocument::ProjectBundle &after, QString *error = nullptr,
+                     bool preserveMode = false);
+    void restoreBundle(const CceDocument::ProjectBundle &bundle, bool projectMode);
+    void loadChartReview();
     void initializeProposalSources();
     bool proposalBundle(CceDocument::ProjectBundle &bundle, QString *error = nullptr) const;
     void markChanged();
@@ -166,7 +179,13 @@ private:
     void selectChange();
     void navigate(int kind, int direction);
     void editComment(bool remove);
-    void addCommentDialog(const QPointF &canvasPosition = QPointF(-1, -1));
+    void addCommentDialog(const QPointF &canvasPosition = QPointF(-1, -1), const QString &type = {});
+    void addAnchoredCommentDialog(const QJsonObject &anchor);
+    QString selectionAnchorType() const;
+    void selectComment(const QString &id);
+    void populateCommentMenu(QMenu *menu, const QString &id);
+    void replyToComment();
+    void setCommentDisplay(const QString &state);
     void showComments();
     void showPanelPage(int page);
     void installToolbar(QToolBar *toolbar, CommandRouter *router, QAction *review);

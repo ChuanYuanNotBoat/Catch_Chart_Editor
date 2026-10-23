@@ -435,6 +435,14 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <source>Advanced BPM editing…</source>
         <translation>高级 BPM 编辑…</translation>
     </message>
+    <message>
+        <source>Comment on Selected BPM Entries…</source>
+        <translation>评论选中 BPM 条目…</translation>
+    </message>
+    <message>
+        <source>Comment on Entire BPM List…</source>
+        <translation>评论整个 BPM 列表…</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -3437,6 +3445,26 @@ Open the **History** tab for collapsible long update notes.</source>
         <source>Save</source>
         <translation>保存</translation>
     </message>
+    <message>
+        <source>Comment on Selected Metadata Fields (%1)…</source>
+        <translation>评论选中元数据字段（%1）…</translation>
+    </message>
+    <message>
+        <source>Clear Comment Selection</source>
+        <translation>清除评论选区</translation>
+    </message>
+    <message>
+        <source>Right-click to comment; Ctrl+right-click to select multiple fields.</source>
+        <translation>右键添加评论；Ctrl＋右键可选择多个字段。</translation>
+    </message>
+    <message>
+        <source>Metadata Comments</source>
+        <translation>元数据评论</translation>
+    </message>
+    <message>
+        <source>Resolved</source>
+        <translation>已解决</translation>
+    </message>
 </context>
 <context>
     <name>NoteChain::NoteChainEditor</name>
@@ -4360,6 +4388,22 @@ Do you want to rename the imported file?</source>
     <message>
         <source>Cannot create merged OGG audio.</source>
         <translation>无法创建合并 OGG 音频。</translation>
+    </message>
+    <message>
+        <source>Cannot create the chart comments folder.</source>
+        <translation>无法创建谱面评论文件夹。</translation>
+    </message>
+    <message>
+        <source>Cannot save chart comments: %1</source>
+        <translation>无法保存谱面评论：%1</translation>
+    </message>
+    <message>
+        <source>Cannot overwrite an unreadable chart comments file: %1</source>
+        <translation>无法覆盖不可读取的谱面评论文件：%1</translation>
+    </message>
+    <message>
+        <source>Chart comments exceed the supported file size.</source>
+        <translation>谱面评论文件超过支持的大小。</translation>
     </message>
 </context>
 <context>
@@ -7583,6 +7627,70 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>No proposal to save.</source>
         <translation>没有可保存的提案。</translation>
+    </message>
+    <message>
+        <source>Comment on Selected Range…</source>
+        <translation>评论选中范围…</translation>
+    </message>
+    <message>
+        <source>Comment on Selected Notes…</source>
+        <translation>评论选中音符…</translation>
+    </message>
+    <message>
+        <source>Comment on Selection Bounds…</source>
+        <translation>评论选区范围…</translation>
+    </message>
+    <message>
+        <source>Comment at This Position…</source>
+        <translation>评论此位置…</translation>
+    </message>
+    <message>
+        <source>Current selection / position</source>
+        <translation>当前选区／位置</translation>
+    </message>
+    <message>
+        <source>Time point</source>
+        <translation>时间点</translation>
+    </message>
+    <message>
+        <source>Time and position</source>
+        <translation>时间及位置</translation>
+    </message>
+    <message>
+        <source>Selected range / selection bounds</source>
+        <translation>选中范围／选区边界</translation>
+    </message>
+    <message>
+        <source>Selected note</source>
+        <translation>选中音符</translation>
+    </message>
+    <message>
+        <source>Selected notes</source>
+        <translation>多个选中音符</translation>
+    </message>
+    <message>
+        <source>Entire BPM list</source>
+        <translation>整个 BPM 列表</translation>
+    </message>
+    <message>
+        <source>Open Thread</source>
+        <translation>打开讨论</translation>
+    </message>
+    <message>
+        <source>Select a beat range or notes first.</source>
+        <translation>请先选择拍点范围或音符。</translation>
+    </message>
+    <message>
+        <source>Metadata: %1</source>
+        <translation>元数据：%1</translation>
+    </message>
+    <message>
+        <source>Cannot read chart comments: %1</source>
+        <translation>无法读取谱面评论：%1</translation>
+    </message>
+    <message>
+        <source>Invalid chart comments file: %1</source>
+        <translation>谱面评论文件无效：%1</translation>
     </message>
 </context>
 <context>

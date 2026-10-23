@@ -3,6 +3,11 @@
 #include "CustomWidgets/RightPanel.h"
 #include "model/MetaData.h"
 #include <functional>
+#include <QSet>
+#include <QStringList>
+#include <QJsonArray>
+#include <QHash>
+#include <QColor>
 
 class QLineEdit;
 class QSpinBox;
@@ -12,6 +17,8 @@ class QTextEdit;
 class QLabel;
 class QFormLayout;
 class QTimer;
+class QGroupBox;
+class QVBoxLayout;
 
 class MetaEditPanel : public RightPanel
 {
@@ -21,11 +28,15 @@ public:
     void setChartController(ChartController *controller) override;
     void setSelectionController(SelectionController *controller) override;
     void retranslateUi();
+    void setReviewComments(const QJsonArray &comments, const QString &difficultyId,
+                           const QHash<QString, QColor> &authorColors);
 
 signals:
     void backgroundResourceChanged(const QString &fileName);
     void audioFileChanged(const QString &fileName);
     void saveRequested();
+    void commentRequested(const QStringList &fields);
+    void commentMenuRequested(const QString &commentId, const QPoint &globalPosition);
 
 
 private slots:
@@ -61,6 +72,10 @@ private:
     };
 
     void setupUi();
+    void setupCommentTargets();
+    QSet<QString> m_commentFields;
+    QGroupBox *m_reviewCommentsArea = nullptr;
+    QVBoxLayout *m_reviewCommentsLayout = nullptr;
     QString importResourceToChartDirectory(const QString &sourcePath) const;
     BackgroundImportStatus importBackgroundImage(const QString &sourcePath,
                                                  QString *outRelativeName,

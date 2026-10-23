@@ -1826,6 +1826,7 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->reviewWorkspace = new CceReview::ReviewWorkspace(d->chartController, d->selectionController,
                                                        d->canvas, this);
     d->reviewWorkspace->installMenus(d->commandRouter,d->mainToolBar);
+    d->reviewWorkspace->installCommentSources(d->bpmPanel, d->metaPanel);
     connect(d->reviewWorkspace, &CceReview::ReviewWorkspace::statusMessage, this,
             [this](const QString &message) { statusBar()->showMessage(message, 10000); });
     connect(d->reviewWorkspace,&CceReview::ReviewWorkspace::projectOpened,this,[this](const QString &path) {
@@ -3261,11 +3262,13 @@ void MainWindow::saveDocumentAsync(const QString &path,
     }
 
     Chart snapshot = *d->chartController->chart();
+    const auto reviewSnapshot = d->reviewWorkspace ? d->reviewWorkspace->chartReviewState() : QJsonObject();
     const QString targetPath = path;
     const QString sessionWorkingPath = workingPath;
     enqueueDocumentTransaction(
         [this,
          snapshot = std::move(snapshot),
+         reviewSnapshot,
          targetPath,
          sessionWorkingPath,
          syncResources,
@@ -3296,6 +3299,7 @@ void MainWindow::saveDocumentAsync(const QString &path,
             QThread *worker = QThread::create(
                 [state,
                  snapshot = std::move(snapshot),
+                 reviewSnapshot,
                  targetPath,
                  sessionWorkingPath,
                  syncResources]() mutable
@@ -3334,6 +3338,13 @@ void MainWindow::saveDocumentAsync(const QString &path,
                         }
                     }
 
+                    if (success && !reviewSnapshot.isEmpty())
+                    {
+                        success = CceReview::ReviewWorkspace::writeChartReview(targetPath, reviewSnapshot, &error);
+                        if (success && !resolvedWorkingPath.isEmpty()
+                            && QDir::cleanPath(resolvedWorkingPath) != QDir::cleanPath(targetPath))
+                            success = CceReview::ReviewWorkspace::writeChartReview(resolvedWorkingPath, reviewSnapshot, &error);
+                    }
                     state->success = success;
                     state->workingPath = resolvedWorkingPath;
                     state->error = error;
@@ -3345,6 +3356,7 @@ void MainWindow::saveDocumentAsync(const QString &path,
                              this,
                              [this,
                               state,
+                              reviewSnapshot,
                               progressGuard,
                               completion = std::move(completion)]() mutable
                              {
@@ -3355,6 +3367,9 @@ void MainWindow::saveDocumentAsync(const QString &path,
                 }
                 if (completion)
                     completion(state->success, state->workingPath, state->error);
+                if (state->success && !reviewSnapshot.isEmpty() && d->reviewWorkspace
+                    && reviewSnapshot != d->reviewWorkspace->chartReviewState())
+                    d->isModified = true;
                 finishDocumentTransaction();
             });
             worker->start();

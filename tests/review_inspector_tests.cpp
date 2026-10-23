@@ -79,6 +79,9 @@ void ReviewInspectorTests::editsRainAndSoundSpecificFields()
     auto *rainEnd = rainInspector.findChild<QLineEdit *>(QStringLiteral("reviewNoteRainEndEdit"));
     auto *rainApply = rainInspector.findChild<QPushButton *>(QStringLiteral("reviewNoteApplyButton"));
     QVERIFY(rainEnd);
+    auto *rainX = rainInspector.findChild<QLineEdit *>(QStringLiteral("reviewNoteXEdit"));
+    QVERIFY(rainX);
+    QVERIFY(!rainX->isEnabled());
     QVERIFY(rainApply);
     const QString rainId = rainController.chart()->notes().first().id;
     rainEnd->setText(QStringLiteral("10:1/4"));

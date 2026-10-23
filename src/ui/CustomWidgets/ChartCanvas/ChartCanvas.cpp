@@ -450,6 +450,7 @@ void ChartCanvas::setChartController(ChartController *controller)
         // Keep the path tracker synchronized for consumers that inspect it;
         // the typed load change already invalidates the background cache.
         connect(controller, &ChartController::chartLoaded, this, [this]() {
+            m_hasSelectedCommentRegion = false;
             if (m_chartController && m_chartController->chart())
                 m_lastKnownBackgroundFile = currentBackgroundPath();
         });

@@ -433,6 +433,10 @@ void LongRangeSelector::fillCurrentTime(QLineEdit *edit)
 void LongRangeSelector::onSelectClicked()
 {
     autoSwapIfNeeded();
+    // Publish the range immediately, including empty ranges, before selecting
+    // notes. The debounce timer may not have fired yet when Select is clicked.
+    if (hasValidRange())
+        emit rangeChanged(qMin(currentStartBeat(), currentEndBeat()), qMax(currentStartBeat(), currentEndBeat()));
     performSelection();
 }
 

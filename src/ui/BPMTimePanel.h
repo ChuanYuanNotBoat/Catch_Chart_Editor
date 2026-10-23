@@ -25,6 +25,10 @@ public:
     void setMainCanvas(ChartCanvas *canvas) { m_mainCanvas = canvas; }
     void retranslateUi();
 
+signals:
+    // Empty indices means the entire list; otherwise only the selected entries.
+    void commentRequested(const QVector<int> &indices);
+
 private slots:
     void refreshBpmList();
     void onItemSelected(int row);

@@ -7,7 +7,20 @@
 #include "file/ChartIO.h"
 #include "review/CommentModel.h"
 #include "review/ReviewWorkspace.h"
+#include "utils/Settings.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
+#include "ui/BPMTimePanel.h"
+#include "ui/MetaEditPanel.h"
+#include "ui/LongRangeSelector.h"
+#include "app/MainWindow.h"
+#include "controller/PlaybackController.h"
+#include "audio/AudioPlayer.h"
+#include "model/Skin.h"
+#include <QJsonDocument>
+#include <QFileDialog>
+#include <QGroupBox>
+#include <QListWidget>
+#include <QContextMenuEvent>
 
 #include <QJsonArray>
 #include <QJsonObject>
@@ -167,6 +180,37 @@ QPushButton *buttonNamed(QWidget *widget, const QString &text)
     return nullptr;
 }
 
+void acceptCommentDialog()
+{
+    QTimer::singleShot(0, [] {
+        if (auto *dialog = qobject_cast<QInputDialog *>(QApplication::activeModalWidget()))
+        {
+            dialog->setTextValue("Review selection");
+            dialog->accept();
+        }
+    });
+}
+
+bool runContextAction(const std::function<void()> &open, const QString &name)
+{
+    bool found = false;
+    QTimer::singleShot(0, [&] {
+        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        if (!menu)
+            return;
+        auto *action = menu->findChild<QAction *>(name);
+        found = action && action->isEnabled();
+        menu->close();
+        if (found)
+        {
+            acceptCommentDialog();
+            action->trigger();
+        }
+    });
+    open();
+    return found;
+}
+
 QByteArray fileHash(const QString &path)
 {
     QFile file(path);
@@ -184,6 +228,7 @@ private slots:
     {
         QStandardPaths::setTestModeEnabled(true);
         QCoreApplication::setOrganizationName("CceReviewTests");
+        QCoreApplication::setApplicationName("Rv"); // Keep nested Windows working-copy paths below MAX_PATH.
         QApplication::setQuitOnLastWindowClosed(false);
     }
 
@@ -1111,6 +1156,443 @@ private slots:
         }
         QCOMPARE(found, 1);
     }
+    void contextCommentUsesSelection_data()
+    {
+        QTest::addColumn<QString>("kind");
+        for (const auto &kind : {"Note", "NoteGroup", "Region"})
+            QTest::newRow(kind) << QString(kind);
+    }
+    void contextCommentUsesSelection()
+    {
+        QFETCH(QString, kind);
+        WorkspaceRig rig("selection-comment");
+        QVERIFY(rig.initialize());
+        rig.canvas.resize(800, 600);
+        selectNote(rig, 0);
+        if (kind == "NoteGroup")
+            rig.selection.addToSelection(1);
+        if (kind == "Region")
+        {
+            rig.selection.clearSelection();
+            rig.canvas.setRangeOverlay(6.75, 5.25); // Empty, reversed range.
+        }
+        QMenu menu;
+        rig.canvas.extendContextMenu(&menu, QPointF(500, 400));
+        auto *action = menu.findChild<QAction *>("review.context.addComment");
+        QVERIFY(action);
+        acceptCommentDialog();
+        action->trigger();
+        QCOMPARE(rig.workspace->comments().size(), 1);
+        const auto anchor = rig.workspace->comments().first().toObject().value("anchor").toObject();
+        QCOMPARE(anchor.value("type").toString(), kind);
+        if (kind == "Region")
+        {
+            QCOMPARE(anchor.value("beat").toArray(), (QJsonArray{5, 1, 4}));
+            QCOMPARE(anchor.value("endBeat").toArray(), (QJsonArray{6, 3, 4}));
+            QCOMPARE(anchor.value("x").toInt(), 0);
+            QCOMPARE(anchor.value("endX").toInt(), 512);
+        }
+        else
+            QCOMPARE(anchor.value("targets").toArray().size(), kind == "Note" ? 1 : 2);
+        rig.controller.undo();
+        QVERIFY(rig.workspace->comments().isEmpty());
+        rig.controller.redo();
+        QCOMPARE(rig.workspace->comments().first().toObject().value("anchor").toObject(), anchor);
+    }
+    void bpmAndMetadataContextComments()
+    {
+        WorkspaceRig rig("panel-comments");
+        QVERIFY(rig.initialize());
+        rig.controller.addBpm(BpmEntry(4, 0, 1, 180));
+        BPMTimePanel bpm;
+        MetaEditPanel meta;
+        bpm.setChartController(&rig.controller);
+        meta.setChartController(&rig.controller);
+        rig.workspace->installCommentSources(&bpm, &meta);
+        auto *list = bpm.findChild<QListWidget *>("bpmEntries");
+        QVERIFY(list);
+        QCOMPARE(list->selectionMode(), QAbstractItemView::ExtendedSelection);
+        list->setCurrentRow(0);
+        list->item(list->count() - 1)->setSelected(true);
+        QVERIFY(runContextAction([&] { list->customContextMenuRequested(list->visualItemRect(list->item(0)).center()); },
+                                 "review.bpm.addComment"));
+        auto anchor = rig.workspace->comments().last().toObject().value("anchor").toObject();
+        QCOMPARE(anchor.value("type").toString(), QString("BpmGroup"));
+        QCOMPARE(anchor.value("bpmList").toArray().size(), 2);
+        list->clearSelection();
+        QVERIFY(runContextAction([&] { list->customContextMenuRequested(list->visualItemRect(list->item(list->count() - 1)).center()); },
+                                 "review.bpm.addComment"));
+        anchor = rig.workspace->comments().last().toObject().value("anchor").toObject();
+        QCOMPARE(anchor.value("type").toString(), QString("BpmEntry"));
+        QCOMPARE(anchor.value("bpm").toObject().value("bpm").toDouble(), 180.0);
+        auto *title = meta.findChild<QLabel *>();
+        QVERIFY(title);
+        QVERIFY(runContextAction([&] { title->customContextMenuRequested(QPoint(1, 1)); }, "review.meta.addComment"));
+        QTest::keyPress(&meta, Qt::Key_Control, Qt::ControlModifier);
+        auto labels = meta.findChildren<QLabel *>();
+        QVERIFY(labels.size() >= 2);
+        QVERIFY(runContextAction([&] { labels.at(1)->customContextMenuRequested(QPoint(1, 1)); }, "review.meta.addComment"));
+        QTest::keyRelease(&meta, Qt::Key_Control);
+        anchor = rig.workspace->comments().last().toObject().value("anchor").toObject();
+        QCOMPARE(anchor.value("type").toString(), QString("Metadata"));
+        QCOMPARE(anchor.value("fields").toArray().size(), 2);
+        const auto path = rig.temp.filePath("panel-comments.cceproj");
+        QString error;
+        QVERIFY2(rig.workspace->saveProject(path, &error), qPrintable(error));
+        WorkspaceRig reopened("panel-comments-reopened");
+        QVERIFY(reopened.initialize());
+        QVERIFY2(reopened.workspace->openProject(path, &error), qPrintable(error));
+        QCOMPARE(reopened.workspace->comments(), rig.workspace->comments());
+    }
+    void commentAnnotationsAreVisibleAndAuthorColored()
+    {
+        WorkspaceRig rig("annotation-visuals");
+        QVERIFY(rig.initialize());
+        rig.canvas.resize(1000, 700);
+        rig.canvas.setTimeScale(1);
+        rig.canvas.setVerticalFlip(false);
+        rig.canvas.setScrollPos(0);
+        rig.controller.addNote(Note(6, 1, 2, 8, 1, 2, 256));
+        const auto chartBeforeComments = CceDocument::encodeChart(*rig.controller.chart());
+        const QPointF target(rig.canvas.chartLaneXToCanvasX(128), rig.canvas.chartBeatToY(5));
+        QVERIFY(rig.workspace->addCommentAtSelection("Visible connector", "TimePosition", nullptr, target));
+        QImage image(rig.canvas.size(), QImage::Format_ARGB32_Premultiplied);
+        rig.canvas.render(&image);
+        const QPoint midpoint = (target + QPointF(20, -24)).toPoint();
+        int visibleBlue = 0;
+        for (int y = midpoint.y() - 2; y <= midpoint.y() + 2; ++y)
+            for (int x = midpoint.x() - 2; x <= midpoint.x() + 2; ++x)
+            {
+                const auto color = image.pixelColor(x, y);
+                if (color.blue() > 220 && color.green() > 175 && color.red() > 110)
+                    ++visibleBlue;
+            }
+        QVERIFY2(visibleBlue >= 6, "Connector must remain bright and visibly thicker than one pixel");
+        const auto firstBackground = image.pixelColor((target + QPointF(230, -35)).toPoint());
+        QString error;
+        QVERIFY(rig.workspace->identities()->createIdentity("Second reviewer", &error));
+        QVERIFY(rig.workspace->identities()->setActiveIdentity(rig.workspace->identities()->identities().last().authorId, &error));
+        const QPointF secondTarget(rig.canvas.chartLaneXToCanvasX(128), rig.canvas.chartBeatToY(9));
+        QVERIFY(rig.workspace->addCommentAtSelection("Second author", "TimePosition", nullptr, secondTarget));
+        selectNote(rig, 0);
+        rig.selection.addToSelection(1);
+        QVERIFY(rig.workspace->addCommentAtSelection("Commented note group", "NoteGroup", &error));
+        rig.selection.clearSelection();
+        rig.canvas.render(&image);
+        const auto secondBackground = image.pixelColor((secondTarget + QPointF(230, -35)).toPoint());
+        QVERIFY2(firstBackground != secondBackground, "Authors need distinct card backgrounds");
+        const QPoint border(qRound(rig.canvas.chartLaneXToCanvasX(64) - Settings::instance().noteSize() / 2.0 - 6),
+                           qRound(rig.canvas.chartBeatToY(2)));
+        int framePixels = 0;
+        for (int y = border.y() - 8; y <= border.y() + 8; ++y)
+        {
+            const auto color = image.pixelColor(border.x(), y);
+            if (color.blue() > 175 && color.green() > 140)
+                ++framePixels;
+        }
+        QVERIFY2(framePixels >= 5, "Note group needs a visible pale blue frame");
+        QVERIFY(rig.workspace->addCommentForAnchor("Time point highlight",
+            {{"type", "TimePoint"}, {"difficultyId", rig.workspace->project().activeDifficultyId},
+             {"beat", QJsonArray{5, 3, 4}}, {"x", 400}}, &error));
+        rig.canvas.render(&image);
+        const int timelineY = qRound(rig.canvas.chartBeatToY(5.75));
+        int timelinePixels = 0;
+        for (int x = 60; x < 200; ++x)
+        {
+            const auto color = image.pixelColor(x, timelineY);
+            if (color.blue() > 220 && color.green() > 175 && color.red() > 110)
+                ++timelinePixels;
+        }
+        QVERIFY2(timelinePixels >= 60, "Time point comments need a bright highlighted timeline");
+        QCOMPARE(CceDocument::encodeChart(*rig.controller.chart()), chartBeforeComments);
+        const auto output = qEnvironmentVariable("CCE_REVIEW_SCREENSHOT_DIR");
+        if (!output.isEmpty())
+        {
+            QDir().mkpath(output);
+            QVERIFY(image.save(QDir(output).filePath("comment-annotations.png")));
+        }
+    }
+    void commentCardHasDedicatedContextMenu()
+    {
+        WorkspaceRig rig("card-menu");
+        QVERIFY(rig.initialize());
+        rig.canvas.resize(800, 600);
+        const QPointF target(rig.canvas.chartLaneXToCanvasX(128), rig.canvas.chartBeatToY(2));
+        QVERIFY(rig.workspace->addCommentAtSelection("Menu test", "TimePosition", nullptr, target));
+        QImage image(rig.canvas.size(), QImage::Format_ARGB32_Premultiplied);
+        rig.canvas.render(&image);
+        QRectF card(target + QPointF(40, -78), QSizeF(208, 54));
+        card.moveLeft(qBound(4., card.left(), qMax(4., rig.canvas.width() - card.width() - 4.)));
+        card.moveTop(qBound(4., card.top(), qMax(4., rig.canvas.height() - card.height() - 4.)));
+        const auto open = [&] {
+            QMouseEvent press(QEvent::MouseButtonPress, card.center(),
+                              QPointF(rig.canvas.mapToGlobal(card.center().toPoint())),
+                              Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+            QApplication::sendEvent(&rig.canvas, &press);
+        };
+        QVERIFY(runContextAction(open, "review.comment.resolve"));
+        QCOMPARE(rig.workspace->comments().first().toObject().value("state").toString(), QString("Resolved"));
+        rig.canvas.render(&image);
+        QVERIFY(runContextAction(open, "review.comment.reply"));
+        QCOMPARE(rig.workspace->comments().size(), 2);
+        QCOMPARE(rig.workspace->comments().last().toObject().value("threadId"),
+                 rig.workspace->comments().first().toObject().value("threadId"));
+    }
+    void foreignCommentMenuPreservesAuthorPermissions()
+    {
+        WorkspaceRig rig("foreign-card-menu");
+        QVERIFY(rig.initialize());
+        rig.canvas.resize(800, 600);
+        const QPointF target(rig.canvas.chartLaneXToCanvasX(128), rig.canvas.chartBeatToY(2));
+        QVERIFY(rig.workspace->addCommentAtSelection("Original author", "TimePosition", nullptr, target));
+        QString error;
+        QVERIFY(rig.workspace->identities()->createIdentity("Other author", &error));
+        QVERIFY(rig.workspace->identities()->setActiveIdentity(rig.workspace->identities()->identities().last().authorId));
+        QImage image(rig.canvas.size(), QImage::Format_ARGB32_Premultiplied);
+        rig.canvas.render(&image);
+        QRectF card(target + QPointF(40, -78), QSizeF(208, 54));
+        card.moveLeft(qBound(4., card.left(), qMax(4., rig.canvas.width() - card.width() - 4.)));
+        card.moveTop(qBound(4., card.top(), qMax(4., rig.canvas.height() - card.height() - 4.)));
+        bool checked = false;
+        QTimer::singleShot(0, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            if (!menu)
+                return;
+            auto *edit = menu->findChild<QAction *>("review.comment.edit");
+            auto *remove = menu->findChild<QAction *>("review.comment.delete");
+            auto *reply = menu->findChild<QAction *>("review.comment.reply");
+            checked = edit && !edit->isEnabled() && remove && !remove->isEnabled() && reply && reply->isEnabled();
+            menu->close();
+        });
+        QMouseEvent press(QEvent::MouseButtonPress, card.center(), QPointF(rig.canvas.mapToGlobal(card.center().toPoint())),
+                          Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+        QApplication::sendEvent(&rig.canvas, &press);
+        QVERIFY(checked);
+        QCOMPARE(rig.workspace->comments().first().toObject().value("body").toString(), QString("Original author"));
+    }
+    void rightClickUnselectedNoteBindsAndFollows()
+    {
+        WorkspaceRig rig("right-click-follow");
+        QVERIFY(rig.workspace->identities()->createIdentity("Reviewer"));
+        QVERIFY(!rig.workspace->projectMode());
+        rig.canvas.resize(800, 600);
+        rig.canvas.setTimeScale(1);
+        rig.canvas.setVerticalFlip(false);
+        rig.canvas.setScrollPos(0);
+        rig.selection.clearSelection();
+        const auto original = rig.controller.chart()->notes().first();
+        const QPointF point(rig.canvas.chartLaneXToCanvasX(original.x), rig.canvas.chartBeatToY(original.getStartBeat()));
+        QMenu menu;
+        rig.canvas.extendContextMenu(&menu, point);
+        QCOMPARE(rig.selection.selectedIndices().size(), 1);
+        auto *action = menu.findChild<QAction *>("review.context.addComment");
+        QVERIFY(action);
+        acceptCommentDialog();
+        action->trigger();
+        QVERIFY(!rig.workspace->projectMode());
+        QCOMPARE(rig.workspace->comments().first().toObject().value("anchor").toObject().value("type").toString(), QString("Note"));
+        auto moved = original;
+        moved.beatNum = 5;
+        moved.x = 300;
+        rig.controller.moveNote(original, moved);
+        auto target = firstNoteTarget(rig.workspace->comments().first().toObject());
+        QCOMPARE(target.value("note").toObject().value("beat").toArray(), (QJsonArray{5, 0, 1}));
+        QCOMPARE(target.value("note").toObject().value("x").toInt(), 300);
+        QCOMPARE(target.value("state").toString(), QString("Modified"));
+        QCOMPARE(rig.workspace->comments().first().toObject().value("author").toObject().value("authorNameSnapshot").toString(), QString("Reviewer"));
+        rig.controller.undo();
+        QCOMPARE(firstNoteTarget(rig.workspace->comments().first().toObject()).value("state").toString(), QString("Valid"));
+        rig.controller.redo();
+        QCOMPARE(firstNoteTarget(rig.workspace->comments().first().toObject()).value("note").toObject().value("x").toInt(), 300);
+    }
+    void emptyAreaAndTimeRulerSelection_data()
+    {
+        QTest::addColumn<bool>("ruler");
+        QTest::newRow("empty-spatial-area") << false;
+        QTest::newRow("empty-time-range") << true;
+    }
+    void emptyAreaAndTimeRulerSelection()
+    {
+        QFETCH(bool, ruler);
+        WorkspaceRig rig("empty-drag");
+        QVERIFY(rig.initialize());
+        rig.canvas.resize(800, 600);
+        rig.canvas.setTimeScale(1);
+        rig.canvas.setVerticalFlip(false);
+        rig.canvas.setScrollPos(0);
+        rig.canvas.setMode(ruler ? ChartCanvas::PlaceNote : ChartCanvas::Select);
+        const QPoint start(ruler ? 20 : qRound(rig.canvas.chartLaneXToCanvasX(128)), qRound(rig.canvas.chartBeatToY(5)));
+        const QPoint end(ruler ? 20 : qRound(rig.canvas.chartLaneXToCanvasX(384)), qRound(rig.canvas.chartBeatToY(7)));
+        QTest::mousePress(&rig.canvas, Qt::LeftButton, Qt::NoModifier, start);
+        QMouseEvent move(QEvent::MouseMove, QPointF(end), QPointF(rig.canvas.mapToGlobal(end)), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&rig.canvas, &move);
+        QTest::mouseRelease(&rig.canvas, Qt::LeftButton, Qt::NoModifier, end);
+        QVERIFY(rig.selection.selectedIndices().isEmpty());
+        QRectF area;
+        QVERIFY(rig.canvas.selectedCommentRegion(area));
+        QCOMPARE(area.top(), 5.0);
+        QCOMPARE(area.bottom(), 7.0);
+        QCOMPARE(qRound(area.left()), ruler ? 0 : 128);
+        QCOMPARE(qRound(area.right()), ruler ? 512 : 384);
+        QMenu menu;
+        rig.canvas.extendContextMenu(&menu, end);
+        acceptCommentDialog();
+        menu.findChild<QAction *>("review.context.addComment")->trigger();
+        const auto anchor = rig.workspace->comments().first().toObject().value("anchor").toObject();
+        QCOMPARE(anchor.value("type").toString(), QString("Region"));
+        QCOMPARE(anchor.value("beat").toArray(), (QJsonArray{5, 0, 1}));
+        QCOMPARE(anchor.value("endBeat").toArray(), (QJsonArray{7, 0, 1}));
+    }
+    void metadataBodiesAppearWhenSourceTabIsShown()
+    {
+        WorkspaceRig rig("meta-tab");
+        QVERIFY(rig.initialize());
+        QTabWidget tabs;
+        tabs.resize(700, 650);
+        tabs.addTab(new QWidget, "Notes");
+        auto *meta = new MetaEditPanel;
+        meta->setChartController(&rig.controller);
+        tabs.addTab(meta, "Meta");
+        rig.workspace->installCommentSources(nullptr, meta);
+        QVERIFY(rig.workspace->addCommentForAnchor("Metadata body survives tab switches",
+            {{"type", "Metadata"}, {"difficultyId", rig.workspace->project().activeDifficultyId},
+             {"fields", QJsonArray{"title"}}, {"metadata", QJsonObject{{"title", "Review test song"}}},
+             {"originalMetadata", QJsonObject{{"title", "Review test song"}}}}));
+        tabs.show();
+        tabs.setCurrentIndex(1);
+        QCoreApplication::processEvents();
+        auto *body = meta->findChild<QLabel *>("metadataCommentBody");
+        QVERIFY(body);
+        QVERIFY(body->isVisible());
+        QCOMPARE(body->text(), QString("Metadata body survives tab switches"));
+        tabs.setCurrentIndex(0);
+        QVERIFY(!body->isVisible());
+        tabs.setCurrentIndex(1);
+        QVERIFY(body->isVisible());
+        const auto output = qEnvironmentVariable("CCE_REVIEW_SCREENSHOT_DIR");
+        if (!output.isEmpty())
+        {
+            QDir().mkpath(output);
+            QVERIFY(tabs.grab().save(QDir(output).filePath("metadata-comments.png")));
+        }
+        tabs.hide();
+    }
+    void ordinaryChartCommentsSaveWithoutProjectMode()
+    {
+        WorkspaceRig rig("ordinary-review");
+        QVERIFY(rig.workspace->identities()->createIdentity("Reviewer"));
+        selectNote(rig, 0);
+        QVERIFY(rig.workspace->addCommentAtSelection("Saved with the chart", "Note"));
+        QVERIFY(!rig.workspace->projectMode());
+        const auto path = rig.temp.filePath("saved.mc");
+        QVERIFY(rig.controller.saveChart(path));
+        QString error;
+        QVERIFY2(CceReview::ReviewWorkspace::writeChartReview(path, rig.workspace->chartReviewState(), &error), qPrintable(error));
+        WorkspaceRig reopened("ordinary-reopened");
+        Chart chart;
+        QVERIFY(ChartIO::load(path, chart));
+        QVERIFY(reopened.controller.loadChartFromData(path, chart));
+        QCOMPARE(reopened.workspace->comments().size(), 1);
+        QVERIFY(!reopened.workspace->projectMode());
+        QCOMPARE(reopened.workspace->comments().first().toObject().value("body").toString(), QString("Saved with the chart"));
+        const auto before = reopened.controller.chart()->notes().first();
+        auto after = before;
+        after.beatNum = 6;
+        reopened.controller.moveNote(before, after);
+        QCOMPARE(firstNoteTarget(reopened.workspace->comments().first().toObject()).value("note").toObject().value("beat").toArray(), (QJsonArray{6, 0, 1}));
+        // Choosing a project file later is a document decision, not something
+        // an older comment's Undo/Redo should silently reverse.
+        QVERIFY(rig.workspace->saveProject(rig.temp.filePath("explicit.cceproj"), &error));
+        rig.controller.undo();
+        QVERIFY(rig.workspace->projectMode());
+        rig.controller.redo();
+        QVERIFY(rig.workspace->projectMode());
+    }
+    void mainWindowSaveIncludesCommentsWithoutProjectDialog()
+    {
+        QTemporaryDir folder;
+        const auto path = folder.filePath("ordinary.mc");
+        QVERIFY(ChartIO::save(path, sampleChart()));
+        ChartController controller;
+        SelectionController selection;
+        AudioPlayer audio;
+        PlaybackController playback(&audio);
+        MainWindow window(&controller, &selection, &playback, new Skin);
+        window.show();
+        QTest::qWait(50); // Finish the constructor's queued recovery/working-copy cleanup before loading.
+        QString error;
+        QVERIFY2(window.loadChartForAutomation(path, &error), qPrintable(error));
+        auto *workspace = window.findChild<CceReview::ReviewWorkspace *>();
+        QVERIFY(workspace);
+        QVERIFY(workspace->identities()->createIdentity("Chart saver"));
+        QVERIFY(workspace->addCommentAtSelection("Saved through Ctrl+S route", "TimePosition"));
+        QVERIFY(!workspace->projectMode());
+        QVERIFY(QMetaObject::invokeMethod(&window, "saveChart", Qt::DirectConnection));
+        const auto sidecar = folder.filePath(".mcce-plugin/ordinary.review.json");
+        QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(sidecar), 15000);
+        QFile file(sidecar);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const auto state = QJsonDocument::fromJson(file.readAll()).object();
+        QCOMPARE(state.value("review").toObject().value("comments").toArray().size(), 1);
+        QVERIFY(!window.findChild<QFileDialog *>());
+        QTest::qWait(30);
+        window.hide();
+    }
+    void emptyTimeRangeInputWorksWithOverlayHidden()
+    {
+        WorkspaceRig rig("empty-time-input");
+        QVERIFY(rig.initialize());
+        LongRangeSelector range;
+        range.setChartController(&rig.controller);
+        range.setSelectionController(&rig.selection);
+        connect(&range, &LongRangeSelector::rangeChanged, &rig.canvas, &ChartCanvas::setRangeOverlay);
+        connect(&range, &LongRangeSelector::rangeVisibilityChanged, &rig.canvas, &ChartCanvas::setRangeOverlayVisible);
+        range.setStartBeat(5.25);
+        range.setEndBeat(6.75);
+        range.setRangeVisible(false);
+        QVERIFY(QMetaObject::invokeMethod(&range, "onSelectClicked", Qt::DirectConnection));
+        QVERIFY(rig.selection.selectedIndices().isEmpty());
+        double a, b;
+        QVERIFY(rig.canvas.selectedBeatRange(a, b));
+        QCOMPARE(a, 5.25);
+        QCOMPARE(b, 6.75);
+        QVERIFY(rig.workspace->addCommentAtSelection("Empty time range", "Region"));
+        const auto anchor = rig.workspace->comments().first().toObject().value("anchor").toObject();
+        QCOMPARE(anchor.value("beat").toArray(), (QJsonArray{5, 1, 4}));
+        QCOMPARE(anchor.value("endBeat").toArray(), (QJsonArray{6, 3, 4}));
+    }
+    void clickedTimeCommentThickensDivisionLine_data()
+    {
+        QTest::addColumn<QString>("type");
+        QTest::newRow("time-point") << QString("TimePoint");
+        QTest::newRow("clicked-position") << QString("TimePosition");
+    }
+    void clickedTimeCommentThickensDivisionLine()
+    {
+        QFETCH(QString, type);
+        WorkspaceRig rig("thick-timeline");
+        QVERIFY(rig.initialize());
+        rig.canvas.resize(1000, 700);
+        rig.canvas.setTimeScale(1);
+        rig.canvas.setVerticalFlip(false);
+        rig.canvas.setScrollPos(0);
+        const QPointF target(rig.canvas.chartLaneXToCanvasX(400), rig.canvas.chartBeatToY(5));
+        QVERIFY(rig.workspace->addCommentAtSelection("Highlighted reference line", type, nullptr, target));
+        QImage image(rig.canvas.size(), QImage::Format_ARGB32_Premultiplied);
+        rig.canvas.render(&image);
+        const int y = qRound(rig.canvas.chartBeatToY(5));
+        for (int offset = -1; offset <= 1; ++offset)
+        {
+            int bright = 0;
+            for (int x = 80; x < 250; ++x)
+            {
+                const auto pixel = image.pixelColor(x, y + offset);
+                if (pixel.blue() > 220 && pixel.green() > 175 && pixel.red() > 110)
+                    ++bright;
+            }
+            QVERIFY2(bright > 150, "The existing division/reference line must become a thick continuous highlight");
+        }
+    }
     void contextMenuAddsCommentAtClickedPosition()
     {
         WorkspaceRig rig("context");
@@ -1137,19 +1619,26 @@ private slots:
         const auto beat = anchor.value("beat").toArray();
         QCOMPARE(beat[0].toInt() + beat[1].toDouble() / beat[2].toDouble(), 2.0);
     }
+    void commentCardDragChangesOnlyDisplayAndDoubleClickOpensComments_data()
+    {
+        QTest::addColumn<QString>("anchorType");
+        QTest::newRow("position") << QString("TimePosition");
+        QTest::newRow("time-point") << QString("TimePoint");
+    }
     void commentCardDragChangesOnlyDisplayAndDoubleClickOpensComments()
     {
+        QFETCH(QString, anchorType);
         WorkspaceRig rig("card");
         QVERIFY(start(rig));
         QString error;
         rig.canvas.resize(640, 600);
         rig.canvas.show();
         const QPointF anchorPoint(rig.canvas.chartLaneXToCanvasX(128), rig.canvas.chartBeatToY(2));
-        QVERIFY(rig.workspace->addCommentAtSelection("Card discussion", "TimePosition", &error, anchorPoint));
+        QVERIFY(rig.workspace->addCommentAtSelection("Card discussion", anchorType, &error, anchorPoint));
         const auto original = rig.workspace->comments()[0].toObject();
         QImage image(rig.canvas.size(), QImage::Format_ARGB32_Premultiplied);
         rig.canvas.render(&image);
-        QRectF card(anchorPoint + QPointF(9, -27), QSizeF(208, 54));
+        QRectF card(anchorPoint + QPointF(40, -78), QSizeF(208, 54));
         card.moveLeft(qBound(4., card.left(), qMax(4., rig.canvas.width() - card.width() - 4.)));
         card.moveTop(qBound(4., card.top(), qMax(4., rig.canvas.height() - card.height() - 4.)));
         const QPoint point = card.center().toPoint(), delta(30, -20);

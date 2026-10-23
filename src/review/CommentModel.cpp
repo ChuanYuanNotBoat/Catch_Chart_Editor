@@ -29,6 +29,12 @@ QString uuid()
 
 QString jsonKey(const QJsonObject &object)
 {
+    if (object.value("type").toInt(-1) == 3 && object.contains("beat"))
+    {
+        auto rain = object;
+        rain.remove("x");
+        return QString::fromLatin1(canonicalHash(rain));
+    }
     return QString::fromLatin1(canonicalHash(object));
 }
 
@@ -641,6 +647,37 @@ QJsonArray relocateComments(const QJsonArray &comments, const CceDocument::Proje
             anchor.insert(QStringLiteral("state"), stillExists
                                                        ? arrayState(baseline, timingSnapshot(after, difficultyId))
                                                        : QStringLiteral("Missing"));
+        }
+        else if (type == QStringLiteral("BpmGroup"))
+        {
+            QJsonArray entries, states;
+            for (const auto &value : anchor.value("bpmList").toArray())
+            {
+                QString state;
+                entries.append(relocateBpm(value.toObject(), difficultyId, beforeIndex, afterIndex, bpmChanges, &state));
+                states.append(QJsonObject{{"state", state}});
+            }
+            anchor["bpmList"] = entries;
+            anchor["targets"] = states;
+            if (!entries.isEmpty())
+                anchor["beat"] = entries.first().toObject().value("beat");
+        }
+        else if (type == QStringLiteral("Metadata"))
+        {
+            const auto difficulty = after.difficulties.constFind(difficultyId);
+            QJsonObject current;
+            if (difficulty != after.difficulties.cend())
+            {
+                Chart chart;
+                chart.meta() = difficulty->metadata;
+                const auto metadata = CceDocument::encodeChart(chart).value("metadata").toObject();
+                for (const auto &field : anchor.value("fields").toArray())
+                    current[field.toString()] = metadata.value(field.toString());
+                anchor["metadata"] = current;
+            }
+            anchor["state"] = difficulty == after.difficulties.cend() ? "Missing"
+                              : canonicalHash(current) == canonicalHash(anchor.value("originalMetadata").toObject()) ? "Valid"
+                                                                                                         : "Modified";
         }
         comment.insert(QStringLiteral("anchor"), anchor);
         relocated.append(comment);

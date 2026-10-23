@@ -6,13 +6,17 @@
 #include "document/DocumentModel.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "ui/review/NoteInspector.h"
+#include "ui/review/ReviewColors.h"
 #include "utils/MathUtils.h"
+#include "utils/Settings.h"
 
 #include <QEvent>
 #include <QComboBox>
 #include <QFontMetrics>
 #include <QMainWindow>
 #include <QMouseEvent>
+#include <QContextMenuEvent>
+#include <QMenu>
 #include <QPainter>
 #include <QSignalBlocker>
 #include <QSettings>
@@ -32,6 +36,7 @@ constexpr int BaseOnly = 2;
 constexpr qreal CommentCardWidth = 208.0;
 constexpr qreal CommentCardHeight = 54.0;
 constexpr qreal MaxCommentOffset = 180.0;
+const QColor CommentLinkColor(151, 207, 255);
 
 double beatValue(const QJsonValue &value, double fallback = 0.0)
 {
@@ -388,10 +393,20 @@ void ReviewWorkspace::rebuildCommentCards()
     QSet<QString> seen;
     QVector<int> indices;
     QVector<double> beats, ends;
+    const auto authorColors = CceReviewUi::commentAuthorColors(comments());
+    QHash<QByteArray, QJsonObject> beforeByNote;
+    if (m_viewMode == DiffOverlay || m_viewMode == BaseOnly || m_peeking)
+        for (const auto &change : m_changes)
+            if (change.domain == "Note" && change.before.isObject() && change.after.isObject()
+                && (change.kind == "Move" || change.kind == "Modify"))
+                beforeByNote.insert(canonicalHash(QJsonObject{{"layerId", layerFromPath(change.path)}, {"note", change.after}}),
+                                    change.before.toObject());
     for (const auto &value : comments())
     {
         const auto comment = value.toObject();
         const auto anchor = comment.value("anchor").toObject();
+        if (anchor.value("type") == "Metadata")
+            continue; // Metadata bodies belong to their source tab, not beat zero.
         const auto difficulty = anchor.value("difficultyId").toString();
         if (!difficulty.isEmpty() && difficulty != m_bundle.project.activeDifficultyId)
             continue;
@@ -406,46 +421,90 @@ void ReviewWorkspace::rebuildCommentCards()
         card.commentId = comment.value("commentId").toString();
         card.threadId = thread;
         card.author = comment.value("author").toObject().value("authorNameSnapshot").toString();
+        card.authorColor = authorColors.value(comment.value("author").toObject().value("authorId").toString());
         card.body = comment.value("body").toString().simplified();
         card.expanded = state != "Collapsed";
         card.resolved = comment.value("state") == "Resolved";
         card.offset = boundedOffset(persistedCommentOffset(thread));
+        card.hasTimeline = anchor.value("type") == "TimePoint" || anchor.value("type") == "TimePosition";
         const auto referenceState = anchorReferenceState(anchor);
         card.referenceStatus = referenceState == "Missing"     ? tr("Target missing")
                                : referenceState == "Ambiguous" ? tr("Ambiguous target")
                                : referenceState == "Modified"  ? tr("Target modified")
                                                                : QString();
         card.beat = beatValue(anchor.value("beat"));
-        if (anchor.value("bpm").isObject())
+        if (anchor.value("type") == "BpmEntry" && anchor.value("bpm").isObject())
             card.beat = beatValue(anchor.value("bpm").toObject().value("beat"), card.beat);
         card.laneX = anchor.value("x").toDouble(-1);
+        if (anchor.value("type").toString().startsWith("Bpm"))
+            card.laneX = 0;
         if (anchor.value("type") == "Region")
         {
             const double endBeat = beatValue(anchor.value("endBeat"), card.beat);
             card.region = QRectF(QPointF(card.laneX, card.beat), QPointF(anchor.value("endX").toDouble(512), endBeat))
                               .normalized();
             card.hasRegion = true;
+            card.beat = card.region.center().y();
+            card.laneX = card.region.center().x();
         }
+        if (anchor.value("type") != "BpmEntry")
+            for (const auto &value : anchor.value("bpmList").toArray())
+                card.afterTargets.append(QPointF(0, beatValue(value.toObject().value("beat"))));
         const auto targets = anchor.value("targets").toArray();
+        double minX = 512, maxX = 0, minBeat = std::numeric_limits<double>::max(), maxBeat = 0;
+        int noteCount = 0;
         for (const auto &targetValue : targets)
         {
             const auto target = targetValue.toObject();
             const auto after = target.value("note").toObject();
-            const auto before = target.value("originalNote").toObject();
-            if (after.contains("beat") && after.contains("x"))
-                card.afterTargets.append(QPointF(after.value("x").toDouble(), beatValue(after.value("beat"))));
-            if (before.contains("beat") && before.contains("x") && canonicalHash(before) != canonicalHash(after))
-                card.beforeTargets.append(QPointF(before.value("x").toDouble(), beatValue(before.value("beat"))));
+            const auto before = beforeByNote.value(
+                canonicalHash(QJsonObject{{"layerId", target.value("layerId")}, {"note", after}}),
+                target.value("originalNote").toObject());
+            if (after.contains("beat"))
+            {
+                const double x = after.value("type").toInt() == 3 ? 256 : after.value("x").toDouble(256);
+                card.afterTargets.append(QPointF(x, beatValue(after.value("beat"))));
+                minX = qMin(minX, x);
+                maxX = qMax(maxX, x);
+                minBeat = qMin(minBeat, beatValue(after.value("beat")));
+                maxBeat = qMax(maxBeat, beatValue(after.value("endbeat"), beatValue(after.value("beat"))));
+                ++noteCount;
+            }
+            if (before.contains("beat"))
+                card.beforeTargets.append(QPointF(before.value("type").toInt() == 3 ? 256 : before.value("x").toDouble(256),
+                                                   beatValue(before.value("beat"))));
         }
+        card.hasNoteGroup = noteCount > 1;
+        if (card.hasNoteGroup)
+            card.noteGroupBounds = QRectF(QPointF(minX, minBeat), QPointF(maxX, maxBeat));
         if (!targets.isEmpty())
         {
             const auto target = targets.first().toObject().value("note").toObject();
             card.beat = beatValue(target.value("beat"), card.beat);
-            card.laneX = target.value("x").toDouble(card.laneX);
+            card.laneX = target.value("type").toInt() == 3 ? 256 : target.value("x").toDouble(256);
         }
+        const auto byBeat = [](const QPointF &a, const QPointF &b) {
+            return a.y() == b.y() ? a.x() < b.x() : a.y() < b.y();
+        };
+        std::sort(card.afterTargets.begin(), card.afterTargets.end(), byBeat);
+        std::sort(card.beforeTargets.begin(), card.beforeTargets.end(), byBeat);
         indices.append(m_commentCards.size());
-        beats.append(card.beat);
-        ends.append(card.hasRegion ? card.region.bottom() : card.beat);
+        double first = card.hasRegion ? card.region.top() : card.beat;
+        double last = card.hasRegion ? card.region.bottom() : card.beat;
+        if (card.hasNoteGroup)
+            last = qMax(last, card.noteGroupBounds.bottom());
+        for (const auto &target : card.afterTargets)
+        {
+            first = qMin(first, target.y());
+            last = qMax(last, target.y());
+        }
+        for (const auto &target : card.beforeTargets)
+        {
+            first = qMin(first, target.y());
+            last = qMax(last, target.y());
+        }
+        beats.append(first);
+        ends.append(last);
         m_commentCards.append(card);
     }
     m_commentCardIndex.build(indices, beats, ends);
@@ -567,57 +626,161 @@ void ReviewWorkspace::paintOverlay(QPainter *painter)
         painter->drawText(badge, Qt::AlignCenter, tr("BASE — READ ONLY"));
     }
     const auto cards = m_commentCardIndex.overlapping(firstBeat - 1, lastBeat + 1);
+    const qreal noteRadius = Settings::instance().noteSize() / 2.0;
+    const auto visibleTargets = [firstBeat, lastBeat](const QVector<QPointF> &targets) {
+        return qMakePair(std::lower_bound(targets.cbegin(), targets.cend(), firstBeat - .5,
+                                         [](const QPointF &target, double beat) { return target.y() < beat; }),
+                         std::upper_bound(targets.cbegin(), targets.cend(), lastBeat + .5,
+                                         [](double beat, const QPointF &target) { return beat < target.y(); }));
+    };
     for (qsizetype i = cards.begin; i < cards.end; ++i)
     {
         const auto &card = m_commentCards.at(m_commentCardIndex.entryAt(i).index);
+        const bool showBefore = (m_viewMode == BaseOnly || m_peeking) && !card.beforeTargets.isEmpty();
+        const auto &displayTargets = showBefore ? card.beforeTargets : card.afterTargets;
         QPointF origin(card.laneX >= 0.0 ? m_canvas->chartLaneXToCanvasX(card.laneX)
                                          : m_canvas->width() - CommentCardWidth - 16.0,
                        m_canvas->chartBeatToY(card.beat));
+        if (showBefore)
+            origin = QPointF(m_canvas->chartLaneXToCanvasX(displayTargets.first().x()),
+                             m_canvas->chartBeatToY(displayTargets.first().y()));
         QPointF offset = card.offset;
         if (card.threadId == m_draggedComment)
             offset = m_dragOffset;
         offset = boundedOffset(offset);
         const bool expanded = card.expanded;
+        const auto drawAnnotationFrame = [&](const QRectF &bounds) {
+            painter->setOpacity(1);
+            painter->setBrush(Qt::NoBrush);
+            painter->setPen(QPen(QColor(151, 207, 255, 45), 7, Qt::DashLine, Qt::SquareCap, Qt::MiterJoin));
+            painter->drawRect(bounds);
+            painter->setPen(QPen(CommentLinkColor, 2.1, Qt::DashLine, Qt::SquareCap, Qt::MiterJoin));
+            painter->drawRect(bounds);
+            // Solid corner brackets distinguish annotations from filled Rain spans.
+            painter->setPen(QPen(CommentLinkColor, 2.1));
+            const qreal tick = qMin(10.0, qMin(bounds.width(), bounds.height()) / 3);
+            for (const auto &corner : {bounds.topLeft(), bounds.topRight(), bounds.bottomLeft(), bounds.bottomRight()})
+            {
+                const qreal dx = corner.x() == bounds.left() ? tick : -tick;
+                const qreal dy = corner.y() == bounds.top() ? tick : -tick;
+                painter->drawLine(corner, corner + QPointF(dx, 0));
+                painter->drawLine(corner, corner + QPointF(0, dy));
+            }
+        };
+        if (card.hasTimeline)
+        {
+            const qreal y = m_canvas->chartBeatToY(card.beat);
+            const QLineF timeline(m_canvas->chartLaneXToCanvasX(0), y, m_canvas->chartLaneXToCanvasX(512), y);
+            painter->setOpacity(1);
+            painter->setPen(QPen(QColor(151, 207, 255, 55), 8));
+            painter->drawLine(timeline);
+            painter->setPen(QPen(CommentLinkColor, 4));
+            painter->drawLine(timeline);
+        }
         if (card.hasRegion)
         {
             const QRectF area(
                 QPointF(m_canvas->chartLaneXToCanvasX(card.region.left()), m_canvas->chartBeatToY(card.region.top())),
                 QPointF(m_canvas->chartLaneXToCanvasX(card.region.right()),
                         m_canvas->chartBeatToY(card.region.bottom())));
-            painter->setOpacity(.45);
-            painter->setPen(QPen(QColor(125, 178, 240), 1, Qt::DashLine));
-            painter->setBrush(QColor(70, 125, 195, 32));
-            painter->drawRect(area.normalized().adjusted(-3, -3, 3, 3));
+            const auto bounds = area.normalized().adjusted(-5, -5, 5, 5);
+            drawAnnotationFrame(bounds);
+        }
+        if (card.hasNoteGroup)
+        {
+            auto group = card.noteGroupBounds;
+            if (showBefore)
+            {
+                double left = 512, right = 0, top = std::numeric_limits<double>::max(), bottom = 0;
+                for (const auto &target : displayTargets)
+                {
+                    left = qMin(left, target.x());
+                    right = qMax(right, target.x());
+                    top = qMin(top, target.y());
+                    bottom = qMax(bottom, target.y());
+                }
+                group = QRectF(QPointF(left, top), QPointF(right, bottom));
+            }
+            const QRectF bounds = QRectF(
+                QPointF(m_canvas->chartLaneXToCanvasX(group.left()), m_canvas->chartBeatToY(group.top())),
+                QPointF(m_canvas->chartLaneXToCanvasX(group.right()), m_canvas->chartBeatToY(group.bottom())))
+                                      .normalized().adjusted(-noteRadius - 6, -noteRadius - 6, noteRadius + 6, noteRadius + 6);
+            drawAnnotationFrame(bounds);
+            // A low alpha tint distinguishes commented notes while retaining
+            // their native and Hyperdash colors underneath.
+            painter->setPen(QPen(QColor(151, 207, 255, 140), 1.6));
+            painter->setBrush(QColor(151, 207, 255, 26));
+            const auto visible = visibleTargets(displayTargets);
+            for (auto it = visible.first; it != visible.second; ++it)
+            {
+                const auto &target = *it;
+                painter->drawEllipse(QPointF(m_canvas->chartLaneXToCanvasX(target.x()),
+                                             m_canvas->chartBeatToY(target.y())), noteRadius + 3, noteRadius + 3);
+            }
         }
         const qreal cardHeight = expanded ? CommentCardHeight : 30.0;
         const qreal cardWidth = expanded ? CommentCardWidth : 150.0;
-        QRectF rect(origin + offset + QPointF(9.0, -cardHeight / 2.0), QSizeF(cardWidth, cardHeight));
+        // Leave a visible gap between the target and the card, even before dragging.
+        QRectF rect(origin + offset + QPointF(40.0, -cardHeight - 24.0), QSizeF(cardWidth, cardHeight));
+        if (rect.right() > m_canvas->width() - 4 && origin.x() - cardWidth - 40 >= 4)
+            rect.moveLeft(origin.x() - cardWidth - 40 + offset.x());
         rect.moveLeft(qBound(4.0, rect.left(), qMax(4.0, m_canvas->width() - rect.width() - 4.0)));
         rect.moveTop(qBound(4.0, rect.top(), qMax(4.0, m_canvas->height() - rect.height() - 4.0)));
         m_commentRects.insert(card.commentId, rect);
         // The thread keeps both positional snapshots; no persistent Note identity is needed.
         const auto connectTargets = [&](const QVector<QPointF> &targets, const QColor &color) {
-            painter->setOpacity(.6);
-            painter->setPen(QPen(color, 1, Qt::DashLine));
-            for (const auto &target : targets.first(qMin<qsizetype>(targets.size(), 32)))
-                painter->drawLine(rect.center(), QPointF(m_canvas->chartLaneXToCanvasX(target.x()),
-                                                         m_canvas->chartBeatToY(target.y())));
+            painter->setOpacity(1);
+            const auto visible = visibleTargets(targets);
+            int drawn = 0;
+            for (auto it = visible.first; it != visible.second && drawn < 32; ++it, ++drawn)
+            {
+                const auto &target = *it;
+                const QPointF point(m_canvas->chartLaneXToCanvasX(target.x()), m_canvas->chartBeatToY(target.y()));
+                QPointF edge(qBound(rect.left(), point.x(), rect.right()), qBound(rect.top(), point.y(), rect.bottom()));
+                const QPolygonF link{edge, QPointF(point.x(), edge.y()), point};
+                painter->setPen(QPen(QColor(color.red(), color.green(), color.blue(), 55), 6, Qt::SolidLine, Qt::RoundCap));
+                painter->drawPolyline(link);
+                painter->setPen(QPen(color, 2.2, Qt::SolidLine, Qt::RoundCap));
+                painter->drawPolyline(link);
+                painter->setBrush(Qt::NoBrush);
+                painter->drawPolygon(QPolygonF{point + QPointF(0, -5), point + QPointF(5, 0),
+                                                point + QPointF(0, 5), point + QPointF(-5, 0)});
+            }
         };
         if (m_viewMode == DiffOverlay && !m_peeking)
+        {
+            QVector<QPointF> changedTargets;
+            const auto visible = visibleTargets(card.beforeTargets);
+            for (auto it = visible.first; it != visible.second; ++it)
+                if (!std::binary_search(card.afterTargets.cbegin(), card.afterTargets.cend(), *it,
+                        [](const QPointF &a, const QPointF &b) { return a.y() == b.y() ? a.x() < b.x() : a.y() < b.y(); }))
+                    changedTargets.append(*it);
+            connectTargets(changedTargets, QColor(245, 145, 145));
+        }
+        if (showBefore)
             connectTargets(card.beforeTargets, QColor(235, 72, 72));
-        connectTargets(card.afterTargets, QColor(55, 210, 115));
+        else
+            connectTargets(card.afterTargets, CommentLinkColor);
+        if (card.afterTargets.isEmpty())
+            connectTargets({QPointF(card.laneX >= 0 ? card.laneX : 0, card.beat)}, CommentLinkColor);
         const bool resolved = card.resolved;
         painter->setOpacity(.96);
-        painter->setPen(QPen(resolved ? QColor(90, 145, 100) : QColor(80, 112, 150), 1.0));
-        painter->setBrush(resolved ? QColor(35, 57, 44, 235) : QColor(34, 45, 61, 238));
+        const QColor accent = card.authorColor;
+        painter->setPen(QPen(accent.lighter(resolved ? 100 : 130), 1.5));
+        painter->setBrush(QColor(24 + accent.red() / 6, 24 + accent.green() / 6, 28 + accent.blue() / 6, 248));
         painter->drawRoundedRect(rect, 5.0, 5.0);
+        painter->setPen(QPen(accent, 4, Qt::SolidLine, Qt::RoundCap));
+        painter->drawLine(rect.topLeft() + QPointF(3, 7), rect.bottomLeft() + QPointF(3, -7));
         painter->setPen(QColor(235, 239, 246));
         painter->drawText(rect.adjusted(8, 5, -7, expanded ? -28 : -5), Qt::AlignLeft | Qt::AlignVCenter,
                           QFontMetrics(painter->font())
-                              .elidedText(card.referenceStatus.isEmpty()
-                                              ? card.author.isEmpty() ? tr("Local comment") : card.author
-                                              : card.referenceStatus,
-                                          Qt::ElideRight, int(rect.width() - 15)));
+                              .elidedText(card.author.isEmpty() ? tr("Local comment") : card.author,
+                                          Qt::ElideRight, int(rect.width() - (card.referenceStatus.isEmpty() ? 15 : 36))));
+        if (!card.referenceStatus.isEmpty())
+        {
+            painter->setPen(QColor(255, 205, 110));
+            painter->drawText(rect.adjusted(0, 5, -9, expanded ? -28 : -5), Qt::AlignRight | Qt::AlignVCenter, "⚠");
+        }
         if (expanded)
         {
             painter->setPen(QColor(190, 202, 220));
@@ -642,6 +805,29 @@ bool ReviewWorkspace::eventFilter(QObject *watched, QEvent *event)
     }
     if (watched != m_canvas || !event)
         return QObject::eventFilter(watched, event);
+
+    // The canvas normally opens its menu on mouse press. Consume both native
+    // context events and that press so cards cannot fall through to chart actions.
+    const auto *context = dynamic_cast<QContextMenuEvent *>(event);
+    const auto *press = dynamic_cast<QMouseEvent *>(event);
+    if (context || (press && event->type() == QEvent::MouseButtonPress && press->button() == Qt::RightButton))
+    {
+        const QPointF pos = context ? QPointF(context->pos()) : press->position();
+        for (auto it = m_commentRects.cbegin(); it != m_commentRects.cend(); ++it)
+            if (it.value().contains(pos))
+            {
+                if (context && context->reason() == QContextMenuEvent::Mouse)
+                {
+                    event->accept();
+                    return true;
+                }
+                QMenu menu(m_canvas);
+                populateCommentMenu(&menu, it.key());
+                menu.exec(context ? context->globalPos() : press->globalPosition().toPoint());
+                event->accept();
+                return true;
+            }
+    }
 
     auto *mouse = dynamic_cast<QMouseEvent *>(event);
     if (!mouse)

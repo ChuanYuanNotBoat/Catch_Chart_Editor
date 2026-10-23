@@ -77,6 +77,7 @@ void ProjectIO::initializeBuiltinFileTypes()
 
     // 注册曲线 sidecar
     ChartFileSystem::ChartFileSystemRegistry::registerFileType("curve_tbd.json", "Curve Sidecar", false, nullptr, 80);
+    ChartFileSystem::ChartFileSystemRegistry::registerFileType("review.json", "Chart Comments", true, nullptr, 80);
 
     // 注册 BPM 辅助文件
     ChartFileSystem::ChartFileSystemRegistry::registerFileType("bpm_excludes.json", "BPM Excludes Sidecar", true, nullptr, 80);
@@ -414,7 +415,8 @@ bool ProjectIO::exportToMczPure(const QString &outputMczPath, const QString &sou
     QStringList requiredExtensions = ChartFileSystem::ChartFileSystemRegistry::requiredSidecarExtensions();
     for (const QString &ext : requiredExtensions)
     {
-        QString chartStem = ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(sourceChartPath);
+        QString chartStem = ext == "review.json" ? QFileInfo(sourceChartPath).completeBaseName()
+            : ChartFileSystem::ChartFileSystemRegistry::chartIdentifierForPath(sourceChartPath);
         QString sidecarFile = QDir(chartBaseDir).filePath(".mcce-plugin/" + chartStem + "." + ext);
         if (QFile::exists(sidecarFile))
         {

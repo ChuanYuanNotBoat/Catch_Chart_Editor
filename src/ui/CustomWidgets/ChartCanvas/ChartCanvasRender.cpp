@@ -470,6 +470,14 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         painter.setBrush(QColor(255, 255, 0, 80));
         painter.drawRect(rect);
     }
+    else if (m_hasSelectedCommentRegion)
+    {
+        const QRectF area(QPointF(laneXToCanvasX(m_selectedCommentRegion.left()), beatToY(m_selectedCommentRegion.top())),
+                          QPointF(laneXToCanvasX(m_selectedCommentRegion.right()), beatToY(m_selectedCommentRegion.bottom())));
+        painter.setPen(QPen(QColor(151, 207, 255), 2, Qt::DashLine));
+        painter.setBrush(Qt::NoBrush);
+        painter.drawRect(area.normalized());
+    }
 
     drawPluginOverlays(painter, lmargin, rmargin);
 
@@ -1263,6 +1271,7 @@ int ChartCanvas::hitTestNote(const QPointF &pos) const
 
 void ChartCanvas::setRangeOverlay(double startBeat, double endBeat)
 {
+    m_hasSelectedCommentRegion = false;
     m_rangeStartBeat = startBeat;
     m_rangeEndBeat = endBeat;
     m_rangeOverlayValid = true;

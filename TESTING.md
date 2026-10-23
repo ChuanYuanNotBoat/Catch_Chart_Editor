@@ -131,6 +131,34 @@ ASan 的 100k 用例触发了 QtTest 的时限，不能计为 ASan 通过证据�
 700 px 宽的审阅与图层窗口截图已检查，元数据列显示实际字段名，导出字段差异显示字段清单。
 真实谱面副本检查属于 Qt 原生窗口自动交互与截图检查；不能替代用户对全部手感和长时间使用的评价，功能仍标为实验性。
 
+### 评论入口与可视标注回归（2026-10-23）
+
+`ReviewWorkspaceTests` 覆盖范围／Note／NoteGroup 右键入口、BPM／Meta 单选与多选、评论专用菜单、
+其他作者权限、作者配色、连线亮度／粗细、NoteGroup 包围框，以及 TimePoint／TimePosition 对应参考线加粗。
+新增实际拖动空区域／左侧时间栏、关闭范围显示后的空时间选择、Meta 标签页正文、未选中 Note 的右键绑定与
+移动／撤销重做、普通谱面评论保存重开，以及真实 MainWindow 保存命令不弹出工程窗口的检查。
+位置与时间点卡片的拖动均检查 Anchor 不变；BPM／Meta 评论检查工程保存重开。
+`CommentModelTests` 补充 BPM 多选子集的删除／恢复、Metadata 所选字段状态，以及 Rain 旧 X 字段不产生审阅差异；
+`ReviewInspectorTests` 检查 Rain 的 X 编辑入口隐藏／禁用。旧审阅包的内容校验哈希保持兼容。
+
+Debug、Release 工作区整组均为 46 项通过、1 项真实谱面副本用例因未设置来源而跳过。
+原生 Windows 定向评论交互 20 项通过，两种配置的原生快捷键各 19 项通过。
+两种配置的文档、增量事务、快照、存储、审阅、评论、属性、导出、Meta、拖动和 Hyperfruit 共 11 组 CTest 均通过。
+最终 Debug 为 153.40 s（审阅核心 126.57 s），Release 为 18.35 s（审阅核心 13.66 s）。
+Debug 早期 ReviewCoreTests 曾达到 180 秒时限，隔离复核也曾超时。Rain 语义判断改为每个对象一次，
+避免普通 Note 的逐字段额外查询；100k Note 的审阅测试单独使用 300 秒进程时限，其余测试时限保持原值。
+早期超时日志保留，不把最终通过解释为已经确定所有耗时波动的根因。
+非原生后端下快捷键整组也曾失败；未据此修改快捷键代码，使用原生窗口验证实际焦点行为。
+
+构建中仍遇到过不同源文件中的 MSVC 进程异常（0xc0000005）。仅限制本次构建子进程亲和性并串行编译后，
+Debug／Release 均构建通过，没有改动编译选项或系统全局配置；这不代表已确认异常根因。
+测试夹具已等待 MainWindow 的初始恢复清理完成后再加载测试谱面，并按窗口的所有权约定提供 Skin。
+这些夹具修正不改变生产界面的加载或析构逻辑。
+
+截图设置 `CCE_REVIEW_SCREENSHOT_DIR`：`comment-annotations.png` 包含 Rain 作为视觉对照，
+`metadata-comments.png` 展示 Meta 页正文。日志和截图位于忽略目录 `build/comment-fix-*`、
+`build/comment-review-visuals/native/`。
+
 ### `CatchChartEditorTests`
 
 CTest 名称：`core_minimal_tests`

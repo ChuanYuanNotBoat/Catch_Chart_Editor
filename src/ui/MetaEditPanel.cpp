@@ -8,6 +8,12 @@
 #include <QPointer>
 #include <QImageReader>
 #include <QLineEdit>
+#include <QMenu>
+#include <QApplication>
+#include <QGroupBox>
+#include <QFrame>
+#include <QJsonObject>
+#include <QSettings>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
 #include <QPushButton>
@@ -24,6 +30,7 @@
 #include <QStringList>
 
 #include <utility>
+#include <memory>
 namespace
 {
 // "*.png *.jpg ..." patterns for the background picker. Core formats are
@@ -65,6 +72,151 @@ MetaEditPanel::MetaEditPanel(QWidget *parent)
     m_autoSaveTimer->setInterval(250);
     connect(m_autoSaveTimer, &QTimer::timeout, this, &MetaEditPanel::flushPendingMetaSave);
     setupUi();
+    setupCommentTargets();
+}
+
+void MetaEditPanel::setupCommentTargets()
+{
+    m_reviewCommentsArea = new QGroupBox(tr("Metadata Comments"), this);
+    m_reviewCommentsArea->setObjectName("metadataReviewComments");
+    m_reviewCommentsLayout = new QVBoxLayout(m_reviewCommentsArea);
+    qobject_cast<QVBoxLayout *>(layout())->insertWidget(0, m_reviewCommentsArea);
+    m_reviewCommentsArea->hide();
+    const QVector<QPair<QString, QPair<QLabel *, QWidget *>>> fields = {
+        {"title", {m_titleLabel, m_titleEdit}}, {"titleOrg", {m_titleOrgLabel, m_titleOrgEdit}},
+        {"artist", {m_artistLabel, m_artistEdit}}, {"artistOrg", {m_artistOrgLabel, m_artistOrgEdit}},
+        {"difficulty", {m_difficultyLabel, m_difficultyEdit}}, {"chartAuthor", {m_chartAuthorLabel, m_chartAuthorEdit}},
+        {"audioFile", {m_audioOggLabel, m_audioFileEdit}}, {"backgroundFile", {m_backgroundLabel, m_backgroundFileEdit}},
+        {"previewTime", {m_previewTimeLabel, m_previewTimeSpin}}, {"firstBpm", {m_firstBpmLabel, m_firstBpmSpin}},
+        {"offset", {m_offsetLabel, m_offsetSpin}}, {"speed", {m_speedLabel, m_speedSpin}}};
+    for (const auto &field : fields)
+    {
+        field.second.first->setToolTip(tr("Right-click to comment; Ctrl+right-click to select multiple fields."));
+        field.second.first->setProperty("reviewField", field.first);
+        QList<QWidget *> targets{field.second.first, field.second.second};
+        for (auto *child : field.second.second->findChildren<QLineEdit *>())
+            targets.append(child);
+        for (auto *target : targets)
+        {
+            target->setContextMenuPolicy(Qt::CustomContextMenu);
+            connect(target, &QWidget::customContextMenuRequested, this, [this, field, fields, target](const QPoint &pos) {
+                const bool ctrl = QApplication::keyboardModifiers() & Qt::ControlModifier;
+                if (ctrl && m_commentFields.contains(field.first))
+                    m_commentFields.remove(field.first);
+                else if (!m_commentFields.contains(field.first))
+                {
+                    if (!ctrl)
+                        m_commentFields.clear();
+                    m_commentFields.insert(field.first);
+                }
+                for (const auto &entry : fields)
+                    entry.second.first->setStyleSheet(m_commentFields.contains(entry.first)
+                        ? "QLabel { background: rgba(70, 135, 210, 100); border-radius: 3px; }" : QString());
+                std::unique_ptr<QMenu> menu;
+                if (auto *edit = qobject_cast<QLineEdit *>(target))
+                    menu.reset(edit->createStandardContextMenu());
+                else
+                    menu = std::make_unique<QMenu>(this);
+                if (!menu->isEmpty())
+                    menu->addSeparator();
+                auto *comment = menu->addAction(tr("Comment on Selected Metadata Fields (%1)…").arg(m_commentFields.size()));
+                comment->setObjectName("review.meta.addComment");
+                comment->setEnabled(!m_commentFields.isEmpty());
+                connect(comment, &QAction::triggered, this, [this] {
+                    flushPendingMetaSave();
+                    QStringList selected = m_commentFields.values();
+                    selected.sort();
+                    emit commentRequested(selected);
+                });
+                auto *clear = menu->addAction(tr("Clear Comment Selection"));
+                connect(clear, &QAction::triggered, this, [this, fields] {
+                    m_commentFields.clear();
+                    for (const auto &entry : fields)
+                        entry.second.first->setStyleSheet({});
+                });
+                menu->exec(target->mapToGlobal(pos));
+            });
+        }
+    }
+}
+
+void MetaEditPanel::setReviewComments(const QJsonArray &comments, const QString &difficultyId,
+                                     const QHash<QString, QColor> &authorColors)
+{
+    while (auto *item = m_reviewCommentsLayout->takeAt(0))
+    {
+        if (auto *widget = item->widget())
+        {
+            widget->hide();
+            widget->deleteLater();
+        }
+        delete item;
+    }
+    int count = 0;
+    for (const auto &value : comments)
+    {
+        const auto comment = value.toObject();
+        const auto anchor = comment.value("anchor").toObject();
+        if (comment.value("tombstone").toBool() || anchor.value("type") != "Metadata"
+            || anchor.value("difficultyId").toString() != difficultyId)
+            continue;
+        const QString display = QSettings().value("local-review/comments/" + comment.value("threadId").toString()
+                                                  + "/display", "Expanded").toString();
+        if (display == "Hidden")
+            continue;
+        const auto author = comment.value("author").toObject();
+        const auto color = authorColors.value(author.value("authorId").toString(), QColor(151, 207, 255));
+        auto *card = new QFrame(m_reviewCommentsArea);
+        card->setObjectName("metadataCommentCard");
+        card->setProperty("commentId", comment.value("commentId").toString());
+        card->setStyleSheet(QString("QFrame#metadataCommentCard { background: %1; border: 1px solid %2; "
+                                    "border-left: 4px solid %2; border-radius: 4px; }")
+                                .arg(QColor(24 + color.red() / 6, 24 + color.green() / 6, 28 + color.blue() / 6).name(),
+                                     color.lighter(130).name()));
+        auto *column = new QVBoxLayout(card);
+        column->setContentsMargins(9, 6, 9, 6);
+        QStringList fields;
+        for (const auto &field : anchor.value("fields").toArray())
+        {
+            QString name = field.toString();
+            for (auto *label : findChildren<QLabel *>())
+                if (label->property("reviewField").toString() == name)
+                {
+                    name = label->text();
+                    break;
+                }
+            fields.append(name);
+        }
+        auto *heading = new QLabel(fields.join(" / ") + " · " + author.value("authorNameSnapshot").toString()
+                                      + (comment.value("state") == "Resolved" ? " · " + tr("Resolved") : QString()), card);
+        heading->setTextFormat(Qt::PlainText);
+        heading->setWordWrap(true);
+        heading->setStyleSheet("color: #eaf2ff; border: none; background: transparent;");
+        column->addWidget(heading);
+        QList<QWidget *> menuTargets{card, heading};
+        if (display != "Collapsed")
+        {
+            auto *body = new QLabel(comment.value("body").toString(), card);
+            body->setObjectName("metadataCommentBody");
+            body->setTextFormat(Qt::PlainText);
+            body->setWordWrap(true);
+            body->setStyleSheet("color: #eaf2ff; border: none; background: transparent;");
+            body->setTextInteractionFlags(Qt::TextSelectableByMouse);
+            column->addWidget(body);
+            menuTargets.append(body);
+        }
+        for (auto *target : menuTargets)
+        {
+            target->setContextMenuPolicy(Qt::CustomContextMenu);
+            connect(target, &QWidget::customContextMenuRequested, this,
+                    [this, target, id = comment.value("commentId").toString()](const QPoint &pos) {
+                emit commentMenuRequested(id, target->mapToGlobal(pos));
+            });
+        }
+        m_reviewCommentsLayout->addWidget(card);
+        ++count;
+    }
+    m_reviewCommentsArea->setVisible(count > 0);
 }
 
 void MetaEditPanel::setupUi()

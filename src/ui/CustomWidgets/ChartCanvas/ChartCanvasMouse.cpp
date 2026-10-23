@@ -1175,6 +1175,7 @@ bool ChartCanvas::handleHitNoteLeftClick(int hitIndex, const QPointF &pos)
 
 void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
 {
+    m_hasSelectedCommentRegion = false;
     if (handleMirrorGuidePress(event->pos()))
         return;
 
@@ -1197,8 +1198,9 @@ void ChartCanvas::handleLeftMousePress(QMouseEvent *event)
     // Ctrl always starts a selection gesture, including when pressed on a
     // note. A click toggles that one note; a drag toggles the rectangle.
     const bool ctrlPressed = event->modifiers().testFlag(Qt::ControlModifier);
-    if (ctrlPressed || m_currentMode == Select)
+    if (ctrlPressed || m_currentMode == Select || event->position().x() < leftMargin())
     {
+        m_hasSelectedCommentRegion = false;
         const int hitIndex = hitTestNote(event->pos());
         if (!ctrlPressed && handleHitNoteLeftClick(hitIndex, event->pos()))
             return;
@@ -1443,6 +1445,7 @@ bool ChartCanvas::handleSelectionRelease(const QPointF &releasePos)
 
     if (!isBox)
     {
+        m_hasSelectedCommentRegion = false;
         if (m_selectionPressHitIndex >= 0)
             m_selectionController->toggleSelection(m_selectionAtPress, QSet<int>{m_selectionPressHitIndex});
         else if (!m_selectionCtrlPressed)
@@ -1457,6 +1460,11 @@ bool ChartCanvas::handleSelectionRelease(const QPointF &releasePos)
     }
 
     QRectF rect = QRectF(m_selectionStart, m_selectionEnd).normalized();
+    if (m_selectionStart.x() < leftMargin())
+    {
+        rect.setLeft(leftMargin());
+        rect.setRight(width() - rightMargin());
+    }
     const QVector<Note> &notes = chart()->notes();
     if (m_timesDirty || m_noteDataDirty)
         rebuildNoteTimesCache();
@@ -1489,11 +1497,17 @@ bool ChartCanvas::handleSelectionRelease(const QPointF &releasePos)
             rect, notes, [this](const Note &note) { return noteToPos(note); });
     }
     m_selectionController->toggleSelection(m_selectionAtPress, hitIndices);
+    const double a = qMax(0.0, snapBeatToTimeDivision(yToBeat(rect.top())));
+    const double b = qMax(0.0, snapBeatToTimeDivision(yToBeat(rect.bottom())));
+    m_selectedCommentRegion = QRectF(
+        QPointF(qBound(0, canvasXToLaneX(rect.left()), 512), qMin(a, b)),
+        QPointF(qBound(0, canvasXToLaneX(rect.right()), 512), qMax(a, b)));
+    m_hasSelectedCommentRegion = true;
     m_selectionAtPress.clear();
     m_selectionPressHitIndex = -1;
     m_selectionCtrlPressed = false;
     m_selectionDragged = false;
-    update(dirty);
+    update();
     return true;
 }
 

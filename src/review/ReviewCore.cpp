@@ -29,13 +29,18 @@ QString uuid()
     return QUuid::createUuid().toString(QUuid::WithoutBraces);
 }
 
-QJsonValue canon(const QJsonValue &v, const QString &key = {})
+QJsonValue canon(const QJsonValue &v, const QString &key = {}, bool compareNotes = false)
 {
     if (v.isObject())
     {
         const QJsonObject src = v.toObject();
         QStringList keys = src.keys();
         std::sort(keys.begin(), keys.end());
+        // Test once per object. Normal notes have three fields and need no
+        // extra JSON lookups during large multiset comparisons.
+        if (compareNotes && keys.size() >= 4 && src.contains(QStringLiteral("endbeat"))
+            && src.value(QStringLiteral("type")).toInt(-1) == 3)
+            keys.removeAll(QStringLiteral("x"));
         QJsonObject out;
         for (const QString &k : keys)
         {
@@ -44,7 +49,7 @@ QJsonValue canon(const QJsonValue &v, const QString &key = {})
                 || k.compare("plugin", Qt::CaseInsensitive) == 0 || k.compare("plugins", Qt::CaseInsensitive) == 0
                 || k.compare("pluginData", Qt::CaseInsensitive) == 0)
                 continue;
-            out.insert(k, canon(src.value(k), k));
+            out.insert(k, canon(src.value(k), k, compareNotes));
         }
         return out;
     }
@@ -87,7 +92,7 @@ QJsonValue canon(const QJsonValue &v, const QString &key = {})
         }
         QJsonArray out;
         for (const auto &x : a)
-            out.append(canon(x));
+            out.append(canon(x, {}, compareNotes));
         return out;
     }
     return v;
@@ -95,9 +100,9 @@ QJsonValue canon(const QJsonValue &v, const QString &key = {})
 QByteArray valueBytes(const QJsonValue &v)
 {
     if (v.isObject())
-        return QJsonDocument(canon(v).toObject()).toJson(QJsonDocument::Compact);
+        return QJsonDocument(canon(v, {}, true).toObject()).toJson(QJsonDocument::Compact);
     QJsonArray a;
-    a.append(canon(v));
+    a.append(canon(v, {}, true));
     QByteArray raw = QJsonDocument(a).toJson(QJsonDocument::Compact);
     return raw.mid(1, raw.size() - 2);
 }

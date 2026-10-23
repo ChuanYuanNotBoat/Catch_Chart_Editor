@@ -24,9 +24,13 @@
 #include <QStringList>
 #include <QTextStream>
 #include <QSizePolicy>
+#include <QMenu>
+#include <QApplication>
+#include <QSignalBlocker>
 #include <QtMath>
 
 #include <atomic>
+#include <algorithm>
 #include <memory>
 
 BPMTimePanel::BPMTimePanel(QWidget *parent)
@@ -41,6 +45,33 @@ void BPMTimePanel::setupUi()
 
     // BPM 列表
     m_bpmListWidget = new QListWidget(this);
+    m_bpmListWidget->setObjectName("bpmEntries");
+    m_bpmListWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_bpmListWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_bpmListWidget, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+        auto *item = m_bpmListWidget->itemAt(pos);
+        if (item && !item->isSelected())
+        {
+            if (!(QApplication::keyboardModifiers() & Qt::ControlModifier))
+                m_bpmListWidget->clearSelection();
+            m_bpmListWidget->setCurrentItem(item, QItemSelectionModel::NoUpdate);
+            item->setSelected(true);
+        }
+        QMenu menu(this);
+        auto *selected = menu.addAction(tr("Comment on Selected BPM Entries…"));
+        selected->setObjectName("review.bpm.addComment");
+        selected->setEnabled(!m_bpmListWidget->selectedItems().isEmpty());
+        connect(selected, &QAction::triggered, this, [this] {
+            QVector<int> rows;
+            for (auto *entry : m_bpmListWidget->selectedItems())
+                rows.append(m_bpmListWidget->row(entry));
+            std::sort(rows.begin(), rows.end());
+            emit commentRequested(rows);
+        });
+        connect(menu.addAction(tr("Comment on Entire BPM List…")), &QAction::triggered,
+                this, [this] { emit commentRequested({}); });
+        menu.exec(m_bpmListWidget->viewport()->mapToGlobal(pos));
+    });
     mainLayout->addWidget(m_bpmListWidget);
     connect(m_bpmListWidget, &QListWidget::currentRowChanged, this, &BPMTimePanel::onItemSelected);
 
@@ -135,6 +166,7 @@ void BPMTimePanel::onItemSelected(int row)
     {
         const BpmEntry &bpm = bpmList[row];
         m_timeEdit->setText(QString("%1:%2/%3").arg(bpm.beatNum).arg(bpm.numerator).arg(bpm.denominator));
+        const QSignalBlocker blocker(m_bpmSpin);
         m_bpmSpin->setValue(bpm.bpm);
     }
 }

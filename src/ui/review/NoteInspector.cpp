@@ -172,7 +172,7 @@ QString NoteInspector::valueFor(Field field, const Note &note) const
         case Field::StartBeat:
             return beatText(note.beatNum, note.numerator, note.denominator);
         case Field::X:
-            return note.isSound() ? tr("—") : QString::number(note.x);
+            return note.isSound() || note.isRainNote() ? tr("—") : QString::number(note.x);
         case Field::EndBeat:
             return note.isRainNote() ? beatText(note.endBeatNum, note.endNumerator, note.endDenominator) : tr("—");
         case Field::Sound:
@@ -334,7 +334,7 @@ void NoteInspector::refresh()
             return note.isSound();
         });
         const bool allSpatial = std::all_of(notes.cbegin(), notes.cend(), [](const Note &note) {
-            return !note.isSound();
+            return !note.isSound() && !note.isRainNote();
         });
         const bool allRain = std::all_of(notes.cbegin(), notes.cend(), [](const Note &note) {
             return note.isRainNote();
@@ -495,7 +495,7 @@ void NoteInspector::applyChanges()
     moved.reserve(originalNotes.size());
     for (const Note &original : originalNotes)
     {
-        if ((changes.x || changes.endBeat) && original.isSound())
+        if ((changes.x && (original.isSound() || original.isRainNote())) || (changes.endBeat && original.isSound()))
         {
             showError(tr("X and Rain end beat can only be edited when every selected note supports them."));
             return;

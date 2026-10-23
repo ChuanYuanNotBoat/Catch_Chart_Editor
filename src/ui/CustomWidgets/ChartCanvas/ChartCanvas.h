@@ -132,6 +132,23 @@ public:
     void setRangeOverlay(double startBeat, double endBeat);
     void clearRangeOverlay();
     void setRangeOverlayVisible(bool visible);
+    bool selectedBeatRange(double &start, double &end) const
+    {
+        if (!m_rangeOverlayValid)
+            return false;
+        start = qMin(m_rangeStartBeat, m_rangeEndBeat);
+        end = qMax(m_rangeStartBeat, m_rangeEndBeat);
+        return true;
+    }
+    bool selectedCommentRegion(QRectF &region) const
+    {
+        if (!m_hasSelectedCommentRegion)
+            return false;
+        region = m_selectedCommentRegion;
+        return true;
+    }
+    int commentNoteAt(const QPointF &position) const { return hitTestNote(position); }
+    void clearSelectedCommentRegion() { m_hasSelectedCommentRegion = false; update(); }
 
 public slots:
     void showGridSettings();
@@ -389,6 +406,9 @@ private:
     int m_selectionPressHitIndex = -1;
     bool m_selectionCtrlPressed = false;
     bool m_selectionDragged = false;
+    // Keep the actual dragged area even when it contains no notes.
+    QRectF m_selectedCommentRegion;
+    bool m_hasSelectedCommentRegion = false;
     int m_selectionAnchorIndex = -1; // Range selection anchor (text-editor style shift+arrow)
     int m_selectionExtentIndex = -1; // Moveable end of the range selection
 

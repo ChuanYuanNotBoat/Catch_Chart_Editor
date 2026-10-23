@@ -70,6 +70,9 @@ private slots:
     void bpmEntryFollowsExplicitChange();
     void rainPositionBeatStaysFixedWhenReferencedSpanChanges();
     void bpmListModificationAndUndo();
+    void bpmGroupPreservesSubsetAndMissingTargets();
+    void metadataTracksOnlySelectedFields();
+    void rainLegacyXIsNotAReviewChange();
 };
 
 void CommentModelTests::permissionsTombstonesAndThreadAnchor()
@@ -319,6 +322,73 @@ void CommentModelTests::bpmListModificationAndUndo()
     const QJsonObject undoneAnchor = singleComment(undone).value(QStringLiteral("anchor")).toObject();
     QCOMPARE(undoneAnchor.value(QStringLiteral("state")).toString(), QStringLiteral("Valid"));
     QCOMPARE(undoneAnchor.value(QStringLiteral("bpmList")).toArray().size(), 1);
+}
+
+void CommentModelTests::bpmGroupPreservesSubsetAndMissingTargets()
+{
+    Chart chart;
+    chart.addBpm(BpmEntry(4, 0, 1, 150));
+    chart.addBpm(BpmEntry(8, 0, 1, 180));
+    const auto before = CceDocument::Project::fromChart(chart);
+    const auto id = before.activeDifficultyId;
+    const auto timing = before.difficulties.value(id).timing;
+    const QJsonArray subset{bpmJson(timing.first()), bpmJson(timing.last())};
+    QJsonArray comments{makeComment("thread", "comment", author("a", "A"), "Selected timing",
+        {{"type", "BpmGroup"}, {"difficultyId", id}, {"bpmList", subset}, {"originalBpmList", subset}})};
+    auto after = before;
+    after.difficulties[id].timing.removeLast();
+    const auto changed = relocateComments(comments, before, after);
+    auto anchor = changed.first().toObject().value("anchor").toObject();
+    QCOMPARE(anchor.value("bpmList").toArray(), subset);
+    QCOMPARE(anchorReferenceState(anchor), QString("Missing"));
+    const auto restored = relocateComments(changed, after, before);
+    QCOMPARE(anchorReferenceState(restored.first().toObject().value("anchor").toObject()), QString("Valid"));
+}
+
+void CommentModelTests::metadataTracksOnlySelectedFields()
+{
+    Chart chart;
+    chart.meta().title = "Original title";
+    chart.meta().artist = "Artist";
+    const auto before = CceDocument::Project::fromChart(chart);
+    const auto id = before.activeDifficultyId;
+    const QJsonObject original{{"title", "Original title"}};
+    QJsonArray comments{makeComment("thread", "comment", author("a", "A"), "Check title",
+        {{"type", "Metadata"}, {"difficultyId", id}, {"fields", QJsonArray{"title"}},
+         {"metadata", original}, {"originalMetadata", original}})};
+    auto after = before;
+    after.difficulties[id].metadata.artist = "Unrelated artist change";
+    auto changed = relocateComments(comments, before, after);
+    QCOMPARE(anchorReferenceState(changed.first().toObject().value("anchor").toObject()), QString("Valid"));
+    after.difficulties[id].metadata.title = "Changed title";
+    changed = relocateComments(comments, before, after);
+    QCOMPARE(anchorReferenceState(changed.first().toObject().value("anchor").toObject()), QString("Modified"));
+    const auto restored = relocateComments(changed, after, before);
+    QCOMPARE(restored.first().toObject().value("anchor").toObject().value("metadata").toObject(), original);
+    QCOMPARE(anchorReferenceState(restored.first().toObject().value("anchor").toObject()), QString("Valid"));
+}
+
+void CommentModelTests::rainLegacyXIsNotAReviewChange()
+{
+    Chart chart;
+    Note rain(2, 0, 1, 6, 0, 1, 64);
+    chart.addNote(rain);
+    const auto before = CceDocument::Project::fromChart(chart);
+    auto after = before;
+    const auto difficulty = before.activeDifficultyId;
+    const auto layer = before.difficulties.value(difficulty).bindings.first().layerId;
+    after.layers[layer].notes.first().x = 400;
+    QVERIFY(diff(before.toJson(), after.toJson()).isEmpty());
+    QCOMPARE(canonicalHash(CceDocument::encodeNote(rain, true)), canonicalHash(CceDocument::encodeNote(after.layers[layer].notes.first(), true)));
+    // Existing package hashes remain compatible, even though review equality ignores legacy X.
+    QVERIFY(canonicalHash(CceDocument::encodeNote(rain)) != canonicalHash(CceDocument::encodeNote(after.layers[layer].notes.first())));
+    QVERIFY(!CceDocument::encodeNote(rain, true).contains("x"));
+    Note decoded;
+    QVERIFY(CceDocument::decodeNote(CceDocument::encodeNote(rain, true), decoded));
+    QVERIFY(decoded.isRainNote());
+    QJsonArray comments{makeComment("thread", "comment", author("a", "A"), "Rain target", noteAnchor(difficulty, layer, rain))};
+    const auto relocated = relocateComments(comments, before, after);
+    QCOMPARE(anchorReferenceState(relocated.first().toObject().value("anchor").toObject()), QString("Valid"));
 }
 
 QTEST_GUILESS_MAIN(CommentModelTests)

@@ -115,6 +115,9 @@ if(BUILD_TESTING)
     add_local_review_test(ChartMergeTests tests/chart_merge_tests.cpp)
     add_local_review_test(ProjectStorageTests tests/project_storage_tests.cpp)
     add_local_review_test(ReviewCoreTests tests/review_core_tests.cpp)
+    # The 100k-note JSON merge coverage is substantially slower without
+    # optimization; keep its process limit separate from the UI test budget.
+    set_tests_properties(ReviewCoreTests PROPERTIES TIMEOUT 300)
     add_local_review_test(CommentModelTests tests/comment_model_tests.cpp)
     add_local_review_test(ReviewInspectorTests tests/review_inspector_tests.cpp)
     add_local_review_test(ExportPipelineTests tests/export_pipeline_tests.cpp)

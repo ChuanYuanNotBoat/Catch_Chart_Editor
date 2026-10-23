@@ -7,6 +7,9 @@
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
 #include "ui/review/IdentityDialog.h"
 #include "ui/review/NoteInspector.h"
+#include "ui/review/ReviewColors.h"
+#include "ui/BPMTimePanel.h"
+#include "ui/MetaEditPanel.h"
 #include "file/ChartIO.h"
 #include "utils/MathUtils.h"
 #include <QAction>
@@ -26,6 +29,7 @@
 #include <QListWidget>
 #include <QMainWindow>
 #include <QMenuBar>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -560,6 +564,16 @@ void ReviewWorkspace::buildUi()
     col->addWidget(m_commentFilterBox);
     m_commentsTree = new QTreeWidget;
     m_commentsTree->setObjectName("reviewComments");
+    m_commentsTree->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_commentsTree, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+        auto *item = m_commentsTree->itemAt(pos);
+        if (!item)
+            return;
+        m_commentsTree->setCurrentItem(item);
+        QMenu menu(m_panel);
+        populateCommentMenu(&menu, selectedCommentId());
+        menu.exec(m_commentsTree->viewport()->mapToGlobal(pos));
+    });
     m_commentsTree->setHeaderLabels({tr("Author"), tr("Comment"), tr("State"), tr("Anchor"), tr("Reference status")});
     m_commentsTree->header()->setSectionResizeMode(1, QHeaderView::Stretch);
     col->addWidget(m_commentsTree, 1);
@@ -568,42 +582,21 @@ void ReviewWorkspace::buildUi()
         editComment(false);
     });
     auto *anchorType = new QComboBox;
-    anchorType->addItems({"TimePoint", "TimePosition", "Region", "Note", "NoteGroup", "BpmEntry", "BpmList"});
+    anchorType->setObjectName("reviewCommentAnchorType");
+    for (const auto &entry : QVector<QPair<QString, QString>>{
+             {tr("Current selection / position"), "Auto"}, {tr("Time point"), "TimePoint"},
+             {tr("Time and position"), "TimePosition"}, {tr("Selected range / selection bounds"), "Region"},
+             {tr("Selected note"), "Note"}, {tr("Selected notes"), "NoteGroup"},
+             {tr("BPM entry"), "BpmEntry"}, {tr("Entire BPM list"), "BpmList"}})
+        anchorType->addItem(entry.first, entry.second);
     auto *newComment = new QHBoxLayout;
     newComment->addWidget(anchorType);
     button(newComment, tr("Add Comment…"), [this, anchorType] {
-        bool ok;
-        const QString body = QInputDialog::getMultiLineText(m_panel, tr("Add comment"), tr("Comment:"), {}, &ok);
-        if (!ok)
-            return;
-        QString error;
-        if (!addCommentAtSelection(body, anchorType->currentText(), &error))
-            report(error);
+        const auto type = anchorType->currentData().toString();
+        addCommentDialog(QPointF(-1, -1), type == "Auto" ? QString() : type);
     });
-    button(newComment, tr("Reply…"), [this] {
-        const QString id = selectedCommentId();
-        if (id.isEmpty())
-            return;
-        QJsonObject parent;
-        for (const auto &v : comments())
-            if (v.toObject().value("commentId") == id)
-                parent = v.toObject();
-        bool ok;
-        QString body = QInputDialog::getMultiLineText(m_panel, tr("Reply"), tr("Reply:"), {}, &ok);
-        if (!ok)
-            return;
-        auto list = comments();
-        QString error;
-        if (!addComment(list, m_identity.activeIdentity().snapshot(), body, parent.value("anchor").toObject(),
-                        parent.value("threadId").toString(), nullptr, &error))
-        {
-            report(error);
-            return;
-        }
-        auto log = events();
-        log.append(eventRecord("CreateComment", m_identity.activeIdentity().snapshot()));
-        commitReviewState(tr("Reply to comment"), list, log);
-    });
+    button(newComment, tr("Reply…"), [this] { replyToComment(); });
+
     col->addLayout(newComment);
     auto *commentBar = new QHBoxLayout;
     button(commentBar, tr("Edit…"), [this] {
@@ -633,17 +626,7 @@ void ReviewWorkspace::buildUi()
     {
         const QString state = displayState.first;
         button(displayBar, displayState.second, [this, state] {
-            const QString id = selectedCommentId();
-            for (const auto &v : comments())
-            {
-                const auto o = v.toObject();
-                if (o.value("commentId") != id)
-                    continue;
-                QSettings().setValue("local-review/comments/" + o.value("threadId").toString() + "/display", state);
-            }
-            rebuildCommentCards();
-            if (m_canvas)
-                m_canvas->update();
+            setCommentDisplay(state);
         });
     }
     col->addLayout(displayBar);
@@ -681,7 +664,19 @@ void ReviewWorkspace::showPanelPage(int page)
         tabs->setCurrentIndex(page);
 }
 
-void ReviewWorkspace::addCommentDialog(const QPointF &position)
+QString ReviewWorkspace::selectionAnchorType() const
+{
+    double start, end;
+    QRectF region;
+    if (m_canvas && m_canvas->selectedCommentRegion(region))
+        return "Region";
+    if (m_canvas && m_canvas->selectedBeatRange(start, end))
+        return "Region";
+    const auto count = m_selection ? m_selection->selectedIndices().size() : 0;
+    return count == 1 ? "Note" : count > 1 ? "NoteGroup" : "TimePoint";
+}
+
+void ReviewWorkspace::addCommentDialog(const QPointF &position, const QString &requestedType)
 {
     if (m_identity.activeIdentity().authorId.isEmpty())
     {
@@ -693,16 +688,172 @@ void ReviewWorkspace::addCommentDialog(const QPointF &position)
     const auto body = QInputDialog::getMultiLineText(m_window, tr("Add comment"), tr("Comment:"), {}, &ok);
     if (!ok)
         return;
-    const auto count = m_selection ? m_selection->selectedIndices().size() : 0;
-    const QString type = position.x() >= 0 ? "TimePosition"
-                         : count == 1      ? "Note"
-                         : count > 1       ? "NoteGroup"
-                                           : "TimePoint";
+    const QString type = requestedType.isEmpty() ? selectionAnchorType() : requestedType;
     QString error;
     if (!addCommentAtSelection(body, type, &error, position))
         report(error);
     else
         showComments();
+}
+
+void ReviewWorkspace::installCommentSources(BPMTimePanel *bpmPanel, MetaEditPanel *metaPanel)
+{
+    if (bpmPanel)
+        connect(bpmPanel, &BPMTimePanel::commentRequested, this, [this](const QVector<int> &rows) {
+            const auto timing = m_controller->chart()->bpmList();
+            QJsonArray entries;
+            for (int row : rows)
+                if (row >= 0 && row < timing.size())
+                {
+                    const auto &point = timing[row];
+                    entries.append(QJsonObject{{"beat", QJsonArray{point.beatNum, point.numerator, point.denominator}},
+                                               {"bpm", point.bpm}});
+                }
+            if (!rows.isEmpty() && entries.isEmpty())
+                return;
+            QJsonObject anchor{{"difficultyId", m_bundle.project.activeDifficultyId},
+                               {"type", rows.isEmpty() ? "BpmList" : entries.size() == 1 ? "BpmEntry" : "BpmGroup"}};
+            if (rows.isEmpty())
+                entries = CceDocument::encodeChart(portableChart(*m_controller->chart())).value("timing").toArray();
+            anchor["bpmList"] = entries;
+            anchor["originalBpmList"] = entries;
+            if (!entries.isEmpty())
+            {
+                anchor["bpm"] = entries.first();
+                anchor["beat"] = entries.first().toObject().value("beat");
+            }
+            addAnchoredCommentDialog(anchor);
+        });
+    if (metaPanel)
+    {
+        const auto refresh = [this, metaPanel] {
+            metaPanel->setReviewComments(comments(), m_bundle.project.activeDifficultyId,
+                                         CceReviewUi::commentAuthorColors(comments()));
+        };
+        connect(this, &ReviewWorkspace::workspaceChanged, metaPanel, refresh);
+        connect(metaPanel, &MetaEditPanel::commentMenuRequested, this, [this](const QString &id, const QPoint &position) {
+            QMenu menu(m_window);
+            populateCommentMenu(&menu, id);
+            menu.exec(position);
+        });
+        refresh();
+        connect(metaPanel, &MetaEditPanel::commentRequested, this, [this](const QStringList &fields) {
+            if (fields.isEmpty())
+                return;
+            const auto metadata = CceDocument::encodeChart(portableChart(*m_controller->chart())).value("metadata").toObject();
+            QJsonObject values;
+            for (const auto &field : fields)
+                if (metadata.contains(field))
+                    values[field] = metadata.value(field);
+            addAnchoredCommentDialog({{"type", "Metadata"}, {"difficultyId", m_bundle.project.activeDifficultyId},
+                                      {"fields", QJsonArray::fromStringList(fields)}, {"metadata", values},
+                                      {"originalMetadata", values}, {"beat", QJsonArray{0, 0, 1}}});
+        });
+    }
+}
+
+void ReviewWorkspace::addAnchoredCommentDialog(const QJsonObject &anchor)
+{
+    if (m_identity.activeIdentity().authorId.isEmpty())
+    {
+        CceReviewUi::IdentityDialog(&m_identity, m_window).exec();
+        if (m_identity.activeIdentity().authorId.isEmpty())
+            return;
+    }
+    bool ok = false;
+    const auto body = QInputDialog::getMultiLineText(m_window, tr("Add comment"), tr("Comment:"), {}, &ok);
+    if (!ok)
+        return;
+    QString error;
+    if (!addCommentForAnchor(body, anchor, &error))
+        report(error);
+    else
+        showComments();
+}
+
+void ReviewWorkspace::replyToComment()
+{
+    const QString id = selectedCommentId();
+    if (id.isEmpty())
+        return;
+    if (m_identity.activeIdentity().authorId.isEmpty())
+    {
+        CceReviewUi::IdentityDialog(&m_identity, m_window).exec();
+        if (m_identity.activeIdentity().authorId.isEmpty())
+            return;
+    }
+    QJsonObject parent;
+    for (const auto &v : comments())
+        if (v.toObject().value("commentId") == id)
+            parent = v.toObject();
+    bool ok;
+    QString body = QInputDialog::getMultiLineText(m_panel, tr("Reply"), tr("Reply:"), {}, &ok);
+    if (!ok)
+        return;
+    auto list = comments();
+    QString error;
+    if (!addComment(list, m_identity.activeIdentity().snapshot(), body, parent.value("anchor").toObject(),
+                    parent.value("threadId").toString(), nullptr, &error))
+    {
+        report(error);
+        return;
+    }
+    auto log = events();
+    log.append(eventRecord("CreateComment", m_identity.activeIdentity().snapshot()));
+    commitReviewState(tr("Reply to comment"), list, log);
+}
+
+void ReviewWorkspace::selectComment(const QString &id)
+{
+    buildUi();
+    m_commentFilterBox->setCurrentIndex(0);
+    for (int i = 0; i < m_commentsTree->topLevelItemCount(); ++i)
+        if (m_commentsTree->topLevelItem(i)->data(0, Qt::UserRole).toString() == id)
+        {
+            m_commentsTree->setCurrentItem(m_commentsTree->topLevelItem(i));
+            break;
+        }
+}
+
+void ReviewWorkspace::setCommentDisplay(const QString &state)
+{
+    for (const auto &value : comments())
+    {
+        const auto comment = value.toObject();
+        if (comment.value("commentId").toString() == selectedCommentId())
+            QSettings().setValue("local-review/comments/" + comment.value("threadId").toString() + "/display", state);
+    }
+    rebuildCommentCards();
+    if (m_canvas)
+        m_canvas->update();
+    emit workspaceChanged();
+}
+
+void ReviewWorkspace::populateCommentMenu(QMenu *menu, const QString &id)
+{
+    selectComment(id);
+    QJsonObject comment;
+    for (const auto &value : comments())
+        if (value.toObject().value("commentId").toString() == id)
+            comment = value.toObject();
+    const bool own = !m_identity.activeIdentity().authorId.isEmpty()
+                     && comment.value("author").toObject().value("authorId").toString() == m_identity.activeIdentity().authorId;
+    const auto action = [menu](const QString &title, const QString &name, auto callback) {
+        auto *entry = menu->addAction(title);
+        entry->setObjectName(name);
+        QObject::connect(entry, &QAction::triggered, menu, callback);
+        return entry;
+    };
+    action(tr("Open Thread"), "review.comment.open", [this] { showComments(); });
+    action(tr("Reply…"), "review.comment.reply", [this] { replyToComment(); });
+    action(tr("Edit…"), "review.comment.edit", [this] { editComment(false); })->setEnabled(own);
+    action(tr("Delete"), "review.comment.delete", [this] { editComment(true); })->setEnabled(own);
+    const bool resolved = comment.value("state") == "Resolved";
+    action(resolved ? tr("Reopen") : tr("Resolve"), "review.comment.resolve", [this, resolved] { setResolved(!resolved); });
+    menu->addSeparator();
+    action(tr("Expanded"), "review.comment.expand", [this] { setCommentDisplay("Expanded"); });
+    action(tr("Collapsed"), "review.comment.collapse", [this] { setCommentDisplay("Collapsed"); });
+    action(tr("Hidden"), "review.comment.hide", [this] { setCommentDisplay("Hidden"); });
 }
 QString ReviewWorkspace::selectedLayerId() const
 {
@@ -1001,12 +1152,24 @@ bool ReviewWorkspace::addCommentAtSelection(const QString &body, const QString &
                                        {"originalNote", CceDocument::encodeNote(note)},
                                        {"state", "Valid"}});
         anchor["targets"] = targets;
+        anchor["beat"] = targets.first().toObject().value("note").toObject().value("beat");
+        anchor["x"] = selected.first().x;
     }
     else if (type == "Region")
     {
         double start = b + n / double(d), end = start + 1;
         int minX = 0, maxX = 512;
-        if (!selected.isEmpty())
+        QRectF area;
+        const bool hasArea = m_canvas && m_canvas->selectedCommentRegion(area);
+        const bool hasRange = hasArea || (m_canvas && m_canvas->selectedBeatRange(start, end));
+        if (hasArea)
+        {
+            start = area.top();
+            end = area.bottom();
+            minX = qRound(area.left());
+            maxX = qRound(area.right());
+        }
+        if (!hasRange && !selected.isEmpty())
         {
             start = selected.first().getStartBeat();
             end = selected.first().getEndBeat();
@@ -1018,6 +1181,12 @@ bool ReviewWorkspace::addCommentAtSelection(const QString &body, const QString &
                 minX = qMin(minX, note.x);
                 maxX = qMax(maxX, note.x);
             }
+        }
+        if (!hasRange && selected.isEmpty())
+        {
+            if (error)
+                *error = tr("Select a beat range or notes first.");
+            return false;
         }
         MathUtils::floatToBeat(start, b, n, d);
         anchor["beat"] = QJsonArray{b, n, d};
@@ -1043,13 +1212,26 @@ bool ReviewWorkspace::addCommentAtSelection(const QString &body, const QString &
         const auto point = list.value(choices.indexOf(choice));
         anchor["bpm"] =
             QJsonObject{{"beat", QJsonArray{point.beatNum, point.numerator, point.denominator}}, {"bpm", point.bpm}};
+        anchor["beat"] = anchor.value("bpm").toObject().value("beat");
     }
+    else if (type == "BpmList")
+    {
+        const auto timing = CceDocument::encodeChart(anchorChart).value("timing");
+        anchor["bpmList"] = timing;
+        anchor["originalBpmList"] = timing;
+        if (!timing.toArray().isEmpty())
+            anchor["beat"] = timing.toArray().first().toObject().value("beat");
+    }
+    return addCommentForAnchor(body, anchor, error);
+}
+
+bool ReviewWorkspace::addCommentForAnchor(const QString &body, const QJsonObject &anchor, QString *error)
+{
     auto list = comments();
     if (!addComment(list, m_identity.activeIdentity().snapshot(), body, anchor, {}, nullptr, error))
         return false;
     auto log = events();
     log.append(eventRecord("CreateComment", m_identity.activeIdentity().snapshot()));
-    m_projectMode = true;
     commitReviewState(tr("Add comment"), list, log);
     return true;
 }
