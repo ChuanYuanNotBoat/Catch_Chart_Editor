@@ -77,7 +77,12 @@ Write-Host "Executable reports: $($versionOutput.Trim())"
 # The CMake POST_BUILD step prunes first, but re-do it here so a package made
 # from an already up-to-date build tree can never contain removed documents.
 $docsDest = Join-Path $buildOutput "docs"
-if (Test-Path $docsDest) { Remove-Item -Recurse -Force $docsDest }
+$docsDest = [IO.Path]::GetFullPath($docsDest)
+if ([IO.Path]::GetDirectoryName($docsDest) -ne [IO.Path]::GetFullPath($buildOutput).TrimEnd([char[]]'\/') -or
+    [IO.Path]::GetFileName($docsDest) -ne "docs") {
+    throw "Refusing to refresh documentation outside the selected build output: $docsDest"
+}
+if (Test-Path -LiteralPath $docsDest) { Remove-Item -LiteralPath $docsDest -Recurse -Force }
 Copy-Item -Recurse -Force (Join-Path $repoRoot "docs") $docsDest
 
 # ---- 5. Tests ------------------------------------------------------------------
@@ -102,7 +107,7 @@ Write-Host "Packaging completeness check passed."
 
 # Nothing that ships to users may look like a test binary, symbol, or redist.
 $forbidden = Get-ChildItem $buildOutput -Recurse -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -match '^(CatchChartEditorTests|CoordMapperTests|DockingLayoutTests|MetaEditPanelTests|ImageConverterTests|BpmMeasurementTests|SettingsTransferTests|ShortcutTests|AutoTiming\w*Tests|autotiming_\w+_tests|autotiming_probe|vc_redist)\.' -or $_.Extension -in '.pdb', '.ilk' }
+    Where-Object { $_.Name -match '^(.+Tests|autotiming_\w+_tests|autotiming_probe|NoteSoundTimingProbe|spectrum_benchmark|vc_redist)\.' -or $_.Extension -in '.pdb', '.ilk' }
 if ($forbidden) {
     Write-Host "The following files exist but will be excluded by setup.iss:" -ForegroundColor Yellow
     $forbidden | ForEach-Object { Write-Host "  excluded: $($_.FullName.Substring($buildOutput.Length + 1))" }
@@ -116,7 +121,10 @@ if (-not $SkipPackage) {
         "${env:ProgramFiles(x86)}\Inno Setup 5\ISCC.exe",
         "$env:ProgramFiles\Inno Setup 5\ISCC.exe"
     )
-    $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    $isccCommand = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    $iscc = if ($isccCommand) { $isccCommand.Source } else {
+        $isccCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    }
     if (-not $iscc) { throw "ISCC.exe not found; install Inno Setup 6 or add it to PATH." }
 
     New-Item -ItemType Directory -Force -Path $outputDir | Out-Null

@@ -17,7 +17,7 @@ Analysis Editor is a second top-level CCE workspace, opened from **View → Anal
 | `BpmDetector::analyzeFromFileDetailedAsync` | Existing asynchronous legacy + AutoTiming 2 pipeline, decoded once per timing job |
 | `AutoTiming2Bridge` DTOs | Diagnostic projection preserving whole-file audio positions, stage status, confidence and uncertainty |
 | `CommandRouter` / `Settings` shortcut overrides | Shared undo/redo/playback shortcuts; independent workspace ownership prevents Catch spatial commands leaking into Analysis Editor |
-| `ChartCanvas::beginPastePreview` | Existing future candidate-preview boundary; generation is not implemented in this phase |
+| `ChartCanvas::beginPastePreview` | Shared candidate-preview boundary; transient note drafts require explicit commit |
 
 ## Working interface
 
@@ -77,9 +77,15 @@ Dragging a Note head moves it only in time. Dragging a Rain head preserves its e
 
 Stable fields use schema version 1. Unsupported future schemas are rejected transactionally. Debug fields are bound to the exact Core version; values from a different build are retained as inactive imported metadata and reported, while current-build defaults are used. CCE Default has experimental subdivision disabled, unlike the upstream default. The difference view and reset tooltips use CCE Default values.
 
-Global presets are atomically stored in `QStandardPaths::AppConfigLocation/analysis-profiles.json`. **Save project override** writes differences plus the selected base preset's full snapshot/name/hash to `<chart path>.analysis-config.json`; it does not edit `.mc`. Sparse overrides are validated against that base, including ranges that exceed product Default. Reopening restores the same effective values even when the global preset is absent or different, using a read-only Project base entry. A mismatched snapshot hash or unreadable sidecar blocks analysis until explicitly restored/cleared. Effective values combine Default, selected global/project base, project override and current unsaved edits. Layout, level, zoom, selected global preset name and track visibility remain workspace settings. Each analysis freezes the complete effective snapshot/hash, request ID/revision, source identity and exact interval. A future `.ccepr` implementation can embed this existing record; this change does not implement that file format.
+Global presets are atomically stored in `QStandardPaths::AppConfigLocation/analysis-profiles.json`. **Save project override** writes differences plus the selected base preset's full snapshot/name/hash to `<chart path>.analysis-config.json`; it does not edit `.mc`. Sparse overrides are validated against that base, including ranges that exceed product Default. Reopening restores the same effective values even when the global preset is absent or different, using a read-only Project base entry. A mismatched snapshot hash or unreadable sidecar blocks analysis until explicitly restored/cleared. Effective values combine Default, selected global/project base, project override and current unsaved edits. Layout, level, zoom, selected global preset name and track visibility remain workspace settings. Each analysis freezes the complete effective snapshot/hash, request ID/revision, source identity and exact interval. The experimental `.ccepr` workflow is implemented separately; it does not yet embed this analysis-configuration record.
 
 Requests preserve six decimal places in seconds and no longer silently clamp duration to 4–300 seconds. Shorter-than-configured windows, intervals beyond EOF, over 20,000 scheduled windows, a preparation timeout or over 128 MiB of decoded/resampled mono PCM are rejected explicitly. A failed preparation cannot become a partial successful analysis. Only one timing worker runs per editor. Configuration changes, cancellation, source changes and same-path content replacement reject obsolete results; previously displayed results become **OldConfiguration** and lose preview/apply actions. Cancel interrupts preparation and discards results; an already-running upstream Core calculation still finishes in the background.
+
+The ordinary chart workflow carries `<chart path>.analysis-config.json` into its
+working copy, copies it back on Save/Save As using the destination chart filename,
+and includes it beside each corresponding `.mc` in MCZ exports. The experimental
+`.cceproj` and `.ccepr` containers do not embed this file yet; use profile JSON
+export/import when transferring analysis settings between those workspaces.
 
 ### Debug workbench
 
@@ -109,7 +115,7 @@ True Core cancellation checkpoints, the independent Core accuracy/candidate-rete
 
 Only one timing worker runs per window. Cancel discards its result and cooperatively stops preparation. The pinned AutoTiming core has no mid-analysis cancellation hook, so a running core calculation must finish before another timing job can start. Source/chart generations and audio file identity reject stale asynchronous results. Hiding the editor cancels spectrum work and discards outstanding timing work.
 
-Timbre and Tracks remain future panels. Generation now offers the explicit transient-note draft workflow below; it does not infer playable X patterns, Rain duration or difficulty. Future chart candidates must enter a ghost preview and then a separate undoable commit before reaching the real chart.
+Timbre and Tracks remain future panels and their placeholder tabs are hidden in v1.12.0, including when restoring an old layout. Generation now offers the explicit transient-note draft workflow below; it does not infer playable X patterns, Rain duration or difficulty. Future chart candidates must enter a ghost preview and then a separate undoable commit before reaching the real chart.
 
 ## Transient note drafts
 
@@ -136,7 +142,7 @@ The default span is **1 beat**, restored for each cleared/new measurement. Decim
 
 **Apply BPM at Start** updates an existing timing at the exact same rational position or adds one new timing point through the shared `ChartController`. Existing triplets, note beat coordinates, offset and later timing points are preserved. The BPM applies until the next timing point and affects later audio times. The panel blocks applying across another timing inside the chosen beat span, before the first chart timing, at duplicate timing positions, or with invalid/reversed input; it also avoids a no-op update. A chart containing notes asks for confirmation, defaulting to No. The edit is one shared undo/redo command. Timing/metadata/source changes clear the draft to prevent applying stale measurements.
 
-Manual markers are only displayed while Measure is visible. AutoTiming's cyan candidate preview remains a separate diagnostic and is disabled when entering Measure. This iteration implements the constant-BPM Measure → Preview → Apply flow; adaptive BPM interpolation remains the next tool. STFT hop and screen zoom limit visual alignment: three decimal places in the End field do not imply matching audio accuracy or a certified song tempo.
+Manual markers are only displayed while Measure is visible. AutoTiming's cyan candidate preview remains a separate diagnostic and is disabled when entering Measure. The constant-BPM Measure → Preview → Apply flow is complemented by the adaptive BPM interpolation tool below. STFT hop and screen zoom limit visual alignment: three decimal places in the End field do not imply matching audio accuracy or a certified song tempo.
 
 `analysis/TimingMeasurement` uses only the standard library. Its standalone tests cover exact decimal/fraction parsing, the default beat, absolute-time BPM calculation and malformed/non-finite/reversed inputs. Editor tests drive real mouse clicks and both marker drags, Tab focus, copy, existing non-canonical timing preservation, crossing rejection, both note-confirmation responses, and shared undo/redo.
 

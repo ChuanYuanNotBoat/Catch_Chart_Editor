@@ -692,8 +692,6 @@ void ReviewWorkspace::addCommentDialog(const QPointF &position, const QString &r
     QString error;
     if (!addCommentAtSelection(body, type, &error, position))
         report(error);
-    else
-        showComments();
 }
 
 void ReviewWorkspace::installCommentSources(BPMTimePanel *bpmPanel, MetaEditPanel *metaPanel)
@@ -767,8 +765,6 @@ void ReviewWorkspace::addAnchoredCommentDialog(const QJsonObject &anchor)
     QString error;
     if (!addCommentForAnchor(body, anchor, &error))
         report(error);
-    else
-        showComments();
 }
 
 void ReviewWorkspace::replyToComment()

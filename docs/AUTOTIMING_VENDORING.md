@@ -25,9 +25,14 @@ git submodule update --init --recursive
 - `autotiming.analysis.evidence`
 - `autotiming.analysis.phase_accuracy`
 - `autotiming.analysis.tempo_map`
+- `autotiming.analysis.metrical_selection`
 - `autotiming.probe.help`
+- `autotiming.benchmark.evaluation`
+- `autotiming.probe.configuration`
 
 CCE 的 `audio_autotiming_bridge_tests` 继续验证 `AutoTimingCore -> AutoTiming2Bridge -> BpmDetector` 的宿主边界和 legacy/V2 行为。
+
+2026-10-24 发布前核对：子模块工作树干净，gitlink 和远端 `master` 均为上述固定提交；发布构建使用默认子模块路径。下方“本地验证”中的提交／测试描述保留当时的范围，不代表 v1.12.0 最终发布验收，当前状态见 [RELEASE_READINESS.md](RELEASE_READINESS.md)。
 
 当前开发接入把 phase-anchored `TempoMap`、连续曲线和有误差上界的通用 BPM points 保留在 AutoTimingCore。CCE bridge 只转换 Qt 友好结构并转发 `preferLocalTempoEvidence` 与 `enableComplexSubdivisionAnalysis`；Measure BPM 对话框提供“Prefer local tempo evidence for variable-tempo songs”和复杂分度两个独立开关，前者默认关闭以保持稳定曲的全局正则化结果，SV/结构性变速曲需要显式打开，后者普通流程默认关闭以避免把 SV/密集纹理误报为语义分度，同时保留 Core 的 raw periodicity evidence。检测到变速 map 时，对话框显示可滚动的最终合并 BPM 列表，并要求用户显式勾选后应用；谱面已有 note 时，写入前再要求确认。`BpmMeasureUtils` 只负责将相对 beat 坐标映射成 Malody `BpmEntry`，仅替换 Core `TempoMap.segments` 暴露的可信变速区间或阶跃边界，保留稳定区间已有 BPM，并复核被替换区间的量化 anchor 残差；小于 2% 的 segment 变化和低置信 segment 不自动写入。没有可信变速区间时 proposal 不可用，避免把整张 map 的近似噪声展开成 BPM。完整 BPM map 仍需用户显式确认，`stable_grid_regularization` 仍只作为诊断展示，复杂分度候选不会自动写入谱面。
 
@@ -51,7 +56,7 @@ git -C third_party/AutoTimingCore checkout <reviewed-full-sha>
 git add third_party/AutoTimingCore docs/AUTOTIMING_VENDORING.md
 ```
 
-随后更新本文件中的完整 SHA，并从全新构建目录运行 Debug/Release 构建、上游五项回归与 CCE 全套测试。不要在 CCE 中直接修改子模块算法源码；需要的算法修复应先进入 AutoTimingCore，再更新 gitlink。
+随后更新本文件中的完整 SHA，并从全新构建目录运行 Debug/Release 构建、上游全部回归与 CCE 全套测试。不要在 CCE 中直接修改子模块算法源码；需要的算法修复应先进入 AutoTimingCore，再更新 gitlink。
 
 ## 宿主边界
 
@@ -65,7 +70,7 @@ git add third_party/AutoTimingCore docs/AUTOTIMING_VENDORING.md
 
 ## 来源边界与许可证状态
 
-以下内容来自子模块 `ATTRIBUTION.md`（固定提交 `e47016ddfb24c4daf2d874164f3a64cc9346552c`）：
+以下内容来自当前子模块 `ATTRIBUTION.md`（固定提交 `23d3164b8a3fa2d8e9039a4fa86c8c029fc8b8fd`）：
 
 - Legacy source set（`AutoTiming.cpp/.h`、`dsp.*`、`fft.*`、`util.*`、`platform.h`）源自 Malody 内部 AutoTiming 原始实现（原文件头 “Created by dolly on 16/1/3” 应保留）。
 - AutoTiming 2 是在 legacy 基线上继续发展的扩展。

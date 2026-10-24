@@ -1,6 +1,6 @@
 # AutoTiming 自动节拍检测模块技术文档
 
-> 适用版本：Beta v1.11.2 + Unreleased maintenance
+> 适用版本：Beta v1.12.0
 > 权威实现：`third_party/AutoTimingCore/`（固定版本 submodule），桌面集成入口：`src/audio/BpmDetector.cpp`
 > 最后核对：2026-09-19
 

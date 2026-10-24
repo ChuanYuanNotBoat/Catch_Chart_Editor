@@ -459,8 +459,9 @@ void AnalysisEditor::addAnalysisPanel(const QString &title, QWidget *panel, bool
 void AnalysisEditor::togglePanel(bool right, int index)
 {
     auto *stack = right ? m_rightPanels : m_leftPanels;
+    auto *tabs = right ? m_rightTabs : m_leftTabs;
     int &open = right ? m_rightOpen : m_leftOpen;
-    if (index < 0 || index >= stack->count())
+    if (index < 0 || index >= stack->count() || !tabs->isTabVisible(index))
         return;
     m_timingTools->stopPicking();
     m_interpolation->stopPicking();
@@ -1337,12 +1338,18 @@ void AnalysisEditor::setInterfaceLevel(int level)
     m_candidateDetails->setVisible(level >= 1);
     m_modelGrid->setVisible(level >= 1);
     m_showTracks->setVisible(level >= 1);
+    // Keep stored panel indices stable, but do not expose unfinished tools.
     for (int i = 0; i < m_rightTabs->count(); ++i)
-        m_rightTabs->setTabVisible(i, level >= 1);
+        m_rightTabs->setTabVisible(i, i != 0 && level >= 1);
     m_rightTabs->setVisible(level >= 1);
     m_leftTabs->setTabVisible(1, level >= 1);
-    m_leftTabs->setTabVisible(2, level >= 2);
-    if (level == 0)
+    m_leftTabs->setTabVisible(2, false);
+    if (m_leftOpen >= 0 && !m_leftTabs->isTabVisible(m_leftOpen))
+    {
+        m_leftPanels->hide();
+        m_leftOpen = -1;
+    }
+    if (m_rightOpen >= 0 && !m_rightTabs->isTabVisible(m_rightOpen))
     {
         m_rightPanels->hide();
         m_rightOpen = -1;

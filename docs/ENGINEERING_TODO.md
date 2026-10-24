@@ -1,8 +1,12 @@
 # Engineering TODO
 
-Last audited: 2026-10-23
+Last audited: 2026-10-24
 
-Target: Beta v1.11.2 maintenance line (`v2-main`)
+Baseline: Beta v1.12.0 (`main` / `v2-main`); subsequent maintenance and roadmap work
+
+Current feature completion, experimental boundaries and release gates are tracked
+in [RELEASE_READINESS.md](RELEASE_READINESS.md). This file also includes future
+architecture work; unchecked future items are not automatically v1.12.0 blockers.
 
 ## Strategy
 
@@ -99,7 +103,8 @@ Do not treat FPS alone as the success criterion. Editing latency, load/save time
 - [x] Move large resource copies, sidecar sync, and save hashing off the UI thread behind an ordered document transaction.
 - [x] Consolidate the duplicate diagnostics exporters and atomically write the remaining user-facing report/skin-configuration files.
 - [x] Add interaction benchmarks for moving 1 / 100 / 4,000 notes and resizing rain tails.
-- [x] Add load/save benchmarks at 5k / 20k / 100k notes and fail CI on major regressions.
+- [x] Add local load/save benchmarks at 5k / 20k / 100k notes.
+- [ ] Add a tracked CI workflow with explicit performance-regression budgets; local test assertions alone do not establish a CI gate.
 - [x] Profile the Windows top-level backing-store/update path behind the 10.5 ms p95 measurement.
 - [x] Replace the global ADS-leaf layout with stable Editor/Sidebar/Auxiliary Sidebar/Bottom Panel workbench parts and pane containers that cache expansion, order, visibility, and size by stable ID.
 - [x] Add explicit `Move View...` and `Reset View Location` commands before replacing raw floating docks with auxiliary pane-container windows.
@@ -150,9 +155,10 @@ The stopped AutoTiming accuracy/audio/smoke runs remain stopped.
 
 The iteration also corrected duplicate offset handling in BPM-map projection.
 See [the implementation record](archive/AE_AC_GUI_BUGFIX_PLAN_2026-10-08.md#10-实施记录2026-10-08)
-and [current AE usage](ANALYSIS_EDITOR.md). Full `.ccepr`, random-access PCM cache,
-universal CCE TaskContext infrastructure and the independent Core candidate remain
-separate follow-ups; this completion does not claim they are implemented.
+and [current AE usage](ANALYSIS_EDITOR.md). The later local-review iteration below
+implements experimental `.ccepr`; it is no longer an unimplemented AE prerequisite.
+General random-access PCM caching and universal CCE TaskContext infrastructure
+remain separate follow-ups.
 
 ## AE spectrum follow-up (2026-10-18)
 
@@ -162,9 +168,10 @@ separate follow-ups; this completion does not claim they are implemented.
 - [x] Add a preference-backed main spectrum overlay beneath notes/grid, preserve typed timing/resource updates and avoid a second playback clock or waveform.
 - [x] Add isolated, muted playback benchmark options and verify the spectrum/AE integration with focused tests; see [SPECTRUM_PIPELINE.md](SPECTRUM_PIPELINE.md).
 
-Random-access PCM caching, true Core cancellation, full project packaging and
-the document/layer roadmap below remain open; a spectrum-tile cache does not
-complete those requirements.
+General random-access PCM caching and true Core cancellation remain open.
+The later project/review iteration below provides experimental packages; embedding
+analysis configuration and completing the broader document/layer roadmap remain
+separate work. A spectrum-tile cache does not complete those requirements.
 
 ## AE feature follow-up
 
@@ -193,7 +200,8 @@ The product direction is decided in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md):
 CCE remains the source of truth while these boundaries mature; repository-level
 core extraction comes later.
 
-- [ ] Introduce strong persistent IDs for document, difficulty, timeline and layer entities; match Notes from data without persistent Note IDs.
+- [x] Persist project, difficulty and layer identities in the experimental project model; match Notes from data without persistent Note IDs.
+- [ ] Introduce a separate persistent Timeline identity/model if that roadmap milestone proceeds; do not describe the current per-difficulty timing list as that model.
 - [x] Replace legacy Note/BPM floating-point ordering with normalized rational comparison (`BeatPosition`); preserve source triplets and use exact text-input range boundaries. Audio time caches and continuous curve geometry remain floating-point projections.
 - [x] Use runtime Note IDs for selection identity while retaining index-based render access; Note IDs remain runtime-only and are not serialized.
 - [x] Add a read-only versioned `ChartSnapshot`/`ChartReadVersion`, remove `mutableChart`/canvas mutable access, and use source/domain revision guards for asynchronous statistics. Captures share Note/BPM storage; loading another chart invalidates old tokens. Project-wide read models and composition indices remain separate below.
@@ -202,9 +210,9 @@ core extraction comes later.
 - [ ] Split `MainWindow` incrementally into session, workspace, document, command, resource, diagnostics, and plugin-UI coordinators.
 - [x] Establish a no-QtWidgets QtCore CMake target (`CceReviewCore`) inside this repository; do not freeze or split its public ABI yet.
 - [x] Model an imported legacy `.mc` as one difficulty using one Base layer; document-model tests cover the composition and roundtrip behavior.
-- [ ] Define layer-aware clipboard commands for copy/cut/paste, atomic cross-layer and cross-difficulty transfer, and Timeline remapping previews.
+- [ ] Complete the layer-aware clipboard, cross-difficulty transfer and Timeline remapping previews. Current selection copy/move into a layer is implemented, but is not the complete layer clipboard.
 - [ ] Define project-shared, inheritable/overridable, per-difficulty-required, and structural Meta field policies.
-- [ ] Add transactional create/duplicate Difficulty services before exposing “New MC” in the project UI.
+- [x] Expose create/duplicate/import Difficulty through validated, undoable project updates; duplicated difficulties receive independent layers and runtime Note identities.
 - [ ] Add `ComposedChartView` and revision-driven per-layer/visible-object indices; never concatenate and sort all layers per paint.
 - [ ] Define the versioned directory-form project format, schema migration, atomic recovery, and resource hashing.
 - [x] Implement layer composition and deterministic `.mc` export projection; document-model and export-pipeline tests cover visibility/export eligibility and selected-layer projection. Revision-driven composition indices remain tracked separately above.
@@ -213,12 +221,12 @@ core extraction comes later.
 
 ## Later milestones
 
-Multi-difficulty projects, reusable/shared layers, layer groups, cross-difficulty
-references, review threads, Git-like checkpoints, osu!ctb, the conditional mobile
-track, eventual core extraction, and optional real-time collaboration are sequenced
-with explicit entry/exit gates in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md). They are
-not duplicated as unchecked implementation items here until their prerequisite
-milestone becomes active.
+Multi-difficulty projects, shared layers, cross-difficulty references and review
+threads already have optional experimental implementations. Layer groups,
+Git-like checkpoints, osu!ctb, the conditional mobile track, eventual core
+extraction and real-time collaboration remain sequenced with entry/exit gates in
+[FUTURE_ROADMAP.md](FUTURE_ROADMAP.md). Experimental availability does not complete
+every requirement in those broader milestones.
 
 ## Acceptance gates
 

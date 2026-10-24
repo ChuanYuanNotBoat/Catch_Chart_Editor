@@ -4,6 +4,7 @@
 #include "controller/PlaybackController.h"
 #include "controller/SelectionController.h"
 #include "file/ChartIO.h"
+#include "file/ProjectIO.h"
 #include "model/Skin.h"
 #include "utils/Logger.h"
 
@@ -143,8 +144,10 @@ private slots:
     {
         const QString library = m_temp.filePath("library");
         QVERIFY(QDir().mkpath(library));
-        const QString savedPath = QDir(library).filePath("chart.mc");
+        const QString savedPath = QDir(library).filePath("chart.with.dots.mc");
         QVERIFY(ChartIO::save(savedPath, ChartIO::createDefaultChart(MetaData{})));
+        const QByteArray originalConfig("{\"schemaVersion\":1,\"stable\":{\"minimumTempoBpm\":60}}");
+        QVERIFY(writeFile(savedPath + ".analysis-config.json", originalConfig));
         ChartController charts;
         SelectionController selection;
         AudioPlayer audio;
@@ -163,6 +166,10 @@ private slots:
         QVERIFY2(window.loadChartForAutomation(savedPath, &error), qPrintable(error));
         const QString workingDir = QFileInfo(charts.chartFilePath()).absolutePath();
         QVERIFY(workingDir != library);
+        const QString workingConfig = charts.chartFilePath() + ".analysis-config.json";
+        QCOMPARE(readFile(workingConfig), originalConfig);
+        const QByteArray editedConfig("{\"schemaVersion\":1,\"stable\":{\"minimumTempoBpm\":75}}");
+        QVERIFY(writeFile(workingConfig, editedConfig));
 
         QImage cover(8, 8, QImage::Format_RGB32);
         cover.fill(Qt::blue);
@@ -178,6 +185,17 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(readFile(Logger::logFilePath()).mid(logStart).contains("Chart saved:"), 10000);
         QCOMPARE(readFile(QDir(library).filePath("added.png")), readFile(workingCover));
         QCOMPARE(readFile(QDir(library).filePath("tap.wav")), readFile(QDir(workingDir).filePath("tap.wav")));
+        QCOMPARE(readFile(savedPath + ".analysis-config.json"), editedConfig);
+
+        ProjectIO::initializeBuiltinFileTypes();
+        const QString package = m_temp.filePath("analysis-config.mcz");
+        QVERIFY(ProjectIO::exportToMczPure(package, savedPath));
+        QString extracted;
+        QVERIFY(ProjectIO::extractMcz(package, m_temp.filePath("analysis-config-unpacked"), extracted));
+        const auto extractedCharts = ProjectIO::findChartsInDirectory(extracted);
+        QCOMPARE(extractedCharts.size(), 1);
+        QCOMPARE(QFileInfo(extractedCharts.first().first).fileName(), QString("chart.with.dots.mc"));
+        QCOMPARE(readFile(extractedCharts.first().first + ".analysis-config.json"), editedConfig);
     }
 
     void localLongAudioReadOnly()

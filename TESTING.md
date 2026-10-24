@@ -1,7 +1,21 @@
 # Testing Guide
 
-> 适用版本：Beta v1.11.2 + Unreleased maintenance
-> 最后核对：2026-10-23
+> 适用版本：Beta v1.12.0
+> 最后核对：2026-10-24
+
+## v1.12.0 发布前核对（2026-10-24）
+
+当前功能边界和最终发布条件见 [RELEASE_READINESS.md](docs/RELEASE_READINESS.md)。本节记录当前工作区的验证，以下各日期段保留历史范围。
+
+- Debug、Release 主程序及全部测试目标构建通过，运行程序报告 `Beta v1.12.0`。打包脚本语法、版本一致性及运行资源检查通过；未编译安装器或执行安装／升级。
+- Release 首轮运行到第 33 个目标时，按用户“不要弹窗、不要抢焦点、静音”的要求中断；此前 30 个目标通过、2 个目标失败。后续只运行无界面、无音频输出的检查：上游 8／8（49.64 秒），修正后的审阅与资源复制 2／2（6.56 秒）。分段结果按目标合计 38／38，不能表述为一次完整连续运行通过。
+- Debug 静默集合 25 个目标耗时 824.33 秒，原有 1 个配置断言失败；修正后的审阅与资源复制 2／2（29.41 秒）通过，最终有 26／38 个目标的通过结果。12 个未运行目标为 `HyperfruitTests`、`ChartMergeTests`、`ReviewInspectorTests`、`ui_grid_drag_tests`、`audio_playback_timing_tests`、`ui_spectrum_overlay_tests`、`analysis_editor_tests`、`ui_shortcut_tests`、`core_minimal_tests`、`ui_docking_layout_tests`、`ui_meta_edit_panel_tests`、`ui_bpm_measurement_tests`；本轮不启动这些目标来补齐数字。
+- 新增配置回归使用带点的谱面文件名，验证源文件旁 `.analysis-config.json` 导入工作副本、修改后随保存返回、纯净 MCZ 打包及递归发现谱面后恢复配置。
+- 首轮 `ReviewWorkspaceTests` 的三项像素断言沿用旧的零时刻视野，导致测试目标在画布外；现在显式定位到覆盖测试拍点的视野，并先检查取样点在图像内。配置测试按实际 MCZ 子目录寻找谱面，保留文件名和内容比较。两个目标在两种配置中均已复核通过。
+- Release 审阅工作区定向记录为 46 项通过、1 项真实谱面副本检查跳过；资源复制为 6 项通过、1 项已安装长音频检查跳过。没有提供外部真实谱面／音频输入，不将跳过项解释为验收通过。
+- 三种语言现有活动条目无未完成翻译，替换参数一致；文档相对文件链接及 `git diff --check` 通过。此前中文 20 条、日文 22 条审阅标签遗漏已补齐。
+
+原始构建、CTest、诊断及定向复核记录保存在忽略目录 `build/v1.12.0-*`；汇总为 `build/v1.12.0-validation-summary.json`。原始失败与中断记录保留，不用最终重跑结果覆盖历史日志。静默用例不替代原生窗口焦点、实际听音、Malody 客户端和安装升级检查。
 
 ## 谱面合并
 

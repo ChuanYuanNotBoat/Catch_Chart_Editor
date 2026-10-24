@@ -2,7 +2,7 @@
 
 > **目的**：完整描述当前编辑器的数据模型、文件格式、插件体系、坐标系统、外置 sidecar 文件格式等，为重构格式与导出到标准 mcz/mc 提供精确的结构定义。
 >
-> **版本**：Beta v1.11.2 + Unreleased maintenance | **最后更新**：2026-10-23
+> **版本**：Beta v1.12.0 | **最后更新**：2026-10-25
 >
 > ⚠️ **核心约束**：`.mc` 文件的 JSON 结构**永远不能更改**，必须保持与 Malody 官方格式完全兼容。所有扩展数据必须存放在 `.mcce-plugin/` 或独立辅助文件中。如果需要更改，则需要保证有可以导出为规范.mc/mcz的能力。
 >
@@ -699,6 +699,8 @@ struct BatchEdit {
 | `jpg`,`jpeg`,`png`,`bmp`,`webp`,`gif` | Image | 否 | 90 |
 | `mp4`,`mkv`,`avi`,`webm`,`mov` | Video | 否 | 90 |
 | `curve_tbd.json` | Curve Sidecar | 否 | 80 |
+| `review.json` | Chart Comments | ✅ 是 | 80 |
+| `analysis-config.json` | Analysis Configuration | 否，存在时随对应 MC 打包 | 80 |
 | `bpm_excludes.json` | BPM Excludes | ✅ 是 | 80 |
 | `song_bpm.json` | Song BPM | ✅ 是 | 80 |
 
@@ -1085,6 +1087,8 @@ malody/Assets/Malody/Scripts/
 | `curve_tbd.json` | `.mcce-plugin/{stem}.curve_tbd.json` | 曲线工程（V3） |
 | `bpm_excludes.json` | `.mcce-plugin/{stem}.bpm_excludes.json` | BPM 排除项 |
 | `song_bpm.json` | `.mcce-plugin/{stem}.song_bpm.json` | 歌曲 BPM 数据 |
+| `review.json` | `.mcce-plugin/{completeStem}.review.json` | 普通谱面评论 |
+| `analysis-config.json` | `{chart.mc}.analysis-config.json` | 谱面级分析配置；随普通保存、另存和 MCZ 携带，暂不内嵌 `.cceproj`／`.ccepr` |
 | `*.plugin.json` | `{appDir}/plugins/` | 进程插件清单 |
 | `*.dll/.so/.dylib` | `{appDir}/plugins/` | 原生插件库 |
 | `preview.json` | `{skinDir}/preview.json` | 皮肤元数据 |

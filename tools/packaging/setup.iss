@@ -3,25 +3,25 @@
 ; on any machine that has the repository and Inno Setup 6 installed.
 ;
 ; Typical invocation (see tools/packaging/build_and_package.ps1):
-;   ISCC.exe /DMyAppVersion=1.11.2 /DMyDisplayVersion="Beta v1.11.2" ^
+;   ISCC.exe /DMyAppVersion=1.12.0 /DMyDisplayVersion="Beta v1.12.0" ^
 ;            /DMyBuildDir=<repo>\build\Release /DMyOutputDir=<dist> ^
 ;            tools\packaging\setup.iss
 
 #define MyAppName "Catch Chart Editor"
 #define MyAppPublisher "ChuanYuan"
-#define MyAppURL "https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor"
+#define MyAppURL "https://github.com/ChuanYuanNotBoat/Catch_Chart_Editor"
 #define MyAppExeName "CatchChartEditor.exe"
 #define MyAppAssocName "Malody Chart file"
 #define MyAppAssocExt ".mc"
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.11.2"
+  #define MyAppVersion "1.12.0"
 #endif
 #ifndef MyDisplayVersion
   #define MyDisplayVersion "Beta v" + MyAppVersion
 #endif
-; Setup file name must stay space free, e.g. CatchChartEditor_Beta_v1.11.2_Setup.
+; Setup file name must stay space free, e.g. CatchChartEditor_Beta_v1.12.0_Setup.
 #define MyTag StringChange(MyDisplayVersion, " ", "_")
 #ifndef MyBuildDir
   #define MyBuildDir "..\..\build\Release"
@@ -67,7 +67,7 @@ Source: "{#MyBuildDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; Ship the deployed runtime tree, but never test executables, debug symbols,
 ; the VC redist bootstrapper, local logs, or diagnostic dumps.
 ; Excludes use patterns so newly added test targets are covered too.
-Source: "{#MyBuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*Tests.*,CatchChartEditorTests.*,autotiming_*_tests.*,autotiming_probe.*,CatchChartEditorTests.exe,CoordMapperTests.*,DockingLayoutTests.*,MetaEditPanelTests.*,ImageConverterTests.*,BpmMeasurementTests.*,*.pdb,*.ilk,vc_redist.x64.exe,tree.txt,logs/*,*.log"
+Source: "{#MyBuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*Tests.*,CatchChartEditorTests.*,autotiming_*_tests.*,autotiming_probe.*,NoteSoundTimingProbe.*,spectrum_benchmark.*,CatchChartEditorTests.exe,CoordMapperTests.*,DockingLayoutTests.*,MetaEditPanelTests.*,ImageConverterTests.*,BpmMeasurementTests.*,Qt6Test*.dll,resource-copy-*\*,*.pdb,*.ilk,vc_redist.x64.exe,tree.txt,logs/*,*.log"
 
 [Dirs]
 Name: "{app}\beatmap"

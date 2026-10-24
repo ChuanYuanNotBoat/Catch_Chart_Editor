@@ -4515,91 +4515,91 @@ Do you want to rename the imported file?</source>
     </message>
     <message>
         <source>—</source>
-        <translation type="unfinished" />
+        <translation>—</translation>
     </message>
     <message>
         <source>Yes</source>
-        <translation type="unfinished" />
+        <translation>はい</translation>
     </message>
     <message>
         <source>No</source>
-        <translation type="unfinished" />
+        <translation>いいえ</translation>
     </message>
     <message>
         <source>%1 items</source>
-        <translation type="unfinished" />
+        <translation>%1 件</translation>
     </message>
     <message>
         <source>%1 properties</source>
-        <translation type="unfinished" />
+        <translation>%1 個のプロパティ</translation>
     </message>
     <message>
         <source>Title</source>
-        <translation type="unfinished" />
+        <translation>曲名</translation>
     </message>
     <message>
         <source>Original title</source>
-        <translation type="unfinished" />
+        <translation>原題</translation>
     </message>
     <message>
         <source>Artist</source>
-        <translation type="unfinished" />
+        <translation>アーティスト</translation>
     </message>
     <message>
         <source>Original artist</source>
-        <translation type="unfinished" />
+        <translation>元のアーティスト</translation>
     </message>
     <message>
         <source>Difficulty name</source>
-        <translation type="unfinished" />
+        <translation>難易度名</translation>
     </message>
     <message>
         <source>Creator</source>
-        <translation type="unfinished" />
+        <translation>譜面作者</translation>
     </message>
     <message>
         <source>Audio reference</source>
-        <translation type="unfinished" />
+        <translation>音声参照</translation>
     </message>
     <message>
         <source>Background reference</source>
-        <translation type="unfinished" />
+        <translation>背景参照</translation>
     </message>
     <message>
         <source>Preview time</source>
-        <translation type="unfinished" />
+        <translation>プレビュー時刻</translation>
     </message>
     <message>
         <source>First BPM</source>
-        <translation type="unfinished" />
+        <translation>初期 BPM</translation>
     </message>
     <message>
         <source>Offset</source>
-        <translation type="unfinished" />
+        <translation>オフセット</translation>
     </message>
     <message>
         <source>Fall speed</source>
-        <translation type="unfinished" />
+        <translation>落下速度</translation>
     </message>
     <message>
         <source>Normal</source>
-        <translation type="unfinished" />
+        <translation>通常</translation>
     </message>
     <message>
         <source>Rain</source>
-        <translation type="unfinished" />
+        <translation>Rain</translation>
     </message>
     <message>
         <source>Sound</source>
-        <translation type="unfinished" />
+        <translation>サウンド</translation>
     </message>
     <message>
         <source>Unknown</source>
-        <translation type="unfinished" />
+        <translation>不明</translation>
     </message>
     <message>
         <source>Mixed</source>
-        <translation type="unfinished" />
+        <translation>混合</translation>
     </message>
     <message>
         <source>Cannot import package: %1</source>

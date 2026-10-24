@@ -4516,63 +4516,63 @@ Do you want to rename the imported file?</source>
     </message>
     <message>
         <source>—</source>
-        <translation type="unfinished" />
+        <translation>—</translation>
     </message>
     <message>
         <source>Yes</source>
-        <translation type="unfinished" />
+        <translation>是</translation>
     </message>
     <message>
         <source>No</source>
-        <translation type="unfinished" />
+        <translation>否</translation>
     </message>
     <message>
         <source>%1 items</source>
-        <translation type="unfinished" />
+        <translation>%1 项</translation>
     </message>
     <message>
         <source>%1 properties</source>
-        <translation type="unfinished" />
+        <translation>%1 个属性</translation>
     </message>
     <message>
         <source>Title</source>
-        <translation type="unfinished" />
+        <translation>标题</translation>
     </message>
     <message>
         <source>Original title</source>
-        <translation type="unfinished" />
+        <translation>原始标题</translation>
     </message>
     <message>
         <source>Artist</source>
-        <translation type="unfinished" />
+        <translation>艺术家</translation>
     </message>
     <message>
         <source>Original artist</source>
-        <translation type="unfinished" />
+        <translation>原始曲师</translation>
     </message>
     <message>
         <source>Difficulty name</source>
-        <translation type="unfinished" />
+        <translation>难度名称</translation>
     </message>
     <message>
         <source>Creator</source>
-        <translation type="unfinished" />
+        <translation>制谱者</translation>
     </message>
     <message>
         <source>Audio reference</source>
-        <translation type="unfinished" />
+        <translation>音频引用</translation>
     </message>
     <message>
         <source>Background reference</source>
-        <translation type="unfinished" />
+        <translation>背景引用</translation>
     </message>
     <message>
         <source>Preview time</source>
-        <translation type="unfinished" />
+        <translation>试听时间</translation>
     </message>
     <message>
         <source>First BPM</source>
-        <translation type="unfinished" />
+        <translation>初始 BPM</translation>
     </message>
     <message>
         <source>Offset</source>
@@ -4580,23 +4580,23 @@ Do you want to rename the imported file?</source>
     </message>
     <message>
         <source>Fall speed</source>
-        <translation type="unfinished" />
+        <translation>下落速度</translation>
     </message>
     <message>
         <source>Normal</source>
-        <translation type="unfinished" />
+        <translation>普通</translation>
     </message>
     <message>
         <source>Rain</source>
-        <translation type="unfinished" />
+        <translation>雨滴</translation>
     </message>
     <message>
         <source>Sound</source>
-        <translation type="unfinished" />
+        <translation>音效音符</translation>
     </message>
     <message>
         <source>Unknown</source>
-        <translation type="unfinished" />
+        <translation>未知</translation>
     </message>
     <message>
         <source>Mixed</source>

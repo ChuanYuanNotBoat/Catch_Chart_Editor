@@ -1086,6 +1086,17 @@ namespace
         if (sourceChartPath.isEmpty() || targetChartPath.isEmpty())
             return;
 
+        const QString analysisConfigSuffix = QStringLiteral(".analysis-config.json");
+        const QString sourceConfig = sourceChartPath + analysisConfigSuffix;
+        const QString targetConfig = targetChartPath + analysisConfigSuffix;
+        if (QFileInfo::exists(sourceConfig) && QDir::cleanPath(sourceConfig) != QDir::cleanPath(targetConfig))
+        {
+            QString copyError;
+            if (!FileUtils::copyFileSafely(sourceConfig, targetConfig, &copyError))
+                Logger::warn(QString("Failed to sync analysis configuration: %1 -> %2 (%3)")
+                                 .arg(sourceConfig, targetConfig, copyError));
+        }
+
         const QString sourceDir = QFileInfo(sourceChartPath).absoluteDir().absolutePath();
         const QString targetDir = QFileInfo(targetChartPath).absoluteDir().absolutePath();
         if (sourceDir.isEmpty() || targetDir.isEmpty())

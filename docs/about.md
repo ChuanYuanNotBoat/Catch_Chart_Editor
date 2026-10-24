@@ -4,9 +4,10 @@ Malody Catch Editor 是面向 Malody Catch 模式的开源桌面谱面编辑器�
 
 ## 项目状态
 
-- 当前版本：**Beta v1.11.2（2026-09-19）**
-- 仓库维护状态：**Release candidate（2026-09-19）**
-- Git 标签：待发布
+- 当前版本：**Beta v1.12.0（2026-10-25）**
+- 上一版本：**Beta v1.11.2（2026-09-19）**
+- 仓库维护状态：**已发布（2026-10-25）**
+- Git 标签：`v1.12.0`
 - 主要桌面验证平台：Windows
 - 技术栈：C++17、Qt 6 Widgets、Qt Multimedia、Qt Advanced Docking System
 
@@ -24,8 +25,8 @@ Beta 表示项目已经可用于实际制谱，但交互、sidecar 细节和插�
 
 ## 链接
 
-- 仓库与反馈：https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor
-- 最新发布：https://github.com/ChuanYuanNotBoat/Malody_Catch_Editor/releases/latest
+- [仓库与反馈](https://github.com/ChuanYuanNotBoat/Catch_Chart_Editor)
+- [最新发布](https://github.com/ChuanYuanNotBoat/Catch_Chart_Editor/releases/latest)
 - [文档索引](README.md)
 - [用户帮助](help.md)
 - [更新历史](history.md)

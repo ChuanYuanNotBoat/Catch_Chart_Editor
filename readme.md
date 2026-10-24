@@ -5,12 +5,13 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 ## Version status / 版本状态
 
-- Current release / 当前版本：**Beta v1.11.2（2026-09-19）**
-- Repository state / 仓库状态：**Released（2026-09-19）**
-- Git tag / 标签：`v1.11.2`
+- Current version / 当前版本：**Beta v1.12.0（2026-10-25）**
+- Previous release / 上一版本：**Beta v1.11.2（2026-09-19）**
+- Repository state / 仓库状态：**Released（2026-10-25）**
+- Git tag / 标签：`v1.12.0`
 - Download / 下载：[GitHub Releases](https://github.com/ChuanYuanNotBoat/Catch_Chart_Editor/releases/latest)
 
-`docs/history.md` 中已经发布的版本段落视为冻结记录；当前未发布维护内容记录在文件顶部的 `Unreleased` 段。
+`docs/history.md` 中已经发布的版本段落视为冻结记录；后续未发布内容单独记录在新的 `Unreleased` 段。
 
 ## Documentation / 文档
 
@@ -18,6 +19,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - [用户帮助](docs/help.md)
 - [版本状态与升级说明](docs/version.md)
 - [完整更新历史](docs/history.md)
+- [v1.12.0 功能完成度与发布检查](docs/RELEASE_READINESS.md)
 - [开发者项目指南](docs/AI_PROJECT_GUIDE.md)
 - [工程优化与重构 TODO](docs/ENGINEERING_TODO.md)
 - [未来产品与架构规划](docs/FUTURE_ROADMAP.md)
@@ -26,12 +28,12 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 ## Current focus / 当前重点
 
-- Beta v1.11.2 fixes shortcut capture, persistence, and conflict handling, adds Alt+Up/Down note-mode cycling, and adds `View -> Move View...` for relocating panels; it also carries the AutoTiming 2 based BPM measurement, explicit tempo-map application, and expanded background image import from the same maintenance line.
-  Beta v1.11.2 修复快捷键录入、持久化与冲突处理，新增 Alt+↑/↓ 音符模式循环与 `View -> Move View...` 面板位置迁移；同维护线还包含 AutoTiming 2 BPM 测量、显式 tempo map 应用与背景图导入格式扩展。
-- Export now flushes the working copy before packaging `.mcz`, restores `meta.offset` through the main audio Sound Note, and keeps OGG conversion and background import atomic.
-  导出 `.mcz` 前先落盘工作副本，通过主音频 Sound Note 补回 `meta.offset`，OGG 转换与背景导入保持原子提交。
-- Unified shortcut routing across canvas, Note Chain, and plugin tools remains a tracked TODO in [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md); the settings dialog currently covers registered menu actions only.
-  画布、Note Chain 与插件工具的快捷键统一路由仍是 [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md) 中的 TODO；快捷键设置当前只覆盖已注册的菜单动作。
+- v1.12.0 adds stereo spectrum analysis, transient note drafts, manual BPM measurement/interpolation, an independent BPM curve window, and chart/audio merging.
+  v1.12.0 新增双声道频谱分析、瞬态音符草稿、手动 BPM 测量与插值、独立 BPM 曲线窗口，以及谱面与音频合并。
+- Unified shortcuts, settings transfer, independent drag snapping and configurable Hyperfruit judging are implemented. Unfinished Timbre/Tracks tools are hidden.
+  统一快捷键、设置迁移、独立拖动吸附和可选红果判定均已实现；尚未完成的音色／伪轨道工具不显示入口。
+- Local multi-difficulty projects, layers, comments and `.ccepr` review are implemented as optional experimental workflows. Feature boundaries and remaining release checks are tracked in [RELEASE_READINESS.md](docs/RELEASE_READINESS.md).
+  本地多难度工程、图层、评论和 `.ccepr` 审阅已有可选的实验性实现；功能边界与剩余发布检查见[发布检查表](docs/RELEASE_READINESS.md)。
 
 完整变更见 [docs/history.md](docs/history.md) 顶部，近期维护见 [docs/ENGINEERING_TODO.md](docs/ENGINEERING_TODO.md)，长期方向见 [docs/FUTURE_ROADMAP.md](docs/FUTURE_ROADMAP.md)。
 
@@ -40,6 +42,10 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - Load, create, edit, save, and export Malody Catch `.mc` / `.mcz` charts.
 - Place, move, select, copy, paste, mirror, and delete Normal / Sound / Rain notes.
 - BPM table editing, automatic BPM measurement, timeline navigation, and playback-speed control.
+- Analysis Editor with stereo spectrum, transient inspection, note drafts and reusable analysis profiles.
+- Manual BPM measurement/interpolation and a modeless synchronized BPM curve editor.
+- Chart/audio merging with per-segment speed, pitch, fades and layered previews.
+- Optional experimental `.cceproj` projects, shared layers, local comments and `.ccepr` proposal review.
 - Skin rendering, division colors, Hyperfruit hints, background images, note sounds, and realtime preview.
 - Hyperfruit hints use Malody E judge by default; Settings → Hyperfruit Judge lets you select A–E and Pro for both the canvas and realtime preview.
 - Native curve-to-note workflow with per-segment density and curve/polyline shapes.
@@ -97,7 +103,7 @@ Build output also receives the default skin, runtime plugins, documentation, not
 2. Use the `Note Editor` panel to choose Note, Rain, Delete, Select, or Curve mode.
 3. Use the mouse wheel to navigate; `Ctrl + wheel` changes the timeline scale.
 4. Press `Space` to play/pause and use `Time Division` plus `Grid Snap` for precise placement.
-5. Drag a panel header to dock or float it; the live outline shows the target region, while the chart workspace remains a protected central area. Reopen closed panels from the toolbar `Panels` menu. Classic and multi-window layouts are saved independently.
+5. Drag a panel header to dock or float it; the live outline shows the target region, while the chart workspace remains a protected central area. Reopen closed panels from `View -> Panels`. Classic and multi-window layouts are saved independently.
 6. Save as `.mc` or export a Malody-compatible `.mcz` package.
 
 Detailed controls are documented in [docs/help.md](docs/help.md).
@@ -134,7 +140,7 @@ The project is licensed under GPL-3.0; see [LICENSE](LICENSE).
 
 Qt Advanced Docking System 5.1.1 is licensed under LGPL-2.1. Its source and license files are included in [third_party/QtAdvancedDockingSystem](third_party/QtAdvancedDockingSystem).
 
-AutoTimingCore is pinned at `e47016ddfb24c4daf2d874164f3a64cc9346552c`.
+AutoTimingCore is pinned at `23d3164b8a3fa2d8e9039a4fa86c8c029fc8b8fd`.
 Its Malody legacy source license is not confirmed; see
 [docs/AUTOTIMING_VENDORING.md](docs/AUTOTIMING_VENDORING.md) and the submodule's
 `ATTRIBUTION.md` before redistribution.

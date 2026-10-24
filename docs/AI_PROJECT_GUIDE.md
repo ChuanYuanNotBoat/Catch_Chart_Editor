@@ -1,10 +1,11 @@
 # Malody Catch Editor 开发者项目指南
 
 > 面向新开发者和代码代理的当前仓库速查。
-> 当前版本：**Beta v1.11.2（2026-09-19）**
-> 仓库状态：**v1.11.2 后续维护（Unreleased）**
-> Git 标签：`v1.11.2`
-> 最后核对：2026-10-03
+> 当前版本：**Beta v1.12.0（2026-10-25）**
+> 上一版本：**Beta v1.11.2（2026-09-19）**
+> 仓库状态：**已发布（2026-10-25）**
+> Git 标签：`v1.12.0`
+> 最后核对：2026-10-24；完成度见 [RELEASE_READINESS.md](RELEASE_READINESS.md)
 
 ## 1. 项目边界
 
@@ -34,7 +35,7 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 | 构建 | CMake 3.20+ |
 | 面板 | Qt Advanced Docking System 5.1.1（静态 vendored） |
 | 翻译 | Qt Linguist，`resources/translations/*.ts` |
-| 测试 | CTest；CCE 八组测试 + AutoTimingCore 五组上游回归 |
+| 测试 | CTest；CCE 宿主与 AutoTimingCore 上游回归，以 `ctest -N` 的当前清单为准 |
 | 桌面平台 | Windows 为主要验证平台；代码保留 macOS/Linux 支持 |
 
 主目标：
@@ -196,7 +197,7 @@ Host API 当前为 v3，扩展点包括 tool actions、floating panels、canvas 
 
 ## 10. 文档与版本规则
 
-- 当前发布版本是 Beta v1.11.2；开发中的维护内容写入 `history.md` 顶部 `Unreleased`。
+- 当前发布版本是 Beta v1.12.0；后续未发布内容写入 `history.md` 顶部新的 `Unreleased` 段，发布核对记录见 [RELEASE_READINESS.md](RELEASE_READINESS.md)。
 - 已发布版本段落冻结，不把后续工作回填到 Beta v1.11.2。
 - 可验证的长期优化/重构事项维护在 [ENGINEERING_TODO.md](ENGINEERING_TODO.md)；临时审计快照和重复迁移草稿不提交。
 - 新增或删除文档时同步 [README.md](README.md) 总索引。

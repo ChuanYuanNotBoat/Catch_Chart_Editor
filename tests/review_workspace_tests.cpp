@@ -1251,10 +1251,12 @@ private slots:
         rig.canvas.resize(1000, 700);
         rig.canvas.setTimeScale(1);
         rig.canvas.setVerticalFlip(false);
-        rig.canvas.setScrollPos(0);
+        // Audio zero now sits on the reference line; show the tested 1-9 beats.
+        rig.canvas.setScrollPos(4000);
         rig.controller.addNote(Note(6, 1, 2, 8, 1, 2, 256));
         const auto chartBeforeComments = CceDocument::encodeChart(*rig.controller.chart());
         const QPointF target(rig.canvas.chartLaneXToCanvasX(128), rig.canvas.chartBeatToY(5));
+        QVERIFY(rig.canvas.rect().contains(target.toPoint()));
         QVERIFY(rig.workspace->addCommentAtSelection("Visible connector", "TimePosition", nullptr, target));
         QImage image(rig.canvas.size(), QImage::Format_ARGB32_Premultiplied);
         rig.canvas.render(&image);
@@ -1575,8 +1577,9 @@ private slots:
         rig.canvas.resize(1000, 700);
         rig.canvas.setTimeScale(1);
         rig.canvas.setVerticalFlip(false);
-        rig.canvas.setScrollPos(0);
+        rig.canvas.setScrollPos(4000);
         const QPointF target(rig.canvas.chartLaneXToCanvasX(400), rig.canvas.chartBeatToY(5));
+        QVERIFY(rig.canvas.rect().contains(target.toPoint()));
         QVERIFY(rig.workspace->addCommentAtSelection("Highlighted reference line", type, nullptr, target));
         QImage image(rig.canvas.size(), QImage::Format_ARGB32_Premultiplied);
         rig.canvas.render(&image);

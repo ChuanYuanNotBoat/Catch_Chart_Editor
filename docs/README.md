@@ -1,9 +1,10 @@
 # Malody Catch Editor 文档索引
 
-> 当前版本：**Beta v1.11.2（2026-09-19）**
-> 仓库状态：**v1.11.2 后续维护（Unreleased）**
-> Git 标签：`v1.11.2`
-> 索引最后核对：2026-10-23
+> 当前版本：**Beta v1.12.0（2026-10-25）**
+> 上一版本：**Beta v1.11.2（2026-09-19）**
+> 仓库状态：**已发布（2026-10-25）**
+> Git 标签：`v1.12.0`
+> 索引最后核对：2026-10-25
 
 ## 用户文档
 
@@ -12,7 +13,7 @@
 | [help.md](help.md) | 菜单、可组合面板、画布操作、曲线工具、BPM、Meta、插件与快捷键 |
 | [CHART_MERGE.md](CHART_MERGE.md) | 多谱面排序合并、逐段倍速/音调/淡入淡出/间隔、MCZ 导出与分图层预览 |
 | [version.md](version.md) | 版本、兼容性和升级注意事项 |
-| [history.md](history.md) | 按版本维护的完整更新记录；当前维护内容位于顶部 `Unreleased` 段 |
+| [history.md](history.md) | 按版本维护并冻结的完整更新记录；后续未发布内容另设 `Unreleased` 段 |
 | [about.md](about.md) | 项目定位、支持范围、许可证与反馈入口 |
 
 ## 开发与维护
@@ -20,6 +21,8 @@
 | 文档 | 用途 |
 |------|------|
 | [AI_PROJECT_GUIDE.md](AI_PROJECT_GUIDE.md) | 当前源码结构、关键数据流、构建测试和维护约束 |
+| [RELEASE_READINESS.md](RELEASE_READINESS.md) | v1.12.0 功能完成度、实验性边界、未包含范围及发布检查 |
+| [ANALYSIS_EDITOR.md](ANALYSIS_EDITOR.md) | 分析编辑器、频谱、瞬态、音符草稿、配置与 Timing 工具 |
 | [ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md) | `.mc` / `.mcz` / `.cceproj` / `.ccepr`、模型、坐标、插件、sidecar 和 Malody 引擎兼容参考 |
 | [DOCUMENT_TRANSACTIONS.md](DOCUMENT_TRANSACTIONS.md) | 活动谱面的只读版本、增量/逆操作、运行期句柄与严格序列化边界 |
 | [KEYBOARD_COMMANDS.md](KEYBOARD_COMMANDS.md) | 统一快捷键命令清单、上下文和保留手势 |

@@ -4,13 +4,15 @@
 >
 > 制定日期：2026-09-10
 >
-> 最后补充：2026-10-23
+> 最后补充：2026-10-24
 >
-> 当前实现基线：Beta v1.11.2 后续维护线（`v2-main`）
+> 当前实现基线：Beta v1.12.0（`main`／`v2-main`）
 >
 > 适用范围：桌面 CCE、未来移动端兼容、编辑器工程格式、格式转换与后续核心复用
 
 本文记录已经明确的长期产品方向、架构边界、实施顺序和验收门槛。它描述的是**未来目标**，不代表相关功能已经实现。当前实际行为仍以源码、[ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md)、[AI_PROJECT_GUIDE.md](AI_PROJECT_GUIDE.md) 和 [TESTING.md](../TESTING.md) 为准。
+
+v1.12.0 核对：多难度工程、共享图层、跨难度参考、评论和多轮 `.ccepr` 审阅已有实验性实现；不能再把这些整体描述为未实现。图层组、完整剪贴板与 Timeline 转移、Meta 继承／同步、完整命名版本及后续格式／平台能力仍未完成。具体边界和发布条件以 [RELEASE_READINESS.md](RELEASE_READINESS.md) 为准，以下长期阶段不等同于本版功能承诺。
 
 ---
 
