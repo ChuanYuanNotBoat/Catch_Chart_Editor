@@ -6,37 +6,37 @@
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="52"/>
         <source>Audio loading timed out after 5 seconds.</source>
-        <translation type="unfinished"></translation>
+        <translation>音频加载在 5 秒后超时。</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="107"/>
         <source>The audio duration is invalid or the format is unsupported: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>音频时长无效或格式不受支持：%1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="138"/>
         <source>Audio file does not exist: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>音频文件不存在：%1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="143"/>
         <source>Audio file is not readable: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>音频文件无法读取：%1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="154"/>
         <source>Failed to prepare the audio path for playback.</source>
-        <translation type="unfinished"></translation>
+        <translation>无法准备音频播放路径。</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="176"/>
         <source>Invalid audio media: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>音频媒体无效：%1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="186"/>
         <source>Audio backend error %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>音频后端错误 %1：%2</translation>
     </message>
 </context>
 <context>
@@ -443,6 +443,56 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <source>Comment on Entire BPM List…</source>
         <translation>评论整个 BPM 列表…</translation>
     </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="302"/>
+        <source>AutoTiming 2 phase offset: %1 ms (anchor spread %2 ms)</source>
+        <translation>AutoTiming 2 相位偏移：%1 毫秒（锚点偏差 %2 毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="559"/>
+        <source>(supported; phase %1 ms)</source>
+        <translation>（证据充分；相位 %1 毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="560"/>
+        <source>(uncertain; phase %1 ms)</source>
+        <translation>（不确定；相位 %1 毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="602"/>
+        <source>No variable-tempo map detected</source>
+        <translation>未检测到变速图</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="688"/>
+        <source>Apply AutoTiming 2 BPM map</source>
+        <translation>应用 AutoTiming 2 BPM 图</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="693"/>
+        <source>Timing Map Failed</source>
+        <translation>节拍图应用失败</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="694"/>
+        <source>The BPM map could not be applied. No timing data was written.</source>
+        <translation>无法应用 BPM 图。未写入任何节拍数据。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="661"/>
+        <source>Timing Map Unavailable</source>
+        <translation>节拍图不可用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="662"/>
+        <source>The AutoTiming 2 timing-map proposal is no longer available. No timing data was written.</source>
+        <translation>AutoTiming 2 节拍图提案已不可用。未写入任何节拍数据。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="670"/>
+        <source>Apply AutoTiming 2 BPM Map</source>
+        <translation>应用 AutoTiming 2 BPM 图</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -620,6 +670,47 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="91"/>
         <source>Use local tempo changes when the song intentionally varies speed; leave off for stable tempo songs.</source>
         <translation>歌曲确实有意变速时使用局部速度变化；恒速歌曲请保持关闭。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="75"/>
+        <source>Enable complex subdivision analysis</source>
+        <translation>启用复杂拍细分分析</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="80"/>
+        <source>Enable semantic rhythm profiles; disable this for SV-heavy songs.</source>
+        <translation>启用语义节奏模式；对于 SV 较多的歌曲，请关闭此选项。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="157"/>
+        <source>Use generated BPM list for the chart</source>
+        <translation>将生成的 BPM 列表用于谱面</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="160"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="547"/>
+        <source>No timing map available</source>
+        <translation>没有可用的节拍图</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="171"/>
+        <source>Beat</source>
+        <translation>拍点</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="171"/>
+        <source>BPM</source>
+        <translation>BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="464"/>
+        <source>No variable-tempo map detected</source>
+        <translation>未检测到变速图</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="523"/>
+        <source>Analyzing tempo track...</source>
+        <translation>正在分析节奏轨道…</translation>
     </message>
 </context>
 <context>
@@ -2124,7 +2215,7 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1995"/>
         <source>Rain Reward Preview</source>
-        <translation type="unfinished"></translation>
+        <translation>雨点奖励预览</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2787"/>
@@ -2179,22 +2270,22 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3592"/>
         <source>Chart does not exist: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>谱面不存在：%1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3598"/>
         <source>Automated chart loading requires an extracted .mc chart.</source>
-        <translation type="unfinished"></translation>
+        <translation>自动加载谱面需要已解压的 .mc 谱面。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3604"/>
         <source>Cannot load an automated test chart while the current chart has unsaved changes.</source>
-        <translation type="unfinished"></translation>
+        <translation>当前谱面有未保存的更改，无法加载自动化测试谱面。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3614"/>
         <source>The automated test chart could not be loaded.</source>
-        <translation type="unfinished"></translation>
+        <translation>无法加载自动化测试谱面。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3625"/>
@@ -3257,6 +3348,168 @@ Open the **History** tab for collapsible long update notes.</source>
     <message>
         <source>Merged charts loaded with one layer per segment.</source>
         <translation>合并谱面已载入，每段为一个独立图层。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2005"/>
+        <source>Previous Edit Mode</source>
+        <translation>上一个编辑模式</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2009"/>
+        <source>Next Edit Mode</source>
+        <translation>下一个编辑模式</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2036"/>
+        <source>Analysis Editor…</source>
+        <translation>分析编辑器…</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2120"/>
+        <source>Move View...</source>
+        <translation>移动视图...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2129"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5416"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5423"/>
+        <source>Reset View Location</source>
+        <translation>重置视图位置</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2266"/>
+        <source>Settings Backup and Transfer...</source>
+        <translation>设置备份与迁移...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3260"/>
+        <source>Chart save path is empty.</source>
+        <translation>谱面保存路径为空。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3290"/>
+        <source>Saving chart...</source>
+        <translation>正在保存谱面…</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3291"/>
+        <source>Save Chart</source>
+        <translation>保存谱面</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3753"/>
+        <source>The active chart changed before saving completed.</source>
+        <translation>谱面保存完成前，当前谱面已更改。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4133"/>
+        <source>Reloading: %1</source>
+        <translation>正在重新加载：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4146"/>
+        <source>Chart loading was cancelled.</source>
+        <translation>谱面加载已取消。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4252"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4256"/>
+        <source>Failed to create working copy.</source>
+        <translation>无法创建工作副本。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4299"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4302"/>
+        <source>Failed to apply loaded chart.</source>
+        <translation>无法应用已加载的谱面。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4907"/>
+        <source>Failed to save the current chart state before export.</source>
+        <translation>导出前无法保存当前谱面状态。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5299"/>
+        <source>View movement is available in the classic workbench.</source>
+        <translation>经典工作台支持移动视图。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5311"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5369"/>
+        <source>Move View</source>
+        <translation>移动视图</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5323"/>
+        <source>Primary Sidebar</source>
+        <translation>主侧边栏</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5327"/>
+        <source>Auxiliary Sidebar</source>
+        <translation>辅助侧边栏</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5329"/>
+        <source>Bottom Panel</source>
+        <translation>底部面板</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5331"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5416"/>
+        <source>View:</source>
+        <translation>视图：</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5332"/>
+        <source>Location:</source>
+        <translation>位置：</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5370"/>
+        <source>The selected view could not be moved.</source>
+        <translation>无法移动所选视图。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5377"/>
+        <source>View moved.</source>
+        <translation>视图已移动。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5384"/>
+        <source>View locations are available in the classic workbench.</source>
+        <translation>经典工作台支持调整视图位置。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5424"/>
+        <source>The selected view location could not be reset.</source>
+        <translation>无法重置所选视图的位置。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5431"/>
+        <source>View location reset.</source>
+        <translation>视图位置已重置。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="794"/>
+        <source>Plugin action result is too large to keep as an undo snapshot: %1</source>
+        <translation>插件操作结果过大，无法保存为撤销快照：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="873"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="878"/>
+        <source>Plugin action running: %1</source>
+        <translation>正在运行插件操作：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1343"/>
+        <source>Failed to write diagnostics report.</source>
+        <translation>无法写入诊断报告。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1306"/>
+        <source>Settings imported. Restart the editor to apply all changes.</source>
+        <translation>设置已导入。重启编辑器以应用所有更改。</translation>
     </message>
 </context>
 <context>
@@ -4404,6 +4657,44 @@ Do you want to rename the imported file?</source>
     <message>
         <source>Chart comments exceed the supported file size.</source>
         <translation>谱面评论文件超过支持的大小。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3312"/>
+        <source>Failed to save chart: %1</source>
+        <translation>保存谱面失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3320"/>
+        <source>Failed to update working copy: %1</source>
+        <translation>更新工作副本失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/audio/AudioConverter.cpp" line="579"/>
+        <source>Conversion cancelled.</source>
+        <translation>转换已取消。</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewResources.cpp" line="23"/>
+        <location filename="../../src/review/ReviewResources.cpp" line="30"/>
+        <source>Cannot read resource: %1</source>
+        <translation>无法读取资源：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewResources.cpp" line="41"/>
+        <source>Missing resource: %1</source>
+        <translation>缺少资源：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingProposal.cpp" line="54"/>
+        <location filename="../../src/ui/analysis/TimingProposal.cpp" line="94"/>
+        <source>%1 notes may move in audio time (maximum %2 ms). Their beat coordinates and chart offset stay unchanged. Apply as one undoable timing edit?</source>
+        <translation>%1 个音符的音频时间可能发生偏移（最多 %2 毫秒）。其拍点坐标和谱面偏移保持不变。要将更改作为单个可撤销的时间编辑应用吗？</translation>
+    </message>
+    <message>
+        <location filename="../../src/merge/ChartMerger.cpp" line="218"/>
+        <location filename="../../src/merge/MergeAudio.cpp" line="67"/>
+        <source>%1: %2</source>
+        <translation>%1：%2</translation>
     </message>
 </context>
 <context>
@@ -6556,6 +6847,12 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <source>Export failed: %1</source>
         <translation>导出失败：%1</translation>
     </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="301"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="318"/>
+        <source>Transient analysis paused during playback.</source>
+        <translation>播放期间已暂停瞬态分析。</translation>
+    </message>
 </context>
 <context>
     <name>TransientPlot</name>
@@ -8108,6 +8405,29 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>Package export failed.</source>
         <translation>谱面包导出失败。</translation>
+    </message>
+</context>
+<context>
+    <name>ChartController</name>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="775"/>
+        <source>The chart changed. Rebuild the transaction from the current chart.</source>
+        <translation>谱面已更改。请根据当前谱面重新构建事务。</translation>
+    </message>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="778"/>
+        <source>The chart or layer is read only.</source>
+        <translation>谱面或图层为只读。</translation>
+    </message>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="779"/>
+        <source>The chart changed while checking the transaction.</source>
+        <translation>检查事务时谱面已更改。</translation>
+    </message>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="915"/>
+        <source>Replace BPM list</source>
+        <translation>替换 BPM 列表</translation>
     </message>
 </context>
 </TS>

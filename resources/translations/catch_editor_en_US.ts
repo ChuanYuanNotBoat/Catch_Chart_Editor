@@ -6,37 +6,37 @@
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="52"/>
         <source>Audio loading timed out after 5 seconds.</source>
-        <translation type="unfinished"></translation>
+        <translation>Audio loading timed out after 5 seconds.</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="107"/>
         <source>The audio duration is invalid or the format is unsupported: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>The audio duration is invalid or the format is unsupported: %1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="138"/>
         <source>Audio file does not exist: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Audio file does not exist: %1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="143"/>
         <source>Audio file is not readable: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Audio file is not readable: %1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="154"/>
         <source>Failed to prepare the audio path for playback.</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to prepare the audio path for playback.</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="176"/>
         <source>Invalid audio media: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Invalid audio media: %1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="186"/>
         <source>Audio backend error %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>Audio backend error %1: %2</translation>
     </message>
 </context>
 <context>
@@ -416,6 +416,66 @@
         <source>Advanced BPM editing…</source>
         <translation>Advanced BPM editing…</translation>
     </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="302"/>
+        <source>AutoTiming 2 phase offset: %1 ms (anchor spread %2 ms)</source>
+        <translation>AutoTiming 2 phase offset: %1 ms (anchor spread %2 ms)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="559"/>
+        <source>(supported; phase %1 ms)</source>
+        <translation>(supported; phase %1 ms)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="560"/>
+        <source>(uncertain; phase %1 ms)</source>
+        <translation>(uncertain; phase %1 ms)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="602"/>
+        <source>No variable-tempo map detected</source>
+        <translation>No variable-tempo map detected</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="661"/>
+        <source>Timing Map Unavailable</source>
+        <translation>Timing Map Unavailable</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="662"/>
+        <source>The AutoTiming 2 timing-map proposal is no longer available. No timing data was written.</source>
+        <translation>The AutoTiming 2 timing-map proposal is no longer available. No timing data was written.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="670"/>
+        <source>Apply AutoTiming 2 BPM Map</source>
+        <translation>Apply AutoTiming 2 BPM Map</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="688"/>
+        <source>Apply AutoTiming 2 BPM map</source>
+        <translation>Apply AutoTiming 2 BPM map</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="693"/>
+        <source>Timing Map Failed</source>
+        <translation>Timing Map Failed</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="694"/>
+        <source>The BPM map could not be applied. No timing data was written.</source>
+        <translation>The BPM map could not be applied. No timing data was written.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="61"/>
+        <source>Comment on Selected BPM Entries…</source>
+        <translation>Comment on Selected BPM Entries…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="71"/>
+        <source>Comment on Entire BPM List…</source>
+        <translation>Comment on Entire BPM List…</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -583,6 +643,47 @@
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="169"/>
         <source>Apply offset</source>
         <translation>Apply offset</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="75"/>
+        <source>Enable complex subdivision analysis</source>
+        <translation>Enable complex subdivision analysis</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="80"/>
+        <source>Enable semantic rhythm profiles; disable this for SV-heavy songs.</source>
+        <translation>Enable semantic rhythm profiles; disable this for SV-heavy songs.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="157"/>
+        <source>Use generated BPM list for the chart</source>
+        <translation>Use generated BPM list for the chart</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="160"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="547"/>
+        <source>No timing map available</source>
+        <translation>No timing map available</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="171"/>
+        <source>Beat</source>
+        <translation>Beat</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="171"/>
+        <source>BPM</source>
+        <translation>BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="464"/>
+        <source>No variable-tempo map detected</source>
+        <translation>No variable-tempo map detected</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="523"/>
+        <source>Analyzing tempo track...</source>
+        <translation>Analyzing tempo track...</translation>
     </message>
 </context>
 <context>
@@ -2087,7 +2188,7 @@ Do you want to save before continuing?</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1995"/>
         <source>Rain Reward Preview</source>
-        <translation type="unfinished"></translation>
+        <translation>Rain Reward Preview</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2787"/>
@@ -2142,22 +2243,22 @@ Do you want to save before continuing?</translation>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3592"/>
         <source>Chart does not exist: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Chart does not exist: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3598"/>
         <source>Automated chart loading requires an extracted .mc chart.</source>
-        <translation type="unfinished"></translation>
+        <translation>Automated chart loading requires an extracted .mc chart.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3604"/>
         <source>Cannot load an automated test chart while the current chart has unsaved changes.</source>
-        <translation type="unfinished"></translation>
+        <translation>Cannot load an automated test chart while the current chart has unsaved changes.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3614"/>
         <source>The automated test chart could not be loaded.</source>
-        <translation type="unfinished"></translation>
+        <translation>The automated test chart could not be loaded.</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3625"/>
@@ -3221,6 +3322,168 @@ Open the **History** tab for collapsible long update notes.</translation>
         <source>Merged charts loaded with one layer per segment.</source>
         <translation>Merged charts loaded with one layer per segment.</translation>
     </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2005"/>
+        <source>Previous Edit Mode</source>
+        <translation>Previous Edit Mode</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2009"/>
+        <source>Next Edit Mode</source>
+        <translation>Next Edit Mode</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2036"/>
+        <source>Analysis Editor…</source>
+        <translation>Analysis Editor…</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2120"/>
+        <source>Move View...</source>
+        <translation>Move View...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2129"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5416"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5423"/>
+        <source>Reset View Location</source>
+        <translation>Reset View Location</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2266"/>
+        <source>Settings Backup and Transfer...</source>
+        <translation>Settings Backup and Transfer...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3260"/>
+        <source>Chart save path is empty.</source>
+        <translation>Chart save path is empty.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3290"/>
+        <source>Saving chart...</source>
+        <translation>Saving chart...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3291"/>
+        <source>Save Chart</source>
+        <translation>Save Chart</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3753"/>
+        <source>The active chart changed before saving completed.</source>
+        <translation>The active chart changed before saving completed.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4133"/>
+        <source>Reloading: %1</source>
+        <translation>Reloading: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4146"/>
+        <source>Chart loading was cancelled.</source>
+        <translation>Chart loading was cancelled.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4252"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4256"/>
+        <source>Failed to create working copy.</source>
+        <translation>Failed to create working copy.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4299"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4302"/>
+        <source>Failed to apply loaded chart.</source>
+        <translation>Failed to apply loaded chart.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4907"/>
+        <source>Failed to save the current chart state before export.</source>
+        <translation>Failed to save the current chart state before export.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5299"/>
+        <source>View movement is available in the classic workbench.</source>
+        <translation>View movement is available in the classic workbench.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5311"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5369"/>
+        <source>Move View</source>
+        <translation>Move View</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5323"/>
+        <source>Primary Sidebar</source>
+        <translation>Primary Sidebar</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5327"/>
+        <source>Auxiliary Sidebar</source>
+        <translation>Auxiliary Sidebar</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5329"/>
+        <source>Bottom Panel</source>
+        <translation>Bottom Panel</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5331"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5416"/>
+        <source>View:</source>
+        <translation>View:</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5332"/>
+        <source>Location:</source>
+        <translation>Location:</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5370"/>
+        <source>The selected view could not be moved.</source>
+        <translation>The selected view could not be moved.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5377"/>
+        <source>View moved.</source>
+        <translation>View moved.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5384"/>
+        <source>View locations are available in the classic workbench.</source>
+        <translation>View locations are available in the classic workbench.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5424"/>
+        <source>The selected view location could not be reset.</source>
+        <translation>The selected view location could not be reset.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5431"/>
+        <source>View location reset.</source>
+        <translation>View location reset.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="794"/>
+        <source>Plugin action result is too large to keep as an undo snapshot: %1</source>
+        <translation>Plugin action result is too large to keep as an undo snapshot: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="873"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="878"/>
+        <source>Plugin action running: %1</source>
+        <translation>Plugin action running: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1343"/>
+        <source>Failed to write diagnostics report.</source>
+        <translation>Failed to write diagnostics report.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1306"/>
+        <source>Settings imported. Restart the editor to apply all changes.</source>
+        <translation>Settings imported. Restart the editor to apply all changes.</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>
@@ -3407,6 +3670,31 @@ Open the **History** tab for collapsible long update notes.</translation>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="241"/>
         <source>Save</source>
         <translation>Save</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="80"/>
+        <source>Metadata Comments</source>
+        <translation>Metadata Comments</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="94"/>
+        <source>Right-click to comment; Ctrl+right-click to select multiple fields.</source>
+        <translation>Right-click to comment; Ctrl+right-click to select multiple fields.</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="122"/>
+        <source>Comment on Selected Metadata Fields (%1)…</source>
+        <translation>Comment on Selected Metadata Fields (%1)…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="131"/>
+        <source>Clear Comment Selection</source>
+        <translation>Clear Comment Selection</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="191"/>
+        <source>Resolved</source>
+        <translation>Resolved</translation>
     </message>
 </context>
 <context>
@@ -4323,6 +4611,64 @@ Do you want to rename the imported file?</translation>
     <message>
         <source>Cannot create merged OGG audio.</source>
         <translation>Cannot create merged OGG audio.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3312"/>
+        <source>Failed to save chart: %1</source>
+        <translation>Failed to save chart: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3320"/>
+        <source>Failed to update working copy: %1</source>
+        <translation>Failed to update working copy: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/audio/AudioConverter.cpp" line="579"/>
+        <source>Conversion cancelled.</source>
+        <translation>Conversion cancelled.</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="956"/>
+        <source>Cannot overwrite an unreadable chart comments file: %1</source>
+        <translation>Cannot overwrite an unreadable chart comments file: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="961"/>
+        <source>Cannot create the chart comments folder.</source>
+        <translation>Cannot create the chart comments folder.</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="965"/>
+        <source>Chart comments exceed the supported file size.</source>
+        <translation>Chart comments exceed the supported file size.</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="967"/>
+        <source>Cannot save chart comments: %1</source>
+        <translation>Cannot save chart comments: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewResources.cpp" line="23"/>
+        <location filename="../../src/review/ReviewResources.cpp" line="30"/>
+        <source>Cannot read resource: %1</source>
+        <translation>Cannot read resource: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewResources.cpp" line="41"/>
+        <source>Missing resource: %1</source>
+        <translation>Missing resource: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingProposal.cpp" line="54"/>
+        <location filename="../../src/ui/analysis/TimingProposal.cpp" line="94"/>
+        <source>%1 notes may move in audio time (maximum %2 ms). Their beat coordinates and chart offset stay unchanged. Apply as one undoable timing edit?</source>
+        <translation>%1 notes may move in audio time (maximum %2 ms). Their beat coordinates and chart offset stay unchanged. Apply as one undoable timing edit?</translation>
+    </message>
+    <message>
+        <location filename="../../src/merge/ChartMerger.cpp" line="218"/>
+        <location filename="../../src/merge/MergeAudio.cpp" line="67"/>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
     </message>
 </context>
 <context>
@@ -6285,6 +6631,12 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <source>Export failed: %1</source>
         <translation>Export failed: %1</translation>
     </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="301"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="318"/>
+        <source>Transient analysis paused during playback.</source>
+        <translation>Transient analysis paused during playback.</translation>
+    </message>
 </context>
 <context>
     <name>TransientPlot</name>
@@ -7357,6 +7709,82 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <source>No proposal to save.</source>
         <translation>No proposal to save.</translation>
     </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="163"/>
+        <source>Comment on Selected Range…</source>
+        <translation>Comment on Selected Range…</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="165"/>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="178"/>
+        <source>Comment on Selected Notes…</source>
+        <translation>Comment on Selected Notes…</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="172"/>
+        <source>Comment on Selection Bounds…</source>
+        <translation>Comment on Selection Bounds…</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="186"/>
+        <source>Comment at This Position…</source>
+        <translation>Comment at This Position…</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="980"/>
+        <source>Cannot read chart comments: %1</source>
+        <translation>Cannot read chart comments: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="987"/>
+        <source>Invalid chart comments file: %1</source>
+        <translation>Invalid chart comments file: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="587"/>
+        <source>Current selection / position</source>
+        <translation>Current selection / position</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="587"/>
+        <source>Time point</source>
+        <translation>Time point</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="588"/>
+        <source>Time and position</source>
+        <translation>Time and position</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="588"/>
+        <source>Selected range / selection bounds</source>
+        <translation>Selected range / selection bounds</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="589"/>
+        <source>Selected note</source>
+        <translation>Selected note</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="589"/>
+        <source>Selected notes</source>
+        <translation>Selected notes</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="590"/>
+        <source>Entire BPM list</source>
+        <translation>Entire BPM list</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="847"/>
+        <source>Open Thread</source>
+        <translation>Open Thread</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="1188"/>
+        <source>Select a beat range or notes first.</source>
+        <translation>Select a beat range or notes first.</translation>
+    </message>
 </context>
 <context>
     <name>CceReviewUi::IdentityDialog</name>
@@ -7773,6 +8201,29 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>Package export failed.</source>
         <translation>Package export failed.</translation>
+    </message>
+</context>
+<context>
+    <name>ChartController</name>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="775"/>
+        <source>The chart changed. Rebuild the transaction from the current chart.</source>
+        <translation>The chart changed. Rebuild the transaction from the current chart.</translation>
+    </message>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="778"/>
+        <source>The chart or layer is read only.</source>
+        <translation>The chart or layer is read only.</translation>
+    </message>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="779"/>
+        <source>The chart changed while checking the transaction.</source>
+        <translation>The chart changed while checking the transaction.</translation>
+    </message>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="915"/>
+        <source>Replace BPM list</source>
+        <translation>Replace BPM list</translation>
     </message>
 </context>
 </TS>

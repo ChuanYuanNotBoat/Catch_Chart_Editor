@@ -6,37 +6,37 @@
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="52"/>
         <source>Audio loading timed out after 5 seconds.</source>
-        <translation type="unfinished"></translation>
+        <translation>音声の読み込みが 5 秒でタイムアウトしました。</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="107"/>
         <source>The audio duration is invalid or the format is unsupported: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>音声の長さが無効か、未対応の形式です: %1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="138"/>
         <source>Audio file does not exist: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>音声ファイルが存在しません: %1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="143"/>
         <source>Audio file is not readable: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>音声ファイルを読み取れません: %1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="154"/>
         <source>Failed to prepare the audio path for playback.</source>
-        <translation type="unfinished"></translation>
+        <translation>再生用の音声パスを準備できませんでした。</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="176"/>
         <source>Invalid audio media: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>音声メディアが無効です: %1</translation>
     </message>
     <message>
         <location filename="../../src/audio/AudioPlayer.cpp" line="186"/>
         <source>Audio backend error %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>オーディオバックエンドエラー %1: %2</translation>
     </message>
 </context>
 <context>
@@ -435,6 +435,66 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <source>Advanced BPM editing…</source>
         <translation>高度な BPM 編集…</translation>
     </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="302"/>
+        <source>AutoTiming 2 phase offset: %1 ms (anchor spread %2 ms)</source>
+        <translation>AutoTiming 2 の位相オフセット: %1 ms（アンカーのばらつき %2 ms）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="559"/>
+        <source>(supported; phase %1 ms)</source>
+        <translation>（根拠あり、位相 %1 ms）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="560"/>
+        <source>(uncertain; phase %1 ms)</source>
+        <translation>（不確実、位相 %1 ms）</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="602"/>
+        <source>No variable-tempo map detected</source>
+        <translation>可変テンポマップが検出されませんでした</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="688"/>
+        <source>Apply AutoTiming 2 BPM map</source>
+        <translation>AutoTiming 2 の BPM マップを適用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="693"/>
+        <source>Timing Map Failed</source>
+        <translation>タイミングマップの適用に失敗</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="694"/>
+        <source>The BPM map could not be applied. No timing data was written.</source>
+        <translation>BPM マップを適用できませんでした。タイミングデータは書き込まれていません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="61"/>
+        <source>Comment on Selected BPM Entries…</source>
+        <translation>選択した BPM 項目にコメント…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="71"/>
+        <source>Comment on Entire BPM List…</source>
+        <translation>BPM リスト全体にコメント…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="661"/>
+        <source>Timing Map Unavailable</source>
+        <translation>タイミングマップを利用できません</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="662"/>
+        <source>The AutoTiming 2 timing-map proposal is no longer available. No timing data was written.</source>
+        <translation>AutoTiming 2 のタイミングマップ案は利用できなくなりました。タイミングデータは書き込まれていません。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/BPMTimePanel.cpp" line="670"/>
+        <source>Apply AutoTiming 2 BPM Map</source>
+        <translation>AutoTiming 2 BPM マップを適用</translation>
+    </message>
 </context>
 <context>
     <name>BpmMeasureDialog</name>
@@ -612,6 +672,47 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="91"/>
         <source>Use local tempo changes when the song intentionally varies speed; leave off for stable tempo songs.</source>
         <translation>曲が意図的に変速する場合に局所的なテンポ変化を使用します。一定テンポの曲ではオフにしてください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="75"/>
+        <source>Enable complex subdivision analysis</source>
+        <translation>複雑な拍分割の分析を有効にする</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="80"/>
+        <source>Enable semantic rhythm profiles; disable this for SV-heavy songs.</source>
+        <translation>リズムの意味解析プロファイルを有効にします。SV が多い曲では無効にしてください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="157"/>
+        <source>Use generated BPM list for the chart</source>
+        <translation>生成した BPM リストを譜面に適用</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="160"/>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="547"/>
+        <source>No timing map available</source>
+        <translation>タイミングマップを利用できません</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="171"/>
+        <source>Beat</source>
+        <translation>拍</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="171"/>
+        <source>BPM</source>
+        <translation>BPM</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="464"/>
+        <source>No variable-tempo map detected</source>
+        <translation>可変テンポマップが検出されませんでした</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/dialogs/BpmMeasureDialog.cpp" line="523"/>
+        <source>Analyzing tempo track...</source>
+        <translation>テンポトラックを解析中…</translation>
     </message>
 </context>
 <context>
@@ -2116,7 +2217,7 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="1995"/>
         <source>Rain Reward Preview</source>
-        <translation type="unfinished"></translation>
+        <translation>Rain リワードプレビュー</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2787"/>
@@ -2171,22 +2272,22 @@ Do you want to save before continuing?</source>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3592"/>
         <source>Chart does not exist: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>譜面が存在しません: %1</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3598"/>
         <source>Automated chart loading requires an extracted .mc chart.</source>
-        <translation type="unfinished"></translation>
+        <translation>自動で譜面を読み込むには、展開済みの .mc 譜面が必要です。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3604"/>
         <source>Cannot load an automated test chart while the current chart has unsaved changes.</source>
-        <translation type="unfinished"></translation>
+        <translation>現在の譜面に未保存の変更があるため、自動テスト用譜面を読み込めません。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3614"/>
         <source>The automated test chart could not be loaded.</source>
-        <translation type="unfinished"></translation>
+        <translation>自動テスト用譜面を読み込めませんでした。</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="3625"/>
@@ -3250,6 +3351,168 @@ Open the **History** tab for collapsible long update notes.</source>
         <source>Merged charts loaded with one layer per segment.</source>
         <translation>区間ごとのレイヤーとして結合譜面を読み込みました。</translation>
     </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2005"/>
+        <source>Previous Edit Mode</source>
+        <translation>前の編集モード</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2009"/>
+        <source>Next Edit Mode</source>
+        <translation>次の編集モード</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2036"/>
+        <source>Analysis Editor…</source>
+        <translation>分析エディター…</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2120"/>
+        <source>Move View...</source>
+        <translation>ビューを移動...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2129"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5416"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5423"/>
+        <source>Reset View Location</source>
+        <translation>ビューの配置をリセット</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="2266"/>
+        <source>Settings Backup and Transfer...</source>
+        <translation>設定のバックアップと移行...</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3260"/>
+        <source>Chart save path is empty.</source>
+        <translation>譜面の保存先が空です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3290"/>
+        <source>Saving chart...</source>
+        <translation>譜面を保存中…</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3291"/>
+        <source>Save Chart</source>
+        <translation>譜面を保存</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3753"/>
+        <source>The active chart changed before saving completed.</source>
+        <translation>保存が完了する前にアクティブな譜面が変更されました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4133"/>
+        <source>Reloading: %1</source>
+        <translation>再読み込み中: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4146"/>
+        <source>Chart loading was cancelled.</source>
+        <translation>譜面の読み込みがキャンセルされました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4252"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4256"/>
+        <source>Failed to create working copy.</source>
+        <translation>作業用コピーを作成できませんでした。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4299"/>
+        <location filename="../../src/app/MainWindow.cpp" line="4302"/>
+        <source>Failed to apply loaded chart.</source>
+        <translation>読み込んだ譜面を適用できませんでした。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="4907"/>
+        <source>Failed to save the current chart state before export.</source>
+        <translation>書き出し前に現在の譜面状態を保存できませんでした。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5299"/>
+        <source>View movement is available in the classic workbench.</source>
+        <translation>クラシックワークベンチではビューを移動できます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5311"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5369"/>
+        <source>Move View</source>
+        <translation>ビューを移動</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5323"/>
+        <source>Primary Sidebar</source>
+        <translation>メインサイドバー</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5327"/>
+        <source>Auxiliary Sidebar</source>
+        <translation>補助サイドバー</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5329"/>
+        <source>Bottom Panel</source>
+        <translation>下部パネル</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5331"/>
+        <location filename="../../src/app/MainWindow.cpp" line="5416"/>
+        <source>View:</source>
+        <translation>ビュー:</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5332"/>
+        <source>Location:</source>
+        <translation>配置:</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5370"/>
+        <source>The selected view could not be moved.</source>
+        <translation>選択したビューを移動できませんでした。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5377"/>
+        <source>View moved.</source>
+        <translation>ビューを移動しました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5384"/>
+        <source>View locations are available in the classic workbench.</source>
+        <translation>ビューの配置変更はクラシックワークベンチで利用できます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5424"/>
+        <source>The selected view location could not be reset.</source>
+        <translation>選択したビューの配置をリセットできませんでした。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="5431"/>
+        <source>View location reset.</source>
+        <translation>ビューの配置をリセットしました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="794"/>
+        <source>Plugin action result is too large to keep as an undo snapshot: %1</source>
+        <translation>プラグインの操作結果が大きすぎるため、元に戻す用のスナップショットを保存できません: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="873"/>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="878"/>
+        <source>Plugin action running: %1</source>
+        <translation>プラグインの操作を実行中: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1343"/>
+        <source>Failed to write diagnostics report.</source>
+        <translation>診断レポートの書き込みに失敗しました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindowDialogs.cpp" line="1306"/>
+        <source>Settings imported. Restart the editor to apply all changes.</source>
+        <translation>設定をインポートしました。すべての変更を適用するにはエディターを再起動してください。</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>
@@ -3436,6 +3699,31 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/ui/MetaEditPanel.cpp" line="241"/>
         <source>Save</source>
         <translation>保存</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="80"/>
+        <source>Metadata Comments</source>
+        <translation>メタデータのコメント</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="94"/>
+        <source>Right-click to comment; Ctrl+right-click to select multiple fields.</source>
+        <translation>右クリックでコメントを追加します。Ctrl+右クリックで複数の項目を選択できます。</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="122"/>
+        <source>Comment on Selected Metadata Fields (%1)…</source>
+        <translation>選択したメタデータ項目 (%1) にコメント…</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="131"/>
+        <source>Clear Comment Selection</source>
+        <translation>コメントの選択を解除</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/MetaEditPanel.cpp" line="191"/>
+        <source>Resolved</source>
+        <translation>解決済み</translation>
     </message>
 </context>
 <context>
@@ -4352,6 +4640,64 @@ Do you want to rename the imported file?</source>
     <message>
         <source>Cannot create merged OGG audio.</source>
         <translation>Cannot create merged OGG audio.</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3312"/>
+        <source>Failed to save chart: %1</source>
+        <translation>譜面の保存に失敗しました: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow.cpp" line="3320"/>
+        <source>Failed to update working copy: %1</source>
+        <translation>作業用コピーの更新に失敗しました: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/audio/AudioConverter.cpp" line="579"/>
+        <source>Conversion cancelled.</source>
+        <translation>変換がキャンセルされました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="956"/>
+        <source>Cannot overwrite an unreadable chart comments file: %1</source>
+        <translation>譜面コメントファイルを読み込めないため上書きできません: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="961"/>
+        <source>Cannot create the chart comments folder.</source>
+        <translation>譜面コメント用フォルダーを作成できませんでした。</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="965"/>
+        <source>Chart comments exceed the supported file size.</source>
+        <translation>譜面コメントがサポート上限のファイルサイズを超えています。</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="967"/>
+        <source>Cannot save chart comments: %1</source>
+        <translation>譜面コメントを保存できません: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewResources.cpp" line="23"/>
+        <location filename="../../src/review/ReviewResources.cpp" line="30"/>
+        <source>Cannot read resource: %1</source>
+        <translation>リソースを読み込めません: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewResources.cpp" line="41"/>
+        <source>Missing resource: %1</source>
+        <translation>リソースが見つかりません: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/analysis/TimingProposal.cpp" line="54"/>
+        <location filename="../../src/ui/analysis/TimingProposal.cpp" line="94"/>
+        <source>%1 notes may move in audio time (maximum %2 ms). Their beat coordinates and chart offset stay unchanged. Apply as one undoable timing edit?</source>
+        <translation>%1 個のノートが音声時間上で移動する可能性があります（最大 %2 ms）。拍の座標と譜面オフセットは変わりません。取り消し可能な 1 つのタイミング編集として適用しますか？</translation>
+    </message>
+    <message>
+        <location filename="../../src/merge/ChartMerger.cpp" line="218"/>
+        <location filename="../../src/merge/MergeAudio.cpp" line="67"/>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
     </message>
 </context>
 <context>
@@ -6314,6 +6660,12 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <source>Export failed: %1</source>
         <translation>エクスポートに失敗しました: %1</translation>
     </message>
+    <message>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="301"/>
+        <location filename="../../src/ui/analysis/TransientPanel.cpp" line="318"/>
+        <source>Transient analysis paused during playback.</source>
+        <translation>再生中はトランジェント解析を一時停止しました。</translation>
+    </message>
 </context>
 <context>
     <name>TransientPlot</name>
@@ -7386,6 +7738,82 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <source>No proposal to save.</source>
         <translation>保存する提案がありません。</translation>
     </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="163"/>
+        <source>Comment on Selected Range…</source>
+        <translation>選択範囲にコメント…</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="165"/>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="178"/>
+        <source>Comment on Selected Notes…</source>
+        <translation>選択したノートにコメント…</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="172"/>
+        <source>Comment on Selection Bounds…</source>
+        <translation>選択範囲の境界にコメント…</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="186"/>
+        <source>Comment at This Position…</source>
+        <translation>この位置にコメント…</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="980"/>
+        <source>Cannot read chart comments: %1</source>
+        <translation>譜面コメントを読み込めません: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspace.cpp" line="987"/>
+        <source>Invalid chart comments file: %1</source>
+        <translation>譜面コメントファイルが無効です: %1</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="587"/>
+        <source>Current selection / position</source>
+        <translation>現在の選択範囲／位置</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="587"/>
+        <source>Time point</source>
+        <translation>時点</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="588"/>
+        <source>Time and position</source>
+        <translation>時刻と位置</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="588"/>
+        <source>Selected range / selection bounds</source>
+        <translation>選択範囲／選択境界</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="589"/>
+        <source>Selected note</source>
+        <translation>選択したノート</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="589"/>
+        <source>Selected notes</source>
+        <translation>選択したノート</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="590"/>
+        <source>Entire BPM list</source>
+        <translation>BPM リスト全体</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="847"/>
+        <source>Open Thread</source>
+        <translation>スレッドを開く</translation>
+    </message>
+    <message>
+        <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="1188"/>
+        <source>Select a beat range or notes first.</source>
+        <translation>先に拍の範囲またはノートを選択してください。</translation>
+    </message>
 </context>
 <context>
     <name>CceReviewUi::IdentityDialog</name>
@@ -7802,6 +8230,29 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>Package export failed.</source>
         <translation>パッケージの書き出しに失敗しました。</translation>
+    </message>
+</context>
+<context>
+    <name>ChartController</name>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="775"/>
+        <source>The chart changed. Rebuild the transaction from the current chart.</source>
+        <translation>譜面が変更されました。現在の譜面からトランザクションを再構築してください。</translation>
+    </message>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="778"/>
+        <source>The chart or layer is read only.</source>
+        <translation>譜面またはレイヤーは読み取り専用です。</translation>
+    </message>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="779"/>
+        <source>The chart changed while checking the transaction.</source>
+        <translation>トランザクションの確認中に譜面が変更されました。</translation>
+    </message>
+    <message>
+        <location filename="../../src/controller/ChartController.cpp" line="915"/>
+        <source>Replace BPM list</source>
+        <translation>BPM リストを置換</translation>
     </message>
 </context>
 </TS>
