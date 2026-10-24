@@ -293,8 +293,7 @@ void ChartCanvas::scrollByDivision(int direction, bool wholeBeat)
 
     double newScrollBeat = m_scrollBeat + step;
     newScrollBeat = snapBeatToTimeDivision(newScrollBeat);
-    if (newScrollBeat < 0.0)
-        newScrollBeat = 0.0;
+    newScrollBeat = qMax(minimumScrollBeat(), newScrollBeat);
 
     if (qAbs(newScrollBeat - m_scrollBeat) >= 1e-6)
     {
@@ -581,8 +580,7 @@ void ChartCanvas::autoScrollToNote(const Note &note)
         m_scrollBeat = noteBeat - visibleRange + margin;
         scrolled = true;
     }
-    if (m_scrollBeat < 0.0)
-        m_scrollBeat = 0.0;
+    m_scrollBeat = qMax(minimumScrollBeat(), m_scrollBeat);
 
     if (scrolled)
     {
@@ -612,10 +610,13 @@ void ChartCanvas::snapPlayheadToGrid()
         return;
 
     double currentTime = m_currentPlayTime;
+    // Audio time 0 and the lead-in before beat 0 need not lie on the grid.
+    if (currentTime <= 0.0 || beatFromTimeMs(currentTime) < 0.0)
+        return;
     const auto &bpmList = chart()->bpmList();
     int offset = chart()->meta().offset;
 
-    double snappedTime = MathUtils::snapTimeToGrid(currentTime, bpmList, offset, m_timeDivision);
+    double snappedTime = qMax(0.0, MathUtils::snapTimeToGrid(currentTime, bpmList, offset, m_timeDivision));
 
     if (std::abs(snappedTime - currentTime) > 1e-6)
     {

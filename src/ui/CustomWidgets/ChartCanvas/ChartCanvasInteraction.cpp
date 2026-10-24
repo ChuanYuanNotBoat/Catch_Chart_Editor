@@ -143,8 +143,7 @@ void ChartCanvas::setTimeScale(double scale)
     {
         m_scrollBeat = baselineBeat - baselineRatio * effectiveVisibleBeatRange();
     }
-    if (m_scrollBeat < 0)
-        m_scrollBeat = 0;
+    m_scrollBeat = qMax(minimumScrollBeat(), m_scrollBeat);
 
     invalidateGridCache();
     update();
@@ -287,20 +286,7 @@ void ChartCanvas::advancePlaybackVisual(bool scheduleRepaint, bool recordProbe)
             return;
         const double beat = beatFromTimeMs(m_currentPlayTime);
 
-        const double baselineRatio = kReferenceLineRatio;
-        double targetScrollBeat;
-        if (m_verticalFlip)
-        {
-            targetScrollBeat = beat - (1.0 - baselineRatio) * effectiveVisibleBeatRange();
-        }
-        else
-        {
-            targetScrollBeat = beat - baselineRatio * effectiveVisibleBeatRange();
-        }
-
-        m_scrollBeat = targetScrollBeat;
-        if (m_scrollBeat < 0)
-            m_scrollBeat = 0;
+        m_scrollBeat = qMax(minimumScrollBeat(), beat - referenceLineBeatOffset());
     }
 
     if (scheduleRepaint)

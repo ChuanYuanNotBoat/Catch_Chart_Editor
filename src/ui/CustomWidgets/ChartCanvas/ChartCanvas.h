@@ -305,6 +305,8 @@ private:
     void rebuildBpmTimeCache() const;
     const QVector<MathUtils::BpmCacheEntry> &bpmTimeCache() const;
     double beatFromTimeMs(double timeMs) const;
+    double referenceLineBeatOffset() const;
+    double minimumScrollBeat() const;
 
     void rebuildNoteTimesCache();
     const Chart *chart() const;

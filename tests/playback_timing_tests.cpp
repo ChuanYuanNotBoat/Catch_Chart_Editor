@@ -19,6 +19,8 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
+#include <QWheelEvent>
+#include <cmath>
 
 class PlaybackTimingTests : public QObject
 {
@@ -110,6 +112,118 @@ private slots:
             1000, 2000, 1, 0, true, 85);
         QVERIFY(discontinuity.hardResync);
         QCOMPARE(discontinuity.anchorTimeMs, 1915.0);
+    }
+
+    void canvasScrollsImmediatelyFromAudioStart_data()
+    {
+        QTest::addColumn<double>("bpm");
+        QTest::addColumn<int>("offset");
+        QTest::addColumn<bool>("flipped");
+        QTest::addColumn<double>("scale");
+        for (double bpm : {60., 240.})
+            for (int offset : {-1500, 0, 4501})
+                for (bool flipped : {false, true})
+                    for (double scale : {.2, 1., 10.})
+                        QTest::newRow(qPrintable(QString("bpm%1-offset%2-flip%3-scale%4")
+                            .arg(bpm).arg(offset).arg(flipped).arg(scale))) << bpm << offset << flipped << scale;
+    }
+
+    void canvasScrollsImmediatelyFromAudioStart()
+    {
+        QFETCH(double, bpm);
+        QFETCH(int, offset);
+        QFETCH(bool, flipped);
+        QFETCH(double, scale);
+        Chart chart;
+        chart.bpmList().clear();
+        chart.addBpm(BpmEntry(0, 0, 1, bpm));
+        chart.meta().offset = offset;
+        ChartController charts;
+        QVERIFY(charts.loadChartFromData(m_temp.filePath("start.mc"), chart));
+        AudioPlayer audio;
+        PlaybackController playback(&audio);
+        ChartCanvas canvas;
+        QSignalSpy times(&canvas, &ChartCanvas::currentTimeChanged);
+        canvas.resize(640, 480);
+        canvas.setChartController(&charts);
+        canvas.setPlaybackController(&playback);
+        canvas.setVerticalFlip(flipped);
+        canvas.setTimeScale(scale);
+        canvas.setScrollPos(0);
+        const double startBeat = offset * bpm / 60000.;
+        const double referenceY = canvas.height() * .8;
+        QVERIFY(std::abs(canvas.chartBeatToY(startBeat) - referenceY) < 1e-6);
+
+        // Drive the real visual slots without waiting on an audio device.
+        playback.stateChanged(PlaybackController::Playing);
+        const double initialScroll = canvas.scrollBeat();
+        playback.playbackFrameTick(20, 1);
+        QVERIFY(canvas.scrollBeat() > initialScroll);
+        QVERIFY(std::abs(canvas.chartBeatToY(startBeat + 20 * bpm / 60000.) - referenceY) < 1e-6);
+        QCOMPARE(canvas.currentPlayTime(), 20.);
+        playback.stateChanged(PlaybackController::Stopped);
+
+        // Returning to the beginning, changing zoom/direction, and navigating
+        // into the visual padding must never expose a negative audio time.
+        canvas.setScrollPos(-1000);
+        QCOMPARE(canvas.currentPlayTime(), 0.);
+        canvas.setTimeScale(scale == 10. ? .2 : 10.);
+        QVERIFY(std::abs(canvas.chartBeatToY(startBeat) - referenceY) < 1e-6);
+        canvas.setVerticalFlip(!flipped);
+        QVERIFY(std::abs(canvas.chartBeatToY(startBeat) - referenceY) < 1e-6);
+        canvas.scrollByDivision(1, true);
+        QVERIFY(canvas.currentPlayTime() > 0);
+        for (int i = 0; i < 4; ++i)
+            canvas.scrollByDivision(-1, true);
+        QCOMPARE(canvas.currentPlayTime(), 0.);
+        QWheelEvent wheel(QPointF(320, 240), QPointF(320, 240), QPoint(), QPoint(0, -12000),
+                          Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(&canvas, &wheel);
+        QCOMPARE(canvas.currentPlayTime(), 0.);
+        QVERIFY(std::abs(canvas.chartBeatToY(startBeat) - referenceY) < 1e-6);
+        // The delayed grid snap after wheel scrolling must preserve audio 0,
+        // including when beat 0 occurs before/after the beginning of the file.
+        QTest::qWait(330);
+        QCOMPARE(canvas.currentPlayTime(), 0.);
+        for (const auto &event : times)
+            QVERIFY(event[0].toDouble() >= 0.);
+    }
+
+    void canvasFollowsTempoChangesNearAudioStart()
+    {
+        for (int offset : {-750, 750})
+            for (bool flipped : {false, true})
+            {
+                Chart chart;
+                chart.bpmList().clear();
+                chart.addBpm(BpmEntry(0, 0, 1, 120));
+                chart.addBpm(BpmEntry(1, 0, 1, 240));
+                chart.meta().offset = offset;
+                ChartController charts;
+                QVERIFY(charts.loadChartFromData(m_temp.filePath("tempo-start.mc"), chart));
+                AudioPlayer audio;
+                PlaybackController playback(&audio);
+                ChartCanvas canvas;
+                canvas.resize(640, 480);
+                canvas.setChartController(&charts);
+                canvas.setPlaybackController(&playback);
+                canvas.setVerticalFlip(flipped);
+                canvas.setTimeScale(1);
+                canvas.setScrollPos(0);
+                playback.stateChanged(PlaybackController::Playing);
+                qint64 seq = 0;
+                double previousScroll = canvas.scrollBeat();
+                for (double time : {20., 740., 760., 1240., 1260.})
+                {
+                    playback.playbackFrameTick(time, ++seq);
+                    const double chartMs = time + offset;
+                    const double beat = chartMs < 500 ? chartMs / 500. : 1 + (chartMs - 500) / 250.;
+                    QVERIFY(canvas.scrollBeat() > previousScroll);
+                    QVERIFY(std::abs(canvas.chartBeatToY(beat) - canvas.height() * .8) < 1e-6);
+                    previousScroll = canvas.scrollBeat();
+                }
+                playback.stateChanged(PlaybackController::Stopped);
+            }
     }
 
     void notesContinueWhilePaintIsNotAcknowledged()

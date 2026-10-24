@@ -258,6 +258,18 @@ double ChartCanvas::beatFromTimeMs(double timeMs) const
     return segment.beatPos + (timeMs - segment.accumulatedMs) * (segment.bpm / 60000.0);
 }
 
+double ChartCanvas::referenceLineBeatOffset() const
+{
+    return (m_verticalFlip ? 1.0 - kReferenceLineRatio : kReferenceLineRatio) * effectiveVisibleBeatRange();
+}
+
+double ChartCanvas::minimumScrollBeat() const
+{
+    // The viewport may extend before the audio starts so time 0 can sit on
+    // the reference line. Navigation itself must stop at audio time 0.
+    return chart() ? beatFromTimeMs(0.0) - referenceLineBeatOffset() : 0.0;
+}
+
 void ChartCanvas::rebuildNoteTimesCache()
 {
     if (!chart())
@@ -621,7 +633,15 @@ void ChartCanvas::setVerticalFlip(bool flip)
 {
     if (m_verticalFlip == flip)
         return;
+    const double referenceBeat = m_scrollBeat + referenceLineBeatOffset();
+    const bool showsAudioLeadIn = chart() && m_scrollBeat < beatFromTimeMs(0.0)
+        && qAbs(referenceBeat - beatFromTimeMs(m_currentPlayTime)) < 1e-6;
     m_verticalFlip = flip;
+    if (showsAudioLeadIn)
+    {
+        m_scrollBeat = qMax(minimumScrollBeat(), referenceBeat - referenceLineBeatOffset());
+        emit scrollPositionChanged(m_scrollBeat);
+    }
     invalidateGridCache();
     emit verticalFlipChanged(flip);
     update();
@@ -687,20 +707,8 @@ void ChartCanvas::setScrollPos(double timeMs)
 
     const double clampedTimeMs = qMax(0.0, timeMs);
 
-    int beatNum, numerator, denominator;
-    MathUtils::msToBeat(clampedTimeMs, chart()->bpmList(),
-                        chart()->meta().offset,
-                        beatNum, numerator, denominator);
-    const double targetBeat = beatNum + static_cast<double>(numerator) / denominator;
-
-    // Keep requested time aligned on the visual reference line, not on viewport start.
-    const double baselineRatio = kReferenceLineRatio;
-    const double baselineBeatOffset = m_verticalFlip
-                                          ? (1.0 - baselineRatio) * effectiveVisibleBeatRange()
-                                          : baselineRatio * effectiveVisibleBeatRange();
-    double newScrollBeat = targetBeat - baselineBeatOffset;
-    if (newScrollBeat < 0.0)
-        newScrollBeat = 0.0;
+    const double targetBeat = beatFromTimeMs(clampedTimeMs);
+    const double newScrollBeat = qMax(minimumScrollBeat(), targetBeat - referenceLineBeatOffset());
 
     const bool scrollChanged = qAbs(newScrollBeat - m_scrollBeat) >= 1e-6;
     const bool timeChanged = qAbs(clampedTimeMs - m_currentPlayTime) >= 0.05;
@@ -731,7 +739,7 @@ void ChartCanvas::syncCurrentPlayTimeToReferenceLine()
     int numerator = 0;
     int denominator = 1;
     MathUtils::floatToBeat(baselineBeat, beatNum, numerator, denominator);
-    m_currentPlayTime = MathUtils::beatToMs(beatNum, numerator, denominator, bpmList, offset);
+    m_currentPlayTime = qMax(0.0, MathUtils::beatToMs(beatNum, numerator, denominator, bpmList, offset));
     emit currentTimeChanged(m_currentPlayTime);
 }
 
