@@ -35,6 +35,8 @@ class QMouseEvent;
 class QMenu;
 class BPMTimePanel;
 class MetaEditPanel;
+class WorkbenchLayout;
+class QTabWidget;
 namespace CceReviewUi
 {
 class NoteInspector;
@@ -97,6 +99,7 @@ public:
                                const QPointF &canvasPosition = QPointF(-1, -1));
     bool addCommentForAnchor(const QString &body, const QJsonObject &anchor, QString *error = nullptr);
     void showPanel();
+    void setClassicWorkbench(WorkbenchLayout *workbench);
     void saveProjectDialog();
     bool confirmClose();
     void setViewMode(int mode);
@@ -108,6 +111,7 @@ signals:
     void workspaceChanged();
     void projectOpened(const QString &path);
     void statusMessage(const QString &message);
+    void panelContentsChanged();
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -188,7 +192,8 @@ private:
     void setCommentDisplay(const QString &state);
     void showComments();
     void showPanelPage(int page);
-    void installToolbar(QToolBar *toolbar, CommandRouter *router, QAction *review);
+    void installToolbar(QToolBar *toolbar, QAction *review);
+    void installPanelCommands(CommandRouter *router, QMenu *menu);
     void refreshToolbar();
     bool selectToolbarChanges();
     void setResolved(bool resolved);
@@ -267,6 +272,9 @@ private:
     QString m_draggedComment;
     QPointF m_dragStart, m_dragOffset;
     QPointer<QDialog> m_panel;
+    QPointer<WorkbenchLayout> m_classicWorkbench;
+    QTabWidget *m_panelTabs = nullptr;
+    QWidget *m_layersPage = nullptr, *m_commentsPage = nullptr;
     QComboBox *m_difficultyBox = nullptr, *m_viewBox = nullptr, *m_filterBox = nullptr, *m_commentFilterBox = nullptr;
     QTreeWidget *m_layersTree = nullptr, *m_changesTree = nullptr, *m_commentsTree = nullptr;
     QListWidget *m_referencesList = nullptr, *m_eventsList = nullptr;

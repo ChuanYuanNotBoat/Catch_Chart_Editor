@@ -17,6 +17,7 @@ public:
     explicit PaneContainer(const QString &containerId, QWidget *parent = nullptr);
 
     QString containerId() const { return m_containerId; }
+    void setHeaderWidget(QWidget *header);
 
     bool addPane(const QString &paneId,
                  QWidget *content,
@@ -72,6 +73,7 @@ private:
 
     QString m_containerId;
     QSplitter *m_splitter = nullptr;
+    QWidget *m_headerWidget = nullptr;
     QList<PaneEntry> m_panes;
     QStringList m_defaultOrder;
 };

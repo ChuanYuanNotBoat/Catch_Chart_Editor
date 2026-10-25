@@ -3484,6 +3484,46 @@ Open the **History** tab for collapsible long update notes.</translation>
         <source>Settings imported. Restart the editor to apply all changes.</source>
         <translation>Settings imported. Restart the editor to apply all changes.</translation>
     </message>
+    <message>
+        <source>Workspace</source>
+        <translation>Workspace</translation>
+    </message>
+    <message>
+        <source>Editor</source>
+        <translation>Editor</translation>
+    </message>
+    <message>
+        <source>Open chart</source>
+        <translation>Open chart</translation>
+    </message>
+    <message>
+        <source>Save chart</source>
+        <translation>Save chart</translation>
+    </message>
+    <message>
+        <source>Open project</source>
+        <translation>Open project</translation>
+    </message>
+    <message>
+        <source>Save project</source>
+        <translation>Save project</translation>
+    </message>
+    <message>
+        <source>Merge charts…</source>
+        <translation>Merge charts…</translation>
+    </message>
+    <message>
+        <source>Layers</source>
+        <translation>Layers</translation>
+    </message>
+    <message>
+        <source>Comments</source>
+        <translation>Comments</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Review</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>
@@ -7784,6 +7824,74 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="1188"/>
         <source>Select a beat range or notes first.</source>
         <translation>Select a beat range or notes first.</translation>
+    </message>
+    <message>
+        <source>Changes</source>
+        <translation>Changes</translation>
+    </message>
+    <message>
+        <source>History</source>
+        <translation>History</translation>
+    </message>
+    <message>
+        <source>Opacity</source>
+        <translation>Opacity</translation>
+    </message>
+    <message>
+        <source>Select a change to inspect before and after.</source>
+        <translation>Select a change to inspect before and after.</translation>
+    </message>
+    <message>
+        <source>Before: %1
+After: %2
+Apply state: %3</source>
+        <translation>Before: %1
+After: %2
+Apply state: %3</translation>
+    </message>
+    <message>
+        <source>Select a comment to read its text and target.</source>
+        <translation>Select a comment to read its text and target.</translation>
+    </message>
+    <message>
+        <source>%1 · %2
+%3
+Target: %4 %5</source>
+        <translation>%1 · %2
+%3
+Target: %4 %5</translation>
+    </message>
+    <message>
+        <source>Project files</source>
+        <translation>Project files</translation>
+    </message>
+    <message>
+        <source>Author &amp; recovery</source>
+        <translation>Author &amp; recovery</translation>
+    </message>
+    <message>
+        <source>Recover workspace…</source>
+        <translation>Recover workspace…</translation>
+    </message>
+    <message>
+        <source>Export Difficulty…</source>
+        <translation>Export Difficulty…</translation>
+    </message>
+    <message>
+        <source>Proposal</source>
+        <translation>Proposal</translation>
+    </message>
+    <message>
+        <source>Import…</source>
+        <translation>Import…</translation>
+    </message>
+    <message>
+        <source>Export…</source>
+        <translation>Export…</translation>
+    </message>
+    <message>
+        <source>Save as Difficulty</source>
+        <translation>Save as Difficulty</translation>
     </message>
 </context>
 <context>

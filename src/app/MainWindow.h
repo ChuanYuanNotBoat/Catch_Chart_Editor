@@ -167,6 +167,7 @@ private:
     void ensureWorkspaceDockVisible();
     void saveClassicLayoutState();
     void restoreClassicLayoutState();
+    void configureClassicSidebars();
     void saveDockLayout();
     bool restoreDockLayout();
     void resetDockLayout();

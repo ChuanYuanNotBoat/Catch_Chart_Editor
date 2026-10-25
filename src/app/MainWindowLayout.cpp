@@ -2,6 +2,7 @@
 #include "MainWindowPrivate.h"
 
 #include "ui/NoteEditPanel.h"
+#include "review/ReviewWorkspace.h"
 #include "ui/BPMTimePanel.h"
 #include "ui/LeftPanel.h"
 #include "ui/MetaEditPanel.h"
@@ -69,6 +70,10 @@ void MainWindow::saveClassicLayoutState()
         panelId = QStringLiteral("bpm");
     else if (d->currentRightPanel == d->metaPanel)
         panelId = QStringLiteral("meta");
+    if (d->workbenchLayout)
+        for (const auto &id : {QStringLiteral("comments"), QStringLiteral("review")})
+            if (auto *host = d->workbenchLayout->paneContainerForPane(id); host && host->paneVisible(id))
+                panelId = id;
     settings.setClassicRightPanelId(panelId);
 
     if (d->notePanel)
@@ -93,14 +98,15 @@ void MainWindow::restoreClassicLayoutState()
         if (!restored)
         {
             d->workbenchLayout->resetState();
-            d->workbenchLayout->primarySidebar()->setPaneVisible(
-                QStringLiteral("navigation"), d->leftPanelWasVisible);
+            d->workbenchLayout->setPaneVisible(QStringLiteral("navigation"), true);
             d->workbenchLayout->setPaneVisible(
                 QStringLiteral("preview"), d->previewWasVisible);
         }
         d->workbenchLayout->setPaneVisible(QStringLiteral("note"), panel == d->notePanel);
         d->workbenchLayout->setPaneVisible(QStringLiteral("bpm"), panel == d->bpmPanel);
         d->workbenchLayout->setPaneVisible(QStringLiteral("meta"), panel == d->metaPanel);
+        if (panelId == QLatin1String("comments") || panelId == QLatin1String("review"))
+            d->workbenchLayout->setPaneVisible(panelId, true);
     }
     else
     {
@@ -293,10 +299,15 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
                                        ->scrollAreaForPane(QStringLiteral("note"));
         d->legacyRightPanelLayout = nullptr;
         d->workbenchLayout->show();
+        configureClassicSidebars();
         restoreClassicLayoutState();
     }
     else
     {
+        if (d->reviewWorkspace)
+            d->reviewWorkspace->setClassicWorkbench(nullptr);
+        if (d->leftPanel)
+            d->leftPanel->setNavigationControlsHost(nullptr);
         if (d->workbenchLayout)
         {
             d->workbenchLayout->takeEditorWidget();
@@ -394,6 +405,7 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
 
     updateDockTitles();
     updateToolDockActionVisibility();
+    configureClassicSidebars();
     configureNotePanelScrollArea();
     setUpdatesEnabled(true);
     update();

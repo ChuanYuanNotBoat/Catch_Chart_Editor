@@ -18,12 +18,14 @@ set(SOURCES
     app/PlaybackBenchmarkRunner.cpp
     app/MainWindow.cpp
     app/MainWindowLayout.cpp
+    app/MainWindowClassicSidebar.cpp
     app/MainWindowDialogs.cpp
     app/MainWindowSkinAudio.cpp
     review/ReviewWorkspace.cpp
     review/ReviewResources.cpp
     review/ReviewWorkspaceUi.cpp
     review/ReviewWorkspaceToolbar.cpp
+    review/ReviewWorkspaceClassic.cpp
     review/ReviewWorkspaceRender.cpp
     ui/review/IdentityDialog.cpp
     ui/review/NoteInspector.cpp

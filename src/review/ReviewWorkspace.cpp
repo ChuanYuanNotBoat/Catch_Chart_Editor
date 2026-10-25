@@ -212,6 +212,7 @@ ReviewWorkspace::~ReviewWorkspace()
     }
     if (m_selection)
         m_selection->setNotes(&m_controller->chart()->notes(), m_controller->revision());
+    setClassicWorkbench(nullptr);
     delete m_panel.data();
     delete m_inspector.data();
     // Workers own value snapshots, never widgets or this coordinator.

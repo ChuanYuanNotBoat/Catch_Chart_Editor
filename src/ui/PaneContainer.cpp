@@ -41,6 +41,21 @@ PaneContainer::PaneContainer(const QString &containerId, QWidget *parent)
             });
 }
 
+void PaneContainer::setHeaderWidget(QWidget *header)
+{
+    if (m_headerWidget == header)
+        return;
+    delete m_headerWidget;
+    m_headerWidget = header;
+    if (header)
+    {
+        header->setParent(this);
+        qobject_cast<QVBoxLayout *>(layout())->insertWidget(0, header);
+        header->show();
+    }
+    emit stateChanged();
+}
+
 int PaneContainer::indexOf(const QString &paneId) const
 {
     const QString normalized = paneId.trimmed();
@@ -295,6 +310,10 @@ bool PaneContainer::paneScrollable(const QString &paneId) const
 
 bool PaneContainer::hasVisiblePanes() const
 {
+    // Page selectors must remain reachable when the active page is moved to
+    // another workbench part. Containers without a header still collapse.
+    if (m_headerWidget)
+        return true;
     for (const PaneEntry &entry : m_panes)
     {
         if (entry.visible && entry.expanded)

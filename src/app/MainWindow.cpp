@@ -1853,11 +1853,16 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     if (auto *metaLayout = qobject_cast<QVBoxLayout *>(d->metaPanel->layout()))
         metaLayout->insertWidget(qMax(0, metaLayout->count() - 1),
                                  d->reviewWorkspace->createExportConfiguration(d->metaPanel));
+    configureClassicSidebars();
+    if (!d->floatingToolWindowsEnabled)
+        restoreClassicLayoutState();
+    applySidebarTheme();
     Logger::info("MainWindow constructor finished");
 }
 
 MainWindow::~MainWindow()
 {
+    saveDockLayout();
     delete d->reviewWorkspace;
     d->reviewWorkspace = nullptr;
     if (d->pendingPluginRequestId != 0)
@@ -1875,7 +1880,6 @@ MainWindow::~MainWindow()
     if (d->editSessionTimer.isValid())
         d->editStatistics.editTimeMs += d->editSessionTimer.elapsed();
     saveEditorStats(d->editStatisticsChartPath, d->editStatistics);
-    saveDockLayout();
     clearWorkingCopySession(true);
     closePluginPanels();
     if (d->dockManager)
@@ -1925,6 +1929,7 @@ void MainWindow::createMenus()
     createToolsAndPluginsMenus();
     createHelpMenu();
     registerCanvasCommands();
+    configureClassicSidebars();
     applySidebarTheme();
 
     Logger::debug("Menus created");
@@ -2057,6 +2062,7 @@ void MainWindow::createViewMenu()
         if (!d->floatingToolWindowsAction)
         {
             d->floatingToolWindowsAction = new QAction(this);
+            d->floatingToolWindowsAction->setObjectName("view.floatingWindows");
             d->floatingToolWindowsAction->setCheckable(true);
             connect(d->floatingToolWindowsAction, &QAction::toggled, this,
                     [this](bool enabled) { setFloatingToolWindowsEnabled(enabled); });
@@ -5714,7 +5720,10 @@ void MainWindow::resetDockLayout()
         Settings::instance().clearClassicLayoutState();
         d->currentRightPanel = d->notePanel;
         if (d->workbenchLayout)
+        {
             d->workbenchLayout->resetState();
+            d->workbenchLayout->setPaneVisible(QStringLiteral("navigation"), true);
+        }
         if (d->notePanel)
         {
             if (d->workbenchLayout)
@@ -6229,6 +6238,24 @@ void MainWindow::applySidebarTheme()
         panel->setStyleSheet(css);
     };
 
+    if (d->workbenchLayout)
+    {
+        applyPanelStyle(d->workbenchLayout, "classicWorkbench", true);
+        const QString navigationCss = QString(
+            "QWidget#classicSidebarHeader { background: %1; border-bottom: 1px solid %2; }"
+            "QLabel#classicSidebarTitle { font-weight: 600; color: %3; padding-bottom: 2px; }"
+            "QToolButton[sidebarPage=\"true\"] { border: none; border-radius: 4px; padding: 7px 8px; background: transparent; }"
+            "QToolButton[sidebarPage=\"true\"]:checked { background: %4; color: %5; font-weight: 600; }"
+            "QToolButton[sidebarPage=\"true\"]:hover { background: %4; }"
+            "QTabWidget::pane { border: none; }"
+            "QTabBar::tab { background: %1; color: %3; padding: 6px 8px; border-bottom: 2px solid transparent; }"
+            "QTabBar::tab:selected { border-bottom-color: %4; font-weight: 600; }"
+            "QHeaderView::section { background: %1; color: %3; padding: 4px; border: none; }"
+            "QTreeView::item { padding: 4px 2px; }")
+            .arg(panelBg.name(), panelBorder.name(), theme.text.name(), theme.highlight.name(),
+                 QApplication::palette().color(QPalette::HighlightedText).name());
+        d->workbenchLayout->setStyleSheet(d->workbenchLayout->styleSheet() + navigationCss);
+    }
     applyPanelStyle(d->leftPanel, "leftPanelRoot");
     if (d->floatingToolWindowsEnabled)
     {
@@ -6279,6 +6306,20 @@ void MainWindow::applySidebarTheme()
         if (d->pluginActionPanel)
             d->pluginActionPanel->setStyleSheet(QString());
         applyPanelStyle(d->legacyRightPanelContainer, "rightPanelRoot");
+    }
+
+    if (d->workbenchLayout)
+    {
+        const QColor accent = darkTheme ? QColor("#83b9ef") : QColor("#245d9b");
+        const QColor active = darkTheme ? QColor("#304256") : QColor("#dfebf7");
+        for (auto *header : d->workbenchLayout->findChildren<QWidget *>("classicSidebarHeader"))
+            header->setStyleSheet(QString(
+                "QWidget#classicSidebarHeader { background: %1; border-bottom: 1px solid %2; }"
+                "QLabel#classicSidebarTitle { color: %3; font-weight: 600; }"
+                "QToolButton[sidebarPage=\"true\"] { background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 3px; padding: 7px 8px; }"
+                "QToolButton[sidebarPage=\"true\"]:hover { background: %4; }"
+                "QToolButton[sidebarPage=\"true\"]:checked { background: %4; color: %3; border-bottom-color: %5; font-weight: 600; }")
+                .arg(panelBg.name(), panelBorder.name(), theme.text.name(), active.name(), accent.name()));
     }
 
     if (d->dockManager)

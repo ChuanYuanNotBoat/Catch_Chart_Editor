@@ -36,6 +36,7 @@ public:
     void setChartCanvas(ChartCanvas *canvas);
     void setPluginQuickActions(const QList<PluginQuickAction> &actions);
     void retranslateUi();
+    void setNavigationControlsHost(QWidget *host);
 
     // 统计面板区块（旧模式专用）：挂到左栏底部，可折叠。
     // 新旧模式共用同一个面板实例，切换窗口模式时通过本组方法迁移。
@@ -55,6 +56,7 @@ private:
     void setupUi();
 
     QVBoxLayout *m_layout = nullptr;
+    QWidget *m_navigationControls = nullptr;
     ChartController *m_chartController = nullptr;
     PlaybackController *m_playbackController = nullptr;
     ChartCanvas *m_chartCanvas = nullptr;

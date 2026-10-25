@@ -10,6 +10,9 @@
 #include "ui/review/ReviewColors.h"
 #include "ui/BPMTimePanel.h"
 #include "ui/MetaEditPanel.h"
+#include "ui/FlowLayout.h"
+#include "ui/WorkbenchLayout.h"
+#include "ui/PaneContainer.h"
 #include "file/ChartIO.h"
 #include "utils/MathUtils.h"
 #include <QAction>
@@ -19,6 +22,7 @@
 #include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -50,6 +54,19 @@ namespace CceReview
 {
 namespace
 {
+class ReviewPanelDialog final : public QDialog
+{
+public:
+    using QDialog::QDialog;
+    void reject() override
+    {
+        // Escape closes the standalone window, but must not hide the content
+        // of a classic pane while its selector still says it is open.
+        if (isWindow())
+            QDialog::reject();
+    }
+};
+
 QString uuid()
 {
     return QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -139,7 +156,7 @@ void ReviewWorkspace::installMenus(CommandRouter *router, QToolBar *toolbar)
     auto *menu = m_window->menuBar()->addMenu(tr("Project & Review"));
     menu->setObjectName("localReviewMenu");
     auto action = [&](const QString &text, const QString &id, const QKeySequence &key, auto callback) {
-        auto *a = menu->addAction(text);
+        auto *a = new QAction(text, menu);
         a->setObjectName(id);
         a->setAutoRepeat(false);
         connect(a, &QAction::triggered, this, callback);
@@ -148,7 +165,7 @@ void ReviewWorkspace::installMenus(CommandRouter *router, QToolBar *toolbar)
                                                                                     : CommandRouter::Scope::Window);
         return a;
     };
-    auto *reviewEntry = action(tr("Layers, Comments and Review… (Experimental)"), "review.workspace", {}, [this] {
+    auto *reviewEntry = action(tr("Review"), "review.workspace", {}, [this] {
         showPanelPage(1);
     });
     reviewEntry->setIconText(tr("Review"));
@@ -156,12 +173,15 @@ void ReviewWorkspace::installMenus(CommandRouter *router, QToolBar *toolbar)
         addCommentDialog();
     });
     commentEntry->setIconText(tr("Comment"));
+    installPanelCommands(router, menu);
+    auto *commentsEntry = action(tr("Comments"), "review.comments", {}, [this] {
+        showPanelPage(2);
+    });
     if (toolbar)
-        installToolbar(toolbar, router, reviewEntry);
+        installToolbar(toolbar, reviewEntry);
     action(tr("Local Identities…"), "review.identities", {}, [this] {
         CceReviewUi::IdentityDialog(&m_identity, m_window).exec();
     });
-    menu->addSeparator();
     action(tr("Open CCE Project…"), "review.openProject", {}, [this] {
         const QString path =
             QFileDialog::getOpenFileName(m_window, tr("Open project"), {}, tr("CCE Projects (*.cceproj)"));
@@ -171,7 +191,7 @@ void ReviewWorkspace::installMenus(CommandRouter *router, QToolBar *toolbar)
         if (!openProject(path, &error))
             report(error);
         else
-            showPanel();
+            showPanelPage(0);
     });
     action(tr("Save Project…"), "review.saveProject", {}, [this] {
         saveProjectDialog();
@@ -182,7 +202,6 @@ void ReviewWorkspace::installMenus(CommandRouter *router, QToolBar *toolbar)
     action(tr("Export Selected Layer as .mc…"), "review.exportLayer", {}, [this] {
         exportChartDialog(true);
     });
-    menu->addSeparator();
     action(tr("Create Proposal…"), "review.start", {}, [this] {
         bool ok;
         const QString text =
@@ -269,13 +288,18 @@ void ReviewWorkspace::installMenus(CommandRouter *router, QToolBar *toolbar)
             showPanel();
         }
     });
+    // Commands stay registered for shortcuts and sidebar buttons. The main
+    // menu is a short set of destinations, not a second copy of every tool.
+    menu->addAction(menu->findChild<QAction *>(QStringLiteral("review.layers")));
+    menu->addAction(commentsEntry);
+    menu->addAction(reviewEntry);
 }
 
 void ReviewWorkspace::buildUi()
 {
     if (m_panel)
         return;
-    auto *dialog = new QDialog(m_window, Qt::Window);
+    auto *dialog = new ReviewPanelDialog(m_window, Qt::Window);
     m_panel = dialog;
     dialog->setObjectName("reviewWorkspaceWindow");
     dialog->setWindowTitle(tr("Review & Layers (Experimental)"));
@@ -286,10 +310,10 @@ void ReviewWorkspace::buildUi()
     experimental->setObjectName("reviewExperimentalNotice");
     experimental->setWordWrap(true);
     layout->addWidget(experimental);
-    auto *top = new QHBoxLayout;
+    auto *top = new FlowLayout;
     m_identityLabel = new QLabel;
     auto *identity = new QPushButton(tr("Local Identities…"));
-    top->addWidget(m_identityLabel, 1);
+    top->addWidget(m_identityLabel);
     top->addWidget(identity);
     connect(identity, &QPushButton::clicked, this, [this] {
         CceReviewUi::IdentityDialog(&m_identity, m_panel).exec();
@@ -314,19 +338,42 @@ void ReviewWorkspace::buildUi()
     });
     layout->addLayout(top);
     auto *tabs = new QTabWidget;
+    m_panelTabs = tabs;
+    tabs->setDocumentMode(true);
+    tabs->setUsesScrollButtons(true);
     layout->addWidget(tabs, 1);
     auto *project = new QWidget;
+    m_layersPage = project;
+    project->setObjectName("classicLayersPage");
     auto *pl = new QVBoxLayout(project);
-    auto *difficultyBar = new QHBoxLayout;
+    auto *difficultyBar = new FlowLayout;
     m_difficultyBox = new QComboBox;
     m_difficultyBox->setObjectName("reviewDifficulty");
-    difficultyBar->addWidget(m_difficultyBox, 1);
-    auto button = [this](QHBoxLayout *bar, const QString &text, auto callback) {
+    difficultyBar->addWidget(m_difficultyBox);
+    auto button = [this](QLayout *bar, const QString &text, auto callback) {
         auto *b = new QPushButton(text);
         bar->addWidget(b);
         connect(b, &QPushButton::clicked, this, callback);
         return b;
     };
+    const auto commandButton = [this, &button](QLayout *bar, const QString &id, const QString &text) {
+        auto *entry = button(bar, text, [this, id] {
+            // Menu recreation replaces actions; resolve the current command
+            // at click time so panel buttons keep their shortcuts' behavior.
+            if (auto *current = m_window->findChild<QAction *>(id))
+                current->trigger();
+        });
+        entry->setObjectName(id + "Button");
+        if (auto *action = m_window->findChild<QAction *>(id))
+            entry->setToolTip(action->text());
+        return entry;
+    };
+    auto *projectFiles = new QGroupBox(tr("Project files"), project);
+    projectFiles->setObjectName("standaloneProjectTools");
+    auto *projectCommands = new FlowLayout(projectFiles);
+    commandButton(projectCommands, "review.openProject", tr("Open CCE Project…"));
+    commandButton(projectCommands, "review.saveProject", tr("Save Project…"));
+    pl->addWidget(projectFiles);
     button(difficultyBar, tr("New"), [this] {
         changeDifficulty(0);
     });
@@ -339,6 +386,7 @@ void ReviewWorkspace::buildUi()
     button(difficultyBar, tr("Import .mc…"), [this] {
         importDifficulty();
     });
+    commandButton(difficultyBar, "review.exportChart", tr("Export Difficulty…"));
     pl->addLayout(difficultyBar);
     connect(m_difficultyBox, &QComboBox::currentIndexChanged, this, [this](int i) {
         if (m_refreshing || i < 0)
@@ -355,6 +403,33 @@ void ReviewWorkspace::buildUi()
         {tr("Layer"), tr("Visible"), tr("Locked"), tr("Export"), tr("Opacity %"), tr("Shared by")});
     m_layersTree->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     pl->addWidget(m_layersTree, 1);
+    auto *layerDetails = new QWidget(project);
+    layerDetails->setObjectName("classicSelectionDetails");
+    auto *layerDetailsLayout = new QFormLayout(layerDetails);
+    layerDetailsLayout->setContentsMargins(0, 0, 0, 0);
+    auto *opacity = new QDoubleSpinBox(layerDetails);
+    opacity->setObjectName("classicLayerOpacity");
+    opacity->setRange(0, 100);
+    opacity->setDecimals(0);
+    opacity->setSuffix(" %");
+    layerDetailsLayout->addRow(tr("Opacity"), opacity);
+    auto *shared = new QLabel(layerDetails);
+    layerDetailsLayout->addRow(tr("Shared by"), shared);
+    pl->addWidget(layerDetails);
+    layerDetails->hide();
+    const auto syncLayerDetails = [this, opacity, shared] {
+        const auto *item = m_layersTree->currentItem();
+        const QSignalBlocker block(opacity);
+        opacity->setEnabled(item && !m_controller->isReadOnly());
+        opacity->setValue(item ? item->text(4).toDouble() : 100);
+        shared->setText(item ? item->text(5) : QStringLiteral("—"));
+    };
+    connect(m_layersTree, &QTreeWidget::itemSelectionChanged, layerDetails, syncLayerDetails);
+    connect(this, &ReviewWorkspace::panelContentsChanged, layerDetails, syncLayerDetails);
+    connect(opacity, &QDoubleSpinBox::valueChanged, this, [this](double value) {
+        if (auto *item = m_layersTree->currentItem())
+            item->setText(4, QString::number(value));
+    });
     connect(m_layersTree, &QTreeWidget::itemSelectionChanged, this, [this] {
         if (!m_refreshing)
             m_activeLayerId = selectedLayerId();
@@ -399,8 +474,8 @@ void ReviewWorkspace::buildUi()
                 }
         });
     });
-    auto *layersBar = new QHBoxLayout;
-    auto *layerOrderBar = new QHBoxLayout;
+    auto *layersBar = new FlowLayout;
+    auto *layerOrderBar = new FlowLayout;
     const QStringList layerButtons = {
         tr("New Layer"), tr("Rename"), tr("Share Existing…"), tr("Make Independent"), tr("Unbind"),
         tr("Up"),        tr("Down")};
@@ -410,22 +485,22 @@ void ReviewWorkspace::buildUi()
         });
     pl->addLayout(layersBar);
     pl->addLayout(layerOrderBar);
-    auto *transfer = new QHBoxLayout;
+    auto *transfer = new FlowLayout;
     button(transfer, tr("Move Selection into Layer"), [this] {
         changeLayer(7);
     });
     button(transfer, tr("Copy Selection into Layer"), [this] {
         changeLayer(8);
     });
-    button(transfer, tr("Export Layer…"), [this] {
-        exportChartDialog(true);
-    });
+    commandButton(transfer, "review.exportLayer", tr("Export Layer…"));
     pl->addLayout(transfer);
-    pl->addWidget(new QLabel(tr("Live references (read only; excluded from statistics and export)")));
+    auto *referenceHint = new QLabel(tr("Live references (read only; excluded from statistics and export)"));
+    referenceHint->setWordWrap(true);
+    pl->addWidget(referenceHint);
     m_referencesList = new QListWidget;
     m_referencesList->setMaximumHeight(100);
     pl->addWidget(m_referencesList);
-    auto *refs = new QHBoxLayout;
+    auto *refs = new FlowLayout;
     button(refs, tr("Add Reference…"), [this] {
         addReference();
     });
@@ -442,30 +517,40 @@ void ReviewWorkspace::buildUi()
             report(error);
     });
     pl->addLayout(refs);
+    auto *projectUtilities = new QGroupBox(tr("Author & recovery"), project);
+    auto *utilitiesLayout = new QVBoxLayout(projectUtilities);
+    auto *projectIdentity = new QLabel(projectUtilities);
+    projectIdentity->setWordWrap(true);
+    const auto syncIdentity = [this, projectIdentity] {
+        projectIdentity->setText(tr("Author: %1").arg(
+            activeAuthorName().isEmpty() ? tr("No identity selected") : activeAuthorName()));
+    };
+    connect(&m_identity, &CceIdentity::LocalIdentityStore::changed, projectIdentity, syncIdentity);
+    syncIdentity();
+    utilitiesLayout->addWidget(projectIdentity);
+    auto *utilities = new FlowLayout;
+    commandButton(utilities, "review.identities", tr("Local Identities…"));
+    commandButton(utilities, "review.recover", tr("Recover workspace…"));
+    utilitiesLayout->addLayout(utilities);
+    pl->addWidget(projectUtilities);
     tabs->addTab(project, tr("Layers & Difficulties"));
 
     auto *changes = new QWidget;
     auto *cl = new QVBoxLayout(changes);
-    auto *proposalFiles = new QHBoxLayout;
-    const QVector<QPair<QString, QString>> proposalCommands = {{"review.start", tr("Create Proposal…")},
-                                                               {"review.import", tr("Import .ccepr…")},
-                                                               {"review.export", tr("Export .ccepr…")}};
+    auto *proposalGroup = new QGroupBox(tr("Proposal") + QStringLiteral(" (.ccepr)"), changes);
+    auto *proposalLayout = new QVBoxLayout(proposalGroup);
+    auto *proposalFiles = new FlowLayout;
+    const QVector<QPair<QString, QString>> proposalCommands = {{"review.start", tr("New")},
+                                                               {"review.import", tr("Import…")},
+                                                               {"review.export", tr("Export…")}};
     for (const auto &command : proposalCommands)
     {
-        auto *action = m_window->findChild<QAction *>(command.first);
-        auto *entry = button(proposalFiles, command.second, [this, id = command.first] {
-            if (auto *current = m_window->findChild<QAction *>(id))
-                current->trigger();
-        });
-        entry->setObjectName(command.first + "Button");
-        entry->setEnabled(action);
+        commandButton(proposalFiles, command.first, command.second);
     }
-    cl->addLayout(proposalFiles);
-    auto *reviewBar = new QHBoxLayout;
-    button(reviewBar, tr("Edit Proposal"), [this] {
-        editProposal();
-    });
-    button(reviewBar, tr("Save Proposal as Difficulty"), [this] {
+    proposalLayout->addLayout(proposalFiles);
+    auto *reviewBar = new FlowLayout;
+    commandButton(reviewBar, "review.editProposal", tr("Edit Proposal"));
+    button(reviewBar, tr("Save as Difficulty"), [this] {
         QString error;
         if (!saveProposalAsDifficulty(&error))
             report(error);
@@ -477,8 +562,9 @@ void ReviewWorkspace::buildUi()
     });
     m_filterBox = new QComboBox;
     m_filterBox->addItems({tr("All Changes"), "Add", "Remove", "Move", "Modify", tr("Conflicts")});
-    reviewBar->addWidget(m_filterBox);
-    cl->addLayout(reviewBar);
+    proposalLayout->addLayout(reviewBar);
+    cl->addWidget(proposalGroup);
+    cl->addWidget(m_filterBox);
     connect(m_filterBox, &QComboBox::currentIndexChanged, this, &ReviewWorkspace::refreshChanges);
     m_changesTree = new QTreeWidget;
     m_changesTree->setObjectName("reviewChanges");
@@ -488,9 +574,24 @@ void ReviewWorkspace::buildUi()
     for (int i = 0; i < 4; ++i)
         m_changesTree->header()->setSectionResizeMode(i, QHeaderView::ResizeToContents);
     cl->addWidget(m_changesTree, 1);
+    auto *changeDetails = new QPlainTextEdit(changes);
+    changeDetails->setObjectName("classicSelectionDetails");
+    changeDetails->setReadOnly(true);
+    changeDetails->setMinimumHeight(85);
+    changeDetails->setMaximumHeight(120);
+    changeDetails->setPlaceholderText(tr("Select a change to inspect before and after."));
+    cl->addWidget(changeDetails);
+    changeDetails->hide();
+    const auto syncChangeDetails = [this, changeDetails] {
+        const auto *item = m_changesTree->currentItem();
+        changeDetails->setPlainText(item ? tr("Before: %1\nAfter: %2\nApply state: %3")
+                                              .arg(item->text(2), item->text(3), item->text(5)) : QString());
+    };
+    connect(m_changesTree, &QTreeWidget::itemSelectionChanged, changeDetails, syncChangeDetails);
+    connect(this, &ReviewWorkspace::panelContentsChanged, changeDetails, syncChangeDetails);
     connect(m_changesTree, &QTreeWidget::itemSelectionChanged, this, &ReviewWorkspace::selectChange);
-    auto *decisions = new QHBoxLayout;
-    auto *resolutionBar = new QHBoxLayout;
+    auto *decisions = new FlowLayout;
+    auto *resolutionBar = new FlowLayout;
     auto *groupReview = button(decisions, tr("Select Dependency Group"), [this] {
         QSet<QString> selected;
         for (auto *item : m_changesTree->selectedItems())
@@ -525,8 +626,8 @@ void ReviewWorkspace::buildUi()
     });
     cl->addLayout(decisions);
     cl->addLayout(resolutionBar);
-    auto *applyBar = new QHBoxLayout;
-    auto *navigationBar = new QHBoxLayout;
+    auto *applyBar = new FlowLayout;
+    auto *navigationBar = new FlowLayout;
     button(applyBar, tr("Apply Selected"), [this] {
         QSet<QString> ids;
         for (auto *item : m_changesTree->selectedItems())
@@ -541,20 +642,17 @@ void ReviewWorkspace::buildUi()
         if (!applyChanges(ids, &error))
             report(error);
     });
-    button(navigationBar, tr("Previous Change"), [this] {
-        navigate(1, -1);
-    });
-    button(navigationBar, tr("Next Change"), [this] {
-        navigate(1, 1);
-    });
-    button(navigationBar, tr("Next Conflict"), [this] {
-        navigate(2, 1);
-    });
+    commandButton(navigationBar, "review.previousChange", tr("Previous Change"));
+    commandButton(navigationBar, "review.nextChange", tr("Next Change"));
+    commandButton(navigationBar, "review.previousConflict", tr("Previous Conflict"));
+    commandButton(navigationBar, "review.nextConflict", tr("Next Conflict"));
     cl->addLayout(applyBar);
     cl->addLayout(navigationBar);
     tabs->addTab(changes, tr("Diff & Conflict"));
 
     auto *commentPage = new QWidget;
+    m_commentsPage = commentPage;
+    commentPage->setObjectName("classicCommentsPage");
     auto *col = new QVBoxLayout(commentPage);
     m_commentFilterBox = new QComboBox(commentPage);
     m_commentFilterBox->setObjectName("reviewCommentFilter");
@@ -577,6 +675,22 @@ void ReviewWorkspace::buildUi()
     m_commentsTree->setHeaderLabels({tr("Author"), tr("Comment"), tr("State"), tr("Anchor"), tr("Reference status")});
     m_commentsTree->header()->setSectionResizeMode(1, QHeaderView::Stretch);
     col->addWidget(m_commentsTree, 1);
+    auto *commentDetails = new QPlainTextEdit(commentPage);
+    commentDetails->setObjectName("classicSelectionDetails");
+    commentDetails->setReadOnly(true);
+    commentDetails->setMinimumHeight(85);
+    commentDetails->setMaximumHeight(140);
+    commentDetails->setPlaceholderText(tr("Select a comment to read its text and target."));
+    col->addWidget(commentDetails);
+    commentDetails->hide();
+    const auto syncCommentDetails = [this, commentDetails] {
+        const auto *item = m_commentsTree->currentItem();
+        commentDetails->setPlainText(item ? tr("%1 · %2\n%3\nTarget: %4 %5")
+                                               .arg(item->text(0), item->text(2), item->text(1),
+                                                    item->text(3), item->text(4)) : QString());
+    };
+    connect(m_commentsTree, &QTreeWidget::itemSelectionChanged, commentDetails, syncCommentDetails);
+    connect(this, &ReviewWorkspace::panelContentsChanged, commentDetails, syncCommentDetails);
     connect(m_commentFilterBox, &QComboBox::currentIndexChanged, this, &ReviewWorkspace::refreshComments);
     connect(m_commentsTree, &QTreeWidget::itemDoubleClicked, this, [this] {
         editComment(false);
@@ -589,7 +703,7 @@ void ReviewWorkspace::buildUi()
              {tr("Selected note"), "Note"}, {tr("Selected notes"), "NoteGroup"},
              {tr("BPM entry"), "BpmEntry"}, {tr("Entire BPM list"), "BpmList"}})
         anchorType->addItem(entry.first, entry.second);
-    auto *newComment = new QHBoxLayout;
+    auto *newComment = new FlowLayout;
     newComment->addWidget(anchorType);
     button(newComment, tr("Add Comment…"), [this, anchorType] {
         const auto type = anchorType->currentData().toString();
@@ -598,7 +712,7 @@ void ReviewWorkspace::buildUi()
     button(newComment, tr("Reply…"), [this] { replyToComment(); });
 
     col->addLayout(newComment);
-    auto *commentBar = new QHBoxLayout;
+    auto *commentBar = new FlowLayout;
     button(commentBar, tr("Edit…"), [this] {
         editComment(false);
     });
@@ -611,14 +725,10 @@ void ReviewWorkspace::buildUi()
     button(commentBar, tr("Reopen"), [this] {
         setResolved(false);
     });
-    button(commentBar, tr("Previous"), [this] {
-        navigate(0, -1);
-    });
-    button(commentBar, tr("Next"), [this] {
-        navigate(0, 1);
-    });
+    commandButton(commentBar, "review.previousComment", tr("Previous"));
+    commandButton(commentBar, "review.nextComment", tr("Next"));
     col->addLayout(commentBar);
-    auto *displayBar = new QHBoxLayout;
+    auto *displayBar = new FlowLayout;
     const QVector<QPair<QString, QString>> displayStates = {{QStringLiteral("Expanded"), tr("Expanded")},
                                                             {QStringLiteral("Collapsed"), tr("Collapsed")},
                                                             {QStringLiteral("Hidden"), tr("Hidden")}};
@@ -640,6 +750,20 @@ void ReviewWorkspace::buildUi()
     m_statusLabel = new QLabel;
     m_statusLabel->setWordWrap(true);
     layout->addWidget(m_statusLabel);
+    // Tables keep their own scrolling; surrounding actions wrap independently.
+    for (auto *tree : {m_layersTree, m_changesTree, m_commentsTree})
+    {
+        tree->setMinimumHeight(180);
+        tree->setRootIsDecorated(false);
+        tree->setAlternatingRowColors(true);
+        tree->setWordWrap(true);
+        tree->setTextElideMode(Qt::ElideRight);
+    }
+    for (auto *box : dialog->findChildren<QComboBox *>())
+    {
+        box->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        box->setMinimumContentsLength(12);
+    }
     refreshUi();
 }
 
@@ -647,6 +771,11 @@ void ReviewWorkspace::showPanel()
 {
     buildUi();
     refreshUi();
+    if (m_classicWorkbench)
+    {
+        m_classicWorkbench->setPaneVisible(QStringLiteral("review"), true);
+        return;
+    }
     m_panel->show();
     m_panel->raise();
     m_panel->activateWindow();
@@ -659,9 +788,19 @@ void ReviewWorkspace::showComments()
 
 void ReviewWorkspace::showPanelPage(int page)
 {
+    buildUi();
+    refreshUi();
+    if (m_classicWorkbench)
+    {
+        const QString id = page == 0 ? QStringLiteral("layers")
+                           : page == 2 ? QStringLiteral("comments") : QStringLiteral("review");
+        m_classicWorkbench->setPaneVisible(id, true);
+        if (page != 0 && page != 2)
+            m_panelTabs->setCurrentIndex(page == 1 ? 0 : page - 2);
+        return;
+    }
     showPanel();
-    if (auto *tabs = m_panel->findChild<QTabWidget *>())
-        tabs->setCurrentIndex(page);
+    m_panelTabs->setCurrentIndex(page);
 }
 
 QString ReviewWorkspace::selectionAnchorType() const
@@ -1001,6 +1140,7 @@ void ReviewWorkspace::refreshChanges()
         item->setText(5, tr("Conflict"));
         item->setForeground(0, QColor(180, 135, 0));
     }
+    emit panelContentsChanged();
 }
 
 void ReviewWorkspace::refreshComments()
@@ -1031,11 +1171,14 @@ void ReviewWorkspace::refreshComments()
                                : referenceState == "Modified"  ? tr("Target modified")
                                                                : QString();
         item->setText(4, reference);
+        item->setToolTip(1, tr("%1 · %2\n%3\nTarget: %4 %5")
+                               .arg(item->text(0), state, item->text(1), item->text(3), reference));
         if (!reference.isEmpty())
             item->setForeground(4, QColor(210, 155, 45));
         if (c.value("commentId") == selected)
             m_commentsTree->setCurrentItem(item);
     }
+    emit panelContentsChanged();
 }
 
 void ReviewWorkspace::selectChange()

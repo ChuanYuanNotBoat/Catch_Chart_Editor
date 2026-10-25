@@ -21,9 +21,15 @@ LeftPanel::LeftPanel(QWidget *parent)
 void LeftPanel::setupUi()
 {
     m_layout = new QVBoxLayout(this);
+    m_navigationControls = new QWidget(this);
+    m_navigationControls->setObjectName("navigationControls");
+    auto *controlsLayout = new QVBoxLayout(m_navigationControls);
+    controlsLayout->setContentsMargins(0, 0, 0, 0);
+    controlsLayout->setSpacing(6);
+    m_layout->addWidget(m_navigationControls);
 
     m_playPauseBtn = new QPushButton(tr("Play"), this);
-    m_layout->addWidget(m_playPauseBtn);
+    controlsLayout->addWidget(m_playPauseBtn);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &LeftPanel::onPlayPauseClicked);
 
     QHBoxLayout *zoomLayout = new QHBoxLayout;
@@ -44,7 +50,7 @@ void LeftPanel::setupUi()
     zoomLayout->addWidget(m_zoomOutBtn);
     zoomLayout->addWidget(m_timeScaleSpin);
     zoomLayout->addWidget(m_zoomInBtn);
-    m_layout->addLayout(zoomLayout);
+    controlsLayout->addLayout(zoomLayout);
 
     connect(m_zoomInBtn, &QPushButton::clicked, this, &LeftPanel::onZoomInClicked);
     connect(m_zoomOutBtn, &QPushButton::clicked, this, &LeftPanel::onZoomOutClicked);
@@ -62,6 +68,16 @@ void LeftPanel::setupUi()
     m_layout->addWidget(m_pluginSectionContainer);
 
     m_layout->addStretch();
+}
+
+void LeftPanel::setNavigationControlsHost(QWidget *host)
+{
+    m_navigationControls->setParent(host ? host : this);
+    if (host)
+        host->layout()->addWidget(m_navigationControls);
+    else
+        m_layout->insertWidget(0, m_navigationControls);
+    m_navigationControls->show();
 }
 
 void LeftPanel::onPlayPauseClicked()
@@ -249,6 +265,7 @@ void LeftPanel::attachStatsSection(QWidget *statsSection)
     {
         m_statsToggleBtn = new QToolButton(this);
         m_statsToggleBtn->setText(tr("Statistics"));
+        m_statsToggleBtn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         m_statsToggleBtn->setCheckable(true);
         m_statsToggleBtn->setChecked(true);
         m_statsToggleBtn->setArrowType(Qt::DownArrow);
@@ -259,8 +276,9 @@ void LeftPanel::attachStatsSection(QWidget *statsSection)
                     if (m_statsSection)
                         m_statsSection->setVisible(expanded);
                 });
-        m_layout->insertWidget(m_layout->count() - 1, m_statsToggleBtn);
     }
+    m_layout->removeWidget(m_statsToggleBtn);
+    m_layout->insertWidget(m_layout->indexOf(statsSection), m_statsToggleBtn);
     m_statsToggleBtn->show();
     m_statsSection->setVisible(m_statsToggleBtn->isChecked());
     updateGeometry();

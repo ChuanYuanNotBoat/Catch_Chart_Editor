@@ -955,7 +955,8 @@ void Settings::clearClassicLayoutState()
 QString Settings::classicRightPanelId() const
 {
     const QString panelId = m_settings.value("ui/classicLayout/rightPanel", "note").toString();
-    if (panelId == QLatin1String("bpm") || panelId == QLatin1String("meta"))
+    if (panelId == QLatin1String("bpm") || panelId == QLatin1String("meta")
+        || panelId == QLatin1String("comments") || panelId == QLatin1String("review"))
         return panelId;
     return QStringLiteral("note");
 }
@@ -963,7 +964,9 @@ QString Settings::classicRightPanelId() const
 void Settings::setClassicRightPanelId(const QString &panelId)
 {
     const QString normalized = (panelId == QLatin1String("bpm")
-                                || panelId == QLatin1String("meta"))
+                                || panelId == QLatin1String("meta")
+                                || panelId == QLatin1String("comments")
+                                || panelId == QLatin1String("review"))
                                    ? panelId
                                    : QStringLiteral("note");
     m_settings.setValue("ui/classicLayout/rightPanel", normalized);

@@ -3511,6 +3511,46 @@ Open the **History** tab for collapsible long update notes.</source>
         <source>Settings imported. Restart the editor to apply all changes.</source>
         <translation>设置已导入。重启编辑器以应用所有更改。</translation>
     </message>
+    <message>
+        <source>Workspace</source>
+        <translation>工作区</translation>
+    </message>
+    <message>
+        <source>Editor</source>
+        <translation>编辑工具</translation>
+    </message>
+    <message>
+        <source>Open chart</source>
+        <translation>打开谱面</translation>
+    </message>
+    <message>
+        <source>Save chart</source>
+        <translation>保存谱面</translation>
+    </message>
+    <message>
+        <source>Open project</source>
+        <translation>打开工程</translation>
+    </message>
+    <message>
+        <source>Save project</source>
+        <translation>保存工程</translation>
+    </message>
+    <message>
+        <source>Merge charts…</source>
+        <translation>合并谱面…</translation>
+    </message>
+    <message>
+        <source>Layers</source>
+        <translation>图层</translation>
+    </message>
+    <message>
+        <source>Comments</source>
+        <translation>批注</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>审阅</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>
@@ -7988,6 +8028,74 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
     <message>
         <source>Invalid chart comments file: %1</source>
         <translation>谱面评论文件无效：%1</translation>
+    </message>
+    <message>
+        <source>Changes</source>
+        <translation>变更</translation>
+    </message>
+    <message>
+        <source>History</source>
+        <translation>记录</translation>
+    </message>
+    <message>
+        <source>Opacity</source>
+        <translation>不透明度</translation>
+    </message>
+    <message>
+        <source>Select a change to inspect before and after.</source>
+        <translation>选择一项变更，查看修改前后的内容。</translation>
+    </message>
+    <message>
+        <source>Before: %1
+After: %2
+Apply state: %3</source>
+        <translation>修改前：%1
+修改后：%2
+应用状态：%3</translation>
+    </message>
+    <message>
+        <source>Select a comment to read its text and target.</source>
+        <translation>选择一条批注，查看正文和标注对象。</translation>
+    </message>
+    <message>
+        <source>%1 · %2
+%3
+Target: %4 %5</source>
+        <translation>%1 · %2
+%3
+标注对象：%4 %5</translation>
+    </message>
+    <message>
+        <source>Project files</source>
+        <translation>工程文件</translation>
+    </message>
+    <message>
+        <source>Author &amp; recovery</source>
+        <translation>署名与恢复</translation>
+    </message>
+    <message>
+        <source>Recover workspace…</source>
+        <translation>恢复工作区…</translation>
+    </message>
+    <message>
+        <source>Export Difficulty…</source>
+        <translation>导出当前难度…</translation>
+    </message>
+    <message>
+        <source>Proposal</source>
+        <translation>提案</translation>
+    </message>
+    <message>
+        <source>Import…</source>
+        <translation>导入…</translation>
+    </message>
+    <message>
+        <source>Export…</source>
+        <translation>导出…</translation>
+    </message>
+    <message>
+        <source>Save as Difficulty</source>
+        <translation>另存为难度</translation>
     </message>
 </context>
 <context>

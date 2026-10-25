@@ -3513,6 +3513,46 @@ Open the **History** tab for collapsible long update notes.</source>
         <source>Settings imported. Restart the editor to apply all changes.</source>
         <translation>設定をインポートしました。すべての変更を適用するにはエディターを再起動してください。</translation>
     </message>
+    <message>
+        <source>Workspace</source>
+        <translation>ワークスペース</translation>
+    </message>
+    <message>
+        <source>Editor</source>
+        <translation>編集ツール</translation>
+    </message>
+    <message>
+        <source>Open chart</source>
+        <translation>譜面を開く</translation>
+    </message>
+    <message>
+        <source>Save chart</source>
+        <translation>譜面を保存</translation>
+    </message>
+    <message>
+        <source>Open project</source>
+        <translation>プロジェクトを開く</translation>
+    </message>
+    <message>
+        <source>Save project</source>
+        <translation>プロジェクトを保存</translation>
+    </message>
+    <message>
+        <source>Merge charts…</source>
+        <translation>譜面を結合…</translation>
+    </message>
+    <message>
+        <source>Layers</source>
+        <translation>レイヤー</translation>
+    </message>
+    <message>
+        <source>Comments</source>
+        <translation>コメント</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>レビュー</translation>
+    </message>
 </context>
 <context>
     <name>MetaEditPanel</name>
@@ -7813,6 +7853,74 @@ Applying changes later audio times, keeps note beats and offset, and is undoable
         <location filename="../../src/review/ReviewWorkspaceUi.cpp" line="1188"/>
         <source>Select a beat range or notes first.</source>
         <translation>先に拍の範囲またはノートを選択してください。</translation>
+    </message>
+    <message>
+        <source>Changes</source>
+        <translation>変更</translation>
+    </message>
+    <message>
+        <source>History</source>
+        <translation>履歴</translation>
+    </message>
+    <message>
+        <source>Opacity</source>
+        <translation>不透明度</translation>
+    </message>
+    <message>
+        <source>Select a change to inspect before and after.</source>
+        <translation>変更を選択すると変更前後の内容を確認できます。</translation>
+    </message>
+    <message>
+        <source>Before: %1
+After: %2
+Apply state: %3</source>
+        <translation>変更前: %1
+変更後: %2
+適用状態: %3</translation>
+    </message>
+    <message>
+        <source>Select a comment to read its text and target.</source>
+        <translation>コメントを選択すると本文と対象を確認できます。</translation>
+    </message>
+    <message>
+        <source>%1 · %2
+%3
+Target: %4 %5</source>
+        <translation>%1 · %2
+%3
+対象: %4 %5</translation>
+    </message>
+    <message>
+        <source>Project files</source>
+        <translation>プロジェクトファイル</translation>
+    </message>
+    <message>
+        <source>Author &amp; recovery</source>
+        <translation>作成者と復元</translation>
+    </message>
+    <message>
+        <source>Recover workspace…</source>
+        <translation>ワークスペースを復元…</translation>
+    </message>
+    <message>
+        <source>Export Difficulty…</source>
+        <translation>現在の難易度をエクスポート…</translation>
+    </message>
+    <message>
+        <source>Proposal</source>
+        <translation>提案</translation>
+    </message>
+    <message>
+        <source>Import…</source>
+        <translation>インポート…</translation>
+    </message>
+    <message>
+        <source>Export…</source>
+        <translation>エクスポート…</translation>
+    </message>
+    <message>
+        <source>Save as Difficulty</source>
+        <translation>難易度として保存</translation>
     </message>
 </context>
 <context>
