@@ -7985,6 +7985,10 @@ Target: %4 %5</source>
 <context>
     <name>CceReviewUi::NoteInspector</name>
     <message>
+        <source>Note Properties</source>
+        <translation>ノートのプロパティ</translation>
+    </message>
+    <message>
         <source>Type:</source>
         <translation>種類:</translation>
     </message>

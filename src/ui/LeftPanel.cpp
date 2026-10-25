@@ -258,6 +258,9 @@ void LeftPanel::attachStatsSection(QWidget *statsSection)
 
     m_statsSection = statsSection;
     statsSection->setParent(this);
+    // The dock's compact height limit must not follow content into the
+    // scrollable sidebar, where the visible property fields can grow.
+    statsSection->setMaximumHeight(QWIDGETSIZE_MAX);
     // 插到末尾的弹性占位之前，保证统计区块始终贴近左栏底部内容区。
     m_layout->insertWidget(m_layout->count() - 1, statsSection);
 

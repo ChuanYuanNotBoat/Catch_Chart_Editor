@@ -1848,8 +1848,10 @@ MainWindow::MainWindow(ChartController *chartCtrl,
         d->editSessionTimer.invalidate();
         d->canvas->setSourceChartPath({});
     });
-    if (auto *noteLayout = qobject_cast<QVBoxLayout *>(d->notePanel->layout()))
-        noteLayout->insertWidget(qMax(0,noteLayout->count()-1),d->reviewWorkspace->inspector());
+    if (auto *statsLayout = qobject_cast<QVBoxLayout *>(d->statsPanel->layout()))
+        statsLayout->addWidget(d->reviewWorkspace->inspector());
+    if (d->floatingToolWindowsEnabled)
+        configureCompactToolDock(d->statsToolsDock);
     if (auto *metaLayout = qobject_cast<QVBoxLayout *>(d->metaPanel->layout()))
         metaLayout->insertWidget(qMax(0, metaLayout->count() - 1),
                                  d->reviewWorkspace->createExportConfiguration(d->metaPanel));

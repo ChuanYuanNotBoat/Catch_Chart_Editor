@@ -5,6 +5,7 @@
 #include "model/BeatPosition.h"
 #include "model/Chart.h"
 
+#include <QEvent>
 #include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -88,7 +89,7 @@ QString pairValues(const QVector<QPair<Note, Note>> &pairs, bool before,
 
 NoteInspector::NoteInspector(ChartController *chartController, SelectionController *selectionController,
                              QWidget *parent)
-    : QWidget(parent), m_chartController(chartController), m_selectionController(selectionController)
+    : QGroupBox(tr("Note Properties"), parent), m_chartController(chartController), m_selectionController(selectionController)
 {
     setObjectName(QStringLiteral("reviewNoteInspector"));
     buildUi();
@@ -108,6 +109,13 @@ NoteInspector::NoteInspector(ChartController *chartController, SelectionControll
         });
     }
     refresh();
+}
+
+void NoteInspector::changeEvent(QEvent *event)
+{
+    QGroupBox::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        setTitle(tr("Note Properties"));
 }
 
 void NoteInspector::buildUi()

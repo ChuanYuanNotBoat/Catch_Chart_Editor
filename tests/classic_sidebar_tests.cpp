@@ -8,6 +8,8 @@
 #include "review/ReviewWorkspace.h"
 #include "ui/WorkbenchLayout.h"
 #include "ui/PaneContainer.h"
+#include "ui/ChartStatsPanel.h"
+#include "ui/review/NoteInspector.h"
 #include "utils/Settings.h"
 
 #include <QApplication>
@@ -15,6 +17,7 @@
 #include <QDialog>
 #include <QDir>
 #include <QDoubleSpinBox>
+#include <QLineEdit>
 #include <QSettings>
 #include <QMenu>
 #include <QPushButton>
@@ -68,6 +71,12 @@ private slots:
         QVERIFY(!dialog->isWindow());
         QVERIFY(workbench->primarySidebar()->isAncestorOf(layers));
         QVERIFY(workbench->auxiliarySidebar()->isAncestorOf(comments));
+        auto *statistics = window->findChild<ChartStatsPanel *>();
+        auto *inspector = window->findChild<CceReviewUi::NoteInspector *>();
+        QVERIFY(statistics && inspector);
+        QVERIFY(statistics->isAncestorOf(inspector));
+        QVERIFY(workbench->primarySidebar()->isAncestorOf(inspector));
+        selection.select(0);
         auto *toolbarTabs = window->findChild<QTabBar *>("reviewToolbarTabs");
         QVERIFY(toolbarTabs && toolbarTabs->isVisible());
         QCOMPARE(window->findChildren<QTabBar *>("reviewToolbarTabs").size(), 1);
@@ -116,6 +125,10 @@ private slots:
             QVERIFY(window->grab().save(directory + "/" + name + ".png"));
         };
         screenshot("classic-editor");
+        QVERIFY(statistics->maximumHeight() >= statistics->minimumHeight());
+        for (auto *editor : inspector->findChildren<QLineEdit *>())
+            if (!editor->isHidden())
+                QVERIFY(editor->height() >= editor->minimumSizeHint().height());
         selectPage("layers");
         QCOMPARE(layers->topLevelItemCount(), 1);
         auto *opacity = window->findChild<QDoubleSpinBox *>("classicLayerOpacity");
@@ -164,6 +177,7 @@ private slots:
         for (int i = 0; i < 2; ++i)
         {
             floating->setChecked(true);
+            QVERIFY(statistics->isAncestorOf(inspector));
             QCOMPARE(Settings::instance().classicRightPanelId(), QStringLiteral("comments"));
             QVERIFY(dialog->isWindow());
             QVERIFY(dialog->isAncestorOf(layers));
@@ -171,6 +185,7 @@ private slots:
             floating->setChecked(false);
             workbench = window->findChild<WorkbenchLayout *>();
             QVERIFY(workbench && !dialog->isWindow());
+            QVERIFY(workbench->primarySidebar()->isAncestorOf(inspector));
             QVERIFY(workbench->primarySidebar()->isAncestorOf(layers));
             QVERIFY(workbench->auxiliarySidebar()->paneVisible("comments"));
             QVERIFY(workbench->primarySidebar()->paneVisible("layers"));

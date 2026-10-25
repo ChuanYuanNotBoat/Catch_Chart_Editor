@@ -8160,6 +8160,10 @@ Target: %4 %5</source>
 <context>
     <name>CceReviewUi::NoteInspector</name>
     <message>
+        <source>Note Properties</source>
+        <translation>音符属性</translation>
+    </message>
+    <message>
         <source>Type:</source>
         <translation>类型：</translation>
     </message>

@@ -7956,6 +7956,10 @@ Target: %4 %5</translation>
 <context>
     <name>CceReviewUi::NoteInspector</name>
     <message>
+        <source>Note Properties</source>
+        <translation>Note Properties</translation>
+    </message>
+    <message>
         <source>Type:</source>
         <translation>Type:</translation>
     </message>

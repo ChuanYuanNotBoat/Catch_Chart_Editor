@@ -490,20 +490,21 @@ private slots:
         QVERIFY(ChartIO::load(source, unchanged, false));
         QCOMPARE(unchanged.notes().size(), 3);
     }
-    void noteInspectorUsesTheNotePaneInsteadOfCompactStatistics()
+    void noteInspectorUsesTheStatisticsSection()
     {
         auto *inspector = m_window->findChild<CceReviewUi::NoteInspector *>();
         QVERIFY(inspector);
         auto *notes = m_window->findChild<NoteEditPanel *>();
         QVERIFY(notes);
-        QVERIFY(notes->isAncestorOf(inspector));
+        QVERIFY(!notes->isAncestorOf(inspector));
         auto *statistics = m_window->findChild<ChartStatsPanel *>();
         QVERIFY(statistics);
-        QVERIFY(!statistics->isAncestorOf(inspector));
-        QWidget *parent = notes->parentWidget();
+        QVERIFY(statistics->isAncestorOf(inspector));
+        QVERIFY(!inspector->title().isEmpty());
+        QWidget *parent = statistics->parentWidget();
         while (parent && !qobject_cast<QScrollArea *>(parent))
             parent = parent->parentWidget();
-        QVERIFY2(parent, "The properties form must remain inside the existing scrollable Note pane");
+        QVERIFY2(parent, "The properties form must remain inside the scrollable Statistics section");
     }
     void toolbarOnlySwitchesToolPagesAndCommentShortcutRemainsRebindable()
     {

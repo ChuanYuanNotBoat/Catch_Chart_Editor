@@ -3,7 +3,7 @@
 #include "model/Note.h"
 
 #include <QPair>
-#include <QWidget>
+#include <QGroupBox>
 #include <QVector>
 
 class QLabel;
@@ -14,7 +14,7 @@ class SelectionController;
 
 namespace CceReviewUi
 {
-class NoteInspector : public QWidget
+class NoteInspector : public QGroupBox
 {
     Q_OBJECT
 
@@ -27,6 +27,9 @@ public:
     void setReadOnly(bool readOnly);
     void setDisplayNotes(const QVector<Note> *notes);
     bool isReadOnly() const;
+
+protected:
+    void changeEvent(QEvent *event) override;
 
 private slots:
     void refresh();

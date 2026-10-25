@@ -23,6 +23,7 @@ ChartStatsPanel::ChartStatsPanel(QWidget *parent)
 {
     QVBoxLayout *outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(0, 0, 0, 0);
+    outerLayout->setSizeConstraint(QLayout::SetMinimumSize);
 
     m_group = new QGroupBox(this);
     outerLayout->addWidget(m_group);
