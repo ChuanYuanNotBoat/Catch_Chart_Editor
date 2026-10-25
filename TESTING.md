@@ -3,7 +3,9 @@
 > 适用版本：Beta v1.12.0
 > 最后核对：2026-10-24
 
-## v1.12.0 发布前核对（2026-10-24）
+## v1.12.0 发布核对（2026-10-24／25）
+
+2026-10-25 补充经典侧栏整合和音符属性迁移，新增 `ClassicSidebarTests` 后共 39 个目标。发布验证范围包括 Release 的 `ClassicSidebarTests`、`ShortcutTests`、`ReviewWorkspaceTests` 和 `DockingLayoutTests`，直接使用 `QT_QPA_PLATFORM=offscreen` 且关闭音效；执行记录另存于 `build/v1.12.0-ui-*`。以下 38 个目标的结果属于此次 UI 调整前的基线，不能当作最终 39 个目标已全部重跑。
 
 当前功能边界和最终发布条件见 [RELEASE_READINESS.md](docs/RELEASE_READINESS.md)。本节记录当前工作区的验证，以下各日期段保留历史范围。
 
