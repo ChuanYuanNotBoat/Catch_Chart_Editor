@@ -88,9 +88,14 @@ namespace
         const QString appDir = QCoreApplication::applicationDirPath();
         const QDir appDirObj(appDir);
 
-        // Developer convenience: when running from a local build directory, prefer
-        // repository plugins so script/manifest edits are hot-reloadable without
-        // recompiling the host executable.
+        // Build/package output includes compiled process plugins as well as
+        // scripts. Prefer this complete runtime over a source-only directory.
+        const QString runtimePluginsPath = appDirObj.filePath("plugins");
+        if (QDir(runtimePluginsPath).exists())
+            return runtimePluginsPath;
+
+        // Fallback for an executable run before runtime deployment. Developers
+        // can explicitly select source plugins with MCCE_PLUGINS_DIR above.
         const QStringList devRootCandidates = {
             appDirObj.absoluteFilePath("../.."),
             appDirObj.absoluteFilePath(".."),

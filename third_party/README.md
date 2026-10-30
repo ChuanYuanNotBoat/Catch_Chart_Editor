@@ -6,6 +6,7 @@
 | QtAdvancedDockingSystem | 5.1.1 | Vendored source | https://github.com/githubuser0xFFFF/Qt-Advanced-Docking-System | LGPL-2.1-or-later (exception, see its LICENSE) | Dockable panels |
 | libogg | 1.3.5 | Vendored source | https://github.com/xiph/ogg (tag v1.3.5) | BSD-style (see `libogg/COPYING`) | Ogg bitstream muxing for audio conversion |
 | libvorbis | 1.3.7 | Vendored source | https://github.com/xiph/vorbis (tag v1.3.7) | BSD-style (see `libvorbis/COPYING`) | Ogg Vorbis encoding and seekable spectrum decoding |
+| MalodyCatch2CTB-D | 0.1.0 + CCE integration fixes | User-supplied `MalodyCatch2CTB-D-CCE-prototype.zip` | D port of https://github.com/ChuanYuanNotBoat/MalodyCatch2CTB | MIT (see `MalodyCatch2CTB-D/LICENSE`) | Standalone/process-plugin export to osu! Catch `.osz` |
 
 ## AutoTimingCore
 

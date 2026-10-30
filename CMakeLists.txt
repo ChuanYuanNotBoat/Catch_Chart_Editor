@@ -56,6 +56,12 @@ endif()
 
 add_subdirectory(src)
 
+# The Windows D process plugin is compiled independently of the Qt host.
+option(CATCHEDITOR_BUILD_CTB_PLUGIN "Build the Malody Catch to osu! Catch D plugin" ${WIN32})
+if(CATCHEDITOR_BUILD_CTB_PLUGIN)
+    add_subdirectory(third_party/MalodyCatch2CTB-D)
+endif()
+
 option(CATCHEDITOR_BUILD_AUDIO_PROBE "Build the manual Windows note-sound loopback probe" OFF)
 if(CATCHEDITOR_BUILD_AUDIO_PROBE AND WIN32)
     if(Qt6_VERSION VERSION_LESS 6.10)
@@ -107,6 +113,12 @@ if(BUILD_TESTING)
                 "QT_QPA_PLATFORM=minimal;QT_QPA_FONTDIR=C:/Windows/Fonts;QT_QPA_PLATFORM_PLUGIN_PATH=${_review_plugins}/platforms;PATH=$<TARGET_FILE_DIR:Qt6::Core>\;${_review_test_path}")
         endif()
     endfunction()
+    if(CATCHEDITOR_BUILD_CTB_PLUGIN)
+        add_local_review_test(CtbProcessPluginTests tests/ctb_process_plugin_tests.cpp)
+        target_compile_definitions(CtbProcessPluginTests PRIVATE
+            CTB_PLUGIN_RUNTIME_DIR="$<TARGET_FILE_DIR:CatchChartEditor>/plugins/malodycatch2ctb-d")
+        add_dependencies(CtbProcessPluginTests MalodyCatch2CTBPlugin)
+    endif()
     add_local_review_test(LocalIdentityTests tests/local_identity_tests.cpp)
     add_local_review_test(HyperfruitTests tests/hyperfruit_tests.cpp)
     add_local_review_test(DocumentModelTests tests/document_model_tests.cpp)

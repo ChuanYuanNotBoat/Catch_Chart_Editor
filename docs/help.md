@@ -356,6 +356,15 @@ ChartFileSystem 是一个集中式文件类型管理系统，用于 MCZ 打包�
 
 `Plugins -> Plugin Actions` 仍保留一次性范围对话框，适合不希望常驻面板时使用。
 
+### 导出 osu! Catch (.osz)
+
+Windows 版本提供 D 语言 Catch 转换插件。在 `Plugin Tools` 中点击“导出 osu! Catch (.osz)”，
+将当前谱面及同目录的音乐、图片转换为 osu! Catch 谱面包。新谱面请先保存一次。
+编辑器会先同步当前工作副本，结果保存到原谱面旁的 `ctb-output/`；重复导出会使用新文件名。
+源 `.mc` / `.mcz` 不会被插件改写。转换支持普通果子、Rain 和 BPM 变化，暂不支持 GBK 编码谱面。
+插件可执行程序也支持独立转换完整的多难度 `.mcz`，用法见运行目录中
+`plugins/malodycatch2ctb-d/README.md`。
+
 ### 插件使用注意
 
 - 如果插件菜单为空，先到 `Plugins -> Plugin Manager...` 检查插件是否启用、是否加载成功。

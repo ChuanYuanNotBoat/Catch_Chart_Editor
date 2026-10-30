@@ -1,5 +1,9 @@
 # 历史更新
 
+## Unreleased
+
+- 新增 D 语言 Malody Catch → osu! Catch 导出插件，在 Plugin Tools 中执行“导出 osu! Catch (.osz)”。读取当前同步的工作副本，将结果写入原谱面旁的 `ctb-output/`，重复导出自动避让文件名；也支持独立转换 `.mc` / 多难度 `.mcz`。Windows 构建和安装自动部署插件及 MIT 许可证。
+
 ## Beta v1.12.0（2026-10-25）
 
 本版本收录自 Beta v1.11.2（2026-09-19）发布以来的更新。

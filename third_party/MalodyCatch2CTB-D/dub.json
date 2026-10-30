@@ -1,0 +1,9 @@
+{
+  "name": "malodycatch2ctb-d",
+  "description": "Malody Catch to osu! Catch converter and CCE process plugin in D",
+  "license": "MIT",
+  "targetType": "executable",
+  "targetName": "malodycatch2ctb-d",
+  "sourcePaths": ["source"],
+  "dflags-ldc": ["-O3"]
+}

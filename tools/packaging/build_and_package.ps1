@@ -98,6 +98,16 @@ $required = @(
     "licenses\QtAdvancedDockingSystem", "licenses\libogg", "licenses\libvorbis",
     "notices\AutoTimingCore", "docs\version.md", "docs\history.md"
 )
+$cacheFile = Join-Path $buildDir 'CMakeCache.txt'
+if ((Test-Path -LiteralPath $cacheFile) -and
+    ([IO.File]::ReadAllText($cacheFile) -match '(?m)^CATCHEDITOR_BUILD_CTB_PLUGIN:BOOL=ON\s*$')) {
+    $required += @(
+        'plugins\malodycatch2ctb-d\malodycatch2ctb-d.exe',
+        'plugins\malodycatch2ctb-d\malodycatch2ctb-d.plugin.json',
+        'plugins\malodycatch2ctb-d\LICENSE',
+        'plugins\malodycatch2ctb-d\README.md'
+    )
+}
 foreach ($rel in $required) {
     if (-not (Test-Path (Join-Path $buildOutput $rel))) {
         throw "Missing packaged item: $rel"

@@ -1,0 +1,19 @@
+{
+  "pluginId": "tool.malodycatch2ctb.d",
+  "displayName": "Malody Catch → osu! Catch (D)",
+  "version": "0.1.0",
+  "description": "Convert the current saved Catch chart/package to an osu! Catch .osz archive.",
+  "author": "Community D port of ChuanYuanNotBoat/MalodyCatch2CTB",
+  "pluginApiVersion": 2,
+  "executable": "./malodycatch2ctb-d.exe",
+  "args": ["--plugin"],
+  "capabilities": ["tool_actions", "chart_observer"],
+  "localizedDisplayName": {
+    "zh_CN": "Malody Catch 转 osu! Catch（D）",
+    "en_US": "Malody Catch to osu! Catch (D)"
+  },
+  "localizedDescription": {
+    "zh_CN": "将当前已保存的 Catch 谱面或谱面包转换为 .osz，不修改原文件。",
+    "en_US": "Convert the current saved chart/package into .osz without changing the source."
+  }
+}
