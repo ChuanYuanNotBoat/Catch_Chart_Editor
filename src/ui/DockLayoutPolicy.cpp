@@ -310,6 +310,11 @@ void applyCompactToolDockPolicy(ads::CDockWidget *dock)
     }
 }
 
+void restoreToolContentSizing(QWidget *content)
+{
+    setCompactVerticalPolicy(content, false);
+}
+
 void refreshCompactToolDockPolicies(ads::CDockManager *manager)
 {
     if (!manager)

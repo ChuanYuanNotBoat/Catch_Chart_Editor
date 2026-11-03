@@ -9,6 +9,8 @@
 #include "ui/WorkbenchLayout.h"
 #include "ui/PaneContainer.h"
 #include "ui/ChartStatsPanel.h"
+#include "ui/NoteEditPanel.h"
+#include "ui/PluginActionPanel.h"
 #include "ui/review/NoteInspector.h"
 #include "utils/Settings.h"
 
@@ -17,8 +19,12 @@
 #include <QDialog>
 #include <QDir>
 #include <QDoubleSpinBox>
+#include <QComboBox>
+#include <QLabel>
 #include <QLineEdit>
 #include <QSettings>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QMenu>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -37,6 +43,101 @@ class ClassicSidebarTests : public QObject
 {
     Q_OBJECT
 private slots:
+    void pluginControlsRemainScrollable_data()
+    {
+        QTest::addColumn<bool>("startDocked");
+        QTest::addColumn<int>("actionCount");
+        QTest::newRow("classic-single") << false << 1;
+        QTest::newRow("classic-multiple") << false << 4;
+        QTest::newRow("docked-single") << true << 1;
+        QTest::newRow("docked-multiple") << true << 4;
+    }
+
+    void pluginControlsRemainScrollable()
+    {
+        QFETCH(bool, startDocked);
+        QFETCH(int, actionCount);
+        Settings::instance().setNoteSoundVolume(0);
+        Settings::instance().setFloatingToolWindowsEnabled(startDocked);
+        Settings::instance().setClassicPluginToolsVisible(true);
+        Settings::instance().clearClassicLayoutState();
+        Settings::instance().clearDockLayoutState();
+        Settings::instance().setClassicRightPanelId(QStringLiteral("note"));
+        ChartController controller;
+        SelectionController selection;
+        AudioPlayer audio;
+        PlaybackController playback(&audio);
+        MainWindow window(&controller, &selection, &playback, new Skin);
+        window.resize(1200, 720);
+        window.show();
+        auto *panel = window.findChild<PluginActionPanel *>();
+        auto *notePanel = window.findChild<NoteEditPanel *>();
+        auto *floating = window.findChild<QAction *>("view.floatingWindows");
+        QVERIFY(panel && notePanel && floating);
+        QTest::qWait(50);
+
+        QList<PluginActionPanel::Action> actions;
+        for (int i = 0; i < actionCount; ++i)
+        {
+            PluginActionPanel::Action action;
+            action.pluginDisplayName = QStringLiteral("Plugin %1").arg(i);
+            action.description = QStringLiteral("Choose the notes to format using the controls below. ")
+                .repeated(3);
+            action.meta = {{"plugin_id", QString::number(i)}, {"action_id", "format"},
+                           {"title", QStringLiteral("Format %1").arg(i)},
+                           {"scope_selector", "note_range"}};
+            actions.append(action);
+        }
+        // Runtime discovery populates the panel after the initial empty UI has
+        // already received the compact dock policy.
+        panel->setActions(actions);
+        floating->setChecked(false);
+        notePanel->setEmbeddedPluginToolsVisible(true);
+
+        for (int pass = 0; pass < 3; ++pass)
+        {
+            auto *workbench = window.findChild<WorkbenchLayout *>();
+            QVERIFY(workbench);
+            auto *host = workbench->paneContainerForPane(QStringLiteral("note"));
+            QVERIFY(host);
+            auto *scroll = host->scrollAreaForPane(QStringLiteral("note"));
+            QVERIFY(scroll);
+            QTRY_VERIFY(panel->isVisible());
+            QTRY_VERIFY2(panel->height() >= panel->minimumSizeHint().height(),
+                         "Embedded plugins must grow beyond the initial empty dock height");
+
+            QList<QPushButton *> buttons;
+            for (auto *button : panel->findChildren<QPushButton *>())
+                if (button->text().startsWith(QStringLiteral("Format ")))
+                    buttons.append(button);
+            QCOMPARE(buttons.size(), actionCount);
+            for (auto *combo : panel->findChildren<QComboBox *>())
+            {
+                combo->setCurrentIndex(2); // Entire chart hides the beat inputs.
+                QCoreApplication::processEvents();
+                combo->setCurrentIndex(1);
+            }
+            for (auto *button : buttons)
+            {
+                QTRY_VERIFY(button->height() >= button->minimumSizeHint().height());
+                QTRY_VERIFY(panel->rect().contains(QRect(button->mapTo(panel, QPoint()), button->size())));
+                scroll->ensureWidgetVisible(button, 0, 0);
+                QTRY_VERIFY(scroll->viewport()->rect().contains(
+                    QRect(button->mapTo(scroll->viewport(), QPoint()), button->size())));
+            }
+            QVERIFY(scroll->verticalScrollBar()->maximum() > 0);
+            QCOMPARE(window.size(), QSize(1200, 720));
+            const QString directory = qEnvironmentVariable("CCE_CLASSIC_SCREENSHOT_DIR");
+            if (!directory.isEmpty() && pass == 0)
+            {
+                QDir().mkpath(directory);
+                QVERIFY(window.grab().save(directory + "/plugins-" + QTest::currentDataTag() + ".png"));
+            }
+            floating->setChecked(true);
+            floating->setChecked(false);
+        }
+    }
+
     void embeddedPagesSurviveModeSwitchesAndRestart()
     {
         Settings::instance().setNoteSoundVolume(0);

@@ -2,6 +2,8 @@
 
 #include <QSize>
 
+class QWidget;
+
 namespace ads
 {
 class CDockManager;
@@ -20,5 +22,7 @@ void applyPrimaryWorkspaceDockPolicy(ads::CDockWidget *dock);
 // in the same vertical stack to absorb space released by a closed section.
 // Floating tools deliberately regain unconstrained sizing.
 void applyCompactToolDockPolicy(ads::CDockWidget *dock);
+// Release dock-only limits before reusing content in the classic sidebar.
+void restoreToolContentSizing(QWidget *content);
 void refreshCompactToolDockPolicies(ads::CDockManager *manager);
 }

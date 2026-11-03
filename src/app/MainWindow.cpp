@@ -5545,7 +5545,16 @@ void MainWindow::showDockPanel(ads::CDockWidget *dock)
         }
         if (dock == d->pluginToolsDock && scrollArea)
         {
-            scrollArea->ensureWidgetVisible(d->pluginActionPanel);
+            const QPointer<QScrollArea> scrollAreaGuard(scrollArea);
+            const QPointer<PluginActionPanel> pluginPanelGuard(d->pluginActionPanel);
+            // Showing the embedded panel changes the note page's content height.
+            // Wait for its layout pass before scrolling, otherwise the old
+            // geometry can leave the plugin controls clipped at the viewport edge.
+            QTimer::singleShot(0, this, [scrollAreaGuard, pluginPanelGuard]()
+            {
+                if (scrollAreaGuard && pluginPanelGuard)
+                    scrollAreaGuard->ensureWidgetVisible(pluginPanelGuard, 0, 0);
+            });
         }
         return;
     }
