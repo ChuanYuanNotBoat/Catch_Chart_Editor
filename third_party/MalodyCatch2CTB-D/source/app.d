@@ -14,6 +14,9 @@ import std.json : JSONValue, JSONType, parseJSON, toJSON;
 import std.math : floor, fabs;
 import std.math.traits : isFinite;
 import std.path : baseName, dirName, extension, stripExtension, buildPath;
+version (Windows) {
+    import std.process : Config, spawnProcess;
+}
 import std.stdio : stdin, stdout, stderr, writeln;
 import std.string : strip, toLower, endsWith, startsWith, replace, split;
 import std.string : representation;
@@ -499,7 +502,7 @@ private JSONValue response(JSONValue id, JSONValue result) {
 private JSONValue actions() {
     return parseJSON(`[{"action_id":"convert_current_catch_to_osz",
         "title":"导出 osu! Catch (.osz)",
-        "description":"将当前已保存的 Catch 谱面转换为 .osz，输出在谱面旁的 ctb-output 目录；不会修改原谱面。",
+        "description":"将当前已保存的 Catch 谱面转换为 .osz，输出在谱面旁的 ctb-output 目录；导出完成后会打开目录并选中生成的文件，不会修改原谱面。",
         "placement":"tools_menu","requires_undo_snapshot":false}]`);
 }
 
@@ -509,6 +512,17 @@ private string chartPath(JSONValue ctx) {
         if (p.length && exists(p)) return p;
     }
     return "";
+}
+
+private void revealExportedFile(string path) {
+    version (Windows) {
+        try {
+            spawnProcess(["explorer.exe", "/select," ~ path], stdin, stdout, stderr,
+                         null, Config.detached);
+        } catch (Exception e) {
+            stderr.writeln("[W1002] Could not reveal exported file: ", e.msg);
+        }
+    }
 }
 
 private void pluginLoop() {
@@ -536,6 +550,7 @@ private void pluginLoop() {
                         outputDir = buildPath(dirName(sourcePath), "ctb-output");
                     string target = convert(path, outputDir);
                     stderr.writeln("[I1001] Exported: ", target);
+                    revealExportedFile(target);
                     result = JSONValue(true);
                 }
             }

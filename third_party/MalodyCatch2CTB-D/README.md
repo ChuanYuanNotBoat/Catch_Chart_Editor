@@ -53,7 +53,7 @@ Or build and install directly:
 .\scripts\install.ps1 -CceExeDir 'C:\path\to\CatchChartEditor-release'
 ```
 
-`CceExeDir` must be the directory containing `CatchChartEditor.exe`. Restart CCE or reload plugins and find **导出 osu! Catch (.osz)** among plugin tools. Save a new chart before its first export. CCE synchronizes edits to its working copy before invoking the plugin. Output goes to `ctb-output/` beside the source chart (or beside the input if no source path is supplied); success/failure is returned to the host and technical log messages go to stderr.
+`CceExeDir` must be the directory containing `CatchChartEditor.exe`. Restart CCE or reload plugins and find **导出 osu! Catch (.osz)** among plugin tools. Save a new chart before its first export. CCE synchronizes edits to its working copy before invoking the plugin. Output goes to `ctb-output/` beside the source chart (or beside the input if no source path is supplied); after a successful plugin export, Windows Explorer opens that folder and selects the new `.osz`. Success/failure is returned to the host and technical log messages go to stderr.
 
 **Manual installation:** copy the executable, `LICENSE` and `plugin/malodycatch2ctb-d.plugin.json` side by side into `<CCE executable directory>/plugins/malodycatch2ctb-d/`. CCE recursively discovers manifests and resolves `./malodycatch2ctb-d.exe` relative to the manifest's folder.
 
