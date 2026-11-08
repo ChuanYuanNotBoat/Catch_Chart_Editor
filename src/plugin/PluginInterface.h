@@ -22,7 +22,7 @@ public:
         QString confirmMessage;
         QString hostAction;               // "" | undo | redo
         QString placement = "tools_menu"; // tools_menu | top_toolbar | left_sidebar | right_note_panel | plugin_context_menu
-        QString scopeSelector;            // "" | note_range (host-provided scope dialog)
+        QString scopeSelector;            // "" | note_range | ctb_export (host-provided dialog)
         bool requiresUndoSnapshot = true;
         bool checkable = false;
         bool checked = false;

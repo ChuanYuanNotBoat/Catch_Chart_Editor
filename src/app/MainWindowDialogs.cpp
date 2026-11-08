@@ -55,6 +55,8 @@
 #include <QVariant>
 #include <QSlider>
 #include <QCoreApplication>
+#include <QMap>
+#include <QStandardPaths>
 #include <QAction>
 #include <QSignalBlocker>
 #include <QStatusBar>
@@ -92,6 +94,152 @@ namespace
         // Shared with all top-level dialogs (BPM measure, log settings,
         // plugin manager, inline MainWindow dialogs) via NativeWindowTheme.
         return NativeWindowTheme::dialogStyleSheet(baseBg);
+    }
+
+    bool promptCtbExportSettings(QWidget *parent, const MetaData &chart, QVariantMap &context,
+                                 bool &openOutputFolder)
+    {
+        QDialog dialog(parent);
+        dialog.setWindowTitle(QObject::tr("osu! Catch Export Settings"));
+        dialog.setStyleSheet(themedDialogCss(Settings::instance().backgroundColor()));
+        auto *layout = new QVBoxLayout(&dialog);
+        auto *tabs = new QTabWidget(&dialog);
+        layout->addWidget(tabs);
+
+        auto *metadataPage = new QWidget(tabs);
+        auto *metadataForm = new QFormLayout(metadataPage);
+        tabs->addTab(metadataPage, QObject::tr("Metadata"));
+        auto *hint = new QLabel(QObject::tr("Leave a field blank to use its default."), metadataPage);
+        hint->setWordWrap(true);
+        metadataForm->addRow(hint);
+
+        QMap<QString, QLineEdit *> textFields;
+        const auto addText = [&](const QString &key, const QString &label, const QString &placeholder) {
+            auto *edit = new QLineEdit(metadataPage);
+            edit->setPlaceholderText(placeholder);
+            metadataForm->addRow(label, edit);
+            textFields.insert(key, edit);
+        };
+        addText("Title", QObject::tr("Title"), chart.title);
+        addText("TitleUnicode", QObject::tr("Unicode title"), QObject::tr("Same as title"));
+        addText("Artist", QObject::tr("Artist"), chart.artist);
+        addText("ArtistUnicode", QObject::tr("Unicode artist"), QObject::tr("Same as artist"));
+        addText("Creator", QObject::tr("Creator"), chart.chartAuthor);
+        addText("Version", QObject::tr("Difficulty name"), chart.difficulty);
+        addText("Source", QObject::tr("Source"), QStringLiteral("Malody catch"));
+        addText("Tags", QObject::tr("Tags"), QStringLiteral("malody catch"));
+
+        auto *difficultyPage = new QWidget(tabs);
+        auto *difficultyForm = new QFormLayout(difficultyPage);
+        tabs->addTab(difficultyPage, QObject::tr("Difficulty"));
+
+        auto *judge = new QComboBox(difficultyPage);
+        judge->addItems({QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("C"),
+                         QStringLiteral("D"), QStringLiteral("E"), QObject::tr("Custom CS")});
+        judge->setCurrentIndex(Settings::instance().hyperfruitJudgeLevel());
+        auto *pro = new QCheckBox(QObject::tr("Pro judge"), difficultyPage);
+        pro->setChecked(Settings::instance().hyperfruitProJudge());
+        auto *preset = new QHBoxLayout;
+        preset->addWidget(judge, 1);
+        preset->addWidget(pro);
+        difficultyForm->addRow(QObject::tr("Malody judge"), preset);
+
+        QMap<QString, QDoubleSpinBox *> numberFields;
+        const auto addNumber = [&](const QString &key, const QString &label, double min, double max,
+                                   double value, int decimals = 2) {
+            auto *spin = new QDoubleSpinBox(difficultyPage);
+            spin->setDecimals(decimals);
+            spin->setRange(min, max);
+            spin->setSingleStep(0.1);
+            spin->setValue(value);
+            difficultyForm->addRow(label, spin);
+            numberFields.insert(key, spin);
+            return spin;
+        };
+        auto *cs = addNumber("CircleSize", QObject::tr("Circle size (CS)"), 0, 10, 0, 4);
+        const auto applyJudgePreset = [judge, pro, cs]() {
+            // A–E values from the converter's catch-width equivalence table.
+            constexpr double circleSizes[2][5] = {
+                {2.1061, 3.3105, 4.1134, 4.7558, 5.3981},
+                {2.6079, 3.7521, 4.5149, 5.1251, 5.7354},
+            };
+            const int index = judge->currentIndex();
+            const bool isPreset = index >= 0 && index < 5;
+            pro->setEnabled(isPreset);
+            cs->setReadOnly(isPreset);
+            if (isPreset)
+                cs->setValue(circleSizes[pro->isChecked()][index]);
+        };
+        QObject::connect(judge, &QComboBox::currentIndexChanged, &dialog, applyJudgePreset);
+        QObject::connect(pro, &QCheckBox::toggled, &dialog, applyJudgePreset);
+        applyJudgePreset();
+
+        addNumber("HPDrainRate", QObject::tr("HP drain rate"), 0, 10, 5);
+        addNumber("OverallDifficulty", QObject::tr("Overall difficulty (OD)"), 0, 10, 5);
+        auto *autoAr = new QCheckBox(QObject::tr("Derive AR from chart speed"), difficultyPage);
+        autoAr->setChecked(true);
+        difficultyForm->addRow(autoAr);
+        auto *ar = addNumber("ApproachRate", QObject::tr("Approach rate (AR)"), 0, 10, chart.speed - 0.5);
+        ar->setEnabled(false);
+        QObject::connect(autoAr, &QCheckBox::toggled, ar, [ar](bool automatic) { ar->setEnabled(!automatic); });
+        addNumber("SliderMultiplier", QObject::tr("Slider multiplier"), 0.4, 3.6, 1.8);
+        addNumber("SliderTickRate", QObject::tr("Slider tick rate"), 0.5, 8, 1);
+
+        auto *outputForm = new QFormLayout;
+        auto *directoryRow = new QHBoxLayout;
+        auto *directory = new QLineEdit(&dialog);
+        directory->setReadOnly(true);
+        directory->setPlaceholderText(QObject::tr("Choose a folder for the .osz file"));
+        directoryRow->addWidget(directory, 1);
+        auto *browse = new QPushButton(QObject::tr("Browse..."), &dialog);
+        directoryRow->addWidget(browse);
+        outputForm->addRow(QObject::tr("Export folder"), directoryRow);
+        layout->addLayout(outputForm);
+
+        auto *openFolder = new QCheckBox(QObject::tr("Open export folder when finished"), &dialog);
+        openFolder->setChecked(true);
+        layout->addWidget(openFolder);
+
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        auto *exportButton = buttons->button(QDialogButtonBox::Ok);
+        exportButton->setText(QObject::tr("Export"));
+        exportButton->setEnabled(false);
+        layout->addWidget(buttons);
+
+        QString outputDirectory;
+        QObject::connect(browse, &QPushButton::clicked, &dialog, [&]() {
+            const QString initial = outputDirectory.isEmpty()
+                                        ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
+                                        : outputDirectory;
+            const QString selected = QFileDialog::getExistingDirectory(
+                &dialog, QObject::tr("Choose Export Folder"), initial);
+            if (selected.isEmpty())
+                return;
+            outputDirectory = QDir(selected).absolutePath();
+            directory->setText(QDir::toNativeSeparators(outputDirectory));
+            exportButton->setEnabled(true);
+        });
+        QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        if (dialog.exec() != QDialog::Accepted || outputDirectory.isEmpty())
+            return false;
+
+        QVariantMap fields;
+        for (auto it = textFields.cbegin(); it != textFields.cend(); ++it)
+        {
+            const QString value = it.value()->text().trimmed();
+            if (!value.isEmpty())
+                fields.insert(it.key(), value);
+        }
+        for (auto it = numberFields.cbegin(); it != numberFields.cend(); ++it)
+        {
+            if (it.value() != ar || !autoAr->isChecked())
+                fields.insert(it.key(), it.value()->value());
+        }
+        context.insert(QStringLiteral("export_fields"), fields);
+        context.insert(QStringLiteral("output_directory"), outputDirectory);
+        openOutputFolder = openFolder->isChecked();
+        return true;
     }
 
     QString humanizeActionId(const QString &actionId)
@@ -620,7 +768,15 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
 
     const bool hasProvidedActionContext = meta.contains(QStringLiteral("action_context"));
     QVariantMap actionContext = meta.value(QStringLiteral("action_context")).toMap();
-    if (scopeSelector == QLatin1String("note_range") && !hasProvidedActionContext)
+    const bool isCtbExport = scopeSelector == QLatin1String("ctb_export");
+    bool openOutputFolder = false;
+    if (isCtbExport)
+    {
+        if (!promptCtbExportSettings(this, d->chartController->chart()->meta(),
+                                     actionContext, openOutputFolder))
+            return false;
+    }
+    else if (scopeSelector == QLatin1String("note_range") && !hasProvidedActionContext)
     {
         QDialog scopeDialog(this);
         scopeDialog.setWindowTitle(tr("Format Note Colors"));
@@ -753,6 +909,7 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
     }
     const quint64 actionGeneration = ++d->pluginActionGeneration;
 
+    const QString outputDirectory = actionContext.value(QStringLiteral("output_directory")).toString();
     const auto finishToolAction = [this,
                                    pluginId,
                                    actionId,
@@ -760,7 +917,10 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
                                    chartPath,
                                    requiresUndo,
                                    actionGeneration,
-                                   applyPostActionPluginModeSync](bool ok) {
+                                   applyPostActionPluginModeSync,
+                                   isCtbExport,
+                                   outputDirectory,
+                                   openOutputFolder](bool ok) {
         if (d->pluginActionGeneration != actionGeneration)
             return;
         d->pendingPluginRequestId = 0;
@@ -771,6 +931,18 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
                              .arg(actionId)
                              .arg(chartPath));
             QMessageBox::warning(this, tr("Plugin Action"), tr("Plugin action failed: %1").arg(actionTitle));
+            return;
+        }
+
+        if (isCtbExport)
+        {
+            statusBar()->showMessage(tr("Exported to %1").arg(QDir::toNativeSeparators(outputDirectory)), 5000);
+            if (openOutputFolder && !QDesktopServices::openUrl(QUrl::fromLocalFile(outputDirectory)))
+            {
+                QMessageBox::warning(this, tr("Plugin Action"),
+                                     tr("Could not open the export folder.\n%1")
+                                         .arg(QDir::toNativeSeparators(outputDirectory)));
+            }
             return;
         }
 
@@ -802,6 +974,7 @@ bool MainWindow::runPluginActionWithMeta(const QVariantMap &meta)
         }
 
         statusBar()->showMessage(tr("Plugin action completed: %1").arg(actionTitle), 2500);
+
         refreshPluginUiExtensions();
         applyPostActionPluginModeSync();
     };

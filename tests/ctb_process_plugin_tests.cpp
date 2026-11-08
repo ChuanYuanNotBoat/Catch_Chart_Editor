@@ -53,17 +53,20 @@ private slots:
         const auto actions = m_plugin->toolActions();
         QCOMPARE(actions.size(), 1);
         QCOMPARE(actions.first().actionId, QStringLiteral("convert_current_catch_to_osz"));
+        QCOMPARE(actions.first().scopeSelector, QStringLiteral("ctb_export"));
         QVERIFY(!actions.first().requiresUndoSnapshot);
     }
 
-    void exportLatestWorkingCopyBesideSource()
+    void exportLatestWorkingCopyToSelectedDirectory()
     {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         const QString workingDir = temp.filePath(QStringLiteral("session"));
         const QString sourceDir = temp.filePath(QStringLiteral("用户谱面"));
+        const QDir output(temp.filePath(QStringLiteral("手选目录 #1")));
         QVERIFY(QDir().mkpath(workingDir));
         QVERIFY(QDir().mkpath(sourceDir));
+        QVERIFY(QDir().mkpath(output.absolutePath()));
         const QString source = sourceDir + QStringLiteral("/original.mc");
         const QString working = workingDir + QStringLiteral("/working.mc");
         const QByteArray original = "saved source stays unchanged";
@@ -73,14 +76,17 @@ private slots:
             "note":[{"type":1,"beat":[0,0,1],"sound":"track.ogg"},
                     {"type":0,"beat":[1,0,1],"x":256}]})"));
         QVERIFY(writeFile(workingDir + QStringLiteral("/track.ogg"), "fixture"));
-        const QVariantMap context{{QStringLiteral("chart_path"), working},
-                                  {QStringLiteral("chart_path_source"), source}};
+        QVariantMap context{{QStringLiteral("chart_path"), working},
+                            {QStringLiteral("chart_path_source"), source}};
         bool called = false;
+        QVERIFY(!runAction(context, called));
+        QVERIFY(called);
+        context.insert(QStringLiteral("output_directory"), output.absolutePath());
         QVERIFY(runAction(context, called));
         QVERIFY(called);
-        const QDir output(sourceDir + QStringLiteral("/ctb-output"));
         QVERIFY(output.exists(QStringLiteral("最新谱面.osz")));
         QVERIFY(!QDir(workingDir).exists(QStringLiteral("ctb-output")));
+        QVERIFY(!QDir(sourceDir).exists(QStringLiteral("ctb-output")));
         QVERIFY(runAction(context, called));
         QVERIFY(called);
         QCOMPARE(output.entryList({QStringLiteral("*.osz")}, QDir::Files).size(), 2);

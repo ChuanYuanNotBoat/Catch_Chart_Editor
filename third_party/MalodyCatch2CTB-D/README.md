@@ -53,7 +53,7 @@ Or build and install directly:
 .\scripts\install.ps1 -CceExeDir 'C:\path\to\CatchChartEditor-release'
 ```
 
-`CceExeDir` must be the directory containing `CatchChartEditor.exe`. Restart CCE or reload plugins and find **导出 osu! Catch (.osz)** among plugin tools. Save a new chart before its first export. CCE synchronizes edits to its working copy before invoking the plugin. Output goes to `ctb-output/` beside the source chart (or beside the input if no source path is supplied); after a successful plugin export, Windows Explorer opens that folder and selects the new `.osz`. Success/failure is returned to the host and technical log messages go to stderr.
+`CceExeDir` must be the directory containing `CatchChartEditor.exe`. Restart CCE or reload plugins and find **导出 osu! Catch (.osz)** among plugin tools. Save a new chart before its first export. The export dialog lets you override metadata and difficulty fields, set CS from the Malody A–E and Pro presets or enter a custom value, and choose the output folder. CCE synchronizes edits to its working copy before invoking the plugin and can open the chosen folder after a successful export. The plugin reports its result to the host and logs to stderr.
 
 **Manual installation:** copy the executable, `LICENSE` and `plugin/malodycatch2ctb-d.plugin.json` side by side into `<CCE executable directory>/plugins/malodycatch2ctb-d/`. CCE recursively discovers manifests and resolves `./malodycatch2ctb-d.exe` relative to the manifest's folder.
 
@@ -77,7 +77,7 @@ Or build and install directly:
 6. Plugin actions use CCE's **15-second** timeout for `runToolAction`; huge packages may time out. For very large packages use CLI mode.
 7. One `.mcz` produces one `.osz`; `--dedupe` is a CLI-only option.
 8. Does not port the original Python CLI's directory-recursive scanning or automatic archive-to-`input` workflow (neither is appropriate to a one-click CCE plugin).
-9. Does not implement preview audio, conversion progress bars or GUI configuration.
+9. The standalone converter runs from the command line. The CCE integration provides the export settings dialog.
 
 ## Suggested verification before merging
 
