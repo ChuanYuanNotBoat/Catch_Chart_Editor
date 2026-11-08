@@ -5,6 +5,12 @@
 #include <QAudioOutput>
 #include <QMetaObject>
 #include <QTimer>
+#include <atomic>
+#include <memory>
+
+#ifdef _WIN32
+class WindowsAudioOutput;
+#endif
 
 class AudioPlayer : public QObject
 {
@@ -51,12 +57,16 @@ public:
     bool audioCorrectionEnabled() const;
     qint64 adjustedPosition() const;
     void setAdjustedPosition(qint64 adjustedMs);
+    bool hasOutputClock() const;
+    double outputTime(qint64 aheadNs = 0) const;
+    void setPlaybackLimit(double adjustedEndMs);
     double positionGranularityMs() const { return m_positionGranularityMs; }
 
 signals:
     void positionChanged(qint64 position);
     void durationChanged(qint64 duration);
     void stateChanged(QMediaPlayer::PlaybackState state);
+    void playbackLimitReached();
     void errorOccurred(const QString &error);
     void loadingStateChanged(LoadingState state);
 
@@ -80,6 +90,19 @@ private:
     // This is measurement uncertainty, never an output-latency correction.
     double m_positionGranularityMs = 0.0;
 
+#ifdef _WIN32
+    void prepareNativeOutput(const QString &path, quint64 generation);
+    void pollNativeOutput();
+    void requestNativePosition(double positionMs, bool reopenDevice = false);
+    std::unique_ptr<WindowsAudioOutput> m_nativeOutput;
+    std::shared_ptr<std::atomic_bool> m_nativePreparation;
+    QTimer m_nativePoll;
+    QMediaPlayer::PlaybackState m_nativeState = QMediaPlayer::StoppedState;
+    QByteArray m_nativeDeviceId;
+    double m_playbackLimitMs = -1;
+#endif
+
+    double correctionMs() const;
     void cancelPendingLoad();
     void disconnectLoadSignals();
     void finishLoadFailure(const QString &message);

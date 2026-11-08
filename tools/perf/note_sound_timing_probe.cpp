@@ -190,6 +190,8 @@ int main(int argc, char **argv)
     parser.addOption(QCommandLineOption("streaming", "Reproduce the previous LowLatencyStreaming configuration"));
     parser.process(app);
     if (!temporary.isValid() || !parser.isSet("output")) return 2;
+    if (parser.isSet("file-playback") || parser.isSet("streaming"))
+        qputenv("CCE_LEGACY_AUDIO", "1");
     QString musicPath = temporary.filePath("music.wav");
     const QString hitPath = parser.isSet("hit-file") ? QFileInfo(parser.value("hit-file")).absoluteFilePath() :
         temporary.filePath("hit.wav");
@@ -339,6 +341,7 @@ int main(int argc, char **argv)
                     {"chart", parser.value("chart")}, {"chart_offset", chart.meta().offset},
                     {"start_ms", parser.value("start-ms").toDouble()},
                     {"device", QMediaDevices::defaultAudioOutput().description()},
+                    {"output_clock", audio.hasOutputClock()},
                     {"file_playback", parser.isSet("file-playback")},
                     {"streaming", parser.isSet("streaming")},
                     {"decoded_buffers", decodedBuffers},

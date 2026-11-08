@@ -213,7 +213,8 @@ target_link_libraries(CatchChartEditorRuntime
 )
 
 if(WIN32)
-    target_link_libraries(CatchChartEditorRuntime PUBLIC dwmapi)
+    target_sources(CatchChartEditorRuntime PRIVATE audio/WindowsAudioOutput.cpp)
+    target_link_libraries(CatchChartEditorRuntime PUBLIC dwmapi ole32 uuid avrt)
 endif()
 
 if(COMMAND qt_finalize_executable)

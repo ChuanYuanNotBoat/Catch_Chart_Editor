@@ -10,6 +10,13 @@
 #include <QFileInfo>
 #include <QTemporaryFile>
 #include <QUrl>
+#ifdef _WIN32
+#include "WindowsAudioOutput.h"
+#include <QAudioDevice>
+#include <QFutureWatcher>
+#include <QMediaDevices>
+#include <QtConcurrentRun>
+#endif
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
 #include <QAudioBufferOutput>
 #include <QAudioBuffer>
@@ -52,20 +59,63 @@ AudioPlayer::AudioPlayer(QObject *parent)
     }
 #endif
 
-    connect(m_player, &QMediaPlayer::positionChanged, this, &AudioPlayer::positionChanged);
+    connect(m_player, &QMediaPlayer::positionChanged, this, [this](qint64 positionMs) {
+        if (!hasOutputClock())
+            emit positionChanged(positionMs);
+    });
     connect(m_player, &QMediaPlayer::durationChanged, this, &AudioPlayer::durationChanged);
-    connect(m_player, &QMediaPlayer::playbackStateChanged, this, &AudioPlayer::stateChanged);
+    connect(m_player, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState state) {
+        if (!hasOutputClock())
+            emit stateChanged(state);
+    });
+    connect(m_player, &QMediaPlayer::errorOccurred, this,
+            [this](QMediaPlayer::Error error, const QString &message) {
+        if (!hasOutputClock() && m_loaded && error != QMediaPlayer::NoError)
+        {
+            m_lastError = message;
+            emit errorOccurred(message);
+        }
+    });
 
+#ifdef _WIN32
+    m_nativePoll.setTimerType(Qt::PreciseTimer);
+    m_nativePoll.setInterval(10);
+    connect(&m_nativePoll, &QTimer::timeout, this, &AudioPlayer::pollNativeOutput);
+    auto *devices = new QMediaDevices(this);
+    connect(devices, &QMediaDevices::audioOutputsChanged, this, [this] {
+        const auto deviceId = QMediaDevices::defaultAudioOutput().id();
+        if (m_nativeOutput && deviceId != m_nativeDeviceId)
+        {
+            m_nativeDeviceId = deviceId;
+            requestNativePosition(m_nativeOutput->positionMs(), true);
+        }
+    });
+#endif
     m_loadTimeoutTimer->setSingleShot(true);
     connect(m_loadTimeoutTimer, &QTimer::timeout, this, [this]() {
-        if (m_loadingState == LoadingState::Loading)
-            finishLoadFailure(tr("Audio loading timed out after 5 seconds."));
+        if (m_loadingState != LoadingState::Loading)
+            return;
+#ifdef _WIN32
+        if (m_nativePreparation &&
+            (m_player->mediaStatus() == QMediaPlayer::LoadedMedia ||
+             m_player->mediaStatus() == QMediaPlayer::BufferedMedia))
+        {
+            m_nativePreparation->store(true);
+            m_nativePreparation.reset();
+            finishLoadSuccess();
+            return;
+        }
+#endif
+        finishLoadFailure(tr("Audio loading timed out after 5 seconds."));
     });
 }
 
 AudioPlayer::~AudioPlayer()
 {
     cancelPendingLoad();
+#ifdef _WIN32
+    m_nativeOutput.reset();
+#endif
     // Release the backend's open media handle before removing temporary audio.
     disconnect(m_player, nullptr, this, nullptr);
     delete m_player;
@@ -101,12 +151,19 @@ void AudioPlayer::cancelPendingLoad()
     ++m_loadGeneration;
     m_loadTimeoutTimer->stop();
     disconnectLoadSignals();
+#ifdef _WIN32
+    if (m_nativePreparation)
+        m_nativePreparation->store(true);
+    m_nativePreparation.reset();
+#endif
 }
 
 void AudioPlayer::finishLoadFailure(const QString &message)
 {
-    m_loadTimeoutTimer->stop();
-    disconnectLoadSignals();
+    cancelPendingLoad();
+#ifdef _WIN32
+    m_nativeOutput.reset();
+#endif
     m_lastError = message;
     Logger::error(QString("AudioPlayer::load - %1").arg(message));
     setLoadingState(LoadingState::Error);
@@ -115,6 +172,10 @@ void AudioPlayer::finishLoadFailure(const QString &message)
 
 void AudioPlayer::finishLoadSuccess()
 {
+#ifdef _WIN32
+    if (m_nativePreparation)
+        return;
+#endif
     const qint64 mediaDuration = m_player->duration();
     if (mediaDuration <= 0)
     {
@@ -143,7 +204,10 @@ bool AudioPlayer::load(const QString &filePath)
     m_lastError.clear();
     m_currentLoadPath.clear();
     m_positionGranularityMs = 0.0;
-    m_player->stop();
+    stop();
+#ifdef _WIN32
+    m_nativeOutput.reset();
+#endif
     m_player->setSource(QUrl());
     cleanupTempAudioFiles();
 
@@ -204,6 +268,11 @@ bool AudioPlayer::load(const QString &filePath)
         });
 
     Logger::debug(QString("AudioPlayer::load - Source URL: %1").arg(url.toString()));
+#ifdef _WIN32
+    // Keep the original player available for unsupported sources or devices.
+    if (!qEnvironmentVariableIntValue("CCE_LEGACY_AUDIO"))
+        prepareNativeOutput(fileInfo.absoluteFilePath(), generation);
+#endif
     m_player->setSource(url);
     if (m_loadingState == LoadingState::Loading)
         m_loadTimeoutTimer->start(5000);
@@ -274,26 +343,74 @@ void AudioPlayer::cleanupTempAudioFiles()
 
 void AudioPlayer::play()
 {
+#ifdef _WIN32
+    if (m_nativeOutput)
+    {
+        if (m_nativeState == QMediaPlayer::PlayingState)
+            return;
+        m_nativeState = QMediaPlayer::PlayingState;
+        requestNativePosition(m_nativeOutput->positionMs());
+        m_nativePoll.start();
+        emit stateChanged(m_nativeState);
+        return;
+    }
+#endif
     m_player->play();
 }
 
 void AudioPlayer::pause()
 {
+#ifdef _WIN32
+    if (m_nativeOutput)
+    {
+        if (m_nativeState != QMediaPlayer::PlayingState)
+            return;
+        m_nativeState = QMediaPlayer::PausedState;
+        m_nativePoll.stop();
+        requestNativePosition(m_nativeOutput->positionMs());
+        emit stateChanged(m_nativeState);
+        return;
+    }
+#endif
     m_player->pause();
 }
 
 void AudioPlayer::stop()
 {
+#ifdef _WIN32
+    if (m_nativeOutput)
+    {
+        if (m_nativeState == QMediaPlayer::StoppedState)
+            return;
+        m_nativeState = QMediaPlayer::StoppedState;
+        m_nativePoll.stop();
+        requestNativePosition(0);
+        emit stateChanged(m_nativeState);
+        return;
+    }
+#endif
     m_player->stop();
 }
 
 void AudioPlayer::setPosition(qint64 positionMs)
 {
+#ifdef _WIN32
+    if (m_nativeOutput)
+    {
+        requestNativePosition(positionMs);
+        emit positionChanged(position());
+        return;
+    }
+#endif
     m_player->setPosition(positionMs);
 }
 
 qint64 AudioPlayer::position() const
 {
+#ifdef _WIN32
+    if (m_nativeOutput)
+        return qRound64(m_nativeOutput->positionMs());
+#endif
     return m_player->position();
 }
 
@@ -304,12 +421,23 @@ qint64 AudioPlayer::duration() const
 
 void AudioPlayer::setSpeed(double speed)
 {
+#ifdef _WIN32
+    const double nativePosition = m_nativeOutput ? m_nativeOutput->positionMs() : 0.0;
+#endif
     m_player->setPlaybackRate(speed);
+#ifdef _WIN32
+    if (m_nativeOutput)
+        requestNativePosition(nativePosition);
+#endif
 }
 
 void AudioPlayer::setMuted(bool muted)
 {
     m_audioOutput->setMuted(muted);
+#ifdef _WIN32
+    if (m_nativeOutput)
+        m_nativeOutput->setMuted(muted);
+#endif
 }
 
 bool AudioPlayer::isMuted() const
@@ -324,11 +452,19 @@ double AudioPlayer::speed() const
 
 bool AudioPlayer::isPlaying() const
 {
+#ifdef _WIN32
+    if (m_nativeOutput)
+        return m_nativeState == QMediaPlayer::PlayingState;
+#endif
     return m_player->playbackState() == QMediaPlayer::PlayingState;
 }
 
 bool AudioPlayer::isPaused() const
 {
+#ifdef _WIN32
+    if (m_nativeOutput)
+        return m_nativeState == QMediaPlayer::PausedState;
+#endif
     return m_player->playbackState() == QMediaPlayer::PausedState;
 }
 
@@ -379,25 +515,114 @@ bool AudioPlayer::audioCorrectionEnabled() const
 
 qint64 AudioPlayer::adjustedPosition() const
 {
-    if (!m_audioCorrectionEnabled)
-        return position();
-
-    // Device latency is wall-clock time. Convert it to media-timeline time;
-    // the user/chart offset is already expressed in media-timeline ms.
-    const double totalOffset = static_cast<double>(m_userOffset) +
-                               PlaybackTiming::wallDurationToMediaMs(m_audioLatency, speed());
-    return qRound64(static_cast<double>(position()) + totalOffset);
+    return qRound64(outputTime());
 }
 
 void AudioPlayer::setAdjustedPosition(qint64 adjustedMs)
 {
-    if (!m_audioCorrectionEnabled)
-    {
-        setPosition(adjustedMs);
-        return;
-    }
-
-    const double totalOffset = static_cast<double>(m_userOffset) +
-                               PlaybackTiming::wallDurationToMediaMs(m_audioLatency, speed());
-    setPosition(qRound64(static_cast<double>(adjustedMs) - totalOffset));
+    setPosition(qRound64(static_cast<double>(adjustedMs) - correctionMs()));
 }
+
+double AudioPlayer::correctionMs() const
+{
+    if (!m_audioCorrectionEnabled)
+        return 0;
+    return m_userOffset + PlaybackTiming::wallDurationToMediaMs(m_audioLatency, speed());
+}
+
+bool AudioPlayer::hasOutputClock() const
+{
+#ifdef _WIN32
+    return bool(m_nativeOutput);
+#else
+    return false;
+#endif
+}
+
+double AudioPlayer::outputTime(qint64 aheadNs) const
+{
+#ifdef _WIN32
+    if (m_nativeOutput)
+        return m_nativeOutput->positionMs(aheadNs) + correctionMs();
+#else
+    Q_UNUSED(aheadNs);
+#endif
+    return m_player->position() + correctionMs();
+}
+
+void AudioPlayer::setPlaybackLimit(double adjustedEndMs)
+{
+#ifdef _WIN32
+    if (m_playbackLimitMs == adjustedEndMs)
+        return;
+    m_playbackLimitMs = adjustedEndMs;
+    if (m_nativeOutput && m_nativeState == QMediaPlayer::PlayingState)
+        requestNativePosition(m_nativeOutput->positionMs());
+#else
+    Q_UNUSED(adjustedEndMs);
+#endif
+}
+
+#ifdef _WIN32
+void AudioPlayer::prepareNativeOutput(const QString &path, quint64 generation)
+{
+    const auto cancel = m_nativePreparation = std::make_shared<std::atomic_bool>(false);
+    using Result = std::shared_ptr<const WindowsAudioOutput::Pcm>;
+    auto *watcher = new QFutureWatcher<Result>(this);
+    connect(watcher, &QFutureWatcher<Result>::finished, this, [this, watcher, generation, cancel] {
+        watcher->deleteLater();
+        if (cancel->load() || generation != m_loadGeneration || m_loadingState != LoadingState::Loading)
+            return;
+        m_nativePreparation.reset();
+        const auto pcm = watcher->result();
+        if (pcm)
+        {
+            m_nativeOutput = std::make_unique<WindowsAudioOutput>(pcm);
+            m_nativeOutput->setMuted(isMuted());
+            m_nativeDeviceId = QMediaDevices::defaultAudioOutput().id();
+        }
+        if (m_player->mediaStatus() == QMediaPlayer::LoadedMedia ||
+            m_player->mediaStatus() == QMediaPlayer::BufferedMedia)
+            finishLoadSuccess();
+    });
+    watcher->setFuture(QtConcurrent::run([path, cancel] {
+        return WindowsAudioOutput::decode(path, *cancel);
+    }));
+}
+
+void AudioPlayer::requestNativePosition(double positionMs, bool reopenDevice)
+{
+    const double endMs = m_playbackLimitMs >= 0 ? std::max(0.0, m_playbackLimitMs - correctionMs()) : -1.0;
+    m_nativeOutput->setPlayback(positionMs, endMs, speed(),
+                                m_nativeState == QMediaPlayer::PlayingState, reopenDevice);
+}
+
+void AudioPlayer::pollNativeOutput()
+{
+    const auto status = m_nativeOutput->status();
+    if (status == WindowsAudioOutput::Status::Failed)
+    {
+        const auto resumeMs = position();
+        m_nativePoll.stop();
+        m_nativeOutput.reset();
+        m_nativeState = QMediaPlayer::StoppedState;
+        Logger::warn("AudioPlayer - Windows output clock unavailable, resuming with Qt playback");
+        m_player->setPosition(resumeMs);
+        m_player->play();
+    }
+    else if (status == WindowsAudioOutput::Status::Ended)
+    {
+        if (m_playbackLimitMs >= 0)
+        {
+            emit playbackLimitReached();
+            if (!m_nativeOutput || m_nativeOutput->status() != WindowsAudioOutput::Status::Ended)
+                return;
+        }
+        m_nativePoll.stop();
+        m_nativeState = QMediaPlayer::StoppedState;
+        emit stateChanged(m_nativeState);
+    }
+    else if (status == WindowsAudioOutput::Status::Playing)
+        emit positionChanged(position());
+}
+#endif

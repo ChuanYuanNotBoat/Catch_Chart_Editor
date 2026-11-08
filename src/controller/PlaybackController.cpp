@@ -60,6 +60,10 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
     connect(m_audioPlayer, &AudioPlayer::positionChanged, this, &PlaybackController::onAudioPositionChanged);
     connect(m_audioPlayer, &AudioPlayer::stateChanged, this, &PlaybackController::onAudioStateChanged);
     connect(m_audioPlayer, &AudioPlayer::errorOccurred, this, &PlaybackController::onAudioError);
+    connect(m_audioPlayer, &AudioPlayer::playbackLimitReached, this, [this] {
+        if (m_state == Playing && m_loopEnabled)
+            seekTo(m_loopStartMs);
+    });
     m_frameClock.start();
     m_frameScheduler = std::make_unique<DisplayFrameScheduler>(
         [this](const DisplayFrameScheduler::Pulse &pulse)
@@ -361,7 +365,7 @@ double PlaybackController::currentTime() const
 {
     if (m_state == Playing && m_frameAnchorValid)
         return predictedTimeAt(m_frameClock.nsecsElapsed());
-    return static_cast<double>(m_audioPlayer->adjustedPosition());
+    return m_audioPlayer->outputTime();
 }
 
 double PlaybackController::visualTime() const
@@ -413,6 +417,7 @@ void PlaybackController::setLoopRange(double startMs, double endMs, bool enabled
     enabled = enabled && endMs - startMs >= 10;
     if (m_loopStartMs == startMs && m_loopEndMs == endMs && m_loopEnabled == enabled) return;
     m_loopStartMs = startMs; m_loopEndMs = endMs; m_loopEnabled = enabled;
+    m_audioPlayer->setPlaybackLimit(enabled ? endMs : -1.0);
     emit loopRangeChanged(startMs, endMs, enabled);
 }
 
@@ -424,8 +429,13 @@ void PlaybackController::onAudioPositionChanged(qint64 position)
     QElapsedTimer fanoutTimer;
     if (probeFanout)
         fanoutTimer.start();
-    const double observedMs = static_cast<double>(m_audioPlayer->adjustedPosition());
-    if (m_state == Playing && m_loopEnabled && observedMs >= m_loopEndMs) { seekTo(m_loopStartMs); return; }
+    const bool outputClock = m_audioPlayer->hasOutputClock();
+    const double observedMs = m_audioPlayer->outputTime();
+    if (!outputClock && m_state == Playing && m_loopEnabled && observedMs >= m_loopEndMs)
+    {
+        seekTo(m_loopStartMs);
+        return;
+    }
     emit positionChanged(observedMs);
     if (probeFanout)
     {
@@ -438,6 +448,14 @@ void PlaybackController::onAudioPositionChanged(qint64 position)
     if (m_state == Playing)
     {
         const qint64 nowNs = m_frameClock.nsecsElapsed();
+        if (outputClock)
+        {
+            // Keep a recent anchor available if the endpoint has to fall back
+            // to the legacy media player. Normal playback reads the device.
+            resetFrameAnchor(observedMs, nowNs);
+            m_awaitingInitialAudioProgress = false;
+            return;
+        }
         if (m_awaitingInitialAudioProgress)
         {
             if (observedMs - m_audioProgressStartMs <= kAudioProgressEpsilonMs)
@@ -674,7 +692,20 @@ bool PlaybackController::emitFramePulse(qint64 nowNs)
         resetFrameAnchor(currentTime(), nowNs);
 
     double predictedMs = predictedTimeAt(nowNs);
-    if (m_loopEnabled && predictedMs >= m_loopEndMs) { seekTo(m_loopStartMs); predictedMs = m_loopStartMs; }
+    if (m_loopEnabled && predictedMs >= m_loopEndMs)
+    {
+        if (m_audioPlayer->hasOutputClock())
+        {
+            // Presentation may look ahead. Only actual audio progress is
+            // allowed to wrap a loop on the output-clock path.
+            predictedMs = m_loopEndMs;
+        }
+        else
+        {
+            seekTo(m_loopStartMs);
+            predictedMs = m_loopStartMs;
+        }
+    }
     predictedMs = qMax(0.0, predictedMs);
     if (predictedMs < m_lastFrameTickMs)
         predictedMs = m_lastFrameTickMs;
@@ -694,6 +725,13 @@ void PlaybackController::resetFrameAnchor(double timeMs, qint64 nowNs)
 
 double PlaybackController::predictedTimeAt(qint64 nowNs) const
 {
+    if (m_audioPlayer->hasOutputClock())
+    {
+        const double time = m_audioPlayer->outputTime(
+            std::max<qint64>(0, nowNs - m_frameClock.nsecsElapsed()));
+        const qint64 duration = m_audioPlayer->duration();
+        return duration > 0 ? std::clamp(time, 0.0, double(duration)) : std::max(0.0, time);
+    }
     if (!m_frameAnchorValid)
         return qMax(0.0, static_cast<double>(m_audioPlayer->adjustedPosition()));
 
