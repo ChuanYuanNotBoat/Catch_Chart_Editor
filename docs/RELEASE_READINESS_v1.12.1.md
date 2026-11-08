@@ -31,10 +31,10 @@ CS 快捷预设值如下。
 | Catch 导出回归 | 已通过 | CtbProcessPluginTests 和 ctb_converter_smoke 覆盖自选目录、字段覆盖、非法输入与重复导出 |
 | Hyperfruit 回归 | 已通过 | HyperfruitTests 通过 |
 | Windows 实际打开导出目录 | 待人工检查 | 代码使用对话框实际选择的输出目录打开文件管理器，仍需确认窗口跳转位置 |
-| Windows Release 全量构建及测试 | 已通过 | 编辑器和插件构建成功，41 项测试全部通过；运行时报告 Beta v1.12.1 |
-| Inno Setup 发行安装包 | 已生成，待清洁提交后重建 | 30.7 MB，完整性检查通过，路径为 dist/v1.12.1 |
-| Git 提交 | 待提交 | 提交发行候选版本的功能、文档与准备记录 |
-| 清洁工作树发行构建 | 待完成 | 提交后重新生成最终安装包，确保运行时诊断记录的源码版本对应候选提交 |
+| Windows Release 构建 | 已通过 | 清洁提交 d9dfdc8 的 Release 编译成功；运行时报告 Beta v1.12.1 |
+| Windows 全量测试 | 已通过 | 此候选提交的 41 项测试全部通过；全量构建阶段共编译 41 项测试目标 |
+| Inno Setup 发行安装包 | 已生成 | 30.7 MB，发行清单检查和安装包编译通过，路径为 dist/v1.12.1 |
+| Git 功能与版本提交 | 已提交 | d9dfdc8，feat(release): prepare beta v1.12.1 candidate |
 | Malody 客户端实际导入检查 | 待人工验收 | 使用真实客户端确认生成的 .osz 内容与音频资源 |
 | 正式版本标签、发布页和上传 | 未执行 | 候选版本准备完成后再单独执行 |
 
@@ -54,6 +54,6 @@ dist/v1.12.1/CatchChartEditor_Beta_v1.12.1_Setup.exe
 powershell -ExecutionPolicy Bypass -File tools/packaging/build_and_package.ps1 -Configuration Release -BuildDir build_clion_msvc -OutputDir dist/v1.12.1
 ```
 
-发行日志应如实记录发行脚本、测试套件和安装包编译的最终结果。
+发行脚本、测试套件和安装包编译均已执行。清洁源码提交和发行包版本均为 d9dfdc8，Debug／Release 构建的运行时版本均为 Beta v1.12.1。
 
-Release 全量构建和 41 项测试已通过。MSVC 输出包含 C4819 和 C4244 警告；windeployqt 另提示 VCINSTALLDIR 不可用，但构建、运行时版本检查、发行清单检查和 Inno Setup 编译均成功。
+Release 全量构建、41 项测试及 Inno Setup 编译均已通过。MSVC 输出包含 C4819 和 C4244 警告；windeployqt 另提示 VCINSTALLDIR 不可用，这些提示没有导致构建或打包失败。
