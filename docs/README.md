@@ -1,10 +1,9 @@
 # Malody Catch Editor 文档索引
 
-> 当前候选版本：**Beta v1.12.1（2026-11-08，发布准备中）**
+> 当前版本：**Beta v1.12.1（2026-11-09）**
 > 上一已发布版本：**Beta v1.12.0（2026-10-25）**
-> 仓库状态：**v1.12.1 尚未发布**
-> Git 标签：候选版本发布前创建
-> 索引最后核对：2026-11-08
+> Git 标签：`v1.12.1`
+> 索引最后核对：2026-11-09
 
 ## 用户文档
 
@@ -21,7 +20,7 @@
 | 文档 | 用途 |
 |------|------|
 | [AI_PROJECT_GUIDE.md](AI_PROJECT_GUIDE.md) | 当前源码结构、关键数据流、构建测试和维护约束 |
-| [RELEASE_READINESS_v1.12.1.md](RELEASE_READINESS_v1.12.1.md) | v1.12.1 候选版本、检查结果与发行包准备状态 |
+| [RELEASE_READINESS_v1.12.1.md](RELEASE_READINESS_v1.12.1.md) | v1.12.1 发布、验收结果与发行包 |
 | [RELEASE_READINESS.md](RELEASE_READINESS.md) | v1.12.0 历史发布的功能范围和核对记录 |
 | [ANALYSIS_EDITOR.md](ANALYSIS_EDITOR.md) | 分析编辑器、频谱、瞬态、音符草稿、配置与 Timing 工具 |
 | [ARCHITECTURE_FORMAT_REFERENCE.md](ARCHITECTURE_FORMAT_REFERENCE.md) | `.mc` / `.mcz` / `.cceproj` / `.ccepr`、模型、坐标、插件、sidecar 和 Malody 引擎兼容参考 |
