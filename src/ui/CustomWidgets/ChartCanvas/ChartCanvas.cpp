@@ -4,6 +4,7 @@
 #include "controller/SelectionController.h"
 #include "controller/PlaybackController.h"
 #include "audio/NoteSoundPlayer.h"
+#include "editor/NoteChain/NoteChainEditor.h"
 #include "render/NoteRenderer.h"
 #include "render/GridRenderer.h"
 #include "render/BackgroundRenderer.h"
@@ -766,11 +767,19 @@ void ChartCanvas::setMode(Mode mode)
 {
     if (m_currentMode == mode)
         return;
+    const bool wasEditingCurve = isNoteChainEditingMode();
     if (mode != PlaceRain)
     {
         m_rainFirst = true;
     }
     m_currentMode = mode;
+    if (wasEditingCurve && !isNoteChainEditingMode() && m_noteChainEditor)
+    {
+        m_noteChainEditor->cancelInteraction();
+        if (m_noteChainEditor->state().projectDirty() && !m_noteChainEditor->currentSidecarPath().isEmpty())
+            m_noteChainEditor->saveProject();
+        unsetCursor();
+    }
     update();
 }
 

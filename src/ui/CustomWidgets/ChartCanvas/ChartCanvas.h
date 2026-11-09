@@ -118,6 +118,8 @@ public:
     // NoteChain native integration
     void setNoteChainModeActive(bool active);
     bool isNoteChainModeActive() const { return m_noteChainModeActive; }
+    bool isNoteChainEditingMode() const
+    { return m_noteChainModeActive && (m_currentMode == AnchorPlace || m_currentMode == Select); }
     NoteChain::NoteChainEditor *noteChainEditor() const { return m_noteChainEditor; }
 
     // Coordinate conversion for NoteChain (made public for overlay/editor use)

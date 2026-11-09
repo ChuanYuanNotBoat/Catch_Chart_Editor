@@ -1,11 +1,10 @@
 # Malody Catch Editor 开发者项目指南
 
 > 面向新开发者和代码代理的当前仓库速查。
-> 当前版本：**Beta v1.12.0（2026-10-25）**
-> 上一版本：**Beta v1.11.2（2026-09-19）**
-> 仓库状态：**已发布（2026-10-25）**
-> Git 标签：`v1.12.0`
-> 最后核对：2026-10-24；完成度见 [RELEASE_READINESS.md](RELEASE_READINESS.md)
+> 当前版本：**Beta v1.12.1（2026-11-09）**
+> 上一已发布版本：**Beta v1.12.0（2026-10-25）**
+> Git 标签：`v1.12.1`
+> 最后核对：2026-11-09。完成度见 [RELEASE_READINESS_v1.12.1.md](RELEASE_READINESS_v1.12.1.md)
 
 ## 1. 项目边界
 
@@ -49,6 +48,11 @@ Malody Catch Editor 是 Qt 6 / C++17 桌面谱面编辑器，主目标是编辑 
 ## 3. 构建与测试
 
 Windows 多配置构建：
+
+Windows 默认同时编译 D 语言 Catch 导出插件，需安装 LDC 并将 `ldc2` 加入 PATH。
+插件构建不依赖 DUB 或网络下载；运行已编译的插件不需要 D 工具链。
+仅构建宿主时可在配置命令中添加 `-DCATCHEDITOR_BUILD_CTB_PLUGIN=OFF`。
+详见 [插件构建说明](../third_party/MalodyCatch2CTB/MalodyCatch2CTB-D/README.md)。
 
 ```powershell
 git submodule update --init --recursive
@@ -197,7 +201,7 @@ Host API 当前为 v3，扩展点包括 tool actions、floating panels、canvas 
 
 ## 10. 文档与版本规则
 
-- 当前发布版本是 Beta v1.12.0；后续未发布内容写入 `history.md` 顶部新的 `Unreleased` 段，发布核对记录见 [RELEASE_READINESS.md](RELEASE_READINESS.md)。
+- 当前版本是 Beta v1.12.1。后续未发布内容写入 history.md 顶部的 Unreleased 段，发布核对记录见 [RELEASE_READINESS_v1.12.1.md](RELEASE_READINESS_v1.12.1.md)。
 - 已发布版本段落冻结，不把后续工作回填到 Beta v1.11.2。
 - 可验证的长期优化/重构事项维护在 [ENGINEERING_TODO.md](ENGINEERING_TODO.md)；临时审计快照和重复迁移草稿不提交。
 - 新增或删除文档时同步 [README.md](README.md) 总索引。

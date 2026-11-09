@@ -132,13 +132,11 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
 
     if (m_isPlaying && m_playbackController)
     {
-        // Render from the controller's authoritative high-resolution clock.
-        // Re-anchoring a second canvas-local clock on every frame tick turns
-        // signal-handler latency into a small position jump once per tick.
-        // The tick should schedule the paint; it should not be a second clock.
-        double visualTimeMs = m_playbackController->visualTime();
-        if (m_lastPlaybackTargetTimeMs >= 0.0)
-            visualTimeMs = qMax(visualTimeMs, m_lastPlaybackTargetTimeMs);
+        // Both editors use the same presentation sample from the output clock.
+        // Keep the legacy paint-time prediction for the Qt fallback.
+        double visualTimeMs = m_lastPlaybackTargetTimeMs;
+        if (visualTimeMs < 0.0 || !m_playbackController->audioPlayer()->hasOutputClock())
+            visualTimeMs = qMax(visualTimeMs, m_playbackController->visualTime());
         m_currentPlayTime = qMax(0.0, visualTimeMs);
         advancePlaybackVisual(false, false);
     }

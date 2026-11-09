@@ -13,7 +13,7 @@
 #include <QDataStream>
 #include <QFile>
 #include <QMediaDevices>
-#include <QSettings>
+#include "isolated_settings.h"
 #include <QSignalSpy>
 #include <QSoundEffect>
 #include <QTemporaryDir>
@@ -61,8 +61,7 @@ private slots:
     void initTestCase()
     {
         QVERIFY(m_temp.isValid());
-        QSettings::setDefaultFormat(QSettings::IniFormat);
-        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_temp.path());
+        QVERIFY(initializeIsolatedSettings());
         m_music = m_temp.filePath("timeline.wav");
         m_hit = m_temp.filePath("hit.wav");
         // Long enough for FFmpeg stream probing to consume several seconds.
@@ -83,7 +82,15 @@ private slots:
         connect(output, &QAudioBufferOutput::audioBufferReceived, this, [&](const QAudioBuffer &buffer) {
             if (buffer.isValid() && firstStartUs < 0) firstStartUs = buffer.startTime();
         });
-        QVERIFY(audio.load(m_music));
+        // This assertion targets Qt's file playback intent specifically.
+        const QByteArray legacy = qgetenv("CCE_LEGACY_AUDIO");
+        qputenv("CCE_LEGACY_AUDIO", "1");
+        const bool loading = audio.load(m_music);
+        if (legacy.isNull())
+            qunsetenv("CCE_LEGACY_AUDIO");
+        else
+            qputenv("CCE_LEGACY_AUDIO", legacy);
+        QVERIFY(loading);
         QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
         audio.play();
         QTRY_VERIFY_WITH_TIMEOUT(firstStartUs >= 0, 7000);
@@ -112,6 +119,61 @@ private slots:
             1000, 2000, 1, 0, true, 85);
         QVERIFY(discontinuity.hardResync);
         QCOMPARE(discontinuity.anchorTimeMs, 1915.0);
+    }
+
+    void outputClockReanchorsAfterPauseAndSeek()
+    {
+#ifdef _WIN32
+        if (QMediaDevices::defaultAudioOutput().isNull())
+            QSKIP("No audio output device");
+        if (qEnvironmentVariableIntValue("CCE_LEGACY_AUDIO"))
+            QSKIP("Legacy audio backend requested");
+        AudioPlayer audio;
+        audio.setAudioCorrectionEnabled(false);
+        audio.setMuted(true);
+        PlaybackController playback(&audio);
+        QVERIFY(audio.load(m_music));
+        QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
+        QVERIFY(audio.hasOutputClock());
+
+        playback.playFromTime(1000);
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= 1050, 1500);
+        QVERIFY(audio.hasOutputClock());
+        playback.pause();
+        const double paused = playback.currentTime();
+        QTest::qWait(80);
+        QCOMPARE(playback.currentTime(), paused);
+
+        playback.play();
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= paused + 50, 1500);
+        playback.seekTo(2900);
+        playback.seekTo(4100);
+        QVERIFY(playback.currentTime() >= 4100);
+        QVERIFY(playback.currentTime() < 4150);
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= 4150, 1500);
+        QVERIFY(audio.hasOutputClock());
+
+        playback.setSpeed(0.25);
+        const double slowStart = playback.currentTime();
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= slowStart + 20, 1500);
+        playback.setSpeed(2);
+        const double fastStart = playback.currentTime();
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= fastStart + 80, 1500);
+        QVERIFY(audio.hasOutputClock());
+        playback.stop();
+        QCOMPARE(playback.currentTime(), 0.0);
+
+        // The final partial device period must drain and report end-of-media.
+        playback.setSpeed(1);
+        playback.playFromTime(audio.duration() - 137);
+        QTRY_VERIFY_WITH_TIMEOUT(playback.autoPausedAtEnd(), 1500);
+        playback.play();
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= 50, 1500);
+        QVERIFY(playback.currentTime() < 500);
+        playback.stop();
+#else
+        QSKIP("WASAPI is available on Windows");
+#endif
     }
 
     void canvasScrollsImmediatelyFromAudioStart_data()

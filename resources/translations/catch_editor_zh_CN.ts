@@ -2799,6 +2799,16 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>插件动作已完成: %1</translation>
     </message>
     <message>
+        <source>Exported to %1</source>
+        <translation>已导出到 %1</translation>
+    </message>
+    <message>
+        <source>Could not open the export folder.
+%1</source>
+        <translation>无法打开导出目录。
+%1</translation>
+    </message>
+    <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="368"/>
         <source>Open dockable controls for %1</source>
         <translation>打开 %1 的可停靠控制面板</translation>
@@ -4348,6 +4358,126 @@ Open the **History** tab for collapsible long update notes.</source>
 </context>
 <context>
     <name>QObject</name>
+    <message>
+        <source>osu! Catch Export Settings</source>
+        <translation>osu! Catch 导出设置</translation>
+    </message>
+    <message>
+        <source>Export all difficulties</source>
+        <translation>导出所有难度</translation>
+    </message>
+    <message>
+        <source>Select difficulties… (%1)</source>
+        <translation>选择导出难度…（%1）</translation>
+    </message>
+    <message>
+        <source>Select difficulties</source>
+        <translation>选择导出难度</translation>
+    </message>
+    <message>
+        <source>Editing difficulty</source>
+        <translation>正在设置的难度</translation>
+    </message>
+    <message>
+        <source>Metadata</source>
+        <translation>谱面信息</translation>
+    </message>
+    <message>
+        <source>Leave a field blank to use its default.</source>
+        <translation>留空时使用默认值。</translation>
+    </message>
+    <message>
+        <source>Unicode title</source>
+        <translation>原文曲名</translation>
+    </message>
+    <message>
+        <source>Same as title</source>
+        <translation>同曲名</translation>
+    </message>
+    <message>
+        <source>Unicode artist</source>
+        <translation>原文曲师</translation>
+    </message>
+    <message>
+        <source>Same as artist</source>
+        <translation>同曲师</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>来源</translation>
+    </message>
+    <message>
+        <source>Tags</source>
+        <translation>标签</translation>
+    </message>
+    <message>
+        <source>Difficulty</source>
+        <translation>难度参数</translation>
+    </message>
+    <message>
+        <source>Custom CS</source>
+        <translation>自定义 CS</translation>
+    </message>
+    <message>
+        <source>Pro judge</source>
+        <translation>Pro 判定</translation>
+    </message>
+    <message>
+        <source>Malody judge</source>
+        <translation>Malody 判定</translation>
+    </message>
+    <message>
+        <source>Circle size (CS)</source>
+        <translation>接盘大小（CS）</translation>
+    </message>
+    <message>
+        <source>HP drain rate</source>
+        <translation>血量流失率（HP）</translation>
+    </message>
+    <message>
+        <source>Overall difficulty (OD)</source>
+        <translation>整体难度（OD）</translation>
+    </message>
+    <message>
+        <source>Derive AR from chart speed</source>
+        <translation>按原谱下落速度换算 AR</translation>
+    </message>
+    <message>
+        <source>Approach rate (AR)</source>
+        <translation>下落速度（AR）</translation>
+    </message>
+    <message>
+        <source>Slider multiplier</source>
+        <translation>滑条速度倍率</translation>
+    </message>
+    <message>
+        <source>Slider tick rate</source>
+        <translation>滑条刻度频率</translation>
+    </message>
+    <message>
+        <source>Choose a folder for the .osz file</source>
+        <translation>请选择 .osz 文件的保存目录</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation>浏览…</translation>
+    </message>
+    <message>
+        <source>Export folder</source>
+        <translation>导出目录</translation>
+    </message>
+    <message>
+        <source>Open export folder when finished</source>
+        <translation>导出后打开文件夹</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>导出</translation>
+    </message>
+    <message>
+        <source>Choose Export Folder</source>
+        <translation>选择导出目录</translation>
+    </message>
     <message>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="126"/>
         <source>Plugin Action</source>

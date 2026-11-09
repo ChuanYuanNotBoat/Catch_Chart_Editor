@@ -8,7 +8,7 @@
 #include <QDialog>
 #include <QFontDatabase>
 #include <QMouseEvent>
-#include <QSettings>
+#include "isolated_settings.h"
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
@@ -27,8 +27,7 @@ private slots:
     void initTestCase()
     {
         QVERIFY(m_settings.isValid());
-        QSettings::setDefaultFormat(QSettings::IniFormat);
-        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_settings.path());
+        QVERIFY(initializeIsolatedSettings());
         QVERIFY(!Settings::instance().editorDragGridSnapEnabled());
         m_canvas = std::make_unique<ChartCanvas>();
         m_canvas->setChartController(&m_charts);

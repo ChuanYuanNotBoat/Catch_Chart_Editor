@@ -1986,7 +1986,7 @@ void MainWindow::createEditMenu()
     registerShortcutAction(d->deleteAction, "edit.delete", QKeySequence::Delete);
     connect(d->deleteAction, &QAction::triggered, this, [this]()
             {
-        if (d->canvas && d->canvas->isNoteChainModeActive() && d->canvas->noteChainEditor() &&
+        if (d->canvas && d->canvas->isNoteChainEditingMode() && d->canvas->noteChainEditor() &&
             d->canvas->noteChainEditor()->hasSelectedItems()) {
             d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
             d->canvas->noteChainEditor()->deleteSelected();
@@ -2499,7 +2499,10 @@ void MainWindow::registerCanvasCommands()
     add("curve.toggle_anchor", tr("Toggle Anchor Placement"), QKeySequence(Qt::Key_A), Scope::Curve,
         [this]() { d->canvas->noteChainEditor()->toggleAnchorPlacement(); });
     add("curve.delete", tr("Delete Curve Selection (Alternate)"), QKeySequence(Qt::Key_Backspace), Scope::Curve,
-        [this]() { d->deleteAction->trigger(); });
+        [this]() {
+            if (d->canvas->isNoteChainEditingMode())
+                d->deleteAction->trigger();
+        });
     add("curve.commit", tr("Commit Curve to Notes"), QKeySequence(Qt::Key_Return), Scope::Curve,
         [this]() { d->canvas->commitToolNotes(); });
     add("plugin.commit", tr("Commit Plugin Tool to Notes"), QKeySequence(Qt::Key_Return), Scope::Plugin,
@@ -2891,28 +2894,11 @@ void MainWindow::createCentralArea()
             return;
         }
 
-        // Select mode remains available while the native curve editor is
-        // active, allowing curve box-selection and optional note pass-through.
-        if (mode == NoteEditPanel::SelectMode && d->canvas->isNoteChainModeActive()) {
-            d->canvas->setMode(ChartCanvas::Select);
-            if (d->canvas->noteChainEditor()) {
-                d->canvas->noteChainEditor()->setAnchorPlacementEnabled(false);
-                d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext());
-            }
-            return;
-        }
-
-        if (d->canvas->isNoteChainModeActive()) {
-            if (d->pluginToolModeAction && d->pluginToolModeAction->isChecked())
-                d->pluginToolModeAction->setChecked(false);
-            else
-                d->canvas->setNoteChainModeActive(false);
-            d->notePanel->setModeFromHost(mode);
-        }
-
         if (d->canvas->isPluginToolModeActive())
             togglePluginEnhancedToolMode(false);
-        d->canvas->setMode(static_cast<ChartCanvas::Mode>(mode)); });
+        d->canvas->setMode(static_cast<ChartCanvas::Mode>(mode));
+        if (d->canvas->isNoteChainModeActive() && d->canvas->noteChainEditor())
+            d->canvas->noteChainEditor()->setHostContext(d->canvas->pluginCanvasActionContext()); });
     connect(d->notePanel, &NoteEditPanel::copyRequested, d->canvas, &ChartCanvas::handleCopy);
     connect(d->notePanel, &NoteEditPanel::deleteOnceRequested, this, [this]()
             {
@@ -5545,7 +5531,16 @@ void MainWindow::showDockPanel(ads::CDockWidget *dock)
         }
         if (dock == d->pluginToolsDock && scrollArea)
         {
-            scrollArea->ensureWidgetVisible(d->pluginActionPanel);
+            const QPointer<QScrollArea> scrollAreaGuard(scrollArea);
+            const QPointer<PluginActionPanel> pluginPanelGuard(d->pluginActionPanel);
+            // Showing the embedded panel changes the note page's content height.
+            // Wait for its layout pass before scrolling, otherwise the old
+            // geometry can leave the plugin controls clipped at the viewport edge.
+            QTimer::singleShot(0, this, [scrollAreaGuard, pluginPanelGuard]()
+            {
+                if (scrollAreaGuard && pluginPanelGuard)
+                    scrollAreaGuard->ensureWidgetVisible(pluginPanelGuard, 0, 0);
+            });
         }
         return;
     }

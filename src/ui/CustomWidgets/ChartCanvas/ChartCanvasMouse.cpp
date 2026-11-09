@@ -688,7 +688,7 @@ void ChartCanvas::populateColorMenu(QMenu *colorMenu, const QVector<int> &target
 
 void ChartCanvas::showRightClickMenu(QMouseEvent *event)
 {
-    if (m_noteChainModeActive && m_noteChainEditor)
+    if (isNoteChainEditingMode() && m_noteChainEditor)
     {
         showNoteChainContextMenu(event);
         return;
@@ -1246,8 +1246,8 @@ void ChartCanvas::mousePressEvent(QMouseEvent *event)
     }
     setFocus();
 
-    // NoteChain native: dispatch before plugin
-    if (m_noteChainModeActive && m_noteChainEditor) {
+    // Curve editing takes priority in anchor and selection modes.
+    if (isNoteChainEditingMode() && m_noteChainEditor) {
         if (ChartCanvas_dispatchNoteChainMousePress(this, event)) {
             event->accept();
             update();
@@ -1321,8 +1321,7 @@ void ChartCanvas::mousePressEvent(QMouseEvent *event)
 void ChartCanvas::mouseMoveEvent(QMouseEvent *event)
 {
     if (m_displayChart) { event->ignore(); return; }
-    // NoteChain native: dispatch before plugin
-    if (m_noteChainModeActive && m_noteChainEditor) {
+    if (isNoteChainEditingMode() && m_noteChainEditor) {
         if (ChartCanvas_dispatchNoteChainMouseMove(this, event)) {
             event->accept();
             update();
@@ -1582,8 +1581,7 @@ bool ChartCanvas::handleGenericDragRelease()
 void ChartCanvas::mouseReleaseEvent(QMouseEvent *event)
 {
     if (m_displayChart) { event->ignore(); return; }
-    // NoteChain native: dispatch before plugin
-    if (m_noteChainModeActive && m_noteChainEditor) {
+    if (isNoteChainEditingMode() && m_noteChainEditor) {
         if (ChartCanvas_dispatchNoteChainMouseRelease(this, event)) {
             event->accept();
             update();

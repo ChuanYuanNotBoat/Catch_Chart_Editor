@@ -1,3 +1,6 @@
 [submodule "third_party/AutoTimingCore"]
 	path = third_party/AutoTimingCore
 	url = https://github.com/ChuanYuanNotBoat/AutoTimingCore.git
+[submodule "third_party/MalodyCatch2CTB"]
+	path = third_party/MalodyCatch2CTB
+	url = https://github.com/ChuanYuanNotBoat/MalodyCatch2CTB.git

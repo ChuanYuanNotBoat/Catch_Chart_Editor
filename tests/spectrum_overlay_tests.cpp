@@ -14,7 +14,7 @@
 #include <QFile>
 #include <QFontDatabase>
 #include <QPainter>
-#include <QSettings>
+#include "isolated_settings.h"
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -333,10 +333,8 @@ private slots:
 
 int main(int argc, char **argv)
 {
-    QStandardPaths::setTestModeEnabled(true);
-    QTemporaryDir settings;
-    QSettings::setDefaultFormat(QSettings::IniFormat);
-    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
+    if (!initializeIsolatedSettings())
+        return 1;
     QApplication app(argc, argv);
     app.setQuitOnLastWindowClosed(false);
     SpectrumOverlayTests tests;

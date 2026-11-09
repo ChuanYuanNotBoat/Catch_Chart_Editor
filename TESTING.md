@@ -398,6 +398,20 @@ cmake --build build_clion_msvc --config Debug --target GridDragTests ResourceCop
 ctest --test-dir build_clion_msvc -C Debug -R "ui_grid_drag_tests|file_resource_copy_tests|utils_settings_transfer_tests" --output-on-failure
 ```
 
+## D Catch 导出插件
+
+Windows 默认构建 D 插件，需先安装 LDC 并将 `ldc2` 加入 PATH。
+`CtbProcessPluginTests` 使用真实清单加载器和异步进程适配器，验证动作发现、
+读取最新工作副本、将结果保存在原谱面旁、重复导出避让文件名及失败返回。
+`ctb_converter_smoke` 验证 `.mc`/`.mcz`、BPM 变化、Rain、offset、Unicode/BOM、
+多难度资源重名、默认保留重叠音符、源文件不变及协议错误恢复。
+全部写入临时目录，不修改用户谱面。
+
+```powershell
+cmake --build build --config Release --target CtbProcessPluginTests
+ctest --test-dir build -C Release -R "ctb_converter_smoke|CtbProcessPluginTests" --output-on-failure
+```
+
 ## 手工回归清单
 
 自动化测试不替代以下真实交互：

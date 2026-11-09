@@ -2,11 +2,11 @@
 
 Last audited: 2026-10-24
 
-Baseline: Beta v1.12.0 (`main` / `v2-main`); subsequent maintenance and roadmap work
+Baseline: Beta v1.12.1 candidate (v2-main); subsequent maintenance and roadmap work
 
 Current feature completion, experimental boundaries and release gates are tracked
 in [RELEASE_READINESS.md](RELEASE_READINESS.md). This file also includes future
-architecture work; unchecked future items are not automatically v1.12.0 blockers.
+architecture work; unchecked future items are not automatically v1.12.1 release blockers.
 
 ## Strategy
 

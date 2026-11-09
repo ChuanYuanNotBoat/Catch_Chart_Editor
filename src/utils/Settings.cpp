@@ -386,9 +386,15 @@ namespace
 }
 
 Settings::Settings()
-    : m_settings(QSettings::defaultFormat(), QSettings::UserScope,
-                 "CatchEditor", "CatchChartEditor")
+    : m_settings(openStore())
 {
+}
+
+QSettings Settings::openStore()
+{
+    // The organization/application-only constructor always uses NativeFormat.
+    return QSettings(QSettings::defaultFormat(), QSettings::UserScope,
+                     "CatchEditor", "CatchChartEditor");
 }
 
 Settings &Settings::instance()

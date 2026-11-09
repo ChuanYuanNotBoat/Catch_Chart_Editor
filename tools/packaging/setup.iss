@@ -3,7 +3,7 @@
 ; on any machine that has the repository and Inno Setup 6 installed.
 ;
 ; Typical invocation (see tools/packaging/build_and_package.ps1):
-;   ISCC.exe /DMyAppVersion=1.12.0 /DMyDisplayVersion="Beta v1.12.0" ^
+;   ISCC.exe /DMyAppVersion=1.12.1 /DMyDisplayVersion="Beta v1.12.1" ^
 ;            /DMyBuildDir=<repo>\build\Release /DMyOutputDir=<dist> ^
 ;            tools\packaging\setup.iss
 
@@ -16,12 +16,12 @@
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.12.0"
+  #define MyAppVersion "1.12.1"
 #endif
 #ifndef MyDisplayVersion
   #define MyDisplayVersion "Beta v" + MyAppVersion
 #endif
-; Setup file name must stay space free, e.g. CatchChartEditor_Beta_v1.12.0_Setup.
+; Setup file name must stay space free, e.g. CatchChartEditor_Beta_v1.12.1_Setup.
 #define MyTag StringChange(MyDisplayVersion, " ", "_")
 #ifndef MyBuildDir
   #define MyBuildDir "..\..\build\Release"

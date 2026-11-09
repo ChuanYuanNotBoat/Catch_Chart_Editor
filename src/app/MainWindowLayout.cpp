@@ -214,7 +214,12 @@ void MainWindow::setFloatingToolWindowsEnabled(bool enabled)
             dock->toggleView(false);
             QWidget *content = dock->takeWidget();
             if (content)
+            {
+                // Compact dock heights are snapshots of the old contents.
+                // Embedded sections must grow when plugins load or expand.
+                DockLayoutPolicy::restoreToolContentSizing(content);
                 content->setStyleSheet(QString());
+            }
             return content;
         };
 

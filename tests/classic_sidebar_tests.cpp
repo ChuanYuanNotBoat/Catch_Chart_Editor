@@ -4,11 +4,15 @@
 #include "controller/CommandRouter.h"
 #include "controller/PlaybackController.h"
 #include "controller/SelectionController.h"
+#include "editor/NoteChain/NoteChainEditor.h"
 #include "model/Skin.h"
 #include "review/ReviewWorkspace.h"
 #include "ui/WorkbenchLayout.h"
 #include "ui/PaneContainer.h"
 #include "ui/ChartStatsPanel.h"
+#include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
+#include "ui/NoteEditPanel.h"
+#include "ui/PluginActionPanel.h"
 #include "ui/review/NoteInspector.h"
 #include "utils/Settings.h"
 
@@ -17,8 +21,13 @@
 #include <QDialog>
 #include <QDir>
 #include <QDoubleSpinBox>
+#include <QComboBox>
+#include <QLabel>
 #include <QLineEdit>
+#include <QMouseEvent>
 #include <QSettings>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QMenu>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -37,6 +46,186 @@ class ClassicSidebarTests : public QObject
 {
     Q_OBJECT
 private slots:
+    void noteToolChangesKeepCurvePreviewAndSnap()
+    {
+        Settings::instance().setNoteSoundVolume(0);
+        Settings::instance().setFloatingToolWindowsEnabled(false);
+        Settings::instance().clearClassicLayoutState();
+        Settings::instance().setClassicRightPanelId(QStringLiteral("note"));
+        ChartController controller;
+        SelectionController selection;
+        AudioPlayer audio;
+        PlaybackController playback(&audio);
+        MainWindow window(&controller, &selection, &playback, new Skin);
+        window.resize(1200, 720);
+        window.show();
+
+        Chart chart;
+        chart.addBpm(BpmEntry(0, 0, 1, 120));
+        chart.addNote(Note(4, 0, 1, 100));
+        QVERIFY(controller.loadChartFromData({}, chart));
+        auto *canvas = window.findChild<ChartCanvas *>();
+        auto *panel = window.findChild<NoteEditPanel *>();
+        auto *curve = window.findChild<QToolButton *>("classic.curve");
+        auto *curveControls = window.findChild<QWidget *>("curveToolsRoot");
+        QVERIFY(canvas && panel && curve && curveControls);
+        auto *modes = panel->findChild<QButtonGroup *>();
+        QVERIFY(modes);
+
+        curve->click();
+        auto *editor = canvas->noteChainEditor();
+        QVERIFY(editor && editor->state().anchorPlacementEnabled());
+        editor->setPolylineMode(true);
+        auto &state = editor->state();
+        const int first = state.appendAnchor(250, 2);
+        const int second = state.appendAnchor(250, 6);
+        state.addLink(state.anchorAt(first).id, state.anchorAt(second).id);
+
+        for (auto mode : {NoteEditPanel::PlaceNoteMode, NoteEditPanel::PlaceRainMode,
+                          NoteEditPanel::DeleteMode, NoteEditPanel::SelectMode})
+        {
+            modes->button(mode)->click();
+            QCOMPARE(panel->currentMode(), mode);
+            QVERIFY(curve->isChecked() && curveControls->isVisible());
+            QVERIFY(canvas->isNoteChainModeActive() && editor->isActive());
+            QVERIFY(state.curveVisible() && !state.anchorPlacementEnabled());
+        }
+        canvas->setScrollPos(0);
+        canvas->setTimeScale(1.0);
+        canvas->setDragGridSnap(false);
+        const auto chartPoint = [canvas](int x, double beat) {
+            return QPoint(qRound(canvas->chartLaneXToCanvasX(x)), qRound(canvas->chartBeatToY(beat)));
+        };
+        const QPoint onCurve = chartPoint(250, 4);
+        modes->button(NoteEditPanel::PlaceNoteMode)->click();
+        QTest::mouseClick(canvas, Qt::LeftButton, Qt::NoModifier, chartPoint(400, 7));
+        QCOMPARE(controller.chart()->notes().size(), 2);
+        const Note placed = controller.chart()->notes().back();
+        modes->button(NoteEditPanel::DeleteMode)->click();
+        QTest::mouseClick(canvas, Qt::LeftButton, Qt::NoModifier, chartPoint(placed.x, placed.getStartBeat()));
+        QCOMPARE(controller.chart()->notes().size(), 1);
+
+        editor->setNoteCurveSnapEnabled(true);
+        modes->button(NoteEditPanel::PlaceNoteMode)->click();
+        QVERIFY(state.noteCurveSnapEnabled());
+        const QRect previewArea(onCurve - QPoint(2, 2), QSize(5, 5));
+        QVERIFY(canvas->rect().contains(previewArea));
+        const auto preview = canvas->grab(previewArea).toImage();
+        editor->setCurveVisible(false);
+        QVERIFY(canvas->grab(previewArea).toImage() != preview);
+        modes->button(NoteEditPanel::PlaceRainMode)->click();
+        QVERIFY(canvas->isNoteChainModeActive() && !state.curveVisible());
+        editor->setCurveVisible(true);
+        modes->button(NoteEditPanel::PlaceNoteMode)->click();
+
+        const QPoint start = chartPoint(100, 4);
+        const QPoint end = onCurve + QPoint(6, 0);
+        QTest::mousePress(canvas, Qt::LeftButton, Qt::NoModifier, start);
+        QMouseEvent move(QEvent::MouseMove, QPointF(end), QPointF(canvas->mapToGlobal(end)),
+                         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(canvas, &move);
+        QTest::mouseRelease(canvas, Qt::LeftButton, Qt::NoModifier, end);
+        QCOMPARE(controller.chart()->notes().front().x, 250);
+
+        curve->click();
+        QVERIFY(!canvas->isNoteChainModeActive() && !curveControls->isVisible());
+    }
+
+    void pluginControlsRemainScrollable_data()
+    {
+        QTest::addColumn<bool>("startDocked");
+        QTest::addColumn<int>("actionCount");
+        QTest::newRow("classic-single") << false << 1;
+        QTest::newRow("classic-multiple") << false << 4;
+        QTest::newRow("docked-single") << true << 1;
+        QTest::newRow("docked-multiple") << true << 4;
+    }
+
+    void pluginControlsRemainScrollable()
+    {
+        QFETCH(bool, startDocked);
+        QFETCH(int, actionCount);
+        Settings::instance().setNoteSoundVolume(0);
+        Settings::instance().setFloatingToolWindowsEnabled(startDocked);
+        Settings::instance().setClassicPluginToolsVisible(true);
+        Settings::instance().clearClassicLayoutState();
+        Settings::instance().clearDockLayoutState();
+        Settings::instance().setClassicRightPanelId(QStringLiteral("note"));
+        ChartController controller;
+        SelectionController selection;
+        AudioPlayer audio;
+        PlaybackController playback(&audio);
+        MainWindow window(&controller, &selection, &playback, new Skin);
+        window.resize(1200, 720);
+        window.show();
+        auto *panel = window.findChild<PluginActionPanel *>();
+        auto *notePanel = window.findChild<NoteEditPanel *>();
+        auto *floating = window.findChild<QAction *>("view.floatingWindows");
+        QVERIFY(panel && notePanel && floating);
+        QTest::qWait(50);
+
+        QList<PluginActionPanel::Action> actions;
+        for (int i = 0; i < actionCount; ++i)
+        {
+            PluginActionPanel::Action action;
+            action.pluginDisplayName = QStringLiteral("Plugin %1").arg(i);
+            action.description = QStringLiteral("Choose the notes to format using the controls below. ")
+                .repeated(3);
+            action.meta = {{"plugin_id", QString::number(i)}, {"action_id", "format"},
+                           {"title", QStringLiteral("Format %1").arg(i)},
+                           {"scope_selector", "note_range"}};
+            actions.append(action);
+        }
+        // Runtime discovery populates the panel after the initial empty UI has
+        // already received the compact dock policy.
+        panel->setActions(actions);
+        floating->setChecked(false);
+        notePanel->setEmbeddedPluginToolsVisible(true);
+
+        for (int pass = 0; pass < 3; ++pass)
+        {
+            auto *workbench = window.findChild<WorkbenchLayout *>();
+            QVERIFY(workbench);
+            auto *host = workbench->paneContainerForPane(QStringLiteral("note"));
+            QVERIFY(host);
+            auto *scroll = host->scrollAreaForPane(QStringLiteral("note"));
+            QVERIFY(scroll);
+            QTRY_VERIFY(panel->isVisible());
+            QTRY_VERIFY2(panel->height() >= panel->minimumSizeHint().height(),
+                         "Embedded plugins must grow beyond the initial empty dock height");
+
+            QList<QPushButton *> buttons;
+            for (auto *button : panel->findChildren<QPushButton *>())
+                if (button->text().startsWith(QStringLiteral("Format ")))
+                    buttons.append(button);
+            QCOMPARE(buttons.size(), actionCount);
+            for (auto *combo : panel->findChildren<QComboBox *>())
+            {
+                combo->setCurrentIndex(2); // Entire chart hides the beat inputs.
+                QCoreApplication::processEvents();
+                combo->setCurrentIndex(1);
+            }
+            for (auto *button : buttons)
+            {
+                QTRY_VERIFY(button->height() >= button->minimumSizeHint().height());
+                QTRY_VERIFY(panel->rect().contains(QRect(button->mapTo(panel, QPoint()), button->size())));
+                scroll->ensureWidgetVisible(button, 0, 0);
+                QTRY_VERIFY(scroll->viewport()->rect().contains(
+                    QRect(button->mapTo(scroll->viewport(), QPoint()), button->size())));
+            }
+            QVERIFY(scroll->verticalScrollBar()->maximum() > 0);
+            QCOMPARE(window.size(), QSize(1200, 720));
+            const QString directory = qEnvironmentVariable("CCE_CLASSIC_SCREENSHOT_DIR");
+            if (!directory.isEmpty() && pass == 0)
+            {
+                QDir().mkpath(directory);
+                QVERIFY(window.grab().save(directory + "/plugins-" + QTest::currentDataTag() + ".png"));
+            }
+            floating->setChecked(true);
+            floating->setChecked(false);
+        }
+    }
+
     void embeddedPagesSurviveModeSwitchesAndRestart()
     {
         Settings::instance().setNoteSoundVolume(0);

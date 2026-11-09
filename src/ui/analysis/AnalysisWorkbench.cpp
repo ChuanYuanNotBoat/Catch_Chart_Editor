@@ -16,7 +16,7 @@
 #include <QSignalBlocker>
 #include <QCheckBox>
 #include <QGridLayout>
-#include <QSettings>
+#include "utils/Settings.h"
 #include <algorithm>
 #include <cmath>
 namespace
@@ -123,7 +123,7 @@ AnalysisWorkbench::AnalysisWorkbench(AnalysisCanvas *canvas, QWidget *parent) : 
                                      tr("Transient flux"),
                                      tr("Transient peaks (accepted / rejected)"),
                                      tr("Candidate pulses")};
-            QSettings settings("CatchEditor", "CatchChartEditor");
+            auto settings = Settings::openStore();
             for (int j = 0; j < ids.size(); ++j)
             {
                 auto *check = new QCheckBox(labels[j]);
@@ -132,7 +132,7 @@ AnalysisWorkbench::AnalysisWorkbench(AnalysisCanvas *canvas, QWidget *parent) : 
                 m_trackChecks[ids[j]] = check;
                 legend->addWidget(check, j, 0);
                 connect(check, &QCheckBox::toggled, this, [this, id = ids[j]](bool visible) {
-                    QSettings s("CatchEditor", "CatchChartEditor");
+                    auto s = Settings::openStore();
                     s.setValue("analysisEditor/tracks/" + id, visible);
                     emit trackVisibilityChanged();
                 });

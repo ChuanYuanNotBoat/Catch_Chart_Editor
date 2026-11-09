@@ -86,7 +86,8 @@ public:
     bool saveProject(const QString &path, QString *error = nullptr);
     QJsonObject chartReviewState() const;
     static bool writeChartReview(const QString &chartPath, const QJsonObject &state, QString *error = nullptr);
-    bool exportChart(const QString &path, const QStringList &layerIds = {}, QString *error = nullptr);
+    bool exportChart(const QString &path, const QStringList &layerIds = {}, QString *error = nullptr,
+                     const QString &difficultyId = {});
     bool importDifficultyFromPath(const QString &path, QString *error = nullptr);
     bool startProposal(const QString &description, QString *error = nullptr);
     bool importProposal(const QString &path, QString *error = nullptr);
