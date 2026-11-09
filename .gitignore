@@ -14,6 +14,7 @@ ipch/
 # CMake build 目录
 build/
 build-*/
+/dist/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
