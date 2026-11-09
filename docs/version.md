@@ -9,7 +9,7 @@
 
 v1.12.1 的变更和发布状态见 [history.md](history.md) 顶部的候选版本记录，以及 [v1.12.1 发布准备记录](RELEASE_READINESS_v1.12.1.md)。v1.12.0 的已发布核对记录见 [RELEASE_READINESS.md](RELEASE_READINESS.md)。
 
-已发布的 v1.12.0 主要新增分析编辑器、BPM 测量与插值、高级 BPM 窗口、[谱面合并](CHART_MERGE.md)，以及可选的本地工程、图层和审阅。v1.12.1 候选版本新增 Malody Catch 到 osu! Catch 的字段设置、CS 判定快捷转换和自选导出目录。图层及 osu!catch 审阅仍标记为实验性。
+已发布的 v1.12.0 主要新增分析编辑器、BPM 测量与插值、高级 BPM 窗口、[谱面合并](CHART_MERGE.md)，以及可选的本地工程、图层和审阅。v1.12.1 候选版本支持选择多个 Catch 难度导出到一个 `.osz`，每个难度可分别设置字段和 CS，并可自选导出目录。图层及 osu!catch 审阅仍标记为实验性。
 
 ## 兼容性
 

@@ -6,6 +6,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 ## Version status / 版本状态
 
 - Current version / 当前版本：**Beta v1.12.0（2026-10-25）**
+- Release candidate / 发布候选：**Beta v1.12.1**。见[发布准备记录](docs/RELEASE_READINESS_v1.12.1.md)。
 - Previous release / 上一版本：**Beta v1.11.2（2026-09-19）**
 - Repository state / 仓库状态：**Released（2026-10-25）**
 - Git tag / 标签：`v1.12.0`
@@ -64,7 +65,8 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 Qt Advanced Docking System 5.1.1 is vendored in `third_party/QtAdvancedDockingSystem`.
 AutoTimingCore is pinned as a Git submodule in `third_party/AutoTimingCore`.
-Neither dependency is downloaded by CMake.
+MalodyCatch2CTB is pinned in `third_party/MalodyCatch2CTB`. Its D plugin is built by default on Windows and requires LDC (`ldc2` on PATH). Use `-DCATCHEDITOR_BUILD_CTB_PLUGIN=OFF` for a host-only build.
+Initialize Git dependencies before configuring CMake.
 
 After cloning, initialize submodules once:
 

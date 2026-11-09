@@ -1,5 +1,6 @@
 #include <QtTest>
 
+#include "isolated_settings.h"
 #include "controller/ChartController.h"
 #include "controller/SelectionController.h"
 #include "controller/CommandRouter.h"
@@ -226,7 +227,7 @@ class ReviewWorkspaceTests final : public QObject
 private slots:
     void initTestCase()
     {
-        QStandardPaths::setTestModeEnabled(true);
+        QVERIFY(initializeIsolatedSettings());
         QCoreApplication::setOrganizationName("CceReviewTests");
         QCoreApplication::setApplicationName("Rv"); // Keep nested Windows working-copy paths below MAX_PATH.
         QApplication::setQuitOnLastWindowClosed(false);

@@ -38,13 +38,14 @@ plugins/
 ## D Catch converter
 
 The Windows CMake build also compiles the D converter from
-`third_party/MalodyCatch2CTB-D` and stages it directly into
+the pinned `third_party/MalodyCatch2CTB/MalodyCatch2CTB-D` submodule directory and stages it directly into
 `<appDir>/plugins/malodycatch2ctb-d/` with its manifest and MIT license.
 Install LDC (`ldc2` on PATH) before configuring, or explicitly disable it with
 `-DCATCHEDITOR_BUILD_CTB_PLUGIN=OFF`. The built plugin needs no D/Python runtime
-installation. It exports the synchronized current chart to `.osz` in
-`ctb-output/` beside the original chart. See the source package's
-[README](../third_party/MalodyCatch2CTB-D/README.md) for standalone `.mc`/`.mcz`
+installation. In CCE, choose a folder and export the current difficulty,
+a manual selection, or all available Catch difficulties into one `.osz`.
+Export settings apply independently to each selected difficulty. See the source package's
+[README](../third_party/MalodyCatch2CTB/MalodyCatch2CTB-D/README.md) for standalone `.mc`/`.mcz`
 conversion and manual installation.
 
 `sync_plugins_to_builds.ps1` only synchronizes this runtime source folder;

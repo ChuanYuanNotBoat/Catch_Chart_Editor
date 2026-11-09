@@ -10,6 +10,7 @@ class Settings
 {
 public:
     static Settings &instance();
+    static QSettings openStore();
 
     QString lastOpenPath() const;
     void setLastOpenPath(const QString &path);

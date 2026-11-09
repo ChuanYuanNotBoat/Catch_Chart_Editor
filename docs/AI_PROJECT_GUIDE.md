@@ -53,7 +53,7 @@ Windows 多配置构建：
 Windows 默认同时编译 D 语言 Catch 导出插件，需安装 LDC 并将 `ldc2` 加入 PATH。
 插件构建不依赖 DUB 或网络下载；运行已编译的插件不需要 D 工具链。
 仅构建宿主时可在配置命令中添加 `-DCATCHEDITOR_BUILD_CTB_PLUGIN=OFF`。
-详见 [插件构建说明](../third_party/MalodyCatch2CTB-D/README.md)。
+详见 [插件构建说明](../third_party/MalodyCatch2CTB/MalodyCatch2CTB-D/README.md)。
 
 ```powershell
 git submodule update --init --recursive

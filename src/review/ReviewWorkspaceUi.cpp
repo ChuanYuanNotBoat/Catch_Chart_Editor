@@ -1853,12 +1853,14 @@ void ReviewWorkspace::onExportFieldsChanged()
     }
 }
 
-bool ReviewWorkspace::exportChart(const QString &path, const QStringList &layers, QString *error)
+bool ReviewWorkspace::exportChart(const QString &path, const QStringList &layers, QString *error,
+                                  const QString &difficultyId)
 {
     auto bundle = m_bundle;
     if (!collectResources(bundle, error))
         return false;
-    return CceDocument::exportDifficulty(bundle, bundle.project.activeDifficultyId, path, layers, error);
+    const auto &id = difficultyId.isEmpty() ? bundle.project.activeDifficultyId : difficultyId;
+    return CceDocument::exportDifficulty(bundle, id, path, layers, error);
 }
 void ReviewWorkspace::exportChartDialog(bool layerOnly)
 {

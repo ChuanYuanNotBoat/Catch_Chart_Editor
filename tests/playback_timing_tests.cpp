@@ -13,7 +13,7 @@
 #include <QDataStream>
 #include <QFile>
 #include <QMediaDevices>
-#include <QSettings>
+#include "isolated_settings.h"
 #include <QSignalSpy>
 #include <QSoundEffect>
 #include <QTemporaryDir>
@@ -61,8 +61,7 @@ private slots:
     void initTestCase()
     {
         QVERIFY(m_temp.isValid());
-        QSettings::setDefaultFormat(QSettings::IniFormat);
-        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_temp.path());
+        QVERIFY(initializeIsolatedSettings());
         m_music = m_temp.filePath("timeline.wav");
         m_hit = m_temp.filePath("hit.wav");
         // Long enough for FFmpeg stream probing to consume several seconds.

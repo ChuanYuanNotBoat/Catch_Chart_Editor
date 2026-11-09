@@ -1,4 +1,5 @@
 #include "app/MainWindow.h"
+#include "isolated_settings.h"
 #include "ui/analysis/AnalysisEditor.h"
 #include "ui/analysis/AnalysisCanvas.h"
 #include "ui/analysis/TransientPanel.h"
@@ -451,9 +452,9 @@ private slots:
     }
     void initTestCase()
     {
-        QStandardPaths::setTestModeEnabled(true);
         QVERIFY(m_temp.isValid());
         Settings::instance().setNoteSoundVolume(0);
+        m_audio.setMuted(true);
         Settings::instance().setVerticalFlip(false);
         writeWav();
         loadChart();
@@ -469,7 +470,7 @@ private slots:
         m_playback.pause();
         m_playback.setLoopRange(0, 0, false);
         loadChart();
-        QSettings s("CatchEditor", "CatchChartEditor");
+        auto s = Settings::openStore();
         s.remove("analysisEditor");
         Settings::instance().setShortcut("edit.undo", QKeySequence::Undo);
         Settings::instance().setShortcut("edit.redo", QKeySequence::Redo);
@@ -1538,6 +1539,8 @@ private slots:
         const int width = canvas()->width();
         m_editor->close();
         QVERIFY(!m_editor->isVisible());
+        const QSettings saved(QSettings::IniFormat, QSettings::UserScope, "CatchEditor", "CatchChartEditor");
+        QCOMPARE(saved.value("analysisEditor/noteLaneWidth").toInt(), 84);
         m_editor.reset();
         createEditor();
         QCOMPARE(canvas()->noteLaneWidth(), 84);
@@ -2742,9 +2745,8 @@ private slots:
 };
 int main(int argc, char **argv)
 {
-    QTemporaryDir settings;
-    QSettings::setDefaultFormat(QSettings::IniFormat);
-    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
+    if (!initializeIsolatedSettings())
+        return 1;
 #ifdef Q_OS_WIN
     if (qEnvironmentVariable("QT_QPA_PLATFORM") == QLatin1String("offscreen")
         && qEnvironmentVariableIsEmpty("QT_QPA_FONTDIR"))

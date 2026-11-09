@@ -20,7 +20,7 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QGridLayout>
-#include <QSettings>
+#include "utils/Settings.h"
 #include <QCoreApplication>
 #include <QHash>
 
@@ -304,7 +304,7 @@ AnalysisConfigPanel::AnalysisConfigPanel(QWidget *parent, const QString &storeOv
     refresh();
     if (m_storeOverride.isEmpty())
     {
-        QSettings settings("CatchEditor", "CatchChartEditor");
+        auto settings = Settings::openStore();
         const auto selected = settings.value("analysisEditor/profileName", "Default").toString();
         if (selected == "Default" || m_profiles.contains(selected))
         {
@@ -343,7 +343,7 @@ void AnalysisConfigPanel::selectPreset(const QString &name)
         m_globalSelectedPreset = name;
         if (m_storeOverride.isEmpty())
         {
-            QSettings s("CatchEditor", "CatchChartEditor");
+            auto s = Settings::openStore();
             s.setValue("analysisEditor/profileName", name);
         }
     }
@@ -606,7 +606,7 @@ void AnalysisConfigPanel::savePreset(bool duplicate)
     m_globalSelectedPreset = name;
     if (m_storeOverride.isEmpty())
     {
-        QSettings s("CatchEditor", "CatchChartEditor");
+        auto s = Settings::openStore();
         s.setValue("analysisEditor/profileName", name);
     }
     rebuildPresets(name);

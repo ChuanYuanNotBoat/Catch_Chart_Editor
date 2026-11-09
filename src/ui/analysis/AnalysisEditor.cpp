@@ -37,7 +37,6 @@
 #include <QHeaderView>
 #include <QPlainTextEdit>
 #include <QTimer>
-#include <QSettings>
 #include <QFileInfo>
 #include <QDir>
 #include <QJsonDocument>
@@ -55,10 +54,6 @@
 #include <cmath>
 namespace
 {
-QSettings layoutSettings()
-{
-    return QSettings("CatchEditor", "CatchChartEditor");
-}
 QWidget *placeholder(const QString &text)
 {
     auto *p = new QWidget;
@@ -1227,7 +1222,7 @@ void AnalysisEditor::saveLayout()
 {
     if (!m_restored)
         return;
-    auto s = layoutSettings();
+    auto s = Settings::openStore();
     s.beginGroup("analysisEditor");
     s.setValue("geometry", saveGeometry());
     s.setValue("work", m_work->saveState());
@@ -1244,7 +1239,7 @@ void AnalysisEditor::saveLayout()
 }
 void AnalysisEditor::restoreLayout()
 {
-    auto s = layoutSettings();
+    auto s = Settings::openStore();
     s.beginGroup("analysisEditor");
     restoreGeometry(s.value("geometry").toByteArray());
     const int available = qMax(360, m_work->width());

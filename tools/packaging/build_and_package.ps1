@@ -99,14 +99,17 @@ $required = @(
     "notices\AutoTimingCore", "docs\version.md", "docs\history.md"
 )
 $cacheFile = Join-Path $buildDir 'CMakeCache.txt'
-if ((Test-Path -LiteralPath $cacheFile) -and
-    ([IO.File]::ReadAllText($cacheFile) -match '(?m)^CATCHEDITOR_BUILD_CTB_PLUGIN:BOOL=ON\s*$')) {
+$cacheText = if (Test-Path -LiteralPath $cacheFile) { [IO.File]::ReadAllText($cacheFile) } else { '' }
+if ($cacheText -match '(?m)^CATCHEDITOR_BUILD_CTB_PLUGIN:BOOL=ON\s*$') {
     $required += @(
         'plugins\malodycatch2ctb-d\malodycatch2ctb-d.exe',
         'plugins\malodycatch2ctb-d\malodycatch2ctb-d.plugin.json',
         'plugins\malodycatch2ctb-d\LICENSE',
         'plugins\malodycatch2ctb-d\README.md'
     )
+}
+if ($cacheText -match '(?m)^MSVC_REDIST_DIR:PATH=') {
+    $required += 'msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll'
 }
 foreach ($rel in $required) {
     if (-not (Test-Path (Join-Path $buildOutput $rel))) {

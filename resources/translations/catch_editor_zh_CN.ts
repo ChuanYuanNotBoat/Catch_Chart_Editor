@@ -4363,6 +4363,22 @@ Open the **History** tab for collapsible long update notes.</source>
         <translation>osu! Catch 导出设置</translation>
     </message>
     <message>
+        <source>Export all difficulties</source>
+        <translation>导出所有难度</translation>
+    </message>
+    <message>
+        <source>Select difficulties… (%1)</source>
+        <translation>选择导出难度…（%1）</translation>
+    </message>
+    <message>
+        <source>Select difficulties</source>
+        <translation>选择导出难度</translation>
+    </message>
+    <message>
+        <source>Editing difficulty</source>
+        <translation>正在设置的难度</translation>
+    </message>
+    <message>
         <source>Metadata</source>
         <translation>谱面信息</translation>
     </message>

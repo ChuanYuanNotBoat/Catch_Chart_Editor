@@ -256,10 +256,27 @@ if(WIN32 AND CATCHEDITOR_ENABLE_WINDEPLOYQT)
         get_filename_component(QT_BIN_DIR "${QT_QMAKE_EXECUTABLE}" DIRECTORY)
         set(WINDEPLOYQT_EXECUTABLE "${QT_BIN_DIR}/windeployqt.exe")
         if(EXISTS "${WINDEPLOYQT_EXECUTABLE}")
+            set(_deploy_args --no-translations)
+            if(MSVC)
+                list(APPEND _deploy_args --no-compiler-runtime)
+            endif()
             add_custom_command(TARGET CatchChartEditor POST_BUILD
-                COMMAND "${WINDEPLOYQT_EXECUTABLE}" --no-translations "$<TARGET_FILE:CatchChartEditor>"
+                COMMAND "${WINDEPLOYQT_EXECUTABLE}" ${_deploy_args}
+                    "$<TARGET_FILE:CatchChartEditor>"
                 COMMENT "Deploying Qt runtime dependencies with windeployqt"
             )
+            if(MSVC)
+                set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+                include(InstallRequiredSystemLibraries)
+                if(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
+                    add_custom_command(TARGET CatchChartEditor POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                            ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} "$<TARGET_FILE_DIR:CatchChartEditor>"
+                        COMMENT "Deploying the Visual C++ runtime beside the editor"
+                        VERBATIM
+                    )
+                endif()
+            endif()
         endif()
     endif()
 endif()

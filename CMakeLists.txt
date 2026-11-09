@@ -59,7 +59,15 @@ add_subdirectory(src)
 # The Windows D process plugin is compiled independently of the Qt host.
 option(CATCHEDITOR_BUILD_CTB_PLUGIN "Build the Malody Catch to osu! Catch D plugin" ${WIN32})
 if(CATCHEDITOR_BUILD_CTB_PLUGIN)
-    add_subdirectory(third_party/MalodyCatch2CTB-D)
+    set(MALODY_CATCH2CTB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/third_party/MalodyCatch2CTB"
+        CACHE PATH "MalodyCatch2CTB source directory (development override)")
+    set(_ctb_source "${MALODY_CATCH2CTB_SOURCE_DIR}/MalodyCatch2CTB-D")
+    if(NOT EXISTS "${_ctb_source}/CMakeLists.txt")
+        message(FATAL_ERROR
+            "MalodyCatch2CTB source is unavailable at ${_ctb_source}. "
+            "Initialize the default submodule with: git submodule update --init --recursive")
+    endif()
+    add_subdirectory("${_ctb_source}" "${CMAKE_BINARY_DIR}/MalodyCatch2CTB-D")
 endif()
 
 option(CATCHEDITOR_BUILD_AUDIO_PROBE "Build the manual Windows note-sound loopback probe" OFF)
@@ -231,8 +239,15 @@ if(BUILD_TESTING)
         get_target_property(_ae_qmake Qt6::qmake IMPORTED_LOCATION)
         get_filename_component(_ae_qt_bin "${_ae_qmake}" DIRECTORY)
         if(CATCHEDITOR_ENABLE_WINDEPLOYQT AND EXISTS "${_ae_qt_bin}/windeployqt.exe")
+            # Both targets deploy Qt DLLs into the same configuration directory.
+            add_dependencies(AnalysisEditorTests CatchChartEditor)
+            set(_ae_deploy_args --no-translations)
+            if(MSVC)
+                list(APPEND _ae_deploy_args --no-compiler-runtime)
+            endif()
             add_custom_command(TARGET AnalysisEditorTests POST_BUILD
-                COMMAND "${_ae_qt_bin}/windeployqt.exe" --no-translations "$<TARGET_FILE:AnalysisEditorTests>"
+                COMMAND "${_ae_qt_bin}/windeployqt.exe" ${_ae_deploy_args}
+                    "$<TARGET_FILE:AnalysisEditorTests>"
                 COMMENT "Deploying the AE test runtime"
             )
         endif()
