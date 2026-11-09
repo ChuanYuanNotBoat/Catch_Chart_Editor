@@ -5,11 +5,9 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 
 ## Version status / 版本状态
 
-- Current version / 当前版本：**Beta v1.12.0（2026-10-25）**
-- Release candidate / 发布候选：**Beta v1.12.1**。见[发布准备记录](docs/RELEASE_READINESS_v1.12.1.md)。
-- Previous release / 上一版本：**Beta v1.11.2（2026-09-19）**
-- Repository state / 仓库状态：**Released（2026-10-25）**
-- Git tag / 标签：`v1.12.0`
+- Current version / 当前版本：**Beta v1.12.1（2026-11-09）**
+- Previous release / 上一版本：**Beta v1.12.0（2026-10-25）**
+- Git tag / 标签：`v1.12.1`
 - Download / 下载：[GitHub Releases](https://github.com/ChuanYuanNotBoat/Catch_Chart_Editor/releases/latest)
 
 `docs/history.md` 中已经发布的版本段落视为冻结记录；后续未发布内容单独记录在新的 `Unreleased` 段。
@@ -20,7 +18,7 @@ A Qt 6 desktop chart editor for Malody Catch mode.
 - [用户帮助](docs/help.md)
 - [版本状态与升级说明](docs/version.md)
 - [完整更新历史](docs/history.md)
-- [v1.12.0 功能完成度与发布检查](docs/RELEASE_READINESS.md)
+- [v1.12.1 发布核对记录](docs/RELEASE_READINESS_v1.12.1.md)
 - [开发者项目指南](docs/AI_PROJECT_GUIDE.md)
 - [工程优化与重构 TODO](docs/ENGINEERING_TODO.md)
 - [未来产品与架构规划](docs/FUTURE_ROADMAP.md)

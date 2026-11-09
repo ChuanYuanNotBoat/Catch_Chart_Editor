@@ -1,8 +1,10 @@
-# Beta v1.12.1 发布准备记录
+# Beta v1.12.1 发布核对记录
 
 初次检查日期为 2026-11-08，当前候选复验日期为 2026-11-09。
 
-Windows x64 Beta v1.12.1 已进入发布候选验收。全新并行构建和自动回归通过，实际安装与客户端兼容性仍待验收。
+Windows x64 Beta v1.12.1 的全新并行构建和自动回归已通过。实际安装与客户端兼容性的验收状态见下表。
+
+发布标签为 `v1.12.1`，日期为 2026-11-09。安装包与 SHA-256 校验文件见 [GitHub Release](https://github.com/ChuanYuanNotBoat/Catch_Chart_Editor/releases/tag/v1.12.1)。
 
 上一已发布版本：Beta v1.12.0（2026-10-25）。
 
