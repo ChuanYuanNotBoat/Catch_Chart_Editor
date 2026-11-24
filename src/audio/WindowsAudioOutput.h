@@ -22,6 +22,7 @@ public:
     void setPlayback(double positionMs, double endMs, double rate, bool playing,
                      bool reopenDevice = false);
     void setMuted(bool muted);
+    void setVolume(float gain);
     double positionMs(qint64 aheadNs = 0) const;
     Status status() const;
 

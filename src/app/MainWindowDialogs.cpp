@@ -2019,68 +2019,67 @@ void MainWindow::adjustReferenceLineHeight()
         applyHeight(originalHeight);
 }
 
-void MainWindow::adjustNoteSoundVolume()
+void MainWindow::adjustAudioVolumes()
 {
     QDialog dialog(this);
-    dialog.setWindowTitle(tr("Note Sound Volume"));
-    dialog.setModal(true);
+    dialog.setWindowTitle(tr("Audio Volume"));
 
-    QVBoxLayout *layout = new QVBoxLayout(&dialog);
-    QLabel *valueLabel = new QLabel;
-    valueLabel->setAlignment(Qt::AlignCenter);
-    QSlider *slider = new QSlider(Qt::Horizontal);
-    slider->setRange(0, 200);
-    slider->setValue(Settings::instance().noteSoundVolume());
-    slider->setFixedSize(420, 26);
+    auto &settings = Settings::instance();
+    const int originalMusic = settings.musicVolume();
+    const int originalNote = settings.noteSoundVolume();
+    auto *audio = d->playbackController->audioPlayer();
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *form = new QFormLayout;
+    layout->addLayout(form);
 
-    // Apply theme-aware slider styling
-    {
-        const PreviewColors sliderColors = previewColorsFor(Settings::instance().backgroundColor());
-        const bool darkTheme = (sliderColors.textColor.lightness() > 128);
-        const QColor grooveBg = darkTheme ? sliderColors.bg.lighter(120) : sliderColors.bg.darker(110);
-        const QColor handleBg = darkTheme ? sliderColors.bg.lighter(140) : sliderColors.bg.darker(130);
+    const PreviewColors colors = previewColorsFor(settings.backgroundColor());
+    const bool darkTheme = colors.textColor.lightness() > 128;
+    const QColor groove = darkTheme ? colors.bg.lighter(120) : colors.bg.darker(110);
+    const QColor handle = darkTheme ? colors.bg.lighter(140) : colors.bg.darker(130);
+    const QString sliderStyle = QString(
+        "QSlider::groove:horizontal {"
+        "height: 10px; border: 1px solid %1; background: %2; border-radius: 2px;"
+        "}"
+        "QSlider::handle:horizontal {"
+        "background: %3; width: 18px; margin: -5px 0; border-radius: 2px;"
+        "}").arg(colors.border.name(), groove.name(), handle.name());
 
-        slider->setStyleSheet(QString(
-            "QSlider::groove:horizontal {"
-            "height: 10px;"
-            "border: 1px solid %1;"
-            "background: %2;"
-            "border-radius: 2px;"
-            "}"
-            "QSlider::handle:horizontal {"
-            "background: %3;"
-            "width: 18px;"
-            "margin: -5px 0;"
-            "border-radius: 2px;"
-            "}")
-            .arg(sliderColors.border.name(), grooveBg.name(), handleBg.name()));
-    }
+    const auto addVolume = [&](const QString &name, int volume) {
+        auto *slider = new QSlider(Qt::Horizontal, &dialog);
+        slider->setRange(0, 100);
+        slider->setValue(volume);
+        slider->setMinimumSize(260, 26);
+        slider->setStyleSheet(sliderStyle);
+        slider->setAccessibleName(name);
+        auto *value = new QLabel(QStringLiteral("%1%").arg(volume), &dialog);
+        value->setMinimumWidth(value->fontMetrics().horizontalAdvance(QStringLiteral("100%")));
+        auto *row = new QHBoxLayout;
+        row->addWidget(slider, 1);
+        row->addWidget(value);
+        form->addRow(name, row);
+        connect(slider, &QSlider::valueChanged, &dialog, [value](int percent) {
+            value->setText(QStringLiteral("%1%").arg(percent));
+        });
+        return slider;
+    };
+    auto *music = addVolume(tr("Music Volume"), originalMusic);
+    auto *note = addVolume(tr("Note Sound Volume"), originalNote);
+    connect(music, &QSlider::valueChanged, audio, &AudioPlayer::setVolumePercent);
+    connect(note, &QSlider::valueChanged, d->canvas, &ChartCanvas::setNoteSoundVolume);
 
-    auto refreshLabel = [valueLabel, slider]()
-    { valueLabel->setText(QObject::tr("Volume: %1%").arg(slider->value())); };
-    refreshLabel();
-    connect(slider, &QSlider::valueChanged, this, [this, refreshLabel, slider]()
-            {
-        refreshLabel();
-        if (d->canvas)
-            d->canvas->setNoteSoundVolume(slider->value()); });
-
-    layout->addWidget(valueLabel);
-    layout->addWidget(slider, 0, Qt::AlignCenter);
-
-    QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
 
-    const int originalVolume = Settings::instance().noteSoundVolume();
     if (dialog.exec() == QDialog::Accepted)
     {
-        Settings::instance().setNoteSoundVolume(slider->value());
-        Logger::info(QString("Note sound volume set to %1%").arg(slider->value()));
+        settings.setMusicVolume(music->value());
+        settings.setNoteSoundVolume(note->value());
     }
-    else if (d->canvas)
+    else
     {
-        d->canvas->setNoteSoundVolume(originalVolume);
+        audio->setVolumePercent(originalMusic);
+        d->canvas->setNoteSoundVolume(originalNote);
     }
 }

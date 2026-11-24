@@ -93,7 +93,7 @@ void NoteSoundPlayer::setEnabled(bool enabled)
 
 void NoteSoundPlayer::setVolumePercent(int volume)
 {
-    const int clamped = qBound(0, volume, 200);
+    const int clamped = qBound(0, volume, 100);
     for (QSoundEffect *voice : m_voices)
         voice->setVolume(static_cast<qreal>(clamped) / 100.0);
 }

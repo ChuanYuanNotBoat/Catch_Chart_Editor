@@ -51,6 +51,8 @@ public:
     void setNoteSoundPath(const QString &path);
     int noteSoundVolume() const;
     void setNoteSoundVolume(int volume);
+    int musicVolume() const;
+    void setMusicVolume(int volume);
 
     static constexpr int minimumReferenceLineHeight = 5;
     static constexpr int maximumReferenceLineHeight = 95;

@@ -28,6 +28,7 @@ public:
     qint64 duration() const;
     void setSpeed(double speed); // 0.1 ~ 10.0
     double speed() const;
+    void setVolumePercent(int volume);
     void setMuted(bool muted);
     bool isMuted() const;
 

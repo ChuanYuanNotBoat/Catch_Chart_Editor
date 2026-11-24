@@ -118,7 +118,6 @@ public:
     QAction *pluginToolModeToolbarAction = nullptr;
     QAction *pluginManagerToolbarAction = nullptr;
     QAction *noteSizeAction = nullptr;
-    QAction *noteSoundVolumeAction = nullptr;
     QAction *calibrateSkinAction = nullptr;
     QAction *outlineAction = nullptr;
     QAction *notePanelAction = nullptr;

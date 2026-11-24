@@ -584,11 +584,20 @@ void Settings::setNoteSoundPath(const QString &path)
 }
 int Settings::noteSoundVolume() const
 {
-    return m_settings.value("audio/noteSoundVolume", 100).toInt();
+    return qBound(0, m_settings.value("audio/noteSoundVolume", 100).toInt(), 100);
 }
 void Settings::setNoteSoundVolume(int volume)
 {
-    m_settings.setValue("audio/noteSoundVolume", qBound(0, volume, 200));
+    m_settings.setValue("audio/noteSoundVolume", qBound(0, volume, 100));
+}
+
+int Settings::musicVolume() const
+{
+    return qBound(0, m_settings.value("audio/musicVolume", 100).toInt(), 100);
+}
+void Settings::setMusicVolume(int volume)
+{
+    m_settings.setValue("audio/musicVolume", qBound(0, volume, 100));
 }
 
 int Settings::referenceLineHeight() const

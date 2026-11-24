@@ -74,8 +74,8 @@ private slots:
     void changeSkin(const QString &skinName);
     void switchDifficulty();
     void adjustNoteSize();
+    void adjustAudioVolumes();
     void adjustReferenceLineHeight();
-    void adjustNoteSoundVolume();
     void calibrateSkin();
     void configureOutline();
     void openSessionSettings();

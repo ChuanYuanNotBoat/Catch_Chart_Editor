@@ -34,6 +34,7 @@ AudioPlayer::AudioPlayer(QObject *parent)
       m_audioCorrectionEnabled(Settings::instance().audioCorrectionEnabled())
 {
     m_player->setAudioOutput(m_audioOutput);
+    setVolumePercent(Settings::instance().musicVolume());
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     auto *bufferOutput = new QAudioBufferOutput(this);
@@ -431,6 +432,16 @@ void AudioPlayer::setSpeed(double speed)
 #endif
 }
 
+void AudioPlayer::setVolumePercent(int volume)
+{
+    const float gain = qBound(0, volume, 100) / 100.0f;
+    m_audioOutput->setVolume(gain);
+#ifdef _WIN32
+    if (m_nativeOutput)
+        m_nativeOutput->setVolume(gain);
+#endif
+}
+
 void AudioPlayer::setMuted(bool muted)
 {
     m_audioOutput->setMuted(muted);
@@ -578,6 +589,7 @@ void AudioPlayer::prepareNativeOutput(const QString &path, quint64 generation)
         if (pcm)
         {
             m_nativeOutput = std::make_unique<WindowsAudioOutput>(pcm);
+            m_nativeOutput->setVolume(m_audioOutput->volume());
             m_nativeOutput->setMuted(isMuted());
             m_nativeDeviceId = QMediaDevices::defaultAudioOutput().id();
         }

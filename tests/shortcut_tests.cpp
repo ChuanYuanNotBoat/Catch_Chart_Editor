@@ -1,5 +1,6 @@
 #include "app/MainWindow.h"
 #include "audio/AudioPlayer.h"
+#include "audio/NoteSoundPlayer.h"
 #include "controller/ChartController.h"
 #include "controller/CommandRouter.h"
 #include "controller/PlaybackController.h"
@@ -155,6 +156,49 @@ private slots:
         m_canvas->setReferenceLineHeight(80);
         preview->setReferenceLineHeight(80);
         settings.setReferenceLineHeight(80);
+    }
+
+    void audioVolumesApplyIndependentlyAndPersistOnAccept()
+    {
+        auto &settings = Settings::instance();
+        QCOMPARE(settings.musicVolume(), 100);
+        const int originalNoteVolume = settings.noteSoundVolume();
+        auto *action = m_window->findChild<QAction *>("audioVolumesAction");
+        auto *output = m_audio.findChild<QAudioOutput *>();
+        auto *sounds = m_canvas->findChild<NoteSoundPlayer *>();
+        QVERIFY(action && output && sounds);
+        const auto adjustVolumes = [&](bool accept) {
+            QTimer::singleShot(0, m_window.get(), [&, accept] {
+                auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                QVERIFY(dialog);
+                const auto sliders = dialog->findChildren<QSlider *>();
+                if (sliders.size() == 2)
+                {
+                    sliders[0]->setValue(35);
+                    sliders[1]->setValue(65);
+                }
+                const float liveMusic = output->volume();
+                const int liveNote = sounds->volumePercent();
+                dialog->done(accept ? QDialog::Accepted : QDialog::Rejected);
+                QCOMPARE(sliders.size(), 2);
+                QCOMPARE(liveMusic, 0.35f);
+                QCOMPARE(liveNote, 65);
+            });
+            action->trigger();
+        };
+        adjustVolumes(false);
+        QCOMPARE(output->volume(), 1.0f);
+        QCOMPARE(sounds->volumePercent(), originalNoteVolume);
+        QCOMPARE(settings.musicVolume(), 100);
+        QCOMPARE(settings.noteSoundVolume(), originalNoteVolume);
+        adjustVolumes(true);
+        AudioPlayer reopened;
+        QCOMPARE(reopened.findChild<QAudioOutput *>()->volume(), 0.35f);
+        QCOMPARE(Settings::openStore().value("audio/noteSoundVolume").toInt(), 65);
+        settings.setMusicVolume(100);
+        settings.setNoteSoundVolume(originalNoteVolume);
+        m_audio.setVolumePercent(100);
+        m_canvas->setNoteSoundVolume(originalNoteVolume);
     }
 
     void remappedDeleteUndoRedoAndRemovedF8()

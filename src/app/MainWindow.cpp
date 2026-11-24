@@ -1586,7 +1586,6 @@ MainWindow::MainWindow(ChartController *chartCtrl,
     d->pluginToolBar = nullptr;
     d->languageMenu = nullptr;
     d->languageActionGroup = nullptr;
-    d->noteSoundVolumeAction = nullptr;
     d->notePanelAction = nullptr;
     d->bpmPanelAction = nullptr;
     d->metaPanelAction = nullptr;
@@ -2256,8 +2255,9 @@ void MainWindow::createSettingsMenu()
     QAction *referenceLineAction = settingsMenu->addAction(tr("Reference Line Height..."));
     referenceLineAction->setObjectName(QStringLiteral("referenceLineHeightAction"));
     connect(referenceLineAction, &QAction::triggered, this, &MainWindow::adjustReferenceLineHeight);
-    d->noteSoundVolumeAction = settingsMenu->addAction(tr("Note Sound Volume..."));
-    connect(d->noteSoundVolumeAction, &QAction::triggered, this, &MainWindow::adjustNoteSoundVolume);
+    QAction *audioVolumesAction = settingsMenu->addAction(tr("Audio Volume..."));
+    audioVolumesAction->setObjectName(QStringLiteral("audioVolumesAction"));
+    connect(audioVolumesAction, &QAction::triggered, this, &MainWindow::adjustAudioVolumes);
     QAction *sessionSettingsAction = settingsMenu->addAction(tr("Session Settings..."));
     connect(sessionSettingsAction, &QAction::triggered, this, &MainWindow::openSessionSettings);
     settingsMenu->addSeparator();

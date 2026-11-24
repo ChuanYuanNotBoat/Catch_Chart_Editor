@@ -233,7 +233,8 @@ struct WindowsAudioOutput::Impl
         const HRESULT bufferResult = render->GetBuffer(available, &bytes);
         if (FAILED(bufferResult))
             return bufferResult;
-        const bool silent = !count || muted.load();
+        const float gain = volume.load();
+        const bool silent = !count || muted.load() || gain == 0.0f;
         if (!silent)
         {
             auto *out = reinterpret_cast<float *>(bytes);
@@ -257,12 +258,12 @@ struct WindowsAudioOutput::Impl
                                                   std::max(source, double(index));
                             sum += pcm->samples[index * channels + channel] * weight;
                         }
-                        *out++ = end > source ? float(sum / (end - source)) : 0.0f;
+                        *out++ = end > source ? gain * float(sum / (end - source)) : 0.0f;
                         continue;
                     }
                     const float a = pcm->samples[first * channels + channel];
                     const float b = pcm->samples[next * channels + channel];
-                    *out++ = a + t * (b - a);
+                    *out++ = gain * (a + t * (b - a));
                 }
             }
             std::fill_n(out, (available - count) * channels, 0.0f);
@@ -402,6 +403,7 @@ struct WindowsAudioOutput::Impl
     Event command;
     Event ready;
     std::atomic_bool muted{false};
+    std::atomic<float> volume{1.0f};
     std::atomic_bool quitting{false};
     ComPtr<IAudioClient> client;
     ComPtr<IAudioRenderClient> render;
@@ -442,6 +444,11 @@ void WindowsAudioOutput::setPlayback(double positionMs, double endMs, double rat
 void WindowsAudioOutput::setMuted(bool muted)
 {
     d->muted.store(muted);
+}
+
+void WindowsAudioOutput::setVolume(float gain)
+{
+    d->volume.store(gain);
 }
 
 double WindowsAudioOutput::positionMs(qint64 aheadNs) const

@@ -1539,9 +1539,16 @@
         <translation>%1% from the top</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2071"/>
-        <source>Note Sound Volume...</source>
-        <translation>Note Sound Volume...</translation>
+        <source>Audio Volume...</source>
+        <translation>Audio Volume...</translation>
+    </message>
+    <message>
+        <source>Audio Volume</source>
+        <translation>Audio Volume</translation>
+    </message>
+    <message>
+        <source>Music Volume</source>
+        <translation>Music Volume</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2081"/>
@@ -4342,11 +4349,6 @@ Open the **History** tab for collapsible long update notes.</translation>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="126"/>
         <source>Plugin Action</source>
         <translation>Plugin Action</translation>
-    </message>
-    <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1506"/>
-        <source>Volume: %1%</source>
-        <translation>Volume: %1%</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="297"/>

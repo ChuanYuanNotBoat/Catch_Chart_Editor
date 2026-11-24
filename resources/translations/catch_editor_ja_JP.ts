@@ -1568,9 +1568,16 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <translation>上端から %1%</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow.cpp" line="2071"/>
-        <source>Note Sound Volume...</source>
-        <translation>ノート音量...</translation>
+        <source>Audio Volume...</source>
+        <translation>音量設定...</translation>
+    </message>
+    <message>
+        <source>Audio Volume</source>
+        <translation>音量設定</translation>
+    </message>
+    <message>
+        <source>Music Volume</source>
+        <translation>楽曲音量</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="2081"/>
@@ -4371,11 +4378,6 @@ Open the **History** tab for collapsible long update notes.</source>
         <location filename="../../src/app/MainWindowDialogs.cpp" line="126"/>
         <source>Plugin Action</source>
         <translation>プラグインアクション</translation>
-    </message>
-    <message>
-        <location filename="../../src/app/MainWindowDialogs.cpp" line="1506"/>
-        <source>Volume: %1%</source>
-        <translation>音量: %1%</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow.cpp" line="297"/>
