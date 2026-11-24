@@ -47,13 +47,14 @@ double steadyMs()
         std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-bool writePulses(const QString &path, bool effect, double playbackRate, int intervalMs)
+bool writePulses(const QString &path, bool effect, double playbackRate, int intervalMs,
+                 int mediaDurationMs, int hitDurationMs)
 {
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly))
         return false;
     constexpr int rate = 48000;
-    const int frames = effect ? rate / 10 : rate * 40;
+    const int frames = rate / 1000 * (effect ? hitDurationMs : mediaDurationMs);
     QDataStream out(&file);
     out.setByteOrder(QDataStream::LittleEndian);
     out.writeRawData("RIFF", 4);
@@ -84,6 +85,9 @@ public:
     double musicFrequency = 440;
     double coefficient[2] = {}, state1[2] = {}, state2[2] = {};
     bool toneActive[2] = {};
+    bool stereoPulses = false;
+    double lastSignalMs[2] = {-1e9, -1e9};
+    int discontinuities = 0;
     int windowFrames = 0, windowCount = 0;
     double windowStartMs = 0, energy = 0;
     QString error;
@@ -94,7 +98,7 @@ public:
         ComPtr<IMMDevice> device;
         HRESULT result = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
             CLSCTX_ALL, IID_PPV_ARGS(&enumerator));
-        if (SUCCEEDED(result)) result = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+        if (SUCCEEDED(result)) result = enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device);
         if (SUCCEEDED(result)) result = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, &audio);
         if (SUCCEEDED(result)) result = audio->GetMixFormat(&format);
         if (SUCCEEDED(result)) {
@@ -127,6 +131,7 @@ public:
             DWORD flags = 0;
             UINT64 devicePosition = 0, qpc100ns = 0;
             if (FAILED(capture->GetBuffer(&data, &frames, &flags, &devicePosition, &qpc100ns))) break;
+            if (flags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY) ++discontinuities;
             if (!(flags & AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR)) {
                 for (UINT32 frame = 0; frame < frames; ++frame) {
                     const double timeMs = double(qpc100ns) / 10000.0 + 1000.0 * frame / format->nSamplesPerSec;
@@ -137,7 +142,13 @@ public:
                             (floating ? reinterpret_cast<float *>(data)[index] :
                              reinterpret_cast<qint16 *>(data)[index] / 32768.0);
                         mono += value / format->nChannels;
+                        if (stereoPulses && channel < 2 && std::abs(value) > 0.015) {
+                            if (timeMs - lastSignalMs[channel] > 3)
+                                (channel == 0 ? music : hits).append(timeMs);
+                            lastSignalMs[channel] = timeMs;
+                        }
                     }
+                    if (stereoPulses) continue;
                     if (!windowCount) windowStartMs = timeMs;
                     energy += mono * mono;
                     for (int tone = 0; tone < 2; ++tone) {
@@ -183,6 +194,10 @@ int main(int argc, char **argv)
                        QCommandLineOption("paint-delay-ms", "Simulated paint acknowledgement delay", "ms", "0"),
                        QCommandLineOption("stall-ms", "UI stall at two seconds", "ms", "0")});
     parser.addOption(QCommandLineOption("interval-ms", "Synthetic note interval on the media timeline", "ms", "437"));
+    parser.addOption(QCommandLineOption("fps", "Simulated presentation refresh rate and cap", "hz", "60"));
+    parser.addOption(QCommandLineOption("hit-duration-ms", "Synthetic note sound length", "ms", "100"));
+    parser.addOption(QCommandLineOption("simultaneous", "Add a second note at each synthetic cue time"));
+    parser.addOption(QCommandLineOption("transport", "Pause, resume, change rate and seek during playback"));
     parser.addOption(QCommandLineOption("hit-file", "Use an existing sound effect without changing it", "path"));
     parser.addOption(QCommandLineOption("muted", "Silence only this diagnostic player's output"));
     parser.addOption(QCommandLineOption("no-loopback", "Disable output capture"));
@@ -197,10 +212,19 @@ int main(int argc, char **argv)
         temporary.filePath("hit.wav");
     const double requestedRate = parser.value("speed").toDouble();
     const int intervalMs = parser.value("interval-ms").toInt();
+    const int wallDurationMs = parser.value("duration-ms").toInt();
+    const int hitDurationMs = parser.value("hit-duration-ms").toInt();
+    const int fps = parser.value("fps").toInt();
     if (!std::isfinite(requestedRate) || requestedRate < .1 || requestedRate > 10) return 2;
-    if (intervalMs < 1 || intervalMs > 5000) return 2;
-    if (!writePulses(musicPath, false, requestedRate, intervalMs) ||
-        (!parser.isSet("hit-file") && !writePulses(hitPath, true, requestedRate, intervalMs))) return 3;
+    if (intervalMs < 1 || intervalMs > 5000 || wallDurationMs <= 0 || hitDurationMs < 1 ||
+        hitDurationMs > 1000 || (fps != 30 && fps != 60 && fps != 90 && fps != 120)) return 2;
+    const double neededMediaMs = parser.value("start-ms").toDouble() + wallDurationMs * requestedRate + 1000;
+    if (!std::isfinite(neededMediaMs) || neededMediaMs > 30 * 60 * 1000) return 2;
+    const int mediaDurationMs = qMax(40000, int(std::ceil(neededMediaMs)));
+    if (!parser.isSet("chart") && !writePulses(musicPath, false, requestedRate, intervalMs,
+                                             mediaDurationMs, hitDurationMs)) return 3;
+    if (!parser.isSet("hit-file") && !writePulses(hitPath, true, requestedRate, intervalMs,
+                                                mediaDurationMs, hitDurationMs)) return 3;
     if (!QFileInfo::exists(hitPath)) return 3;
     double startMs = 0;
     AudioPlayer audio;
@@ -225,19 +249,15 @@ int main(int argc, char **argv)
         media->setPlaybackOptions(options);
     }
     audio.setAudioCorrectionEnabled(false);
-    if (parser.isSet("muted")) audio.findChild<QAudioOutput *>()->setMuted(true);
+    if (parser.isSet("muted")) audio.setMuted(true);
     PlaybackController playback(&audio);
-    playback.setDisplayRefreshRate(60);
-    playback.setFrameRateCap(60);
+    playback.setDisplayRefreshRate(fps);
+    playback.setFrameRateCap(fps == 30 ? 0 : fps);
     playback.setSpeed(parser.value("speed").toDouble());
     Chart chart;
     chart.bpmList().clear();
     chart.addBpm(BpmEntry(0, 0, 1, 120));
     chart.meta().offset = 0;
-    for (int i = 0; i < qMax(80, 40000 / intervalMs); ++i) {
-        const int timeMs = 137 + intervalMs * i;
-        chart.addNote(Note(timeMs / 500, timeMs % 500, 500, 256));
-    }
     if (parser.isSet("chart")) {
         QFile input(parser.value("chart"));
         if (!input.open(QIODevice::ReadOnly)) return 8;
@@ -266,14 +286,21 @@ int main(int argc, char **argv)
         }
         musicPath = QFileInfo(input).dir().absoluteFilePath(audioName);
         if (chart.bpmList().isEmpty() || audioName.isEmpty()) return 8;
+    } else {
+        for (int timeMs = 137; timeMs < mediaDurationMs; timeMs += intervalMs) {
+            chart.addNote(Note(timeMs / 500, timeMs % 500, 500, 256));
+            if (parser.isSet("simultaneous"))
+                chart.addNote(Note(timeMs / 500, timeMs % 500, 500, 300));
+        }
     }
     ChartController charts;
     if (!charts.loadChartFromData(temporary.filePath("probe.mc"), chart)) return 4;
     QVector<double> targetTimes;
     const auto timing = MathUtils::buildBpmTimeCache(chart.bpmList(), chart.meta().offset);
+    const double startPositionMs = parser.value("start-ms").toDouble();
     for (const auto &note : chart.notes()) {
         const double time = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, timing);
-        if (time > parser.value("start-ms").toDouble()) targetTimes.append(time);
+        if (time >= startPositionMs - 1e-6) targetTimes.append(time);
     }
     std::sort(targetTimes.begin(), targetTimes.end());
     QJsonArray noteTimes;
@@ -289,7 +316,7 @@ int main(int argc, char **argv)
     canvas.setNoteSoundEnabled(true);
     if (parser.isSet("muted")) canvas.setNoteSoundVolume(0);
     auto *sounds = canvas.findChild<NoteSoundPlayer *>();
-    QJsonArray ticks, observations, calls;
+    QJsonArray ticks, observations, calls, transport;
     QObject::connect(sounds, &NoteSoundPlayer::hitSoundTriggered, &app, [&](qint64 steadyNs) {
         calls.append(QJsonObject{{"wall_ms", double(steadyNs) / 1e6 - startMs},
             {"predicted_ms", playback.currentTime()}, {"raw_ms", double(audio.position())}});
@@ -309,6 +336,9 @@ int main(int argc, char **argv)
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     Loopback loopback;
     loopback.musicFrequency = 440;
+    loopback.stereoPulses = !parser.isSet("chart") && !parser.isSet("hit-file") &&
+                           intervalMs / requestedRate > hitDurationMs + 3 &&
+                           intervalMs - 20 > requestedRate * 3;
     const bool capturing = !parser.isSet("no-loopback") && loopback.start();
     QTimer captureTimer;
     captureTimer.setTimerType(Qt::PreciseTimer);
@@ -326,8 +356,19 @@ int main(int argc, char **argv)
         started = true;
         readiness.stop();
         startMs = steadyMs();
-        playback.seekTo(parser.value("start-ms").toDouble());
+        playback.seekTo(startPositionMs);
         playback.play();
+        if (parser.isSet("transport")) {
+            const auto trace = [&](const QString &operation, double value = 0) {
+                transport.append(QJsonObject{{"operation", operation}, {"value", value},
+                    {"wall_ms", steadyMs() - startMs}, {"media_ms", playback.currentTime()}});
+            };
+            QTimer::singleShot(1800, &app, [&, trace] { trace("pause"); playback.pause(); });
+            QTimer::singleShot(2150, &app, [&, trace] { trace("resume"); playback.play(); });
+            QTimer::singleShot(3500, &app, [&, trace] { trace("rate", 2); playback.setSpeed(2); });
+            QTimer::singleShot(5000, &app, [&, trace] { trace("seek", 10188); playback.seekTo(10188); });
+            QTimer::singleShot(6700, &app, [&, trace] { trace("seek", 1011); playback.seekTo(1011); });
+        }
         const int stall = parser.value("stall-ms").toInt();
         if (stall > 0) QTimer::singleShot(2000, &app, [stall] { Sleep(DWORD(stall)); });
         QTimer::singleShot(parser.value("duration-ms").toInt(), &app, [&] {
@@ -339,8 +380,9 @@ int main(int argc, char **argv)
                 for (const auto &v : loopback.hits) if (v.toDouble() >= startMs) hitOnsets.append(v.toDouble() - startMs);
                 QJsonObject result{{"speed", playback.speed()}, {"qt_version", qVersion()},
                     {"chart", parser.value("chart")}, {"chart_offset", chart.meta().offset},
-                    {"start_ms", parser.value("start-ms").toDouble()},
+                    {"start_ms", startPositionMs},
                     {"device", QMediaDevices::defaultAudioOutput().description()},
+                    {"fps", fps}, {"wall_duration_ms", wallDurationMs},
                     {"output_clock", audio.hasOutputClock()},
                     {"file_playback", parser.isSet("file-playback")},
                     {"streaming", parser.isSet("streaming")},
@@ -349,11 +391,14 @@ int main(int argc, char **argv)
                     {"voice_restart_count", double(sounds->restartCount())},
                     {"hit_file", parser.isSet("hit-file") ? hitPath : QString("synthetic")},
                     {"synthetic_interval_ms", intervalMs},
-                    {"submission_policy", "latest_due_per_wakeup"},
+                    {"submission_policy", audio.hasOutputClock() ? "wasapi_render_buffer" : "latest_due_per_wakeup"},
                     {"note_times_ms", noteTimes},
                     {"loopback_ok", capturing}, {"loopback_error", loopback.error},
+                    {"loopback_discontinuities", loopback.discontinuities},
+                    {"stereo_pulse_detection", loopback.stereoPulses},
                     {"paint_delay_ms", paintDelay}, {"stall_ms", stall},
                     {"ticks", ticks}, {"observations", observations}, {"play_calls", calls},
+                    {"transport", transport}, {"simultaneous", parser.isSet("simultaneous")},
                     {"music_onsets_wall_ms", musicOnsets}, {"hit_onsets_wall_ms", hitOnsets}};
                 QFile output(parser.value("output"));
                 if (!output.open(QIODevice::WriteOnly)) { app.exit(5); return; }

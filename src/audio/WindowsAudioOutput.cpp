@@ -1,4 +1,5 @@
 #include "WindowsAudioOutput.h"
+#include "NoteSoundMixer.h"
 #include "utils/PlaybackSpeed.h"
 
 #include <QAudioBuffer>
@@ -27,9 +28,10 @@ using Microsoft::WRL::ComPtr;
 
 namespace
 {
-constexpr int sampleRate = 48000;
-constexpr int channels = 2;
+constexpr int sampleRate = NoteSoundMixer::sampleRate;
+constexpr int channels = NoteSoundMixer::channels;
 constexpr int frameBytes = channels * sizeof(float);
+constexpr double framesPerMs = sampleRate / 1000.0;
 constexpr qint64 maxCacheBytes = 1024LL * 1024 * 1024;
 
 struct Event
@@ -153,6 +155,15 @@ struct WindowsAudioOutput::Impl
         double qpc = 0;
     };
 
+    struct NoteSound
+    {
+        QVector<double> timesMs;
+        std::shared_ptr<const Pcm> sample;
+        float gain = 0;
+        double offsetMs = 0;
+        double latencyMs = 0;
+    };
+
     explicit Impl(std::shared_ptr<const Pcm> source) : pcm(std::move(source))
     {
         if (command.handle && ready.handle)
@@ -234,11 +245,26 @@ struct WindowsAudioOutput::Impl
         if (FAILED(bufferResult))
             return bufferResult;
         const float gain = volume.load();
-        const bool silent = !count || muted.load() || gain == 0.0f;
+        const bool musicSilent = muted.load() || gain == 0.0f;
+        NoteSound cue;
+        {
+            const std::lock_guard<std::mutex> lock(mutex);
+            cue = noteSound;
+        }
+        if (cue.sample != activeSample || cue.gain == 0.0f)
+        {
+            noteMixer.reset();
+            activeSample = cue.sample;
+        }
+        const bool mixCues = cue.sample && cue.gain != 0.0f;
+        const bool silent = !count || (musicSilent && !mixCues);
         if (!silent)
         {
-            auto *out = reinterpret_cast<float *>(bytes);
-            for (UINT32 frame = 0; frame < count; ++frame)
+            auto *samples = reinterpret_cast<float *>(bytes);
+            auto *out = samples;
+            if (musicSilent)
+                out = std::fill_n(out, count * channels, 0.0f);
+            for (UINT32 frame = 0; !musicSilent && frame < count; ++frame)
             {
                 const double source = active.startFrame + (submitted + frame) * active.rate;
                 const auto first = std::min(static_cast<qint64>(source), pcm->frames - 1);
@@ -265,6 +291,13 @@ struct WindowsAudioOutput::Impl
                     const float b = pcm->samples[next * channels + channel];
                     *out++ = gain * (a + t * (b - a));
                 }
+            }
+            if (mixCues)
+            {
+                const double correctionMs = cue.offsetMs + cue.latencyMs * active.rate;
+                noteMixer.mix(samples, submitted, count,
+                              active.startFrame + correctionMs * framesPerMs,
+                              active.rate, cue.timesMs, cue.sample->samples, cue.sample->frames, cue.gain);
             }
             std::fill_n(out, (available - count) * channels, 0.0f);
         }
@@ -323,6 +356,7 @@ struct WindowsAudioOutput::Impl
                 observed = {};
                 submitted = 0;
                 cursorBase = 0;
+                noteMixer.reset();
                 if (FAILED(apartment.result))
                     result = apartment.result;
                 else
@@ -399,6 +433,9 @@ struct WindowsAudioOutput::Impl
     mutable std::mutex mutex;
     Request request;
     Clock clock;
+    NoteSound noteSound;
+    NoteSoundMixer noteMixer;
+    std::shared_ptr<const Pcm> activeSample;
     double lastCurrentFrame = 0;
     Event command;
     Event ready;
@@ -424,9 +461,9 @@ void WindowsAudioOutput::setPlayback(double positionMs, double endMs, double rat
                                     bool playing, bool reopenDevice)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
-    d->request.startFrame = std::clamp(positionMs * sampleRate / 1000, 0.0, double(d->pcm->frames));
+    d->request.startFrame = std::clamp(positionMs * framesPerMs, 0.0, double(d->pcm->frames));
     d->request.endFrame = endMs >= 0
-        ? std::clamp(endMs * sampleRate / 1000, d->request.startFrame, double(d->pcm->frames))
+        ? std::clamp(endMs * framesPerMs, d->request.startFrame, double(d->pcm->frames))
         : double(d->pcm->frames);
     d->request.rate = PlaybackSpeed::sanitize(rate);
     d->request.playing = playing;
@@ -451,6 +488,13 @@ void WindowsAudioOutput::setVolume(float gain)
     d->volume.store(gain);
 }
 
+void WindowsAudioOutput::setNoteSound(const QVector<double> &timesMs, std::shared_ptr<const Pcm> sample,
+                                      float gain, double offsetMs, double latencyMs)
+{
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    d->noteSound = {timesMs, std::move(sample), gain, offsetMs, latencyMs};
+}
+
 double WindowsAudioOutput::positionMs(qint64 aheadNs) const
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
@@ -465,7 +509,7 @@ double WindowsAudioOutput::positionMs(qint64 aheadNs) const
     if (aheadNs == 0)
         d->lastCurrentFrame = frames;
     const double media = d->request.startFrame + frames * d->request.rate;
-    return std::min(media, d->request.endFrame) * 1000 / sampleRate;
+    return std::min(media, d->request.endFrame) / framesPerMs;
 }
 
 WindowsAudioOutput::Status WindowsAudioOutput::status() const

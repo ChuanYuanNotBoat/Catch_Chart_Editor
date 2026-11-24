@@ -285,6 +285,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_sortedRainNoteIndicesByBeat.clear();
         m_rainIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
+        publishNoteSoundTimes();
         m_timesDirty = false;
         m_noteDataDirty = false;
         return;
@@ -319,6 +320,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_sortedRainNoteIndicesByBeat.clear();
         m_rainIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
+        publishNoteSoundTimes();
         m_timesDirty = false;
         m_noteDataDirty = false;
         return;
@@ -336,6 +338,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_sortedRainNoteIndicesByBeat.clear();
         m_rainIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
+        publishNoteSoundTimes();
         m_timesDirty = false;
         m_noteDataDirty = false;
         return;
@@ -399,6 +402,7 @@ void ChartCanvas::rebuildNoteTimesCache()
     m_rainIntervalIndex.build(
         m_sortedRainNoteIndicesByBeat, m_noteBeatPositions, m_noteEndBeatPositions);
     std::sort(m_playableNoteTimesMs.begin(), m_playableNoteTimesMs.end());
+    publishNoteSoundTimes();
 
     m_timesDirty = false;
     m_noteDataDirty = false;
@@ -474,9 +478,10 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
         disconnect(m_playbackController, &PlaybackController::positionChanged, this, &ChartCanvas::playbackPositionChanged);
         disconnect(m_playbackController, &PlaybackController::playbackFrameTick, this, &ChartCanvas::onPlaybackFrameTick);
         disconnect(m_playbackController, &PlaybackController::stateChanged, this, nullptr);
-        disconnect(m_playbackController, &PlaybackController::playbackStarted, this, nullptr);
+        disconnect(m_playbackController, &PlaybackController::playbackStarting, this, nullptr);
         disconnect(m_playbackController, &PlaybackController::loopRangeChanged, this, nullptr);
         disconnect(m_playbackController, &PlaybackController::seeked, this, nullptr);
+        m_playbackController->audioPlayer()->setNoteSoundTimes({});
     }
 
     m_playbackController = controller;
@@ -485,13 +490,17 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
 
     if (m_playbackController)
     {
+        publishNoteSoundSettings();
+        publishNoteSoundTimes();
         connect(m_playbackController, &PlaybackController::loopRangeChanged, this, [this] { update(); });
         const auto resetNoteSoundCursor = [this](double timeMs) {
+            if (m_timesDirty || m_noteDataDirty)
+                rebuildNoteTimesCache();
             m_lastNoteSoundTimeMs = qMax(0.0, timeMs);
             m_noteSoundStartInclusive = true;
         };
         connect(m_playbackController, &PlaybackController::seeked, this, resetNoteSoundCursor);
-        connect(m_playbackController, &PlaybackController::playbackStarted, this, resetNoteSoundCursor);
+        connect(m_playbackController, &PlaybackController::playbackStarting, this, resetNoteSoundCursor);
         attachDisplayFrameWindow();
         if (m_displayFrameScreen)
             m_playbackController->setDisplayRefreshRate(m_displayFrameScreen->refreshRate());
@@ -804,6 +813,7 @@ void ChartCanvas::setNoteSoundFile(const QString &filePath)
     if (m_noteSoundPlayer->soundFile() == filePath)
         return;
     m_noteSoundPlayer->setSoundFile(filePath);
+    publishNoteSoundSettings();
 }
 
 void ChartCanvas::setNoteSoundEnabled(bool enabled)
@@ -813,6 +823,7 @@ void ChartCanvas::setNoteSoundEnabled(bool enabled)
     if (m_noteSoundPlayer->isEnabled() == enabled)
         return;
     m_noteSoundPlayer->setEnabled(enabled);
+    publishNoteSoundSettings();
 }
 
 void ChartCanvas::setNoteSoundVolume(int volumePercent)
@@ -822,6 +833,22 @@ void ChartCanvas::setNoteSoundVolume(int volumePercent)
     if (m_noteSoundPlayer->volumePercent() == volumePercent)
         return;
     m_noteSoundPlayer->setVolumePercent(volumePercent);
+    publishNoteSoundSettings();
+}
+
+void ChartCanvas::publishNoteSoundSettings()
+{
+    if (m_playbackController)
+    {
+        const int volume = m_noteSoundPlayer->isEnabled() ? m_noteSoundPlayer->volumePercent() : 0;
+        m_playbackController->audioPlayer()->setNoteSound(m_noteSoundPlayer->soundFile(), volume);
+    }
+}
+
+void ChartCanvas::publishNoteSoundTimes()
+{
+    if (m_playbackController)
+        m_playbackController->audioPlayer()->setNoteSoundTimes(m_playableNoteTimesMs);
 }
 
 void ChartCanvas::invalidateChartCaches(bool includeBackground)

@@ -73,6 +73,7 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
     }
 
     if (!m_playbackController ||
+        m_playbackController->audioPlayer()->hasOutputClock() ||
         !m_noteSoundPlayer ||
         !m_noteSoundPlayer->isEnabled() ||
         m_playableNoteTimesMs.isEmpty())

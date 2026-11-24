@@ -115,6 +115,8 @@ AudioPlayer::~AudioPlayer()
 {
     cancelPendingLoad();
 #ifdef _WIN32
+    if (m_noteSoundPreparation)
+        m_noteSoundPreparation->store(true);
     m_nativeOutput.reset();
 #endif
     // Release the backend's open media handle before removing temporary audio.
@@ -497,6 +499,9 @@ QString AudioPlayer::lastError() const
 void AudioPlayer::setAudioLatency(int latency)
 {
     m_audioLatency = latency;
+#ifdef _WIN32
+    updateNativeNoteSound();
+#endif
 }
 
 int AudioPlayer::audioLatency() const
@@ -507,6 +512,9 @@ int AudioPlayer::audioLatency() const
 void AudioPlayer::setUserOffset(int offset)
 {
     m_userOffset = offset;
+#ifdef _WIN32
+    updateNativeNoteSound();
+#endif
 }
 
 int AudioPlayer::userOffset() const
@@ -517,6 +525,9 @@ int AudioPlayer::userOffset() const
 void AudioPlayer::setAudioCorrectionEnabled(bool enabled)
 {
     m_audioCorrectionEnabled = enabled;
+#ifdef _WIN32
+    updateNativeNoteSound();
+#endif
 }
 
 bool AudioPlayer::audioCorrectionEnabled() const
@@ -529,9 +540,65 @@ qint64 AudioPlayer::adjustedPosition() const
     return qRound64(outputTime());
 }
 
-void AudioPlayer::setAdjustedPosition(qint64 adjustedMs)
+void AudioPlayer::setAdjustedPosition(double adjustedMs)
 {
-    setPosition(qRound64(static_cast<double>(adjustedMs) - correctionMs()));
+    const double positionMs = adjustedMs - correctionMs();
+#ifdef _WIN32
+    if (m_nativeOutput)
+    {
+        requestNativePosition(positionMs);
+        emit positionChanged(position());
+        return;
+    }
+#endif
+    setPosition(qRound64(positionMs));
+}
+
+void AudioPlayer::setNoteSound(const QString &filePath, int volumePercent)
+{
+#ifdef _WIN32
+    m_noteSoundGain = qBound(0, volumePercent, 100) / 100.0f;
+    if (m_noteSoundPath != filePath)
+    {
+        m_noteSoundPath = filePath;
+        m_noteSoundSample.reset();
+        if (m_noteSoundPreparation)
+            m_noteSoundPreparation->store(true);
+        m_noteSoundPreparation.reset();
+        if (!filePath.isEmpty() && !qEnvironmentVariableIntValue("CCE_LEGACY_AUDIO"))
+        {
+            const auto cancel = m_noteSoundPreparation = std::make_shared<std::atomic_bool>(false);
+            auto *watcher = new QFutureWatcher<std::shared_ptr<const WindowsAudioOutput::Pcm>>(this);
+            connect(watcher, &QFutureWatcherBase::finished, this, [this, watcher, cancel] {
+                watcher->deleteLater();
+                if (cancel->load())
+                    return;
+                m_noteSoundPreparation.reset();
+                m_noteSoundSample = watcher->result();
+                if (!m_noteSoundSample)
+                    Logger::warn(QString("AudioPlayer - Could not decode note sound: %1").arg(m_noteSoundPath));
+                updateNativeNoteSound();
+            });
+            watcher->setFuture(QtConcurrent::run([filePath, cancel] {
+                return WindowsAudioOutput::decode(filePath, *cancel);
+            }));
+        }
+    }
+    updateNativeNoteSound();
+#else
+    Q_UNUSED(filePath);
+    Q_UNUSED(volumePercent);
+#endif
+}
+
+void AudioPlayer::setNoteSoundTimes(const QVector<double> &timesMs)
+{
+#ifdef _WIN32
+    m_noteSoundTimesMs = timesMs;
+    updateNativeNoteSound();
+#else
+    Q_UNUSED(timesMs);
+#endif
 }
 
 double AudioPlayer::correctionMs() const
@@ -575,6 +642,13 @@ void AudioPlayer::setPlaybackLimit(double adjustedEndMs)
 }
 
 #ifdef _WIN32
+void AudioPlayer::updateNativeNoteSound()
+{
+    if (m_nativeOutput)
+        m_nativeOutput->setNoteSound(m_noteSoundTimesMs, m_noteSoundSample, m_noteSoundGain,
+            m_audioCorrectionEnabled ? m_userOffset : 0, m_audioCorrectionEnabled ? m_audioLatency : 0);
+}
+
 void AudioPlayer::prepareNativeOutput(const QString &path, quint64 generation)
 {
     const auto cancel = m_nativePreparation = std::make_shared<std::atomic_bool>(false);
@@ -591,6 +665,7 @@ void AudioPlayer::prepareNativeOutput(const QString &path, quint64 generation)
             m_nativeOutput = std::make_unique<WindowsAudioOutput>(pcm);
             m_nativeOutput->setVolume(m_audioOutput->volume());
             m_nativeOutput->setMuted(isMuted());
+            updateNativeNoteSound();
             m_nativeDeviceId = QMediaDevices::defaultAudioOutput().id();
         }
         if (m_player->mediaStatus() == QMediaPlayer::LoadedMedia ||

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QtTypes>
+#include <QVector>
 #include <atomic>
 #include <memory>
 
@@ -23,6 +24,8 @@ public:
                      bool reopenDevice = false);
     void setMuted(bool muted);
     void setVolume(float gain);
+    void setNoteSound(const QVector<double> &timesMs, std::shared_ptr<const Pcm> sample,
+                      float gain, double offsetMs, double latencyMs);
     double positionMs(qint64 aheadNs = 0) const;
     Status status() const;
 

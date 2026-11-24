@@ -56,7 +56,7 @@ public:
 signals:
     void loopRangeChanged(double startMs, double endMs, bool enabled);
     void stateChanged(State newState);
-    void playbackStarted(double timeMs);
+    void playbackStarting(double timeMs);
     void positionChanged(double timeMs);
     void seeked(double timeMs);
     void playbackFrameTick(double predictedTimeMs, qint64 frameSeq);
@@ -77,7 +77,7 @@ private:
 
     void startPlayback(std::optional<double> requestedStartMs);
     double clampSeekTargetMs(double timeMs) const;
-    void applySeekNow(qint64 targetMs, const char *reason);
+    void applySeekNow(double targetMs, const char *reason);
     void updateFrameScheduler();
     void dispatchScheduledFrame();
     void beginPlaybackUiPriority();

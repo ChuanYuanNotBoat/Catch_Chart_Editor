@@ -146,12 +146,13 @@ void PlaybackController::startPlayback(std::optional<double> requestedStartMs)
         }
         const double startTimeMs = requestedStartMs.value_or(qMax(0.0, m_audioPlayer->outputTime()));
         m_pausedSeekTimeMs.reset();
+        emit playbackStarting(startTimeMs);
         m_audioPlayer->play();
         m_state = Playing;
         m_frameSeq = 0;
         m_lastPulseProbeNs = 0;
         m_lastPulseIntervalMs = -1.0;
-        m_lastFrameTickMs = static_cast<double>(m_audioPlayer->adjustedPosition());
+        m_lastFrameTickMs = m_audioPlayer->outputTime();
         m_frameRateCorrection = 0.0;
         resetFrameAnchor(m_lastFrameTickMs, m_frameClock.nsecsElapsed());
         // Track when QMediaPlayer first advances so its coarse startup sample
@@ -167,7 +168,6 @@ void PlaybackController::startPlayback(std::optional<double> requestedStartMs)
         m_frameScheduler->setActive(true);
         Logger::debug(QString("PlaybackController::play - Playing from position %1ms").arg(m_audioPlayer->position()));
         PlaybackStutterProbe::markPlaybackState(true);
-        emit playbackStarted(startTimeMs);
         emit stateChanged(m_state);
     }
     else
@@ -191,7 +191,7 @@ void PlaybackController::playFromTime(double timeMs)
     }
 
     const double targetMs = clampSeekTargetMs(timeMs);
-    applySeekNow(qRound64(targetMs), "playFromTime");
+    applySeekNow(targetMs, "playFromTime");
     startPlayback(targetMs);
 }
 
@@ -252,7 +252,7 @@ void PlaybackController::setSpeed(double speed)
     const qint64 nowNs = m_frameClock.nsecsElapsed();
     const double continuousTimeMs = (m_state == Playing)
                                         ? predictedTimeAt(nowNs)
-                                        : static_cast<double>(m_audioPlayer->adjustedPosition());
+                                        : m_audioPlayer->outputTime();
     m_speed = speed;
     m_frameRateCorrection = 0.0;
     m_audioPlayer->setSpeed(speed);
@@ -267,7 +267,7 @@ void PlaybackController::setSpeed(double speed)
     {
         // Changing the rate changes the wall-latency conversion. Preserve the
         // visible/seek position while paused instead of shifting the playhead.
-        m_audioPlayer->setAdjustedPosition(qRound64(continuousTimeMs));
+        m_audioPlayer->setAdjustedPosition(continuousTimeMs);
     }
     Logger::debug(QString("PlaybackController::setSpeed - Speed changed to %1x").arg(speed));
     emit speedChanged(speed);
@@ -355,15 +355,15 @@ void PlaybackController::seekTo(double timeMs)
     const double requestedMs = clampSeekTargetMs(timeMs);
     if (m_state != Playing)
         m_pausedSeekTimeMs = requestedMs;
-    const qint64 targetMs = qRound64(requestedMs);
+    const double targetMs = m_audioPlayer->hasOutputClock() ? requestedMs : qRound64(requestedMs);
     const qint64 nowNs = m_frameClock.nsecsElapsed();
     m_frameRateCorrection = 0.0;
     resetFrameAnchor(static_cast<double>(targetMs), nowNs);
     m_lastFrameTickMs = static_cast<double>(targetMs);
     m_awaitingInitialAudioProgress = (m_state == Playing);
     m_audioProgressStartMs = static_cast<double>(targetMs);
-    applySeekNow(targetMs, "direct");
     emit seeked(requestedMs);
+    applySeekNow(targetMs, "direct");
     emit positionChanged(static_cast<double>(targetMs));
 }
 
@@ -564,8 +564,13 @@ double PlaybackController::clampSeekTargetMs(double timeMs) const
     return clamped;
 }
 
-void PlaybackController::applySeekNow(qint64 targetMs, const char *reason)
+void PlaybackController::applySeekNow(double targetMs, const char *reason)
 {
+    if (m_audioPlayer->hasOutputClock())
+    {
+        m_audioPlayer->setAdjustedPosition(targetMs);
+        return;
+    }
     const qint64 clampedMs = qRound64(clampSeekTargetMs(targetMs));
     const qint64 currentMs = m_audioPlayer
                                  ? qRound64(clampSeekTargetMs(m_audioPlayer->adjustedPosition()))

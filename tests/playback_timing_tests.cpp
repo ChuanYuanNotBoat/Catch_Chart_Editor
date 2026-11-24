@@ -1,4 +1,5 @@
 #include "audio/AudioPlayer.h"
+#include "audio/NoteSoundMixer.h"
 #include "audio/NoteSoundPlayer.h"
 #include "audio/PlaybackTiming.h"
 #include "controller/ChartController.h"
@@ -15,6 +16,7 @@
 #include <QMediaDevices>
 #include "isolated_settings.h"
 #include <QSignalSpy>
+#include <QScopeGuard>
 #include <QSoundEffect>
 #include <QTemporaryDir>
 #include <QTest>
@@ -57,6 +59,19 @@ class PlaybackTimingTests : public QObject
         return chart;
     }
 
+    bool loadLegacyAudio(AudioPlayer &audio)
+    {
+        const auto previous = qgetenv("CCE_LEGACY_AUDIO");
+        const auto restore = qScopeGuard([&] {
+            if (previous.isNull())
+                qunsetenv("CCE_LEGACY_AUDIO");
+            else
+                qputenv("CCE_LEGACY_AUDIO", previous);
+        });
+        qputenv("CCE_LEGACY_AUDIO", "1");
+        return audio.load(m_music);
+    }
+
 private slots:
     void initTestCase()
     {
@@ -83,14 +98,7 @@ private slots:
             if (buffer.isValid() && firstStartUs < 0) firstStartUs = buffer.startTime();
         });
         // This assertion targets Qt's file playback intent specifically.
-        const QByteArray legacy = qgetenv("CCE_LEGACY_AUDIO");
-        qputenv("CCE_LEGACY_AUDIO", "1");
-        const bool loading = audio.load(m_music);
-        if (legacy.isNull())
-            qunsetenv("CCE_LEGACY_AUDIO");
-        else
-            qputenv("CCE_LEGACY_AUDIO", legacy);
-        QVERIFY(loading);
+        QVERIFY(loadLegacyAudio(audio));
         QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
         audio.play();
         QTRY_VERIFY_WITH_TIMEOUT(firstStartUs >= 0, 7000);
@@ -160,6 +168,11 @@ private slots:
         const double fastStart = playback.currentTime();
         QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= fastStart + 80, 1500);
         QVERIFY(audio.hasOutputClock());
+        playback.pause();
+        playback.seekTo(999.5);
+        QCOMPARE(playback.currentTime(), 999.5);
+        playback.setSpeed(1.5);
+        QCOMPARE(playback.currentTime(), 999.5);
         playback.stop();
         QCOMPARE(playback.currentTime(), 0.0);
 
@@ -288,6 +301,48 @@ private slots:
             }
     }
 
+    void mixerPlacesCuesAcrossBufferAndTransportBoundaries()
+    {
+        const double seekCue = std::nextafter(999.5, 0.0);
+        const QVector<double> times{998.5, seekCue, seekCue, 999.625, 1000.0};
+        const float hit[] = {0, .25f, 0, .25f, 0, .25f, 0, .25f};
+        const double startFrame = 999.5 * 48;
+        NoteSoundMixer mixer;
+        float samples[12] = {};
+        mixer.mix(samples, 0, 2, startFrame, 2, times, hit, 4, 1);
+        mixer.mix(samples + 4, 2, 4, startFrame, 2, times, hit, 4, 1);
+        // The duplicate at the seek point sounds once. The next cue begins
+        // three output frames later, sharing one sample with the first.
+        const float levels[] = {.25f, .25f, .25f, .5f, .25f, .25f};
+        for (int frame = 0; frame < 6; ++frame)
+        {
+            QCOMPARE(samples[frame * 2], 0.0f);
+            QCOMPARE(samples[frame * 2 + 1], levels[frame]);
+        }
+
+        mixer.reset();
+        float resumed[6] = {};
+        mixer.mix(resumed, 0, 3, 999.75 * 48, 6, times, hit, 4, .5f);
+        QCOMPARE(resumed[1], 0.0f);
+        QCOMPARE(resumed[3], 0.0f);
+        QCOMPARE(resumed[5], .125f);
+
+        mixer.reset();
+        float justAfterCue[2] = {};
+        mixer.mix(justAfterCue, 0, 1, 999.64 * 48, 10, times, hit, 4, 1);
+        QCOMPARE(justAfterCue[1], 0.0f);
+
+        // Schedule a late cue after a long uninterrupted span using its
+        // absolute position, even at a rate with fractional frame spacing.
+        const QVector<double> lateCue{180000.137};
+        const auto onset = qint64(std::llround(180000.137 * 48 / 1.7));
+        mixer.reset();
+        float late[4] = {};
+        mixer.mix(late, onset - 1, 2, 0, 1.7, lateCue, hit, 4, 1);
+        QCOMPARE(late[1], 0.0f);
+        QCOMPARE(late[3], .25f);
+    }
+
     void notesContinueWhilePaintIsNotAcknowledged()
     {
         if (QMediaDevices::defaultAudioOutput().isNull()) QSKIP("No audio output device");
@@ -308,7 +363,7 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(canvas.findChild<QSoundEffect *>()->status() == QSoundEffect::Ready, 5000);
         QSignalSpy hits(sounds, &NoteSoundPlayer::hitSoundTriggered);
         QSignalSpy frames(&playback, &PlaybackController::playbackFrameTick);
-        QVERIFY(audio.load(m_music));
+        QVERIFY(loadLegacyAudio(audio));
         QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
         playback.play();
         // Canvas stays hidden, so its first frame never acknowledges paint.
@@ -336,7 +391,7 @@ private slots:
         auto *sounds = canvas.findChild<NoteSoundPlayer *>();
         QTRY_VERIFY_WITH_TIMEOUT(canvas.findChild<QSoundEffect *>()->status() == QSoundEffect::Ready, 5000);
         QSignalSpy hits(sounds, &NoteSoundPlayer::hitSoundTriggered);
-        QVERIFY(audio.load(m_music));
+        QVERIFY(loadLegacyAudio(audio));
         QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
         playback.play();
         QTRY_VERIFY_WITH_TIMEOUT(hits.size() >= 1, 2000);
@@ -387,7 +442,7 @@ private slots:
         for (auto *voice : sounds->findChildren<QSoundEffect *>())
             QTRY_VERIFY_WITH_TIMEOUT(voice->isLoaded(), 5000);
         QSignalSpy hits(sounds, &NoteSoundPlayer::hitSoundTriggered);
-        QVERIFY(audio.load(m_music));
+        QVERIFY(loadLegacyAudio(audio));
         QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
         playback.setSpeed(2.0);
         playback.playFromTime(startMs);
@@ -446,7 +501,7 @@ private slots:
         for (auto *voice : sounds->findChildren<QSoundEffect *>())
             QTRY_VERIFY_WITH_TIMEOUT(voice->isLoaded(), 5000);
         QSignalSpy hits(sounds, &NoteSoundPlayer::hitSoundTriggered);
-        QVERIFY(audio.load(m_music));
+        QVERIFY(loadLegacyAudio(audio));
         QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
         playback.playFromTime(0.0);
         QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= 440, 1500);
@@ -480,7 +535,7 @@ private slots:
         auto *sounds = canvas.findChild<NoteSoundPlayer *>();
         QTRY_VERIFY_WITH_TIMEOUT(canvas.findChild<QSoundEffect *>()->status() == QSoundEffect::Ready, 5000);
         QSignalSpy hits(sounds, &NoteSoundPlayer::hitSoundTriggered);
-        QVERIFY(audio.load(m_music));
+        QVERIFY(loadLegacyAudio(audio));
         QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
         playback.play();
         QTRY_VERIFY_WITH_TIMEOUT(hits.size() >= 2, 1500);

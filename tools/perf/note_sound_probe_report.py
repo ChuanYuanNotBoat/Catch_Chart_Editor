@@ -19,6 +19,32 @@ def distribution(values):
             "max_ms": round(values[-1], 3)}
 
 
+def pulse_timing(data):
+    if not data.get("stereo_pulse_detection"):
+        return None
+    music = data["music_onsets_wall_ms"]
+    hits = data["hit_onsets_wall_ms"]
+    result = {}
+    if not data.get("transport"):
+        period_ms = data["synthetic_interval_ms"] / data["speed"]
+        for name, onsets in (("music", music), ("hit", hits)):
+            if len(onsets) > 1:
+                errors = [b - a - period_ms for a, b in zip(onsets, onsets[1:])]
+                result[f"{name}_abs_interval_error_wall_ms"] = distribution(map(abs, errors))
+                result[f"{name}_end_minus_start_error_wall_ms"] = round(sum(errors), 3)
+    # Pair by order only when both channels contain the same number of pulses.
+    # Verify the recording is isolated before interpreting the phase results.
+    if music and len(music) == len(hits):
+        phases = [hit - marker for marker, hit in zip(music, hits)]
+        result["phase_hit_minus_music_wall_ms"] = distribution(phases)
+        result["first_phase_wall_ms"] = round(phases[0], 3)
+        result["last_phase_wall_ms"] = round(phases[-1], 3)
+        if len(phases) >= 41:
+            result["last20_minus_first20_steady_phase_wall_ms"] = round(
+                statistics.median(phases[-20:]) - statistics.median(phases[1:21]), 3)
+    return result
+
+
 def summarize(path):
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     rate = data["speed"]
@@ -50,7 +76,8 @@ def summarize(path):
                 (v["raw_ms"] - v["predicted_ms"]) / rate for v in observations]),
             "loopback_hit_count": len(data["hit_onsets_wall_ms"]),
             "loopback_music_count": len(data["music_onsets_wall_ms"]),
-            "note": "Submission uses the predicted clock. Loopback tone detections can include other audio; counts alone do not validate audible alignment."}
+            "loopback_discontinuities": data.get("loopback_discontinuities"),
+            "loopback_pulse_timing": pulse_timing(data)}
 
 
 if __name__ == "__main__":

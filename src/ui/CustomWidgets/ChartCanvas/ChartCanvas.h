@@ -311,6 +311,8 @@ private:
     double minimumScrollBeat() const;
 
     void rebuildNoteTimesCache();
+    void publishNoteSoundTimes();
+    void publishNoteSoundSettings();
     const Chart *chart() const;
 
     double effectiveVisibleBeatRange() const

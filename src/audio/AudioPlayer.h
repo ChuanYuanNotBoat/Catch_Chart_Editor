@@ -5,11 +5,12 @@
 #include <QAudioOutput>
 #include <QMetaObject>
 #include <QTimer>
+#include <QVector>
 #include <atomic>
 #include <memory>
 
 #ifdef _WIN32
-class WindowsAudioOutput;
+#include "WindowsAudioOutput.h"
 #endif
 
 class AudioPlayer : public QObject
@@ -57,7 +58,9 @@ public:
     void setAudioCorrectionEnabled(bool enabled);
     bool audioCorrectionEnabled() const;
     qint64 adjustedPosition() const;
-    void setAdjustedPosition(qint64 adjustedMs);
+    void setAdjustedPosition(double adjustedMs);
+    void setNoteSound(const QString &filePath, int volumePercent);
+    void setNoteSoundTimes(const QVector<double> &timesMs);
     bool hasOutputClock() const;
     double outputTime(qint64 aheadNs = 0) const;
     void setPlaybackLimit(double adjustedEndMs);
@@ -95,12 +98,18 @@ private:
     void prepareNativeOutput(const QString &path, quint64 generation);
     void pollNativeOutput();
     void requestNativePosition(double positionMs, bool reopenDevice = false);
+    void updateNativeNoteSound();
     std::unique_ptr<WindowsAudioOutput> m_nativeOutput;
     std::shared_ptr<std::atomic_bool> m_nativePreparation;
     QTimer m_nativePoll;
     QMediaPlayer::PlaybackState m_nativeState = QMediaPlayer::StoppedState;
     QByteArray m_nativeDeviceId;
     double m_playbackLimitMs = -1;
+    QString m_noteSoundPath;
+    QVector<double> m_noteSoundTimesMs;
+    float m_noteSoundGain = 0;
+    std::shared_ptr<const WindowsAudioOutput::Pcm> m_noteSoundSample;
+    std::shared_ptr<std::atomic_bool> m_noteSoundPreparation;
 #endif
 
     double correctionMs() const;
