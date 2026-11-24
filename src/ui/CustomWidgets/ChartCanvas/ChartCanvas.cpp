@@ -65,6 +65,7 @@ ChartCanvas::ChartCanvas(QWidget *parent)
       m_colorMode(true),
       m_hyperfruitEnabled(true),
       m_verticalFlip(true),
+      m_referenceLineRatio(Settings::instance().referenceLineHeight() / 100.0),
       m_timeDivision(Settings::instance().editorTimeDivision()),
       m_gridDivision(Settings::instance().editorGridDivision()),
       m_gridSnap(Settings::instance().editorGridSnapEnabled()),
@@ -260,7 +261,7 @@ double ChartCanvas::beatFromTimeMs(double timeMs) const
 
 double ChartCanvas::referenceLineBeatOffset() const
 {
-    return (m_verticalFlip ? 1.0 - kReferenceLineRatio : kReferenceLineRatio) * effectiveVisibleBeatRange();
+    return (m_verticalFlip ? 1.0 - m_referenceLineRatio : m_referenceLineRatio) * effectiveVisibleBeatRange();
 }
 
 double ChartCanvas::minimumScrollBeat() const
@@ -703,6 +704,25 @@ void ChartCanvas::setScrollPos(double timeMs)
         emit scrollPositionChanged(m_scrollBeat);
 }
 
+void ChartCanvas::setReferenceLineHeight(int percent)
+{
+    const double ratio = qBound(Settings::minimumReferenceLineHeight, percent,
+                                Settings::maximumReferenceLineHeight) / 100.0;
+    if (qFuzzyCompare(m_referenceLineRatio, ratio))
+        return;
+
+    const double referenceBeat = m_scrollBeat + referenceLineBeatOffset();
+    m_referenceLineRatio = ratio;
+    if (chart())
+    {
+        m_scrollBeat = qMax(minimumScrollBeat(), referenceBeat - referenceLineBeatOffset());
+        emit scrollPositionChanged(m_scrollBeat);
+    }
+    invalidateGridCache();
+    invalidatePastePreviewCache();
+    update();
+}
+
 void ChartCanvas::syncCurrentPlayTimeToReferenceLine()
 {
     if (!chart())
@@ -710,10 +730,7 @@ void ChartCanvas::syncCurrentPlayTimeToReferenceLine()
 
     const auto &bpmList = chart()->bpmList();
     const int offset = chart()->meta().offset;
-    const double baselineRatio = kReferenceLineRatio;
-    const double baselineBeat = m_verticalFlip
-                                    ? m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange()
-                                    : m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
+    const double baselineBeat = m_scrollBeat + referenceLineBeatOffset();
 
     int beatNum = 0;
     int numerator = 0;

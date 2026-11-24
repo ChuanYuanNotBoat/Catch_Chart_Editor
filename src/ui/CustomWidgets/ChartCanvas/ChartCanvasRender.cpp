@@ -444,7 +444,7 @@ void ChartCanvas::paintEvent(QPaintEvent *event)
         painter.drawLine(QPointF(lmargin, b), QPointF(canvasWidth - rmargin, b));
     }
 
-    double baselineY = canvasHeight * kReferenceLineRatio;
+    const double baselineY = canvasHeight * m_referenceLineRatio;
     painter.setPen(QPen(QColor(0, 0, 255), 3));
     painter.drawLine(lmargin, baselineY, canvasWidth - rmargin, baselineY);
 

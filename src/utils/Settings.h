@@ -52,6 +52,11 @@ public:
     int noteSoundVolume() const;
     void setNoteSoundVolume(int volume);
 
+    static constexpr int minimumReferenceLineHeight = 5;
+    static constexpr int maximumReferenceLineHeight = 95;
+    int referenceLineHeight() const;
+    void setReferenceLineHeight(int percent);
+
     QString currentSkin() const;
     void setCurrentSkin(const QString &skinName);
 

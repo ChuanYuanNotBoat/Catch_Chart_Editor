@@ -125,6 +125,7 @@
 - `Settings -> Calibrate Skin...`：校准当前皮肤缩放，让皮肤素材与编辑画布对齐。
 - `Settings -> Outline Settings...`：设置音符描边宽度与颜色。
 - `Settings -> Note Sound Volume...`：调整编辑时音符音效音量。
+- `Settings -> Reference Line Height...`：按距顶部的百分比调节编辑画布与实时预览的判定线高度，默认 80%。
 - `Settings -> Session Settings...`：设置编辑会话选项，包括自动保存间隔和音频校正测试开关。
 - `Settings -> Skin`：选择可用皮肤。皮肤来自程序目录的 `skins` 或内置默认皮肤资源。
 - `Settings -> Note Sound`：选择编辑音符时播放的按键音；选择 `None` 可关闭音效。

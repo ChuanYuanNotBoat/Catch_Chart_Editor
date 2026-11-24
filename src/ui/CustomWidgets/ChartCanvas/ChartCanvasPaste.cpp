@@ -181,11 +181,7 @@ void ChartCanvas::beginPastePreview(const QVector<Note> &notes, const QPoint &cu
     }
     else
     {
-        const double baselineRatio = kReferenceLineRatio;
-        if (m_verticalFlip)
-            m_pasteAnchorBeat = m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange();
-        else
-            m_pasteAnchorBeat = m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
+        m_pasteAnchorBeat = m_scrollBeat + referenceLineBeatOffset();
     }
 
     if (!m_pasteNotes.isEmpty())
@@ -392,12 +388,7 @@ double ChartCanvas::calculatePasteReferenceTime() const
     }
     else
     {
-        const double baselineRatio = kReferenceLineRatio;
-        double baselineBeat;
-        if (m_verticalFlip)
-            baselineBeat = m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange();
-        else
-            baselineBeat = m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
+        const double baselineBeat = m_scrollBeat + referenceLineBeatOffset();
         int beatNum, num, den;
         MathUtils::floatToBeat(baselineBeat, beatNum, num, den);
         return MathUtils::beatToMs(beatNum, num, den, bpmList, offset);

@@ -2253,6 +2253,9 @@ void MainWindow::createSettingsMenu()
     QAction *hyperfruitJudgeAction = settingsMenu->addAction(tr("Hyperfruit Judge..."));
     hyperfruitJudgeAction->setObjectName(QStringLiteral("hyperfruitJudgeAction"));
     connect(hyperfruitJudgeAction, &QAction::triggered, this, &MainWindow::configureHyperfruitJudge);
+    QAction *referenceLineAction = settingsMenu->addAction(tr("Reference Line Height..."));
+    referenceLineAction->setObjectName(QStringLiteral("referenceLineHeightAction"));
+    connect(referenceLineAction, &QAction::triggered, this, &MainWindow::adjustReferenceLineHeight);
     d->noteSoundVolumeAction = settingsMenu->addAction(tr("Note Sound Volume..."));
     connect(d->noteSoundVolumeAction, &QAction::triggered, this, &MainWindow::adjustNoteSoundVolume);
     QAction *sessionSettingsAction = settingsMenu->addAction(tr("Session Settings..."));

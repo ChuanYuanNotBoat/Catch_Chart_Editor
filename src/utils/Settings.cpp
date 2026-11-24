@@ -591,6 +591,17 @@ void Settings::setNoteSoundVolume(int volume)
     m_settings.setValue("audio/noteSoundVolume", qBound(0, volume, 200));
 }
 
+int Settings::referenceLineHeight() const
+{
+    return qBound(minimumReferenceLineHeight, m_settings.value("editor/referenceLineHeight", 80).toInt(),
+                  maximumReferenceLineHeight);
+}
+void Settings::setReferenceLineHeight(int percent)
+{
+    m_settings.setValue("editor/referenceLineHeight",
+                        qBound(minimumReferenceLineHeight, percent, maximumReferenceLineHeight));
+}
+
 QString Settings::currentSkin() const
 {
     return m_settings.value("currentSkin", "default").toString();

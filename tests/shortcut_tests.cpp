@@ -6,6 +6,7 @@
 #include "controller/SelectionController.h"
 #include "model/Skin.h"
 #include "ui/CustomWidgets/ChartCanvas/ChartCanvas.h"
+#include "ui/CustomWidgets/RealtimePreviewWidget.h"
 #include "ui/NoteEditPanel.h"
 #include "ui/LongRangeSelector.h"
 #include "ui/dialogs/BpmMeasureDialog.h"
@@ -34,6 +35,7 @@
 #include <QTabBar>
 #include <QComboBox>
 #include <QSignalSpy>
+#include <QSlider>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -105,6 +107,54 @@ private slots:
         m_canvas->setPluginToolMode(false);
         resetChart();
         focus(m_canvas);
+    }
+
+    void referenceLineHeightUpdatesBothViews()
+    {
+        auto &settings = Settings::instance();
+        QCOMPARE(settings.referenceLineHeight(), 80);
+        auto *action = m_window->findChild<QAction *>("referenceLineHeightAction");
+        auto *preview = m_window->findChild<RealtimePreviewWidget *>();
+        QVERIFY(action && preview);
+        m_canvas->setScrollPos(1000.0);
+        const auto lineY = [this] { return m_canvas->chartBeatToY(2.0) / m_canvas->height(); };
+        const auto previewLine = [preview](int percent) {
+            const QPixmap image = preview->grab();
+            const double y = 8.0 + (preview->height() - 16.0) * percent / 100.0;
+            return image.toImage().pixelColor(qRound(20 * image.devicePixelRatio()),
+                                              qRound(y * image.devicePixelRatio()));
+        };
+        const auto adjustHeight = [&](int height, bool accept) {
+            QTimer::singleShot(0, m_window.get(), [&, height, accept] {
+                auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                QVERIFY(dialog);
+                auto *slider = dialog->findChild<QSlider *>();
+                if (slider)
+                    slider->setValue(height);
+                const double liveY = lineY();
+                const QColor livePreview = previewLine(height);
+                dialog->done(accept ? QDialog::Accepted : QDialog::Rejected);
+                QVERIFY(slider);
+                QVERIFY(qAbs(liveY - height / 100.0) < 0.001);
+                QCOMPARE(livePreview, QColor(Qt::white));
+            });
+            action->trigger();
+        };
+        adjustHeight(45, false);
+        QCOMPARE(settings.referenceLineHeight(), 80);
+        QVERIFY(qAbs(lineY() - 0.8) < 0.001);
+        QCOMPARE(previewLine(80), QColor(Qt::white));
+        adjustHeight(60, true);
+        QCOMPARE(Settings::openStore().value("editor/referenceLineHeight").toInt(), 60);
+
+        const bool flip = m_canvas->isVerticalFlip();
+        m_canvas->setVerticalFlip(!flip);
+        m_canvas->setScrollPos(1000.0);
+        QVERIFY(qAbs(lineY() - 0.6) < 0.001);
+        m_canvas->setVerticalFlip(flip);
+        m_canvas->setReferenceLineHeight(80);
+        preview->setReferenceLineHeight(80);
+        settings.setReferenceLineHeight(80);
     }
 
     void remappedDeleteUndoRedoAndRemovedF8()

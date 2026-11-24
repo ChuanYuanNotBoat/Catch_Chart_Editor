@@ -50,6 +50,7 @@ RealtimePreviewWidget::RealtimePreviewWidget(QWidget *parent)
     : QWidget(parent),
       m_noteRenderer(new NoteRenderer()),
       m_hyperfruitDetector(new HyperfruitDetector()),
+      m_referenceLineRatio(Settings::instance().referenceLineHeight() / 100.0),
       m_deferredUpdateTimer(new QTimer(this))
 {
     setMinimumWidth(170);
@@ -142,6 +143,13 @@ void RealtimePreviewWidget::setPlaybackController(PlaybackController *controller
         });
         onPlaybackStateChanged();
     }
+}
+
+void RealtimePreviewWidget::setReferenceLineHeight(int percent)
+{
+    m_referenceLineRatio = qBound(Settings::minimumReferenceLineHeight, percent,
+                                  Settings::maximumReferenceLineHeight) / 100.0;
+    scheduleUpdate();
 }
 
 void RealtimePreviewWidget::setSkin(Skin *skin)
@@ -503,7 +511,7 @@ void RealtimePreviewWidget::paintEvent(QPaintEvent *event)
 
     const double upperSpanMs = 2000.0;
     const double lowerSpanMs = 2000.0;
-    const double referenceY = laneRect.top() + laneRect.height() * 0.8;
+    const double referenceY = laneRect.top() + laneRect.height() * m_referenceLineRatio;
 
     painter.setPen(QPen(Qt::white, 2));
     painter.drawLine(QPointF(laneRect.left(), referenceY), QPointF(laneRect.right(), referenceY));

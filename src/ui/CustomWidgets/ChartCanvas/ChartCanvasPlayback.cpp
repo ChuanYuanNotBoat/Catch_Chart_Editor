@@ -303,10 +303,7 @@ void ChartCanvas::navigateSelection(int direction, bool extend)
     if (currentSelection.isEmpty())
     {
         // Nothing selected yet: find the note closest to the reference line beat.
-        const double baselineRatio = kReferenceLineRatio;
-        const double refBeat = m_verticalFlip
-            ? m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange()
-            : m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
+        const double refBeat = m_scrollBeat + referenceLineBeatOffset();
 
         int closestIndex = -1;
         double closestDist = std::numeric_limits<double>::max();

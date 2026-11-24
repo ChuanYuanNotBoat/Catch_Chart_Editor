@@ -1527,6 +1527,18 @@
         <translation>Outline Settings...</translation>
     </message>
     <message>
+        <source>Reference Line Height...</source>
+        <translation>Reference Line Height...</translation>
+    </message>
+    <message>
+        <source>Reference Line Height</source>
+        <translation>Reference Line Height</translation>
+    </message>
+    <message>
+        <source>%1% from the top</source>
+        <translation>%1% from the top</translation>
+    </message>
+    <message>
         <location filename="../../src/app/MainWindow.cpp" line="2071"/>
         <source>Note Sound Volume...</source>
         <translation>Note Sound Volume...</translation>

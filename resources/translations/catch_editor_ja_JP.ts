@@ -1556,6 +1556,18 @@ The map follows detected pulse anchors through %3-%4 s and keeps BPM entries out
         <translation>アウトライン設定...</translation>
     </message>
     <message>
+        <source>Reference Line Height...</source>
+        <translation>判定ラインの高さ...</translation>
+    </message>
+    <message>
+        <source>Reference Line Height</source>
+        <translation>判定ラインの高さ</translation>
+    </message>
+    <message>
+        <source>%1% from the top</source>
+        <translation>上端から %1%</translation>
+    </message>
+    <message>
         <location filename="../../src/app/MainWindow.cpp" line="2071"/>
         <source>Note Sound Volume...</source>
         <translation>ノート音量...</translation>

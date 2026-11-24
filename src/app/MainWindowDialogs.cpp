@@ -1981,6 +1981,44 @@ void MainWindow::configureOutline()
     }
 }
 
+void MainWindow::adjustReferenceLineHeight()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Reference Line Height"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *valueLabel = new QLabel(&dialog);
+    auto *slider = new QSlider(Qt::Horizontal, &dialog);
+    const int originalHeight = Settings::instance().referenceLineHeight();
+    slider->setRange(Settings::minimumReferenceLineHeight, Settings::maximumReferenceLineHeight);
+    slider->setMinimumWidth(300);
+    slider->setValue(originalHeight);
+    slider->setAccessibleName(dialog.windowTitle());
+    valueLabel->setText(tr("%1% from the top").arg(originalHeight));
+    const auto applyHeight = [this](int percent) {
+        if (d->canvas)
+            d->canvas->setReferenceLineHeight(percent);
+        if (d->previewWidget)
+            d->previewWidget->setReferenceLineHeight(percent);
+    };
+    connect(slider, &QSlider::valueChanged, &dialog, [this, valueLabel, applyHeight](int percent) {
+        valueLabel->setText(tr("%1% from the top").arg(percent));
+        applyHeight(percent);
+    });
+    layout->addWidget(valueLabel, 0, Qt::AlignCenter);
+    layout->addWidget(slider);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+
+    if (dialog.exec() == QDialog::Accepted)
+        Settings::instance().setReferenceLineHeight(slider->value());
+    else
+        applyHeight(originalHeight);
+}
+
 void MainWindow::adjustNoteSoundVolume()
 {
     QDialog dialog(this);

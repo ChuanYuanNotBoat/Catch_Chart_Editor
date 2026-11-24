@@ -121,29 +121,12 @@ void ChartCanvas::setTimeScale(double scale)
     if (qFuzzyCompare(m_timeScale, clampedScale))
         return;
 
-    const double baselineRatio = kReferenceLineRatio;
-    double baselineBeat;
-    if (m_verticalFlip)
-    {
-        baselineBeat = m_scrollBeat + (1.0 - baselineRatio) * effectiveVisibleBeatRange();
-    }
-    else
-    {
-        baselineBeat = m_scrollBeat + baselineRatio * effectiveVisibleBeatRange();
-    }
+    const double baselineBeat = m_scrollBeat + referenceLineBeatOffset();
 
     m_timeScale = clampedScale;
     Settings::instance().setEditorTimeScale(clampedScale);
 
-    if (m_verticalFlip)
-    {
-        m_scrollBeat = baselineBeat - (1.0 - baselineRatio) * effectiveVisibleBeatRange();
-    }
-    else
-    {
-        m_scrollBeat = baselineBeat - baselineRatio * effectiveVisibleBeatRange();
-    }
-    m_scrollBeat = qMax(minimumScrollBeat(), m_scrollBeat);
+    m_scrollBeat = qMax(minimumScrollBeat(), baselineBeat - referenceLineBeatOffset());
 
     invalidateGridCache();
     update();
@@ -402,7 +385,7 @@ void ChartCanvas::onPlaybackFrameTick(double predictedTimeMs, qint64 frameSeq)
         PlaybackStutterProbe::recordCounter("visual.scroll_backtrack_events", 1, true);
 
     const double playheadYPx = yPosFromTime(m_currentPlayTime);
-    const double baselineY = static_cast<double>(height()) * kReferenceLineRatio;
+    const double baselineY = height() * m_referenceLineRatio;
     const double playheadDriftPx = std::abs(playheadYPx - baselineY);
     if (lightProbeSample)
         PlaybackStutterProbe::recordDuration("visual.playhead_drift_px", playheadDriftPx, kVisualPlayheadDriftBudgetPx, true);

@@ -64,6 +64,7 @@ public:
     void setGridSnap(bool snap);
     void setDragGridSnap(bool snap);
     void setScrollPos(double timeMs);
+    void setReferenceLineHeight(int percent);
     void setNoteSize(int size);
     void refreshRenderSettings();
     void setMode(Mode mode);
@@ -195,7 +196,6 @@ private:
     QHash<QString, qreal> m_layerOpacity;
     ChartSpectrumOverlay *m_spectrumOverlay = nullptr;
     static constexpr int kLaneWidth = 512;
-    static constexpr double kReferenceLineRatio = 0.8;
     static constexpr int kScrollSignalIntervalMs = 33;
     static constexpr double kWheelScrollBeatStepRatio = 0.1;
     static constexpr int kSideMarginDivisor = 20;
@@ -391,6 +391,7 @@ private:
     bool m_colorMode;
     bool m_hyperfruitEnabled;
     bool m_verticalFlip;
+    double m_referenceLineRatio;
     int m_timeDivision;
     int m_gridDivision;
     bool m_gridSnap;
