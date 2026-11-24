@@ -53,32 +53,30 @@ void ChartCanvas::playbackPositionChanged(double timeMs)
 
     const bool visualChanged = std::abs(m_currentPlayTime - clampedTimeMs) > kPlaybackVisualEpsilonMs;
     m_currentPlayTime = clampedTimeMs;
-    m_lastNoteSoundTimeMs = clampedTimeMs;
-    m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                                                   m_playableNoteTimesMs.begin(),
-                                                   m_playableNoteTimesMs.end(),
-                                                   m_lastNoteSoundTimeMs) -
-                                               m_playableNoteTimesMs.begin());
     if (visualChanged)
         update();
 }
 
 void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
 {
-    constexpr double kComparisonEpsilonMs = 1e-6;
-
     if (m_timesDirty || m_noteDataDirty)
         rebuildNoteTimesCache();
+
+    // Include the start point once, then scan (last, now] as the clock advances.
+    const double schedulingTimeMs = qMax(0.0, playbackTimeMs);
+    const double previousTimeMs = m_lastNoteSoundTimeMs;
+    const bool includeStart = m_noteSoundStartInclusive;
+    if (schedulingTimeMs > previousTimeMs)
+    {
+        m_lastNoteSoundTimeMs = schedulingTimeMs;
+        m_noteSoundStartInclusive = false;
+    }
 
     if (!m_playbackController ||
         !m_noteSoundPlayer ||
         !m_noteSoundPlayer->isEnabled() ||
-        !m_noteSoundPlayer->hasValidSound() ||
         m_playableNoteTimesMs.isEmpty())
-    {
-        m_lastNoteSoundTimeMs = qMax(0.0, playbackTimeMs);
         return;
-    }
 
     const bool probeEnabled = PlaybackStutterProbe::enabled();
     const double playbackSpeed = m_playbackController->speed();
@@ -110,50 +108,25 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
         m_lastNoteSoundTickNs = tickNowNs;
     }
 
-    // No guessed output-latency compensation: the device's asynchronous
-    // output delay is distinct from submission jitter and clock drift.
-    const double schedulingTimeMs = qMax(0.0, playbackTimeMs);
-
-    if (schedulingTimeMs < m_lastNoteSoundTimeMs - 2.0)
-    {
-        m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                                                       m_playableNoteTimesMs.begin(),
-                                                       m_playableNoteTimesMs.end(),
-                                                       schedulingTimeMs) -
-                                                   m_playableNoteTimesMs.begin());
-    }
+    if (schedulingTimeMs <= previousTimeMs)
+        return;
 
     const qint64 restartsBefore = probeEnabled ? m_noteSoundPlayer->restartCount() : 0;
-    double lastTriggeredTimeMs = -std::numeric_limits<double>::infinity();
-    qint64 uniqueDueNotes = 0;
-    if (schedulingTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs)
-    {
-        const RainVisibilityIndex::IntervalRange dueNotes =
-            m_playableNoteIntervalIndex.overlapping(
-                m_lastNoteSoundTimeMs + kComparisonEpsilonMs,
-                schedulingTimeMs + kComparisonEpsilonMs);
-        for (qsizetype position = dueNotes.begin; position < dueNotes.end; ++position)
-        {
-            const double noteTimeMs = m_playableNoteIntervalIndex.entryAt(position).start;
-            if (noteTimeMs > m_lastNoteSoundTimeMs + kComparisonEpsilonMs &&
-                noteTimeMs > lastTriggeredTimeMs + kComparisonEpsilonMs)
-            {
-                lastTriggeredTimeMs = noteTimeMs;
-                ++uniqueDueNotes;
-            }
-        }
-    }
+    const auto begin = m_playableNoteTimesMs.cbegin();
+    const auto end = m_playableNoteTimesMs.cend();
+    const auto firstDue = includeStart ? std::lower_bound(begin, end, previousTimeMs)
+                                       : std::upper_bound(begin, end, previousTimeMs);
+    const auto afterDue = std::upper_bound(firstDue, end, schedulingTimeMs);
 
-    if (uniqueDueNotes > 0)
+    if (firstDue != afterDue)
     {
         // QSoundEffect has no timestamped scheduling. After a blocked event
         // loop, playing every overdue strike here stacks their attacks at the
         // same instant and steals active voices. Keep the latest audible cue;
         // genuinely distinct on-time wakeups still submit distinct strikes.
-        m_noteSoundPlayer->playHitSound();
-        if (probeEnabled)
+        if (m_noteSoundPlayer->playHitSound() && probeEnabled)
         {
-            const double noteTimeMs = lastTriggeredTimeMs;
+            const double noteTimeMs = *(afterDue - 1);
             // Submission lateness relative to the predicted timeline;
             // this does not measure when the device emits the sample.
             const double overshootMediaMs = schedulingTimeMs - noteTimeMs;
@@ -171,6 +144,12 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
             ++m_noteSoundProbeTriggers;
             if (m_noteSoundProbeQuantMs.size() < kMaxNoteSoundProbeSamples)
                 m_noteSoundProbeQuantMs.append(quantizationWallMs);
+            qint64 uniqueDueNotes = 1;
+            for (auto note = firstDue + 1; note != afterDue; ++note)
+            {
+                if (*note != *(note - 1))
+                    ++uniqueDueNotes;
+            }
             if (uniqueDueNotes > 1)
                 PlaybackStutterProbe::recordCounter("note_sound.coalesced_overdue", uniqueDueNotes - 1, true);
         }
@@ -187,14 +166,6 @@ void ChartCanvas::advanceNoteSoundClock(double playbackTimeMs)
             m_noteSoundProbeRestarts += restartDelta;
         }
     }
-
-    m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                                                   m_playableNoteTimesMs.begin(),
-                                                   m_playableNoteTimesMs.end(),
-                                                   schedulingTimeMs) -
-                                               m_playableNoteTimesMs.begin());
-
-    m_lastNoteSoundTimeMs = schedulingTimeMs;
 }
 
 void ChartCanvas::resetNoteSoundProbeStats()

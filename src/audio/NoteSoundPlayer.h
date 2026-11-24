@@ -12,14 +12,13 @@ class NoteSoundPlayer : public QObject
 public:
     explicit NoteSoundPlayer(QObject *parent = nullptr);
 
-    void playHitSound();
+    bool playHitSound();
     void setSoundFile(const QString &filePath);
     QString soundFile() const;
     void setEnabled(bool enabled);
     bool isEnabled() const { return m_enabled; }
     void setVolumePercent(int volume);
     int volumePercent() const;
-    bool hasValidSound() const;
 
     // Timing probe support: steady-clock timestamp of the last play() call
     // and how often the voice pool had to steal a busy voice.

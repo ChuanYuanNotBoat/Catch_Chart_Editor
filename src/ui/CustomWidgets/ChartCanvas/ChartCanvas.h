@@ -373,7 +373,6 @@ private:
     QVector<int> m_sortedNormalNoteIndicesByBeat;
     QVector<int> m_sortedRainNoteIndicesByBeat;
     RainVisibilityIndex::IntervalIndex m_rainIntervalIndex;
-    RainVisibilityIndex::IntervalIndex m_playableNoteIntervalIndex;
     bool m_noteDataDirty;
     bool m_timesDirty;
     mutable QVector<MathUtils::BpmCacheEntry> m_bpmTimeCache;
@@ -510,8 +509,8 @@ private:
     qint64 m_lastScrollSignalTimeMs;
     NoteSoundPlayer *m_noteSoundPlayer;
     QVector<double> m_playableNoteTimesMs;
-    int m_nextPlayableNoteIndex;
     double m_lastNoteSoundTimeMs;
+    bool m_noteSoundStartInclusive = true;
     QTimer m_noteSoundTimer;
     // Note-sound timing probe stats (accumulated only while the playback
     // probe is enabled; summarized on playback stop/pause).

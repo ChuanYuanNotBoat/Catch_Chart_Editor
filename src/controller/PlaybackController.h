@@ -4,6 +4,7 @@
 #include <QElapsedTimer>
 #include <atomic>
 #include <memory>
+#include <optional>
 #include "audio/AudioPlayer.h"
 
 class DisplayFrameScheduler;
@@ -55,6 +56,7 @@ public:
 signals:
     void loopRangeChanged(double startMs, double endMs, bool enabled);
     void stateChanged(State newState);
+    void playbackStarted(double timeMs);
     void positionChanged(double timeMs);
     void seeked(double timeMs);
     void playbackFrameTick(double predictedTimeMs, qint64 frameSeq);
@@ -73,7 +75,8 @@ private slots:
 private:
     static constexpr double kAudioProgressEpsilonMs = 0.25;
 
-    qint64 clampSeekTargetMs(qint64 timeMs) const;
+    void startPlayback(std::optional<double> requestedStartMs);
+    double clampSeekTargetMs(double timeMs) const;
     void applySeekNow(qint64 targetMs, const char *reason);
     void updateFrameScheduler();
     void dispatchScheduledFrame();
@@ -93,6 +96,7 @@ private:
     double m_speed;
     bool m_noteSoundEnabled;
     bool m_autoPausedAtEnd;
+    std::optional<double> m_pausedSeekTimeMs;
     std::unique_ptr<DisplayFrameScheduler> m_frameScheduler;
     int m_originalUiThreadPriority;
     bool m_uiPriorityRaised;

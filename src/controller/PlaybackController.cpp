@@ -60,6 +60,10 @@ PlaybackController::PlaybackController(AudioPlayer *audioPlayer, QObject *parent
     connect(m_audioPlayer, &AudioPlayer::positionChanged, this, &PlaybackController::onAudioPositionChanged);
     connect(m_audioPlayer, &AudioPlayer::stateChanged, this, &PlaybackController::onAudioStateChanged);
     connect(m_audioPlayer, &AudioPlayer::errorOccurred, this, &PlaybackController::onAudioError);
+    connect(m_audioPlayer, &AudioPlayer::loadingStateChanged, this, [this](AudioPlayer::LoadingState state) {
+        if (state != AudioPlayer::LoadingState::Loaded)
+            m_pausedSeekTimeMs.reset();
+    });
     connect(m_audioPlayer, &AudioPlayer::playbackLimitReached, this, [this] {
         if (m_state == Playing && m_loopEnabled)
             seekTo(m_loopStartMs);
@@ -114,12 +118,18 @@ PlaybackController::State PlaybackController::state() const
 
 void PlaybackController::play()
 {
+    startPlayback(m_pausedSeekTimeMs);
+}
+
+void PlaybackController::startPlayback(std::optional<double> requestedStartMs)
+{
     if (m_state == Stopped || m_state == Paused)
     {
         if (m_autoPausedAtEnd)
         {
             m_audioPlayer->setAdjustedPosition(0);
             m_autoPausedAtEnd = false;
+            requestedStartMs.reset();
             emit positionChanged(static_cast<double>(m_audioPlayer->adjustedPosition()));
             Logger::info("PlaybackController::play - Restarting from beginning after end-of-media auto pause");
         }
@@ -134,6 +144,8 @@ void PlaybackController::play()
             emit errorOccurred(errorMsg);
             return;
         }
+        const double startTimeMs = requestedStartMs.value_or(qMax(0.0, m_audioPlayer->outputTime()));
+        m_pausedSeekTimeMs.reset();
         m_audioPlayer->play();
         m_state = Playing;
         m_frameSeq = 0;
@@ -155,6 +167,7 @@ void PlaybackController::play()
         m_frameScheduler->setActive(true);
         Logger::debug(QString("PlaybackController::play - Playing from position %1ms").arg(m_audioPlayer->position()));
         PlaybackStutterProbe::markPlaybackState(true);
+        emit playbackStarted(startTimeMs);
         emit stateChanged(m_state);
     }
     else
@@ -177,9 +190,9 @@ void PlaybackController::playFromTime(double timeMs)
         Logger::info("PlaybackController::playFromTime - End-of-media replay requested, forcing restart from 0ms");
     }
 
-    const qint64 targetMs = clampSeekTargetMs(static_cast<qint64>(qRound64(timeMs)));
-    applySeekNow(targetMs, "playFromTime");
-    play();
+    const double targetMs = clampSeekTargetMs(timeMs);
+    applySeekNow(qRound64(targetMs), "playFromTime");
+    startPlayback(targetMs);
 }
 
 void PlaybackController::pause()
@@ -207,6 +220,7 @@ void PlaybackController::pause()
 
 void PlaybackController::stop()
 {
+    m_pausedSeekTimeMs.reset();
     if (m_state != Stopped)
     {
         m_autoPausedAtEnd = false;
@@ -338,7 +352,10 @@ double PlaybackController::effectiveFrameRate() const
 void PlaybackController::seekTo(double timeMs)
 {
     m_autoPausedAtEnd = false;
-    const qint64 targetMs = clampSeekTargetMs(static_cast<qint64>(qRound64(timeMs)));
+    const double requestedMs = clampSeekTargetMs(timeMs);
+    if (m_state != Playing)
+        m_pausedSeekTimeMs = requestedMs;
+    const qint64 targetMs = qRound64(requestedMs);
     const qint64 nowNs = m_frameClock.nsecsElapsed();
     m_frameRateCorrection = 0.0;
     resetFrameAnchor(static_cast<double>(targetMs), nowNs);
@@ -346,7 +363,7 @@ void PlaybackController::seekTo(double timeMs)
     m_awaitingInitialAudioProgress = (m_state == Playing);
     m_audioProgressStartMs = static_cast<double>(targetMs);
     applySeekNow(targetMs, "direct");
-    emit seeked(static_cast<double>(targetMs));
+    emit seeked(requestedMs);
     emit positionChanged(static_cast<double>(targetMs));
 }
 
@@ -536,22 +553,22 @@ void PlaybackController::onAudioError(const QString &error)
     emit errorOccurred(error);
 }
 
-qint64 PlaybackController::clampSeekTargetMs(qint64 timeMs) const
+double PlaybackController::clampSeekTargetMs(double timeMs) const
 {
-    qint64 clamped = qMax<qint64>(0, timeMs);
+    double clamped = qMax(0.0, timeMs);
     if (!m_audioPlayer)
         return clamped;
     const qint64 duration = m_audioPlayer->duration();
     if (duration > 0)
-        clamped = qBound<qint64>(0, clamped, duration);
+        clamped = qMin(clamped, static_cast<double>(duration));
     return clamped;
 }
 
 void PlaybackController::applySeekNow(qint64 targetMs, const char *reason)
 {
-    const qint64 clampedMs = clampSeekTargetMs(targetMs);
+    const qint64 clampedMs = qRound64(clampSeekTargetMs(targetMs));
     const qint64 currentMs = m_audioPlayer
-                                 ? clampSeekTargetMs(m_audioPlayer->adjustedPosition())
+                                 ? qRound64(clampSeekTargetMs(m_audioPlayer->adjustedPosition()))
                                  : clampedMs;
     if (qAbs(clampedMs - currentMs) <= kSeekSameValueThresholdMs)
         return;

@@ -355,6 +355,111 @@ private slots:
         playback.stop();
     }
 
+    void noteAtPlaybackStartAfterChangingSpeed_data()
+    {
+        QTest::addColumn<int>("numerator");
+        QTest::addColumn<double>("startMs");
+        QTest::newRow("whole-millisecond") << 0 << 500.0;
+        QTest::newRow("fractional-millisecond") << 999 << 999.5;
+    }
+
+    void noteAtPlaybackStartAfterChangingSpeed()
+    {
+        if (QMediaDevices::defaultAudioOutput().isNull())
+            QSKIP("No audio output device");
+        QFETCH(int, numerator);
+        QFETCH(double, startMs);
+        AudioPlayer audio;
+        audio.setAudioCorrectionEnabled(false);
+        audio.setMuted(true);
+        PlaybackController playback(&audio);
+        Chart chart = chartWithNotes();
+        chart.notes().clear();
+        chart.addNote(Note(1, numerator, 1000, 256));
+        ChartController charts;
+        QVERIFY(charts.loadChartFromData(m_temp.filePath("rate-start.mc"), chart));
+        ChartCanvas canvas;
+        canvas.setChartController(&charts);
+        canvas.setPlaybackController(&playback);
+        canvas.setNoteSoundFile(m_hit);
+        canvas.setNoteSoundEnabled(true);
+        auto *sounds = canvas.findChild<NoteSoundPlayer *>();
+        for (auto *voice : sounds->findChildren<QSoundEffect *>())
+            QTRY_VERIFY_WITH_TIMEOUT(voice->isLoaded(), 5000);
+        QSignalSpy hits(sounds, &NoteSoundPlayer::hitSoundTriggered);
+        QVERIFY(audio.load(m_music));
+        QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
+        playback.setSpeed(2.0);
+        playback.playFromTime(startMs);
+        QTRY_COMPARE_WITH_TIMEOUT(hits.size(), 1, 1000);
+        playback.seekTo(startMs);
+        QTRY_COMPARE_WITH_TIMEOUT(hits.size(), 2, 1000);
+        playback.pause();
+
+        // The navigation panel resumes via play() after a paused seek.
+        playback.seekTo(startMs);
+        playback.setSpeed(1.5);
+        playback.play();
+        QTRY_COMPARE_WITH_TIMEOUT(hits.size(), 3, 1000);
+        playback.pause();
+    }
+
+    void noteSoundChoosesLoadedVoice()
+    {
+        if (QMediaDevices::defaultAudioOutput().isNull())
+            QSKIP("No audio output device");
+        NoteSoundPlayer sounds;
+        sounds.setSoundFile(m_hit);
+        sounds.setEnabled(true);
+        const auto voices = sounds.findChildren<QSoundEffect *>();
+        QVERIFY(voices.size() > 1);
+        for (auto *voice : voices)
+            QTRY_VERIFY_WITH_TIMEOUT(voice->isLoaded(), 5000);
+
+        QSignalSpy hits(&sounds, &NoteSoundPlayer::hitSoundTriggered);
+        voices.first()->setSource(QUrl());
+        QVERIFY(sounds.playHitSound());
+        QVERIFY(voices[1]->isPlaying());
+        QCOMPARE(hits.size(), 1);
+
+        sounds.setSoundFile({});
+        QVERIFY(!sounds.playHitSound());
+        QCOMPARE(hits.size(), 1);
+    }
+
+    void notesContinueAcrossLiveSpeedChanges()
+    {
+        if (QMediaDevices::defaultAudioOutput().isNull())
+            QSKIP("No audio output device");
+        AudioPlayer audio;
+        audio.setAudioCorrectionEnabled(false);
+        audio.setMuted(true);
+        PlaybackController playback(&audio);
+        ChartController charts;
+        QVERIFY(charts.loadChartFromData(m_temp.filePath("rate-playing.mc"), chartWithNotes()));
+        ChartCanvas canvas;
+        canvas.setChartController(&charts);
+        canvas.setPlaybackController(&playback);
+        canvas.setNoteSoundFile(m_hit);
+        canvas.setNoteSoundEnabled(true);
+        auto *sounds = canvas.findChild<NoteSoundPlayer *>();
+        for (auto *voice : sounds->findChildren<QSoundEffect *>())
+            QTRY_VERIFY_WITH_TIMEOUT(voice->isLoaded(), 5000);
+        QSignalSpy hits(sounds, &NoteSoundPlayer::hitSoundTriggered);
+        QVERIFY(audio.load(m_music));
+        QTRY_VERIFY_WITH_TIMEOUT(audio.canPlay(), 6000);
+        playback.playFromTime(0.0);
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= 440, 1500);
+        playback.setSpeed(2.0);
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= 1140, 1500);
+        playback.setSpeed(0.5);
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= 1540, 2000);
+        playback.setSpeed(1.5);
+        QTRY_VERIFY_WITH_TIMEOUT(playback.currentTime() >= 3120, 2000);
+        playback.pause();
+        QCOMPARE(hits.size(), 30);
+    }
+
     void overdueDenseNotesDoNotStackOnRecovery()
     {
         if (QMediaDevices::defaultAudioOutput().isNull()) QSKIP("No audio output device");

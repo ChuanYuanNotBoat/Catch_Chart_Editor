@@ -21,38 +21,44 @@ NoteSoundPlayer::NoteSoundPlayer(QObject *parent)
     setVolumePercent(100);
 }
 
-void NoteSoundPlayer::playHitSound()
+bool NoteSoundPlayer::playHitSound()
 {
-    if (!m_enabled || !hasValidSound())
-        return;
+    if (!m_enabled)
+        return false;
 
     // Rotate through preloaded voices. Reusing one QSoundEffect requires a
     // stop/play round trip and either delays or drops dense note sounds.
-    QSoundEffect *voice = nullptr;
+    int selected = -1;
     for (int i = 0; i < m_voices.size(); ++i)
     {
         const int candidate = (m_nextVoice + i) % m_voices.size();
+        if (!m_voices[candidate]->isLoaded())
+            continue;
+        if (selected < 0)
+            selected = candidate;
         if (!m_voices[candidate]->isPlaying())
         {
-            voice = m_voices[candidate];
-            m_nextVoice = (candidate + 1) % m_voices.size();
+            selected = candidate;
             break;
         }
     }
+    if (selected < 0)
+        return false;
 
-    if (!voice)
+    auto *voice = m_voices[selected];
+    if (voice->isPlaying())
     {
-        voice = m_voices[m_nextVoice];
         voice->stop();
         ++m_restartCount;
-        m_nextVoice = (m_nextVoice + 1) % m_voices.size();
     }
+    m_nextVoice = (selected + 1) % m_voices.size();
     voice->play();
     m_lastPlaySteadyNs = static_cast<qint64>(
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::steady_clock::now().time_since_epoch())
             .count());
     emit hitSoundTriggered(m_lastPlaySteadyNs);
+    return true;
 }
 
 void NoteSoundPlayer::setSoundFile(const QString &filePath)
@@ -95,9 +101,4 @@ void NoteSoundPlayer::setVolumePercent(int volume)
 int NoteSoundPlayer::volumePercent() const
 {
     return m_voices.isEmpty() ? 0 : qRound(m_voices.constFirst()->volume() * 100.0);
-}
-
-bool NoteSoundPlayer::hasValidSound() const
-{
-    return !m_voices.isEmpty() && !m_voices.constFirst()->source().isEmpty();
 }

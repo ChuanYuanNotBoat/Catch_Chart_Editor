@@ -120,7 +120,6 @@ ChartCanvas::ChartCanvas(QWidget *parent)
     m_pasteBaseOriginalTimeMs((std::numeric_limits<double>::max)()),
       m_lastScrollSignalTimeMs(0),
       m_noteSoundPlayer(nullptr),
-      m_nextPlayableNoteIndex(0),
       m_lastNoteSoundTimeMs(0.0),
       m_gridCacheStartBeat(0.0),
       m_gridCacheEndBeat(0.0),
@@ -284,9 +283,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
         m_rainIntervalIndex.clear();
-        m_playableNoteIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
-        m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
         m_noteDataDirty = false;
         return;
@@ -320,9 +317,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
         m_rainIntervalIndex.clear();
-        m_playableNoteIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
-        m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
         m_noteDataDirty = false;
         return;
@@ -339,9 +334,7 @@ void ChartCanvas::rebuildNoteTimesCache()
         m_sortedNormalNoteIndicesByBeat.clear();
         m_sortedRainNoteIndicesByBeat.clear();
         m_rainIntervalIndex.clear();
-        m_playableNoteIntervalIndex.clear();
         m_playableNoteTimesMs.clear();
-        m_nextPlayableNoteIndex = 0;
         m_timesDirty = false;
         m_noteDataDirty = false;
         return;
@@ -357,8 +350,6 @@ void ChartCanvas::rebuildNoteTimesCache()
     m_sortedRainNoteIndicesByBeat.clear();
     m_sortedNormalNoteIndicesByBeat.reserve(N);
     m_sortedRainNoteIndicesByBeat.reserve(N);
-    QVector<int> playableNoteIndices;
-    playableNoteIndices.reserve(N);
     m_playableNoteTimesMs.clear();
     m_playableNoteTimesMs.reserve(N);
 
@@ -377,7 +368,6 @@ void ChartCanvas::rebuildNoteTimesCache()
         double beat = MathUtils::beatToFloat(note.beatNum, note.numerator, note.denominator);
         m_noteBeatPositions[i] = beat;
         m_noteTimesMs[i] = MathUtils::beatToMs(note.beatNum, note.numerator, note.denominator, bpmCache);
-        playableNoteIndices.append(i);
         m_playableNoteTimesMs.append(m_noteTimesMs[i]);
         if (note.type == NoteType::RAIN)
         {
@@ -407,15 +397,7 @@ void ChartCanvas::rebuildNoteTimesCache()
               });
     m_rainIntervalIndex.build(
         m_sortedRainNoteIndicesByBeat, m_noteBeatPositions, m_noteEndBeatPositions);
-    m_playableNoteIntervalIndex.build(
-        playableNoteIndices, m_noteTimesMs, m_noteTimesMs);
-
     std::sort(m_playableNoteTimesMs.begin(), m_playableNoteTimesMs.end());
-    m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                                                   m_playableNoteTimesMs.begin(),
-                                                   m_playableNoteTimesMs.end(),
-                                                   m_lastNoteSoundTimeMs) -
-                                               m_playableNoteTimesMs.begin());
 
     m_timesDirty = false;
     m_noteDataDirty = false;
@@ -491,6 +473,7 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
         disconnect(m_playbackController, &PlaybackController::positionChanged, this, &ChartCanvas::playbackPositionChanged);
         disconnect(m_playbackController, &PlaybackController::playbackFrameTick, this, &ChartCanvas::onPlaybackFrameTick);
         disconnect(m_playbackController, &PlaybackController::stateChanged, this, nullptr);
+        disconnect(m_playbackController, &PlaybackController::playbackStarted, this, nullptr);
         disconnect(m_playbackController, &PlaybackController::loopRangeChanged, this, nullptr);
         disconnect(m_playbackController, &PlaybackController::seeked, this, nullptr);
     }
@@ -502,10 +485,12 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
     if (m_playbackController)
     {
         connect(m_playbackController, &PlaybackController::loopRangeChanged, this, [this] { update(); });
-        connect(m_playbackController, &PlaybackController::seeked, this, [this](double timeMs) {
-            // A discontinuity is navigation, not a range of notes to catch up.
+        const auto resetNoteSoundCursor = [this](double timeMs) {
             m_lastNoteSoundTimeMs = qMax(0.0, timeMs);
-        });
+            m_noteSoundStartInclusive = true;
+        };
+        connect(m_playbackController, &PlaybackController::seeked, this, resetNoteSoundCursor);
+        connect(m_playbackController, &PlaybackController::playbackStarted, this, resetNoteSoundCursor);
         attachDisplayFrameWindow();
         if (m_displayFrameScreen)
             m_playbackController->setDisplayRefreshRate(m_displayFrameScreen->refreshRate());
@@ -532,13 +517,8 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 m_lastPaintScrollVelocityPxPerSecond = -1.0;
                 const double startMs = m_playbackController ? m_playbackController->currentTime() : m_currentPlayTime;
                 m_currentPlayTime = qMax(0.0, startMs);
-                m_lastNoteSoundTimeMs = m_currentPlayTime;
                 resetNoteSoundProbeStats();
                 m_noteSoundTimer.start();
-                m_nextPlayableNoteIndex = static_cast<int>(std::lower_bound(
-                    m_playableNoteTimesMs.begin(),
-                    m_playableNoteTimesMs.end(),
-                    m_lastNoteSoundTimeMs) - m_playableNoteTimesMs.begin());
                 requestNextFrame();
             } else {
                 m_isPlaying = false;
@@ -555,7 +535,6 @@ void ChartCanvas::setPlaybackController(PlaybackController *controller)
                 m_paintMotionProbeValid = false;
                 m_lastPaintScrollBeat = 0.0;
                 m_lastPaintScrollVelocityPxPerSecond = -1.0;
-                m_lastNoteSoundTimeMs = m_currentPlayTime;
                 logNoteSoundProbeSummary();
                 snapPlayheadToGrid();
                 update();
